@@ -93,6 +93,7 @@ For each vertex at height v (0-1) and angle t (0-360):
 5. **Top shape offsets** — `mesh-generator.ts:58-59` only uses bottomParams offsets for center position. Same as OpenSCAD behavior. Could be improved to blend offsets during morph.
 
 ## Recently Completed
+- **Save/Load design** — Save design as JSON file (user picks filename), Load merges onto DEFAULT_PARAMETERS for forward-compatibility with future features. Removed Reset button (redundant with "Simple Vase" preset).
 - **Custom Twist curve editor** — Replaced fixed-count twist sliders with interactive BezierCurveEditor. Drag points to set twist degrees at each height. Add/remove points with double-click/right-click.
 - **XY Sway curve editors** — New sidebar section with two BezierCurveEditors (X and Y offset) plus Scale X/Y sliders. Uses adapter functions to bridge `[x,y][]` engine format with the curve editor's `BezierPoint[]` format.
 - **Bezier profile curve editor** — Interactive SVG widget in sidebar. Drag control points, double-click to add (max 8), right-click to remove. Reusable component for future twist/offset editors.

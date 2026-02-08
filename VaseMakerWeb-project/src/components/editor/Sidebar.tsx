@@ -1,18 +1,55 @@
 'use client';
 
+import { useRef } from 'react';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
 import { BUILT_IN_PRESETS } from '@/presets';
 import { downloadSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
+import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 
 export function Sidebar() {
-  const { loadPreset, resetToDefaults, getParams } = useVaseStore();
+  const { loadPreset, getParams } = useVaseStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExportSTL = () => {
     const params = getParams();
     const mesh = generateMesh(params, true); // export resolution
     downloadSTL(mesh, 'vasemaker-export.stl');
+  };
+
+  const handleSaveDesign = () => {
+    const params = getParams();
+    const json = JSON.stringify(params, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'vase-design.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoadDesign = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const loaded = JSON.parse(reader.result as string);
+        const params = { ...DEFAULT_PARAMETERS, ...loaded };
+        useVaseStore.setState({ params });
+      } catch {
+        alert('Invalid design file.');
+      }
+    };
+    reader.readAsText(file);
+    // Reset so the same file can be loaded again
+    e.target.value = '';
   };
 
   return (
@@ -39,12 +76,26 @@ export function Sidebar() {
           ))}
         </select>
         <button
-          onClick={resetToDefaults}
+          onClick={handleSaveDesign}
           className="px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
-          title="Reset to defaults"
+          title="Save design as JSON"
         >
-          Reset
+          Save
         </button>
+        <button
+          onClick={handleLoadDesign}
+          className="px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
+          title="Load design from JSON"
+        >
+          Load
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleFileSelected}
+          className="hidden"
+        />
       </div>
 
       {/* Parameter controls — scrollable */}
