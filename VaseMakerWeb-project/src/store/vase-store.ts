@@ -20,6 +20,8 @@ interface VaseStore {
   // Actions — profile
   setProfileEnabled: (enabled: boolean) => void;
   setProfilePoint: (index: number, point: BezierPoint) => void;
+  addProfilePoint: (point: BezierPoint) => void;
+  removeProfilePoint: (index: number) => void;
 
   // Actions — shapes
   setBottomShape: (shape: ShapeType) => void;
@@ -76,6 +78,27 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     set((state) => {
       const points = [...state.params.profilePoints];
       points[index] = point;
+      return { params: { ...state.params, profilePoints: points } };
+    }),
+  addProfilePoint: (point) =>
+    set((state) => {
+      const points = [...state.params.profilePoints];
+      if (points.length >= 8) return state; // max 8 control points
+      // Insert sorted by height fraction (index 1)
+      const insertIdx = points.findIndex(p => p[1] > point[1]);
+      if (insertIdx === -1) {
+        points.push(point);
+      } else {
+        points.splice(insertIdx, 0, point);
+      }
+      return { params: { ...state.params, profilePoints: points } };
+    }),
+  removeProfilePoint: (index) =>
+    set((state) => {
+      const points = [...state.params.profilePoints];
+      if (points.length <= 2) return state; // min 2 control points
+      if (index === 0 || index === points.length - 1) return state; // keep endpoints
+      points.splice(index, 1);
       return { params: { ...state.params, profilePoints: points } };
     }),
 

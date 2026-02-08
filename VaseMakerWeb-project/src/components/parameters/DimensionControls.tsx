@@ -7,6 +7,7 @@ import {
   DIMENSIONS, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
   SINE_TWIST, VERTICAL_SMOOTHING, RADIAL_SMOOTHING,
 } from '@/config/shape-params';
+import { BezierCurveEditor } from './BezierCurveEditor';
 
 /** Reusable slider row */
 function SliderRow({
@@ -126,7 +127,8 @@ function ShapeParamControls({ shape, isTop }: { shape: ShapeType; isTop: boolean
 export function DimensionControls() {
   const params = useVaseStore((s) => s.params);
   const {
-    setRadius, setHeight, setBottomShape, setTopShape, setMorphEnabled,
+    setRadius, setHeight, setProfileEnabled, setProfilePoint, addProfilePoint, removeProfilePoint,
+    setBottomShape, setTopShape, setMorphEnabled,
     setRadialRipple, setVerticalRipple, setBezierTwist, setSineTwist,
     setVerticalSmoothing, setRadialSmoothing,
   } = useVaseStore();
@@ -136,6 +138,26 @@ export function DimensionControls() {
       <Section title="Dimensions">
         <SliderRow label="Radius" value={params.radius} {...DIMENSIONS.radius} onChange={setRadius} />
         <SliderRow label="Height" value={params.height} {...DIMENSIONS.height} onChange={setHeight} />
+      </Section>
+
+      <Section title="Profile">
+        <Toggle label="Enabled" checked={params.profileEnabled} onChange={setProfileEnabled} />
+        {params.profileEnabled && (
+          <>
+            <BezierCurveEditor
+              points={params.profilePoints}
+              onPointChange={setProfilePoint}
+              onPointAdd={addProfilePoint}
+              onPointRemove={removeProfilePoint}
+              xRange={[0, 3]}
+              yRange={[0, 1]}
+              xLabel="Radius Multiplier"
+            />
+            <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
+              Double-click to add. Right-click to remove.
+            </div>
+          </>
+        )}
       </Section>
 
       <Section title="Shape">
