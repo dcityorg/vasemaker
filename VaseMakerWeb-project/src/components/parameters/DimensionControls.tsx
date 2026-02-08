@@ -4,7 +4,7 @@ import { useVaseStore } from '@/store/vase-store';
 import type { ShapeType } from '@/engine/types';
 import {
   SHAPE_OPTIONS, SHAPE_PARAM_CONFIG, UNIVERSAL_PARAMS,
-  DIMENSIONS, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
+  DIMENSIONS, SHELL, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
   SINE_TWIST, VERTICAL_SMOOTHING, RADIAL_SMOOTHING, BEZIER_OFFSET,
 } from '@/config/shape-params';
 import type { BezierPoint } from '@/engine/types';
@@ -145,6 +145,7 @@ export function DimensionControls() {
     setVerticalSmoothing, setRadialSmoothing,
     setBezierOffset, setBezierOffsetPointX, setBezierOffsetPointY,
     addBezierOffsetPoint, removeBezierOffsetPoint,
+    setWallThickness, setBottomThickness, setRimShape,
   } = useVaseStore();
 
   return (
@@ -152,6 +153,30 @@ export function DimensionControls() {
       <Section title="Dimensions">
         <SliderRow label="Radius" value={params.radius} {...DIMENSIONS.radius} onChange={setRadius} />
         <SliderRow label="Height" value={params.height} {...DIMENSIONS.height} onChange={setHeight} />
+      </Section>
+
+      <Section title="Shell">
+        <SliderRow label="Wall" value={params.wallThickness} {...SHELL.wallThickness} onChange={setWallThickness} />
+        <SliderRow label="Base" value={params.bottomThickness} {...SHELL.bottomThickness} onChange={setBottomThickness} />
+        {params.wallThickness > 0 && (
+          <div className="flex items-center gap-3 mb-2">
+            <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Rim</label>
+            <div className="flex gap-3">
+              {(['flat', 'rounded'] as const).map((shape) => (
+                <label key={shape} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
+                  <input
+                    type="radio"
+                    name="rimShape"
+                    checked={params.rimShape === shape}
+                    onChange={() => setRimShape(shape)}
+                    className="accent-[var(--accent)]"
+                  />
+                  {shape.charAt(0).toUpperCase() + shape.slice(1)}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
       </Section>
 
       <Section title="Profile">

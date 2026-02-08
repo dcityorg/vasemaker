@@ -83,7 +83,10 @@ For each vertex at height v (0-1) and angle t (0-360):
 3. Multiply by Bezier profile radius at this height
 4. Add radial ripple * vertical smoothing * radial smoothing
 5. Add vertical ripple * vertical smoothing * radial smoothing
-6. Convert polar → cartesian, add XY offset, apply Bezier twist rotation
+6. Apply radial offset (−wallThickness for inner surface, clamped to MIN_INNER_RADIUS)
+7. Convert polar → cartesian, add XY offset, apply Bezier twist rotation
+
+When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface (reversed winding), bottom cap (two discs + wall strip), and rim (flat quad strip or rounded semicircular arc with RIM_STEPS=5 intermediate rings). Per-row data is precomputed into `RowContext` structs and shared via `computeVertex()` helper.
 
 ## Known Issues & Bugs Fixed
 1. **next.config.ts** — Next.js 14 doesn't support .ts config. Renamed to next.config.mjs.
@@ -93,6 +96,7 @@ For each vertex at height v (0-1) and angle t (0-360):
 5. **Top shape offsets** — `mesh-generator.ts:58-59` only uses bottomParams offsets for center position. Same as OpenSCAD behavior. Could be improved to blend offsets during morph.
 
 ## Recently Completed
+- **Wall thickness, base, and rim** — Full solid shell generation when wallThickness > 0. Outer + inner surfaces, solid base cap (outer disc + inner disc + connecting wall strip), and rim (flat or rounded half-torus). Inner surface uses reversed winding for correct inward normals. Base follows outer shell contour exactly (uses row 0 shape for both discs and inner surface start). Base disc also works when wallThickness = 0 (simple cap). UI: Shell section with Wall/Base sliders (0–5mm) and Flat/Rounded rim radio buttons. Defaults: wall 0.8mm, base 2mm, rounded rim. Config in `SHELL` export in shape-params.ts.
 - **Save/Load design** — Save design as JSON file (user picks filename), Load merges onto DEFAULT_PARAMETERS for forward-compatibility with future features. Removed Reset button (redundant with "Simple Vase" preset).
 - **Custom Twist curve editor** — Replaced fixed-count twist sliders with interactive BezierCurveEditor. Drag points to set twist degrees at each height. Add/remove points with double-click/right-click.
 - **XY Sway curve editors** — New sidebar section with two BezierCurveEditors (X and Y offset) plus Scale X/Y sliders. Uses adapter functions to bridge `[x,y][]` engine format with the curve editor's `BezierPoint[]` format.
@@ -104,15 +108,17 @@ For each vertex at height v (0-1) and angle t (0-360):
 - **Morph offset interpolation** — Top shape offsets now blend with height during morphing
 
 ## What's NOT Implemented Yet (Phase 1 gaps)
-- **Fixed offset controls UI** — Fixed offset has no UI
 - **Resolution controls UI** — No way to change preview/export resolution
-- **Wall thickness / hollow shell** — Types exist, engine doesn't implement it
+- **Wall thickness edge cases** — Very thin walls on complex shapes (e.g. star/rose with deep concavities) may cause inner surface self-intersection despite MIN_INNER_RADIUS clamp
 - **Debouncing** — use-debounce.ts exists but useVaseMesh uses raw useMemo
 - **Viewport features** — Wireframe toggle, color picker, dimension annotations
 - **Component split** — DimensionControls.tsx handles everything; planned to split into ShapeSelector, ProfileEditor, RippleControls, TwistControls, etc.
 - **shadcn/ui** — Not installed; using native HTML inputs
 - **ui-store.ts** — No UI state management yet
 - **Fixed-position XYZ gizmo** — Previous useFrame/scissor approach broke vase rendering. In-scene gizmo at origin works but a fixed-corner overlay needs careful re-implementation.
+
+## Design Decisions
+- **Fixed offset UI skipped** — `fixedOffset` (constant X/Y shift at all heights) exists in the engine but no UI was built. It's redundant now that XY Sway can do the same thing, and there's no practical reason to shift the entire vase off the origin (it should stay centered for 3D printing).
 
 ## Important Notes
 - The drei `Grid` component renders on XZ plane (Y-up) and its shader doesn't support rotation. We use a custom `GroundGrid` component that draws on XY plane (Z-up).

@@ -4,6 +4,7 @@
  */
 
 import type { VaseParameters, ShapeType, ShapeParams } from '@/engine/types';
+import { RESOLUTION } from '@/config/shape-params';
 
 /** Default shape params for each shape type */
 function defaultShapeParams(): Record<ShapeType, ShapeParams> {
@@ -91,9 +92,10 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
     points: [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]],
   },
 
-  previewResolution: { vertical: 60, radial: 120 },
-  exportResolution: { vertical: 120, radial: 180 },
+  previewResolution: { ...RESOLUTION.preview },
+  exportResolution: { ...RESOLUTION.export },
 
-  wallThickness: 0,
-  bottomCap: false,
+  wallThickness: 0.8,
+  bottomThickness: 2,
+  rimShape: 'rounded',
 };

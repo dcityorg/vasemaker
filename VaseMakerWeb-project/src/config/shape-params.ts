@@ -140,6 +140,18 @@ export const RADIAL_SMOOTHING = {
   offsetAngle: { min: -180, max: 180, step: 1 } as SliderRange,
 } as const;
 
+/** Mesh resolution — adjust if preview is sluggish or export looks faceted */
+export const RESOLUTION = {
+  preview: { vertical: 60, radial: 120 },
+  export:  { vertical: 120, radial: 180 },
+} as const;
+
+/** Shell / wall thickness slider ranges */
+export const SHELL = {
+  wallThickness:   { min: 0, max: 5, step: 0.1 } as SliderRange,
+  bottomThickness: { min: 0, max: 5, step: 0.1 } as SliderRange,
+} as const;
+
 /** Bezier offset slider ranges */
 export const BEZIER_OFFSET = {
   scaleX: { min: 0, max: 50, step: 1 } as SliderRange,

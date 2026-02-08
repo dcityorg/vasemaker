@@ -129,8 +129,9 @@ export interface VaseParameters {
   };
 
   // Shell (new — not in OpenSCAD)
-  wallThickness: number;
-  bottomCap: boolean;
+  wallThickness: number;        // mm, 0 = no shell (thin surface)
+  bottomThickness: number;      // mm, 0 = no base
+  rimShape: 'flat' | 'rounded'; // only used when wallThickness > 0
 }
 
 /** Generated mesh data ready for Three.js */

@@ -57,6 +57,11 @@ interface VaseStore {
   addBezierOffsetPoint: (afterIndex: number) => void;
   removeBezierOffsetPoint: (index: number) => void;
 
+  // Actions — shell
+  setWallThickness: (value: number) => void;
+  setBottomThickness: (value: number) => void;
+  setRimShape: (shape: 'flat' | 'rounded') => void;
+
   // Actions — resolution
   setPreviewResolution: (update: Partial<VaseParameters['previewResolution']>) => void;
 
@@ -241,6 +246,14 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
         params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, points } },
       };
     }),
+
+  // Shell
+  setWallThickness: (value) =>
+    set((state) => ({ params: { ...state.params, wallThickness: value } })),
+  setBottomThickness: (value) =>
+    set((state) => ({ params: { ...state.params, bottomThickness: value } })),
+  setRimShape: (shape) =>
+    set((state) => ({ params: { ...state.params, rimShape: shape } })),
 
   // Resolution
   setPreviewResolution: (update) =>
