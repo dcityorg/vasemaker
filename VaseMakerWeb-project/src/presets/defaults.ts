@@ -1,0 +1,99 @@
+/**
+ * Default parameter values for all shapes and vase settings.
+ * These match the defaults from VaseMaker13 A.scad.
+ */
+
+import type { VaseParameters, ShapeType, ShapeParams } from '@/engine/types';
+
+/** Default shape params for each shape type */
+function defaultShapeParams(): Record<ShapeType, ShapeParams> {
+  return {
+    Butterfly1:    { scaleFactor: 0.2,  offsetX: 0,   offsetY: 0 },
+    Cardioid1:     { scaleFactor: 0.7,  offsetX: 0,   offsetY: 17 },
+    Cardioid2:     { scaleFactor: 0.3,  offsetX: 12,  offsetY: 0 },
+    Cardioid3:     { scaleFactor: 0.3,  offsetX: 0,   offsetY: -6 },
+    Circle1:       { scaleFactor: 1,    offsetX: 0,   offsetY: 0 },
+    Diamond1:      { scaleFactor: 1,    offsetX: 0,   offsetY: 0, scaleX: 1, scaleY: 1 },
+    Egg1:          { scaleFactor: 1,    offsetX: 0,   offsetY: -30, width: 2.5 },
+    Egg2:          { scaleFactor: 0.3,  offsetX: 0,   offsetY: 0, a: 0.9, b: 2.4 },
+    Ellipse1:      { scaleFactor: 1,    offsetX: 0,   offsetY: 0, scaleX: 0.6, scaleY: 1.2 },
+    Heart1:        { scaleFactor: 1.7,  offsetX: -12, offsetY: 0 },
+    Infinity1:     { scaleFactor: 1,    offsetX: 0,   offsetY: 0, parameter1: 1.02 },
+    Misc1:         { scaleFactor: 1,    offsetX: 0,   offsetY: 0, a: 3, b: 1 },
+    Polygon1:      { scaleFactor: 1,    offsetX: 0,   offsetY: 0, sides: 5 },
+    Rectangle1:    { scaleFactor: 1,    offsetX: 0,   offsetY: 0, scaleX: 1, scaleY: 1.5 },
+    Rose1:         { scaleFactor: 1,    offsetX: 0,   offsetY: 0, centerSize: 1.5, petalNumber: 4 },
+    Square1:       { scaleFactor: 1,    offsetX: 0,   offsetY: 0 },
+    SuperEllipse1: { scaleFactor: 1,    offsetX: 0,   offsetY: 0, n: 2.8, scaleX: 0.6, scaleY: 1 },
+    SuperFormula1: { scaleFactor: 1,    offsetX: 0,   offsetY: 0, a: 1, b: 1, m: 2, n1: 0.4, n2: 1, n3: 2 },
+  };
+}
+
+/** Default top shape params (same structure, some values differ) */
+function defaultTopShapeParams(): Record<ShapeType, ShapeParams> {
+  return {
+    Butterfly1:    { scaleFactor: 0.2,  offsetX: 0, offsetY: 0 },
+    Cardioid1:     { scaleFactor: 0.7,  offsetX: 0, offsetY: 0 },
+    Cardioid2:     { scaleFactor: 0.3,  offsetX: 0, offsetY: 0 },
+    Cardioid3:     { scaleFactor: 0.3,  offsetX: 0, offsetY: 0 },
+    Circle1:       { scaleFactor: 1,    offsetX: 0, offsetY: 0 },
+    Diamond1:      { scaleFactor: 1,    offsetX: 0, offsetY: 0, scaleX: 1, scaleY: 1 },
+    Egg1:          { scaleFactor: 1,    offsetX: 0, offsetY: 0, width: 2.5 },
+    Egg2:          { scaleFactor: 0.3,  offsetX: 0, offsetY: 0, a: 0.9, b: 2.4 },
+    Ellipse1:      { scaleFactor: 1,    offsetX: 0, offsetY: 0, scaleX: 0.6, scaleY: 1.2 },
+    Heart1:        { scaleFactor: 1.7,  offsetX: 0, offsetY: 0 },
+    Infinity1:     { scaleFactor: 1,    offsetX: 0, offsetY: 0, parameter1: 1.02 },
+    Misc1:         { scaleFactor: 1,    offsetX: 0, offsetY: 0, a: 3, b: 1 },
+    Polygon1:      { scaleFactor: 1,    offsetX: 0, offsetY: 0, sides: 5 },
+    Rectangle1:    { scaleFactor: 1,    offsetX: 0, offsetY: 0, scaleX: 1, scaleY: 1.5 },
+    Rose1:         { scaleFactor: 1,    offsetX: 0, offsetY: 0, centerSize: 1.5, petalNumber: 4 },
+    Square1:       { scaleFactor: 1,    offsetX: 0, offsetY: 0 },
+    SuperEllipse1: { scaleFactor: 1,    offsetX: 0, offsetY: 0, n: 2.8, scaleX: 0.6, scaleY: 1 },
+    SuperFormula1: { scaleFactor: 1,    offsetX: 0, offsetY: 0, a: 1, b: 1, m: 2, n1: 0.4, n2: 1, n3: 2 },
+  };
+}
+
+export const DEFAULT_PARAMETERS: VaseParameters = {
+  radius: 30,
+  height: 100,
+
+  profileEnabled: true,
+  profilePoints: [
+    [1.0, 0],     // bottom
+    [2.4, 0.2],
+    [1.8, 0.4],
+    [1.0, 0.6],
+    [0.6, 0.8],
+    [1.0, 1.0],   // top
+  ],
+
+  bottomShape: 'Circle1',
+  topShape: 'Circle1',
+  morphEnabled: false,
+
+  bottomShapeParams: defaultShapeParams(),
+  topShapeParams: defaultTopShapeParams(),
+
+  radialRipple: { enabled: false, count: 6, depth: 4 },
+  verticalRipple: { enabled: false, count: 20, depth: 1 },
+
+  bezierTwist: { enabled: false, points: [0, 0, 0, 0, 0] },
+  sineTwist: { enabled: false, cycles: 2, maxDegrees: 50 },
+
+  verticalSmoothing: { enabled: false, cycles: 3, startPercent: 0 },
+  radialSmoothing: { enabled: false, cycles: 3, offsetAngle: 0 },
+
+  fixedOffset: { x: 0, y: 0 },
+  bezierOffset: {
+    enabled: false,
+    scaleX: 10,
+    scaleY: 10,
+    points: [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]],
+  },
+
+  previewResolution: { vertical: 60, radial: 120 },
+  exportResolution: { vertical: 120, radial: 180 },
+
+  wallThickness: 0,
+  bottomCap: false,
+};
