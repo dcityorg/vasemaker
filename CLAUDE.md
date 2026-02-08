@@ -34,7 +34,7 @@ VaseMakerWeb-project/src/
 │   └── stl-export.ts    # Binary STL generation + browser download
 ├── components/
 │   ├── editor/Editor.tsx    # Main layout (sidebar + viewport)
-│   ├── editor/Sidebar.tsx   # Preset selector, reset, STL export button
+│   ├── editor/Sidebar.tsx   # Preset selector, save/load, undo/redo, STL export
 │   ├── parameters/DimensionControls.tsx  # ALL parameter UI (sliders, toggles, shape dropdowns)
 │   ├── parameters/BezierCurveEditor.tsx # Reusable SVG curve editor (drag points, double-click add, right-click remove)
 │   └── viewport/
@@ -46,6 +46,7 @@ VaseMakerWeb-project/src/
 │   ├── viewport.ts      # Camera, lighting, grid, axis colors/sizes
 │   └── presets.ts       # Built-in preset definitions (data only)
 ├── store/vase-store.ts  # Zustand store — single source of truth for all params
+│   ├── store/history.ts     # Undo/redo history (debounced, 50-step, separate Zustand store)
 ├── presets/
 │   ├── defaults.ts      # DEFAULT_PARAMETERS with per-shape defaults
 │   └── index.ts         # Preset type, applyPreset(), re-exports from config
@@ -96,7 +97,8 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 5. **Top shape offsets** — `mesh-generator.ts:58-59` only uses bottomParams offsets for center position. Same as OpenSCAD behavior. Could be improved to blend offsets during morph.
 
 ## Recently Completed
-- **Vase color picker** — Appearance section with native color picker. Color saved/loaded with design JSON, so each vase can have its own color. Default color (`#6d9fff`) configured in `APPEARANCE` export in shape-params.ts. Reset button appears when color differs from default. Wired into VaseMesh.tsx `meshStandardMaterial`.
+- **Undo/Redo** — 50-step history with ↶/↷ buttons next to "VaseMaker" title and Cmd+Z/Cmd+Shift+Z keyboard shortcuts. Debounced at 300ms so one slider drag = one undo step. History clears on preset load, reset, and file load. Custom implementation in `src/store/history.ts` using a separate Zustand store (no extra dependencies).
+- **Vase color picker** — Appearance section (first in sidebar) with native color picker and green dot indicator when color differs from default. Color saved/loaded with design JSON, so each vase can have its own color. Default color (`#6d9fff`) configured in `APPEARANCE` export in shape-params.ts. Reset button appears when color differs from default.
 - **Reset buttons & active indicators** — Each toggleable section has a Reset button (visible when enabled) that restores its values to defaults. Green dot on accordion headers shows which features are currently active — visible even when collapsed for quick scanning. Shape section dot indicates morph is on. Dimensions and Shell have no dot (always-on).
 - **Resolution config** — Preview and export resolution values are set in `src/config/shape-params.ts` under `RESOLUTION` (preview: 60v/120r, export: 120v/180r). No UI sliders — edit the config file to change.
 - **Wall thickness, base, and rim** — Full solid shell generation when wallThickness > 0. Outer + inner surfaces, solid base cap (outer disc + inner disc + connecting wall strip), and rim (flat or rounded half-torus). Inner surface uses reversed winding for correct inward normals. Base follows outer shell contour exactly (uses row 0 shape for both discs and inner surface start). Base disc also works when wallThickness = 0 (simple cap). UI: Shell section with Wall/Base sliders (0–5mm) and Flat/Rounded rim radio buttons. Defaults: wall 0.8mm, base 2mm, rounded rim. Config in `SHELL` export in shape-params.ts.

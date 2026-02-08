@@ -1,16 +1,34 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
+import { useHistoryStore, skipNextHistoryRecord } from '@/store/history';
 import { BUILT_IN_PRESETS } from '@/presets';
 import { downloadSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 
 export function Sidebar() {
-  const { loadPreset, getParams } = useVaseStore();
+  const { loadPreset, getParams, undo: doUndo, redo: doRedo } = useVaseStore();
+  const { canUndo, canRedo } = useHistoryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcuts: Cmd+Z / Cmd+Shift+Z
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          doRedo();
+        } else {
+          doUndo();
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [doUndo, doRedo]);
 
   const handleExportSTL = () => {
     const params = getParams();
@@ -42,6 +60,8 @@ export function Sidebar() {
       try {
         const loaded = JSON.parse(reader.result as string);
         const params = { ...DEFAULT_PARAMETERS, ...loaded };
+        skipNextHistoryRecord();
+        useHistoryStore.getState().clear();
         useVaseStore.setState({ params });
       } catch {
         alert('Invalid design file.');
@@ -56,7 +76,25 @@ export function Sidebar() {
     <div className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col">
       {/* Header */}
       <div className="px-4 py-3 border-b border-[var(--border-color)]">
-        <h1 className="text-lg font-semibold text-[var(--text-primary)]">VaseMaker</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-semibold text-[var(--text-primary)] flex-1">VaseMaker</h1>
+          <button
+            onClick={doUndo}
+            disabled={!canUndo}
+            className="text-lg leading-none px-1 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors disabled:opacity-25 disabled:cursor-default"
+            title="Undo (⌘Z)"
+          >
+            ↶
+          </button>
+          <button
+            onClick={doRedo}
+            disabled={!canRedo}
+            className="text-lg leading-none px-1 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors disabled:opacity-25 disabled:cursor-default"
+            title="Redo (⌘⇧Z)"
+          >
+            ↷
+          </button>
+        </div>
         <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer</p>
       </div>
 

@@ -191,6 +191,27 @@ export function DimensionControls() {
 
   return (
     <>
+      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor}>
+        <div className="flex items-center gap-3 mb-2">
+          <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Color</label>
+          <input
+            type="color"
+            value={params.color}
+            onChange={(e) => setColor(e.target.value)}
+            className="w-8 h-8 rounded cursor-pointer border border-[var(--border-color)] bg-transparent p-0"
+          />
+          {params.color !== APPEARANCE.defaultColor && (
+            <button
+              onClick={() => setColor(APPEARANCE.defaultColor)}
+              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors"
+              title="Reset to default color"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      </Section>
+
       <Section title="Dimensions">
         <SliderRow label="Radius" value={params.radius} {...DIMENSIONS.radius} onChange={setRadius} />
         <SliderRow label="Height" value={params.height} {...DIMENSIONS.height} onChange={setHeight} />
@@ -218,27 +239,6 @@ export function DimensionControls() {
             </div>
           </div>
         )}
-      </Section>
-
-      <Section title="Appearance">
-        <div className="flex items-center gap-3 mb-2">
-          <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Color</label>
-          <input
-            type="color"
-            value={params.color}
-            onChange={(e) => setColor(e.target.value)}
-            className="w-8 h-8 rounded cursor-pointer border border-[var(--border-color)] bg-transparent p-0"
-          />
-          {params.color !== APPEARANCE.defaultColor && (
-            <button
-              onClick={() => setColor(APPEARANCE.defaultColor)}
-              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors"
-              title="Reset to default color"
-            >
-              Reset
-            </button>
-          )}
-        </div>
       </Section>
 
       <Section title="Profile" active={params.profileEnabled}>

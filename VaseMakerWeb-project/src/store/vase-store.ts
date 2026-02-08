@@ -8,6 +8,7 @@ import type { VaseParameters, ShapeType, ShapeParams, BezierPoint } from '@/engi
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import type { Preset } from '@/presets';
 import { applyPreset } from '@/presets';
+import { recordChange, skipNextHistoryRecord, undo, redo, useHistoryStore } from './history';
 
 interface VaseStore {
   // The full parameter state
@@ -71,6 +72,10 @@ interface VaseStore {
   // Actions — presets
   loadPreset: (preset: Preset) => void;
   resetToDefaults: () => void;
+
+  // Actions — undo/redo
+  undo: () => void;
+  redo: () => void;
 
   // Actions — get full params (for export)
   getParams: () => VaseParameters;
@@ -269,11 +274,38 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     })),
 
   // Presets
-  loadPreset: (preset) =>
-    set({ params: applyPreset(preset) }),
-  resetToDefaults: () =>
-    set({ params: { ...DEFAULT_PARAMETERS } }),
+  loadPreset: (preset) => {
+    skipNextHistoryRecord();
+    useHistoryStore.getState().clear();
+    set({ params: applyPreset(preset) });
+  },
+  resetToDefaults: () => {
+    skipNextHistoryRecord();
+    useHistoryStore.getState().clear();
+    set({ params: { ...DEFAULT_PARAMETERS } });
+  },
+
+  // Undo/Redo
+  undo: () => {
+    const restored = undo(get().params);
+    if (restored) {
+      skipNextHistoryRecord();
+      set({ params: restored });
+    }
+  },
+  redo: () => {
+    const restored = redo(get().params);
+    if (restored) {
+      skipNextHistoryRecord();
+      set({ params: restored });
+    }
+  },
 
   // Export
   getParams: () => get().params,
 }));
+
+// Subscribe to params changes for undo history
+useVaseStore.subscribe(
+  (state) => recordChange(state.params),
+);
