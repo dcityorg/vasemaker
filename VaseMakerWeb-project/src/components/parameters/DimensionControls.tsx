@@ -2,27 +2,11 @@
 
 import { useVaseStore } from '@/store/vase-store';
 import type { ShapeType } from '@/engine/types';
-
-const SHAPE_OPTIONS: { value: ShapeType; label: string }[] = [
-  { value: 'Circle1', label: 'Circle' },
-  { value: 'Butterfly1', label: 'Butterfly' },
-  { value: 'Cardioid1', label: 'Cardioid (sharp)' },
-  { value: 'Cardioid2', label: 'Cardioid (smooth)' },
-  { value: 'Cardioid3', label: 'Cardioid (offset)' },
-  { value: 'Diamond1', label: 'Diamond' },
-  { value: 'Egg1', label: 'Egg 1' },
-  { value: 'Egg2', label: 'Egg 2' },
-  { value: 'Ellipse1', label: 'Ellipse' },
-  { value: 'Heart1', label: 'Heart' },
-  { value: 'Infinity1', label: 'Infinity' },
-  { value: 'Misc1', label: 'Misc' },
-  { value: 'Polygon1', label: 'Polygon' },
-  { value: 'Rectangle1', label: 'Rectangle' },
-  { value: 'Rose1', label: 'Rose' },
-  { value: 'Square1', label: 'Square' },
-  { value: 'SuperEllipse1', label: 'SuperEllipse' },
-  { value: 'SuperFormula1', label: 'SuperFormula' },
-];
+import {
+  SHAPE_OPTIONS, SHAPE_PARAM_CONFIG, UNIVERSAL_PARAMS,
+  DIMENSIONS, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
+  SINE_TWIST, VERTICAL_SMOOTHING, RADIAL_SMOOTHING,
+} from '@/config/shape-params';
 
 /** Reusable slider row */
 function SliderRow({
@@ -94,6 +78,51 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   );
 }
 
+/** Shape parameter sliders for a specific shape (bottom or top) */
+function ShapeParamControls({ shape, isTop }: { shape: ShapeType; isTop: boolean }) {
+  const shapeParams = useVaseStore((s) =>
+    isTop ? s.params.topShapeParams[shape] : s.params.bottomShapeParams[shape]
+  );
+  const { setBottomShapeParam, setTopShapeParam } = useVaseStore();
+  const setParam = isTop ? setTopShapeParam : setBottomShapeParam;
+  const specificParams = SHAPE_PARAM_CONFIG[shape];
+
+  return (
+    <div className="ml-2 mt-1 mb-2">
+      {specificParams && specificParams.length > 0 && (
+        <div className="mb-2">
+          <div className="text-xs font-medium text-[var(--text-secondary)] mb-1 px-1">Shape Params</div>
+          {specificParams.map((spec) => (
+            <SliderRow
+              key={spec.key}
+              label={spec.label}
+              value={(shapeParams[spec.key] as number) ?? 0}
+              min={spec.min}
+              max={spec.max}
+              step={spec.step}
+              onChange={(v) => setParam(shape, spec.key, v)}
+            />
+          ))}
+        </div>
+      )}
+      <div>
+        <div className="text-xs font-medium text-[var(--text-secondary)] mb-1 px-1">Transform</div>
+        {UNIVERSAL_PARAMS.map((spec) => (
+          <SliderRow
+            key={spec.key}
+            label={spec.label}
+            value={(shapeParams[spec.key] as number) ?? 0}
+            min={spec.min}
+            max={spec.max}
+            step={spec.step}
+            onChange={(v) => setParam(shape, spec.key, v)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function DimensionControls() {
   const params = useVaseStore((s) => s.params);
   const {
@@ -105,8 +134,8 @@ export function DimensionControls() {
   return (
     <>
       <Section title="Dimensions">
-        <SliderRow label="Radius" value={params.radius} min={10} max={100} step={1} onChange={setRadius} />
-        <SliderRow label="Height" value={params.height} min={10} max={300} step={1} onChange={setHeight} />
+        <SliderRow label="Radius" value={params.radius} {...DIMENSIONS.radius} onChange={setRadius} />
+        <SliderRow label="Height" value={params.height} {...DIMENSIONS.height} onChange={setHeight} />
       </Section>
 
       <Section title="Shape">
@@ -123,21 +152,27 @@ export function DimensionControls() {
           </select>
         </div>
 
+        <ShapeParamControls shape={params.bottomShape} isTop={false} />
+
         <Toggle label="Morph" checked={params.morphEnabled} onChange={setMorphEnabled} />
 
         {params.morphEnabled && (
-          <div className="flex items-center gap-3 mb-2">
-            <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Top</label>
-            <select
-              value={params.topShape}
-              onChange={(e) => setTopShape(e.target.value as ShapeType)}
-              className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm text-[var(--text-primary)]"
-            >
-              {SHAPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
+          <>
+            <div className="flex items-center gap-3 mb-2">
+              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Top</label>
+              <select
+                value={params.topShape}
+                onChange={(e) => setTopShape(e.target.value as ShapeType)}
+                className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm text-[var(--text-primary)]"
+              >
+                {SHAPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <ShapeParamControls shape={params.topShape} isTop={true} />
+          </>
         )}
       </Section>
 
@@ -145,8 +180,8 @@ export function DimensionControls() {
         <Toggle label="Enabled" checked={params.radialRipple.enabled} onChange={(v) => setRadialRipple({ enabled: v })} />
         {params.radialRipple.enabled && (
           <>
-            <SliderRow label="Count" value={params.radialRipple.count} min={1} max={60} step={1} onChange={(v) => setRadialRipple({ count: v })} />
-            <SliderRow label="Depth" value={params.radialRipple.depth} min={0} max={20} step={0.1} onChange={(v) => setRadialRipple({ depth: v })} />
+            <SliderRow label="Count" value={params.radialRipple.count} {...RADIAL_RIPPLE.count} onChange={(v) => setRadialRipple({ count: v })} />
+            <SliderRow label="Depth" value={params.radialRipple.depth} {...RADIAL_RIPPLE.depth} onChange={(v) => setRadialRipple({ depth: v })} />
           </>
         )}
       </Section>
@@ -155,8 +190,8 @@ export function DimensionControls() {
         <Toggle label="Enabled" checked={params.verticalRipple.enabled} onChange={(v) => setVerticalRipple({ enabled: v })} />
         {params.verticalRipple.enabled && (
           <>
-            <SliderRow label="Count" value={params.verticalRipple.count} min={1} max={60} step={0.2} onChange={(v) => setVerticalRipple({ count: v })} />
-            <SliderRow label="Depth" value={params.verticalRipple.depth} min={0} max={20} step={0.1} onChange={(v) => setVerticalRipple({ depth: v })} />
+            <SliderRow label="Count" value={params.verticalRipple.count} {...VERTICAL_RIPPLE.count} onChange={(v) => setVerticalRipple({ count: v })} />
+            <SliderRow label="Depth" value={params.verticalRipple.depth} {...VERTICAL_RIPPLE.depth} onChange={(v) => setVerticalRipple({ depth: v })} />
           </>
         )}
       </Section>
@@ -168,9 +203,7 @@ export function DimensionControls() {
             key={i}
             label={i === 0 ? 'Bottom' : i === params.bezierTwist.points.length - 1 ? 'Top' : `${Math.round(i / (params.bezierTwist.points.length - 1) * 100)}%`}
             value={val}
-            min={-180}
-            max={180}
-            step={1}
+            {...BEZIER_TWIST.point}
             onChange={(v) => {
               const points = [...params.bezierTwist.points];
               points[i] = v;
@@ -184,8 +217,8 @@ export function DimensionControls() {
         <Toggle label="Enabled" checked={params.sineTwist.enabled} onChange={(v) => setSineTwist({ enabled: v })} />
         {params.sineTwist.enabled && (
           <>
-            <SliderRow label="Cycles" value={params.sineTwist.cycles} min={0} max={6} step={1} onChange={(v) => setSineTwist({ cycles: v })} />
-            <SliderRow label="Max Deg" value={params.sineTwist.maxDegrees} min={-180} max={180} step={1} onChange={(v) => setSineTwist({ maxDegrees: v })} />
+            <SliderRow label="Cycles" value={params.sineTwist.cycles} {...SINE_TWIST.cycles} onChange={(v) => setSineTwist({ cycles: v })} />
+            <SliderRow label="Max Deg" value={params.sineTwist.maxDegrees} {...SINE_TWIST.maxDegrees} onChange={(v) => setSineTwist({ maxDegrees: v })} />
           </>
         )}
       </Section>
@@ -194,8 +227,8 @@ export function DimensionControls() {
         <Toggle label="Enabled" checked={params.verticalSmoothing.enabled} onChange={(v) => setVerticalSmoothing({ enabled: v })} />
         {params.verticalSmoothing.enabled && (
           <>
-            <SliderRow label="Cycles" value={params.verticalSmoothing.cycles} min={0} max={10} step={1} onChange={(v) => setVerticalSmoothing({ cycles: v })} />
-            <SliderRow label="Start %" value={params.verticalSmoothing.startPercent} min={0} max={100} step={1} onChange={(v) => setVerticalSmoothing({ startPercent: v })} />
+            <SliderRow label="Cycles" value={params.verticalSmoothing.cycles} {...VERTICAL_SMOOTHING.cycles} onChange={(v) => setVerticalSmoothing({ cycles: v })} />
+            <SliderRow label="Start %" value={params.verticalSmoothing.startPercent} {...VERTICAL_SMOOTHING.startPercent} onChange={(v) => setVerticalSmoothing({ startPercent: v })} />
           </>
         )}
       </Section>
@@ -204,8 +237,8 @@ export function DimensionControls() {
         <Toggle label="Enabled" checked={params.radialSmoothing.enabled} onChange={(v) => setRadialSmoothing({ enabled: v })} />
         {params.radialSmoothing.enabled && (
           <>
-            <SliderRow label="Cycles" value={params.radialSmoothing.cycles} min={0} max={10} step={1} onChange={(v) => setRadialSmoothing({ cycles: v })} />
-            <SliderRow label="Offset" value={params.radialSmoothing.offsetAngle} min={-180} max={180} step={1} onChange={(v) => setRadialSmoothing({ offsetAngle: v })} />
+            <SliderRow label="Cycles" value={params.radialSmoothing.cycles} {...RADIAL_SMOOTHING.cycles} onChange={(v) => setRadialSmoothing({ cycles: v })} />
+            <SliderRow label="Offset" value={params.radialSmoothing.offsetAngle} {...RADIAL_SMOOTHING.offsetAngle} onChange={(v) => setRadialSmoothing({ offsetAngle: v })} />
           </>
         )}
       </Section>

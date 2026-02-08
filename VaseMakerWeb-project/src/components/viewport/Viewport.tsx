@@ -4,6 +4,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { VaseMeshComponent } from './VaseMesh';
 import { GroundGrid, AxisRulers, AxisGizmo, AxisLabels } from './SceneHelpers';
+import { CAMERA, ORBIT_CONTROLS, LIGHTING } from '@/config/viewport';
 
 /**
  * 3D viewport — renders the vase in a Three.js scene with orbit controls.
@@ -13,21 +14,21 @@ export function Viewport() {
   return (
     <div className="w-full h-full">
       <Canvas
-        camera={{ position: [80, 80, 120], fov: 50, near: 0.1, far: 2000 }}
+        camera={{ position: CAMERA.position, fov: CAMERA.fov, near: CAMERA.near, far: CAMERA.far }}
         gl={{ antialias: true }}
         onCreated={({ camera, scene }) => {
           camera.up.set(0, 0, 1);
           scene.up.set(0, 0, 1);
-          camera.lookAt(0, 0, 50);
+          camera.lookAt(...CAMERA.target);
         }}
       >
         {/* Lighting */}
-        <ambientLight intensity={0.4} />
+        <ambientLight intensity={LIGHTING.ambient.intensity} />
         <directionalLight
-          position={[100, 150, 100]}
-          intensity={1}
+          position={LIGHTING.main.position}
+          intensity={LIGHTING.main.intensity}
         />
-        <directionalLight position={[-50, 80, -50]} intensity={0.3} />
+        <directionalLight position={LIGHTING.fill.position} intensity={LIGHTING.fill.intensity} />
 
         {/* Ground grid on XY plane at Z=0 */}
         <GroundGrid />
@@ -48,10 +49,10 @@ export function Viewport() {
         <OrbitControls
           makeDefault
           enableDamping
-          dampingFactor={0.1}
-          target={[0, 0, 50]}
-          minDistance={30}
-          maxDistance={500}
+          dampingFactor={ORBIT_CONTROLS.dampingFactor}
+          target={CAMERA.target}
+          minDistance={ORBIT_CONTROLS.minDistance}
+          maxDistance={ORBIT_CONTROLS.maxDistance}
         />
       </Canvas>
     </div>

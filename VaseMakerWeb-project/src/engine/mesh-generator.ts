@@ -54,9 +54,16 @@ export function generateMesh(params: VaseParameters, useExportResolution = false
     const height = profilePoint[1] * params.height;
     const v = height / params.height; // Normalized height 0–1
 
-    // Compute Bezier XY offset at this height
-    let centerX = params.fixedOffset.x + bottomParams.offsetX;
-    let centerY = params.fixedOffset.y + bottomParams.offsetY;
+    // Compute XY offset at this height (interpolate when morphing)
+    let centerX = params.fixedOffset.x;
+    let centerY = params.fixedOffset.y;
+    if (params.morphEnabled) {
+      centerX += bottomParams.offsetX * (1 - v) + topParams.offsetX * v;
+      centerY += bottomParams.offsetY * (1 - v) + topParams.offsetY * v;
+    } else {
+      centerX += bottomParams.offsetX;
+      centerY += bottomParams.offsetY;
+    }
 
     if (params.bezierOffset.enabled && params.bezierOffset.points.length >= 2) {
       const offsetXPoints = params.bezierOffset.points.map(p => p[0]);

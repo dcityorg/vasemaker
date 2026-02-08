@@ -2,22 +2,19 @@
 
 import { useMemo } from 'react';
 import * as THREE from 'three';
+import { GRID, AXIS_RULERS, AXIS_LABELS, AXIS_GIZMO } from '@/config/viewport';
 
 /**
  * Ground grid on the XY plane at Z=0.
  */
-export function GroundGrid({ size = 200, cellSize = 10, sectionSize = 50 }: {
-  size?: number;
-  cellSize?: number;
-  sectionSize?: number;
-}) {
+export function GroundGrid() {
   const { minor, major } = useMemo(() => {
     const minorPos: number[] = [];
     const majorPos: number[] = [];
-    const half = size / 2;
+    const half = GRID.size / 2;
 
-    for (let v = -half; v <= half + 0.001; v += cellSize) {
-      const isMajor = Math.abs(v % sectionSize) < 0.001;
+    for (let v = -half; v <= half + 0.001; v += GRID.cellSize) {
+      const isMajor = Math.abs(v % GRID.sectionSize) < 0.001;
       const arr = isMajor ? majorPos : minorPos;
       // Line parallel to X at this Y
       arr.push(-half, v, 0, half, v, 0);
@@ -30,15 +27,15 @@ export function GroundGrid({ size = 200, cellSize = 10, sectionSize = 50 }: {
     const majorGeo = new THREE.BufferGeometry();
     majorGeo.setAttribute('position', new THREE.Float32BufferAttribute(majorPos, 3));
     return { minor: minorGeo, major: majorGeo };
-  }, [size, cellSize, sectionSize]);
+  }, []);
 
   return (
     <group>
       <lineSegments geometry={minor}>
-        <lineBasicMaterial color="#282828" />
+        <lineBasicMaterial color={GRID.minorColor} />
       </lineSegments>
       <lineSegments geometry={major}>
-        <lineBasicMaterial color="#3a3a3a" />
+        <lineBasicMaterial color={GRID.majorColor} />
       </lineSegments>
     </group>
   );
@@ -48,25 +45,21 @@ export function GroundGrid({ size = 200, cellSize = 10, sectionSize = 50 }: {
  * Axis rulers with tick marks along X, Y, Z.
  * Pure geometry — no Html overlays.
  */
-export function AxisRulers({ length = 200, tickSpacing = 10 }: {
-  length?: number;
-  tickSpacing?: number;
-}) {
+export function AxisRulers() {
   const axes = useMemo(() => {
     const result: { geometry: THREE.BufferGeometry; color: string }[] = [];
 
     const configs: { axis: 'x' | 'y' | 'z'; color: string }[] = [
-      { axis: 'x', color: '#ff4444' },
-      { axis: 'y', color: '#44ff44' },
-      { axis: 'z', color: '#4488ff' },
+      { axis: 'x', color: AXIS_RULERS.colors.x },
+      { axis: 'y', color: AXIS_RULERS.colors.y },
+      { axis: 'z', color: AXIS_RULERS.colors.z },
     ];
 
     for (const { axis, color } of configs) {
       const positions: number[] = [];
-      const tickSize = 2;
-      const half = length / 2;
+      const half = AXIS_RULERS.length / 2;
       const start = axis === 'z' ? 0 : -half;
-      const end = axis === 'z' ? length : half;
+      const end = axis === 'z' ? AXIS_RULERS.length : half;
 
       // Main axis line
       if (axis === 'x') positions.push(start, 0, 0, end, 0, 0);
@@ -74,10 +67,10 @@ export function AxisRulers({ length = 200, tickSpacing = 10 }: {
       else positions.push(0, 0, start, 0, 0, end);
 
       // Tick marks
-      for (let v = start; v <= end + 0.001; v += tickSpacing) {
+      for (let v = start; v <= end + 0.001; v += AXIS_RULERS.tickSpacing) {
         if (Math.abs(v) < 0.001) continue;
-        const isMajor = Math.abs(v % (tickSpacing * 5)) < 0.001;
-        const sz = isMajor ? tickSize * 2 : tickSize;
+        const isMajor = Math.abs(v % (AXIS_RULERS.tickSpacing * 5)) < 0.001;
+        const sz = isMajor ? AXIS_RULERS.tickSize * AXIS_RULERS.majorTickMultiplier : AXIS_RULERS.tickSize;
 
         if (axis === 'x') positions.push(v, 0, -sz, v, 0, sz);
         else if (axis === 'y') positions.push(0, v, -sz, 0, v, sz);
@@ -90,13 +83,13 @@ export function AxisRulers({ length = 200, tickSpacing = 10 }: {
     }
 
     return result;
-  }, [length, tickSpacing]);
+  }, []);
 
   return (
     <group>
       {axes.map(({ geometry, color }, i) => (
         <lineSegments key={i} geometry={geometry}>
-          <lineBasicMaterial color={color} transparent opacity={0.4} />
+          <lineBasicMaterial color={color} transparent opacity={AXIS_RULERS.opacity} />
         </lineSegments>
       ))}
     </group>
@@ -107,34 +100,30 @@ export function AxisRulers({ length = 200, tickSpacing = 10 }: {
  * Numeric labels along each axis at major ticks, colored to match the axis.
  * Red on X, green on Y, blue on Z — like OpenSCAD.
  */
-export function AxisLabels({ length = 200, spacing = 50 }: {
-  length?: number;
-  spacing?: number;
-}) {
+export function AxisLabels() {
   const labels = useMemo(() => {
     const result: { text: string; position: [number, number, number]; color: string }[] = [];
-    const half = length / 2;
-    const offset = 5; // offset from axis line so labels don't overlap
+    const half = AXIS_RULERS.length / 2;
 
     // X axis (red) — labels along X, offset in Z
-    for (let v = -half; v <= half + 0.001; v += spacing) {
+    for (let v = -half; v <= half + 0.001; v += AXIS_LABELS.spacing) {
       if (Math.abs(v) < 0.001) continue;
-      result.push({ text: `${v}`, position: [v, 0, -offset], color: '#662222' });
+      result.push({ text: `${v}`, position: [v, 0, -AXIS_LABELS.offset], color: AXIS_LABELS.colors.x });
     }
 
     // Y axis (green) — labels along Y, offset in Z
-    for (let v = -half; v <= half + 0.001; v += spacing) {
+    for (let v = -half; v <= half + 0.001; v += AXIS_LABELS.spacing) {
       if (Math.abs(v) < 0.001) continue;
-      result.push({ text: `${v}`, position: [0, v, -offset], color: '#226622' });
+      result.push({ text: `${v}`, position: [0, v, -AXIS_LABELS.offset], color: AXIS_LABELS.colors.y });
     }
 
     // Z axis (blue) — labels along Z, offset in X
-    for (let v = spacing; v <= length + 0.001; v += spacing) {
-      result.push({ text: `${v}`, position: [-offset, 0, v], color: '#223366' });
+    for (let v = AXIS_LABELS.spacing; v <= AXIS_RULERS.length + 0.001; v += AXIS_LABELS.spacing) {
+      result.push({ text: `${v}`, position: [-AXIS_LABELS.offset, 0, v], color: AXIS_LABELS.colors.z });
     }
 
     return result;
-  }, [length, spacing]);
+  }, []);
 
   return (
     <group>
@@ -154,15 +143,15 @@ function TextSprite({ text, position, color = '#888888' }: {
   const { map, scale } = useMemo(() => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;
-    const fontSize = 48;
-    ctx.font = `bold ${fontSize}px monospace`;
+    const font = `${AXIS_LABELS.fontStyle} ${AXIS_LABELS.fontSize}px ${AXIS_LABELS.fontFamily}`;
+    ctx.font = font;
     const metrics = ctx.measureText(text);
     const w = Math.ceil(metrics.width) + 8;
-    const h = fontSize + 8;
+    const h = AXIS_LABELS.fontSize + 8;
     canvas.width = w;
     canvas.height = h;
     // Redraw after resize (canvas resize clears context state)
-    ctx.font = `bold ${fontSize}px monospace`;
+    ctx.font = font;
     ctx.fillStyle = color;
     ctx.textBaseline = 'top';
     ctx.fillText(text, 4, 4);
@@ -188,15 +177,14 @@ function TextSprite({ text, position, color = '#888888' }: {
 export function AxisGizmo() {
   const group = useMemo(() => {
     const axes = [
-      { dir: [1, 0, 0] as const, color: '#ff4444' },
-      { dir: [0, 1, 0] as const, color: '#44ff44' },
-      { dir: [0, 0, 1] as const, color: '#4488ff' },
+      { dir: [1, 0, 0] as const, color: AXIS_GIZMO.colors.x },
+      { dir: [0, 1, 0] as const, color: AXIS_GIZMO.colors.y },
+      { dir: [0, 0, 1] as const, color: AXIS_GIZMO.colors.z },
     ];
 
     const geos: { lineGeo: THREE.BufferGeometry; color: string }[] = [];
     for (const { dir, color } of axes) {
-      const scale = 15;
-      const positions = [0, 0, 0, dir[0] * scale, dir[1] * scale, dir[2] * scale];
+      const positions = [0, 0, 0, dir[0] * AXIS_GIZMO.scale, dir[1] * AXIS_GIZMO.scale, dir[2] * AXIS_GIZMO.scale];
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
       geos.push({ lineGeo: geo, color });
