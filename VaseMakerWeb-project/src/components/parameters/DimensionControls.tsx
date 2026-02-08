@@ -8,6 +8,7 @@ import {
   SINE_TWIST, VERTICAL_SMOOTHING, RADIAL_SMOOTHING, BEZIER_OFFSET,
 } from '@/config/shape-params';
 import type { BezierPoint } from '@/engine/types';
+import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { BezierCurveEditor } from './BezierCurveEditor';
 
 /** Reusable slider row */
@@ -46,11 +47,12 @@ function SliderRow({
 }
 
 /** Collapsible section wrapper */
-function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+function Section({ title, children, defaultOpen = true, active }: { title: string; children: React.ReactNode; defaultOpen?: boolean; active?: boolean }) {
   return (
     <details open={defaultOpen} className="mb-4">
-      <summary className="cursor-pointer text-sm font-medium text-[var(--text-primary)] py-2 px-3 bg-[var(--bg-secondary)] rounded select-none hover:bg-[var(--border-color)] transition-colors">
-        {title}
+      <summary className="cursor-pointer text-sm font-medium text-[var(--text-primary)] py-2 px-3 bg-[var(--bg-secondary)] rounded select-none hover:bg-[var(--border-color)] transition-colors flex items-center gap-2">
+        <span className="flex-1">{title}</span>
+        {active && <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />}
       </summary>
       <div className="pt-3 px-1">
         {children}
@@ -59,8 +61,10 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
   );
 }
 
-/** Toggle switch */
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+/** Toggle switch with optional reset button */
+function Toggle({ label, checked, onChange, onReset }: {
+  label: string; checked: boolean; onChange: (v: boolean) => void; onReset?: () => void;
+}) {
   return (
     <div className="flex items-center gap-3 mb-2">
       <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">{label}</label>
@@ -76,6 +80,15 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
           }`}
         />
       </button>
+      {onReset && checked && (
+        <button
+          onClick={onReset}
+          className="ml-auto text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors"
+          title="Reset to defaults"
+        >
+          Reset
+        </button>
+      )}
     </div>
   );
 }
@@ -148,6 +161,33 @@ export function DimensionControls() {
     setWallThickness, setBottomThickness, setRimShape,
   } = useVaseStore();
 
+  // Reset helpers — patch specific param groups back to defaults
+  const resetProfile = () => {
+    useVaseStore.setState((s) => ({
+      params: { ...s.params, profilePoints: [...DEFAULT_PARAMETERS.profilePoints.map(p => [...p] as BezierPoint)] },
+    }));
+  };
+  const resetShape = () => {
+    useVaseStore.setState((s) => ({
+      params: {
+        ...s.params,
+        bottomShapeParams: { ...s.params.bottomShapeParams, [s.params.bottomShape]: { ...DEFAULT_PARAMETERS.bottomShapeParams[s.params.bottomShape] } },
+        topShapeParams: { ...s.params.topShapeParams, [s.params.topShape]: { ...DEFAULT_PARAMETERS.topShapeParams[s.params.topShape] } },
+      },
+    }));
+  };
+  const resetRadialRipple = () => setRadialRipple({ count: DEFAULT_PARAMETERS.radialRipple.count, depth: DEFAULT_PARAMETERS.radialRipple.depth });
+  const resetVerticalRipple = () => setVerticalRipple({ count: DEFAULT_PARAMETERS.verticalRipple.count, depth: DEFAULT_PARAMETERS.verticalRipple.depth });
+  const resetBezierTwist = () => setBezierTwist({ points: [...DEFAULT_PARAMETERS.bezierTwist.points] });
+  const resetSineTwist = () => setSineTwist({ cycles: DEFAULT_PARAMETERS.sineTwist.cycles, maxDegrees: DEFAULT_PARAMETERS.sineTwist.maxDegrees });
+  const resetBezierOffset = () => setBezierOffset({
+    scaleX: DEFAULT_PARAMETERS.bezierOffset.scaleX,
+    scaleY: DEFAULT_PARAMETERS.bezierOffset.scaleY,
+    points: DEFAULT_PARAMETERS.bezierOffset.points.map(p => [...p] as [number, number]),
+  });
+  const resetVerticalSmoothing = () => setVerticalSmoothing({ cycles: DEFAULT_PARAMETERS.verticalSmoothing.cycles, startPercent: DEFAULT_PARAMETERS.verticalSmoothing.startPercent });
+  const resetRadialSmoothing = () => setRadialSmoothing({ cycles: DEFAULT_PARAMETERS.radialSmoothing.cycles, offsetAngle: DEFAULT_PARAMETERS.radialSmoothing.offsetAngle });
+
   return (
     <>
       <Section title="Dimensions">
@@ -179,8 +219,8 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Profile">
-        <Toggle label="Enabled" checked={params.profileEnabled} onChange={setProfileEnabled} />
+      <Section title="Profile" active={params.profileEnabled}>
+        <Toggle label="Enabled" checked={params.profileEnabled} onChange={setProfileEnabled} onReset={resetProfile} />
         {params.profileEnabled && (
           <>
             <BezierCurveEditor
@@ -199,18 +239,25 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Shape">
+      <Section title="Shape" active={params.morphEnabled}>
         <div className="flex items-center gap-3 mb-2">
           <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Bottom</label>
           <select
             value={params.bottomShape}
             onChange={(e) => setBottomShape(e.target.value as ShapeType)}
-            className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm text-[var(--text-primary)]"
+            className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm text-[var(--text-primary)] min-w-0"
           >
             {SHAPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
+          <button
+            onClick={resetShape}
+            className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors shrink-0"
+            title="Reset shape params to defaults"
+          >
+            Reset
+          </button>
         </div>
 
         <ShapeParamControls shape={params.bottomShape} isTop={false} />
@@ -237,8 +284,8 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Radial Ripples" defaultOpen={false}>
-        <Toggle label="Enabled" checked={params.radialRipple.enabled} onChange={(v) => setRadialRipple({ enabled: v })} />
+      <Section title="Radial Ripples" defaultOpen={false} active={params.radialRipple.enabled}>
+        <Toggle label="Enabled" checked={params.radialRipple.enabled} onChange={(v) => setRadialRipple({ enabled: v })} onReset={resetRadialRipple} />
         {params.radialRipple.enabled && (
           <>
             <SliderRow label="Count" value={params.radialRipple.count} {...RADIAL_RIPPLE.count} onChange={(v) => setRadialRipple({ count: v })} />
@@ -247,8 +294,8 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Vertical Ripples" defaultOpen={false}>
-        <Toggle label="Enabled" checked={params.verticalRipple.enabled} onChange={(v) => setVerticalRipple({ enabled: v })} />
+      <Section title="Vertical Ripples" defaultOpen={false} active={params.verticalRipple.enabled}>
+        <Toggle label="Enabled" checked={params.verticalRipple.enabled} onChange={(v) => setVerticalRipple({ enabled: v })} onReset={resetVerticalRipple} />
         {params.verticalRipple.enabled && (
           <>
             <SliderRow label="Count" value={params.verticalRipple.count} {...VERTICAL_RIPPLE.count} onChange={(v) => setVerticalRipple({ count: v })} />
@@ -257,8 +304,8 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Custom Twist" defaultOpen={false}>
-        <Toggle label="Enabled" checked={params.bezierTwist.enabled} onChange={(v) => setBezierTwist({ enabled: v })} />
+      <Section title="Custom Twist" defaultOpen={false} active={params.bezierTwist.enabled}>
+        <Toggle label="Enabled" checked={params.bezierTwist.enabled} onChange={(v) => setBezierTwist({ enabled: v })} onReset={resetBezierTwist} />
         {params.bezierTwist.enabled && (
           <>
             <BezierCurveEditor
@@ -290,8 +337,8 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Sine Twist" defaultOpen={false}>
-        <Toggle label="Enabled" checked={params.sineTwist.enabled} onChange={(v) => setSineTwist({ enabled: v })} />
+      <Section title="Sine Twist" defaultOpen={false} active={params.sineTwist.enabled}>
+        <Toggle label="Enabled" checked={params.sineTwist.enabled} onChange={(v) => setSineTwist({ enabled: v })} onReset={resetSineTwist} />
         {params.sineTwist.enabled && (
           <>
             <SliderRow label="Cycles" value={params.sineTwist.cycles} {...SINE_TWIST.cycles} onChange={(v) => setSineTwist({ cycles: v })} />
@@ -300,8 +347,8 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="XY Sway" defaultOpen={false}>
-        <Toggle label="Enabled" checked={params.bezierOffset.enabled} onChange={(v) => setBezierOffset({ enabled: v })} />
+      <Section title="XY Sway" defaultOpen={false} active={params.bezierOffset.enabled}>
+        <Toggle label="Enabled" checked={params.bezierOffset.enabled} onChange={(v) => setBezierOffset({ enabled: v })} onReset={resetBezierOffset} />
         {params.bezierOffset.enabled && (
           <>
             <SliderRow label="Scale X" value={params.bezierOffset.scaleX} {...BEZIER_OFFSET.scaleX} onChange={(v) => setBezierOffset({ scaleX: v })} />
@@ -359,8 +406,8 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Vertical Smoothing" defaultOpen={false}>
-        <Toggle label="Enabled" checked={params.verticalSmoothing.enabled} onChange={(v) => setVerticalSmoothing({ enabled: v })} />
+      <Section title="Vertical Smoothing" defaultOpen={false} active={params.verticalSmoothing.enabled}>
+        <Toggle label="Enabled" checked={params.verticalSmoothing.enabled} onChange={(v) => setVerticalSmoothing({ enabled: v })} onReset={resetVerticalSmoothing} />
         {params.verticalSmoothing.enabled && (
           <>
             <SliderRow label="Cycles" value={params.verticalSmoothing.cycles} {...VERTICAL_SMOOTHING.cycles} onChange={(v) => setVerticalSmoothing({ cycles: v })} />
@@ -369,8 +416,8 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Radial Smoothing" defaultOpen={false}>
-        <Toggle label="Enabled" checked={params.radialSmoothing.enabled} onChange={(v) => setRadialSmoothing({ enabled: v })} />
+      <Section title="Radial Smoothing" defaultOpen={false} active={params.radialSmoothing.enabled}>
+        <Toggle label="Enabled" checked={params.radialSmoothing.enabled} onChange={(v) => setRadialSmoothing({ enabled: v })} onReset={resetRadialSmoothing} />
         {params.radialSmoothing.enabled && (
           <>
             <SliderRow label="Cycles" value={params.radialSmoothing.cycles} {...RADIAL_SMOOTHING.cycles} onChange={(v) => setRadialSmoothing({ cycles: v })} />

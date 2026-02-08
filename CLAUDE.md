@@ -96,6 +96,8 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 5. **Top shape offsets** — `mesh-generator.ts:58-59` only uses bottomParams offsets for center position. Same as OpenSCAD behavior. Could be improved to blend offsets during morph.
 
 ## Recently Completed
+- **Reset buttons & active indicators** — Each toggleable section has a Reset button (visible when enabled) that restores its values to defaults. Green dot on accordion headers shows which features are currently active — visible even when collapsed for quick scanning. Shape section dot indicates morph is on. Dimensions and Shell have no dot (always-on).
+- **Resolution config** — Preview and export resolution values are set in `src/config/shape-params.ts` under `RESOLUTION` (preview: 60v/120r, export: 120v/180r). No UI sliders — edit the config file to change.
 - **Wall thickness, base, and rim** — Full solid shell generation when wallThickness > 0. Outer + inner surfaces, solid base cap (outer disc + inner disc + connecting wall strip), and rim (flat or rounded half-torus). Inner surface uses reversed winding for correct inward normals. Base follows outer shell contour exactly (uses row 0 shape for both discs and inner surface start). Base disc also works when wallThickness = 0 (simple cap). UI: Shell section with Wall/Base sliders (0–5mm) and Flat/Rounded rim radio buttons. Defaults: wall 0.8mm, base 2mm, rounded rim. Config in `SHELL` export in shape-params.ts.
 - **Save/Load design** — Save design as JSON file (user picks filename), Load merges onto DEFAULT_PARAMETERS for forward-compatibility with future features. Removed Reset button (redundant with "Simple Vase" preset).
 - **Custom Twist curve editor** — Replaced fixed-count twist sliders with interactive BezierCurveEditor. Drag points to set twist degrees at each height. Add/remove points with double-click/right-click.
@@ -108,7 +110,6 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Morph offset interpolation** — Top shape offsets now blend with height during morphing
 
 ## What's NOT Implemented Yet (Phase 1 gaps)
-- **Resolution controls UI** — No way to change preview/export resolution
 - **Wall thickness edge cases** — Very thin walls on complex shapes (e.g. star/rose with deep concavities) may cause inner surface self-intersection despite MIN_INNER_RADIUS clamp
 - **Debouncing** — use-debounce.ts exists but useVaseMesh uses raw useMemo
 - **Viewport features** — Wireframe toggle, color picker, dimension annotations
