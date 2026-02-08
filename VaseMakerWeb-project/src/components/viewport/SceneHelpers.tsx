@@ -104,6 +104,79 @@ export function AxisRulers({ length = 200, tickSpacing = 10 }: {
 }
 
 /**
+ * Numeric labels at major grid lines (every 50mm) along the grid edges.
+ * Uses canvas-textured sprites so they always face the camera.
+ */
+export function GridLabels({ size = 200, spacing = 50 }: {
+  size?: number;
+  spacing?: number;
+}) {
+  const sprites = useMemo(() => {
+    const labels: { text: string; position: [number, number, number] }[] = [];
+    const half = size / 2;
+
+    for (let v = -half; v <= half + 0.001; v += spacing) {
+      if (Math.abs(v) < 0.001) continue;
+      const label = `${v}`;
+      // X axis labels along the -Y edge of the grid
+      labels.push({ text: label, position: [v, -half - 6, 0] });
+      // Y axis labels along the -X edge of the grid
+      labels.push({ text: label, position: [-half - 6, v, 0] });
+    }
+
+    // Z axis labels (0 to size, every spacing)
+    for (let v = spacing; v <= size + 0.001; v += spacing) {
+      labels.push({ text: `${v}`, position: [-6, -6, v] });
+    }
+
+    return labels;
+  }, [size, spacing]);
+
+  return (
+    <group>
+      {sprites.map(({ text, position }, i) => (
+        <TextSprite key={i} text={text} position={position} />
+      ))}
+    </group>
+  );
+}
+
+/** A single text label rendered as a sprite with a canvas texture. */
+function TextSprite({ text, position }: {
+  text: string;
+  position: [number, number, number];
+}) {
+  const { map, scale } = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    const fontSize = 48;
+    ctx.font = `${fontSize}px monospace`;
+    const metrics = ctx.measureText(text);
+    const w = Math.ceil(metrics.width) + 8;
+    const h = fontSize + 8;
+    canvas.width = w;
+    canvas.height = h;
+    // Redraw after resize
+    ctx.font = `${fontSize}px monospace`;
+    ctx.fillStyle = '#888888';
+    ctx.textBaseline = 'top';
+    ctx.fillText(text, 4, 4);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    // Scale sprite to world units (roughly 1 world unit per 8px)
+    const worldScale: [number, number, number] = [w / 8, h / 8, 1];
+    return { map: texture, scale: worldScale };
+  }, [text]);
+
+  return (
+    <sprite position={position} scale={scale}>
+      <spriteMaterial map={map} transparent depthTest={false} />
+    </sprite>
+  );
+}
+
+/**
  * Small XYZ axis indicator at the origin — colored arrows showing orientation.
  * This sits in the 3D scene (not a fixed-position overlay).
  */
@@ -129,9 +202,9 @@ export function AxisGizmo() {
   return (
     <group>
       {group.map(({ lineGeo, color }, i) => (
-        <line key={i} geometry={lineGeo}>
+        <lineSegments key={i} geometry={lineGeo}>
           <lineBasicMaterial color={color} linewidth={2} />
-        </line>
+        </lineSegments>
       ))}
     </group>
   );
