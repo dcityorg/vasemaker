@@ -32,7 +32,7 @@ export function Sidebar() {
 
   const handleExportSTL = () => {
     const params = getParams();
-    const mesh = generateMesh(params, true); // export resolution
+    const mesh = generateMesh(params);
     downloadSTL(mesh, 'vasemaker-export.stl');
   };
 

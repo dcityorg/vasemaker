@@ -92,8 +92,7 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
     points: [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]],
   },
 
-  previewResolution: { ...RESOLUTION.preview },
-  exportResolution: { ...RESOLUTION.export },
+  resolution: { ...RESOLUTION.defaults },
 
   wallThickness: 0.8,
   bottomThickness: 2,

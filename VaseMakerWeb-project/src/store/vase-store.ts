@@ -67,7 +67,7 @@ interface VaseStore {
   setColor: (color: string) => void;
 
   // Actions — resolution
-  setPreviewResolution: (update: Partial<VaseParameters['previewResolution']>) => void;
+  setResolution: (update: Partial<VaseParameters['resolution']>) => void;
 
   // Actions — presets
   loadPreset: (preset: Preset) => void;
@@ -268,9 +268,9 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     set((state) => ({ params: { ...state.params, color } })),
 
   // Resolution
-  setPreviewResolution: (update) =>
+  setResolution: (update) =>
     set((state) => ({
-      params: { ...state.params, previewResolution: { ...state.params.previewResolution, ...update } },
+      params: { ...state.params, resolution: { ...state.params.resolution, ...update } },
     })),
 
   // Presets

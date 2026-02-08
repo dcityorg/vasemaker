@@ -4,7 +4,7 @@ import { useVaseStore } from '@/store/vase-store';
 import type { ShapeType } from '@/engine/types';
 import {
   SHAPE_OPTIONS, SHAPE_PARAM_CONFIG, UNIVERSAL_PARAMS,
-  DIMENSIONS, SHELL, APPEARANCE, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
+  DIMENSIONS, SHELL, APPEARANCE, RESOLUTION, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
   SINE_TWIST, VERTICAL_SMOOTHING, RADIAL_SMOOTHING, BEZIER_OFFSET,
 } from '@/config/shape-params';
 import type { BezierPoint } from '@/engine/types';
@@ -159,7 +159,7 @@ export function DimensionControls() {
     setBezierOffset, setBezierOffsetPointX, setBezierOffsetPointY,
     addBezierOffsetPoint, removeBezierOffsetPoint,
     setWallThickness, setBottomThickness, setRimShape,
-    setColor,
+    setColor, setResolution,
   } = useVaseStore();
 
   // Reset helpers — patch specific param groups back to defaults
@@ -446,6 +446,14 @@ export function DimensionControls() {
             <SliderRow label="Offset" value={params.radialSmoothing.offsetAngle} {...RADIAL_SMOOTHING.offsetAngle} onChange={(v) => setRadialSmoothing({ offsetAngle: v })} />
           </>
         )}
+      </Section>
+
+      <Section title="Resolution" defaultOpen={false} active={
+        params.resolution.vertical !== RESOLUTION.defaults.vertical ||
+        params.resolution.radial !== RESOLUTION.defaults.radial
+      }>
+        <SliderRow label="Vertical" value={params.resolution.vertical} {...RESOLUTION.vertical} onChange={(v) => setResolution({ vertical: v })} />
+        <SliderRow label="Radial" value={params.resolution.radial} {...RESOLUTION.radial} onChange={(v) => setResolution({ radial: v })} />
       </Section>
     </>
   );

@@ -53,8 +53,8 @@ interface RowContext {
  * Generate the vase mesh from parameters.
  * This is the main entry point — equivalent to makeObject() in OpenSCAD.
  */
-export function generateMesh(params: VaseParameters, useExportResolution = false): VaseMesh {
-  const resolution = useExportResolution ? params.exportResolution : params.previewResolution;
+export function generateMesh(params: VaseParameters): VaseMesh {
+  const resolution = params.resolution;
   const vRes = resolution.vertical;
   const rRes = resolution.radial;
   const wt = params.wallThickness;

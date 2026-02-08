@@ -140,10 +140,11 @@ export const RADIAL_SMOOTHING = {
   offsetAngle: { min: -180, max: 180, step: 1 } as SliderRange,
 } as const;
 
-/** Mesh resolution — adjust if preview is sluggish or export looks faceted */
+/** Mesh resolution — defaults and slider ranges */
 export const RESOLUTION = {
-  preview: { vertical: 60, radial: 120 },
-  export:  { vertical: 120, radial: 180 },
+  defaults: { vertical: 60, radial: 120 },
+  vertical: { min: 8, max: 200, step: 1 } as SliderRange,
+  radial:   { min: 8, max: 360, step: 1 } as SliderRange,
 } as const;
 
 /** Shell / wall thickness slider ranges */

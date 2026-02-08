@@ -119,11 +119,7 @@ export interface VaseParameters {
   };
 
   // Resolution
-  previewResolution: {
-    vertical: number;
-    radial: number;
-  };
-  exportResolution: {
+  resolution: {
     vertical: number;
     radial: number;
   };

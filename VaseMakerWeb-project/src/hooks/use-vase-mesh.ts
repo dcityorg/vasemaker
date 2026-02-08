@@ -16,7 +16,7 @@ export function useVaseMesh(): VaseMesh {
   const params = useVaseStore((state) => state.params);
 
   const mesh = useMemo(() => {
-    return generateMesh(params, false); // preview resolution
+    return generateMesh(params);
   }, [params]);
 
   return mesh;
