@@ -3,7 +3,7 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { VaseMeshComponent } from './VaseMesh';
-import { GroundGrid, AxisRulers, AxisGizmo, GridLabels } from './SceneHelpers';
+import { GroundGrid, AxisRulers, AxisGizmo, AxisLabels } from './SceneHelpers';
 
 /**
  * 3D viewport — renders the vase in a Three.js scene with orbit controls.
@@ -35,8 +35,8 @@ export function Viewport() {
         {/* Axis rulers with tick marks */}
         <AxisRulers />
 
-        {/* Numeric labels at major grid lines */}
-        <GridLabels />
+        {/* Colored numeric labels on each axis */}
+        <AxisLabels />
 
         {/* The vase */}
         <VaseMeshComponent />

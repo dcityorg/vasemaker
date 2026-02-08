@@ -104,61 +104,66 @@ export function AxisRulers({ length = 200, tickSpacing = 10 }: {
 }
 
 /**
- * Numeric labels at major grid lines (every 50mm) along the grid edges.
- * Uses canvas-textured sprites so they always face the camera.
+ * Numeric labels along each axis at major ticks, colored to match the axis.
+ * Red on X, green on Y, blue on Z — like OpenSCAD.
  */
-export function GridLabels({ size = 200, spacing = 50 }: {
-  size?: number;
+export function AxisLabels({ length = 200, spacing = 50 }: {
+  length?: number;
   spacing?: number;
 }) {
-  const sprites = useMemo(() => {
-    const labels: { text: string; position: [number, number, number] }[] = [];
-    const half = size / 2;
+  const labels = useMemo(() => {
+    const result: { text: string; position: [number, number, number]; color: string }[] = [];
+    const half = length / 2;
+    const offset = 5; // offset from axis line so labels don't overlap
 
+    // X axis (red) — labels along X, offset in Z
     for (let v = -half; v <= half + 0.001; v += spacing) {
       if (Math.abs(v) < 0.001) continue;
-      const label = `${v}`;
-      // X axis labels along the -Y edge of the grid
-      labels.push({ text: label, position: [v, -half - 6, 0] });
-      // Y axis labels along the -X edge of the grid
-      labels.push({ text: label, position: [-half - 6, v, 0] });
+      result.push({ text: `${v}`, position: [v, 0, -offset], color: '#662222' });
     }
 
-    // Z axis labels (0 to size, every spacing)
-    for (let v = spacing; v <= size + 0.001; v += spacing) {
-      labels.push({ text: `${v}`, position: [-6, -6, v] });
+    // Y axis (green) — labels along Y, offset in Z
+    for (let v = -half; v <= half + 0.001; v += spacing) {
+      if (Math.abs(v) < 0.001) continue;
+      result.push({ text: `${v}`, position: [0, v, -offset], color: '#226622' });
     }
 
-    return labels;
-  }, [size, spacing]);
+    // Z axis (blue) — labels along Z, offset in X
+    for (let v = spacing; v <= length + 0.001; v += spacing) {
+      result.push({ text: `${v}`, position: [-offset, 0, v], color: '#223366' });
+    }
+
+    return result;
+  }, [length, spacing]);
 
   return (
     <group>
-      {sprites.map(({ text, position }, i) => (
-        <TextSprite key={i} text={text} position={position} />
+      {labels.map(({ text, position, color }, i) => (
+        <TextSprite key={i} text={text} position={position} color={color} />
       ))}
     </group>
   );
 }
 
 /** A single text label rendered as a sprite with a canvas texture. */
-function TextSprite({ text, position }: {
+function TextSprite({ text, position, color = '#888888' }: {
   text: string;
   position: [number, number, number];
+  color?: string;
 }) {
   const { map, scale } = useMemo(() => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;
     const fontSize = 48;
-    ctx.font = `${fontSize}px monospace`;
+    ctx.font = `bold ${fontSize}px monospace`;
     const metrics = ctx.measureText(text);
     const w = Math.ceil(metrics.width) + 8;
     const h = fontSize + 8;
     canvas.width = w;
     canvas.height = h;
-    // Redraw after resize
-    ctx.font = `${fontSize}px monospace`;
-    ctx.fillStyle = '#888888';
+    // Redraw after resize (canvas resize clears context state)
+    ctx.font = `bold ${fontSize}px monospace`;
+    ctx.fillStyle = color;
     ctx.textBaseline = 'top';
     ctx.fillText(text, 4, 4);
 
@@ -167,7 +172,7 @@ function TextSprite({ text, position }: {
     // Scale sprite to world units (roughly 1 world unit per 8px)
     const worldScale: [number, number, number] = [w / 8, h / 8, 1];
     return { map: texture, scale: worldScale };
-  }, [text]);
+  }, [text, color]);
 
   return (
     <sprite position={position} scale={scale}>
