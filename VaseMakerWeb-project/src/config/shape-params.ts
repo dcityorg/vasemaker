@@ -139,3 +139,9 @@ export const RADIAL_SMOOTHING = {
   cycles:      { min: 0, max: 10, step: 1 } as SliderRange,
   offsetAngle: { min: -180, max: 180, step: 1 } as SliderRange,
 } as const;
+
+/** Bezier offset slider ranges */
+export const BEZIER_OFFSET = {
+  scaleX: { min: 0, max: 50, step: 1 } as SliderRange,
+  scaleY: { min: 0, max: 50, step: 1 } as SliderRange,
+} as const;

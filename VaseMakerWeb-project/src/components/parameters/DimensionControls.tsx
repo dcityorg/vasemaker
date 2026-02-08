@@ -5,8 +5,9 @@ import type { ShapeType } from '@/engine/types';
 import {
   SHAPE_OPTIONS, SHAPE_PARAM_CONFIG, UNIVERSAL_PARAMS,
   DIMENSIONS, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
-  SINE_TWIST, VERTICAL_SMOOTHING, RADIAL_SMOOTHING,
+  SINE_TWIST, VERTICAL_SMOOTHING, RADIAL_SMOOTHING, BEZIER_OFFSET,
 } from '@/config/shape-params';
+import type { BezierPoint } from '@/engine/types';
 import { BezierCurveEditor } from './BezierCurveEditor';
 
 /** Reusable slider row */
@@ -124,13 +125,26 @@ function ShapeParamControls({ shape, isTop }: { shape: ShapeType; isTop: boolean
   );
 }
 
+/** Convert scalar array (evenly spaced heights) → BezierPoint[] for curve editor */
+function scalarsToPoints(values: number[]): BezierPoint[] {
+  return values.map((v, i) => [v, values.length > 1 ? i / (values.length - 1) : 0]);
+}
+
+/** Extract one axis from offset [x,y][] pairs → BezierPoint[] (evenly spaced heights) */
+function offsetAxisToPoints(points: [number, number][], axis: 0 | 1): BezierPoint[] {
+  return points.map((p, i) => [p[axis], points.length > 1 ? i / (points.length - 1) : 0]);
+}
+
 export function DimensionControls() {
   const params = useVaseStore((s) => s.params);
   const {
     setRadius, setHeight, setProfileEnabled, setProfilePoint, addProfilePoint, removeProfilePoint,
     setBottomShape, setTopShape, setMorphEnabled,
-    setRadialRipple, setVerticalRipple, setBezierTwist, setSineTwist,
+    setRadialRipple, setVerticalRipple, setBezierTwist, setBezierTwistPoint,
+    addBezierTwistPoint, removeBezierTwistPoint, setSineTwist,
     setVerticalSmoothing, setRadialSmoothing,
+    setBezierOffset, setBezierOffsetPointX, setBezierOffsetPointY,
+    addBezierOffsetPoint, removeBezierOffsetPoint,
   } = useVaseStore();
 
   return (
@@ -218,21 +232,37 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Bezier Twist" defaultOpen={false}>
+      <Section title="Custom Twist" defaultOpen={false}>
         <Toggle label="Enabled" checked={params.bezierTwist.enabled} onChange={(v) => setBezierTwist({ enabled: v })} />
-        {params.bezierTwist.enabled && params.bezierTwist.points.map((val, i) => (
-          <SliderRow
-            key={i}
-            label={i === 0 ? 'Bottom' : i === params.bezierTwist.points.length - 1 ? 'Top' : `${Math.round(i / (params.bezierTwist.points.length - 1) * 100)}%`}
-            value={val}
-            {...BEZIER_TWIST.point}
-            onChange={(v) => {
-              const points = [...params.bezierTwist.points];
-              points[i] = v;
-              setBezierTwist({ points });
-            }}
-          />
-        ))}
+        {params.bezierTwist.enabled && (
+          <>
+            <BezierCurveEditor
+              points={scalarsToPoints(params.bezierTwist.points)}
+              onPointChange={(index, point) => {
+                setBezierTwistPoint(index, Math.round(point[0]));
+              }}
+              onPointAdd={(point) => {
+                // Find insertion index by height fraction
+                const h = point[1];
+                const pts = params.bezierTwist.points;
+                let afterIdx = pts.length - 1;
+                for (let i = 0; i < pts.length - 1; i++) {
+                  const hI = pts.length > 1 ? i / (pts.length - 1) : 0;
+                  const hNext = pts.length > 1 ? (i + 1) / (pts.length - 1) : 0;
+                  if (h >= hI && h <= hNext) { afterIdx = i; break; }
+                }
+                addBezierTwistPoint(Math.round(point[0]), afterIdx);
+              }}
+              onPointRemove={removeBezierTwistPoint}
+              xRange={[BEZIER_TWIST.point.min, BEZIER_TWIST.point.max]}
+              yRange={[0, 1]}
+              xLabel="Twist (degrees)"
+            />
+            <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
+              Drag left/right to set twist. Double-click to add. Right-click to remove.
+            </div>
+          </>
+        )}
       </Section>
 
       <Section title="Sine Twist" defaultOpen={false}>
@@ -241,6 +271,65 @@ export function DimensionControls() {
           <>
             <SliderRow label="Cycles" value={params.sineTwist.cycles} {...SINE_TWIST.cycles} onChange={(v) => setSineTwist({ cycles: v })} />
             <SliderRow label="Max Deg" value={params.sineTwist.maxDegrees} {...SINE_TWIST.maxDegrees} onChange={(v) => setSineTwist({ maxDegrees: v })} />
+          </>
+        )}
+      </Section>
+
+      <Section title="XY Sway" defaultOpen={false}>
+        <Toggle label="Enabled" checked={params.bezierOffset.enabled} onChange={(v) => setBezierOffset({ enabled: v })} />
+        {params.bezierOffset.enabled && (
+          <>
+            <SliderRow label="Scale X" value={params.bezierOffset.scaleX} {...BEZIER_OFFSET.scaleX} onChange={(v) => setBezierOffset({ scaleX: v })} />
+            <SliderRow label="Scale Y" value={params.bezierOffset.scaleY} {...BEZIER_OFFSET.scaleY} onChange={(v) => setBezierOffset({ scaleY: v })} />
+
+            <div className="text-xs font-medium text-[var(--text-secondary)] mt-2 mb-1 px-1">Offset X</div>
+            <BezierCurveEditor
+              points={offsetAxisToPoints(params.bezierOffset.points, 0)}
+              onPointChange={(index, point) => {
+                setBezierOffsetPointX(index, Math.round(point[0] * 20) / 20);
+              }}
+              onPointAdd={(point) => {
+                const h = point[1];
+                const pts = params.bezierOffset.points;
+                let afterIdx = pts.length - 1;
+                for (let i = 0; i < pts.length - 1; i++) {
+                  const hI = pts.length > 1 ? i / (pts.length - 1) : 0;
+                  const hNext = pts.length > 1 ? (i + 1) / (pts.length - 1) : 0;
+                  if (h >= hI && h <= hNext) { afterIdx = i; break; }
+                }
+                addBezierOffsetPoint(afterIdx);
+              }}
+              onPointRemove={removeBezierOffsetPoint}
+              xRange={[-1, 1]}
+              yRange={[0, 1]}
+              xLabel="X Offset"
+            />
+
+            <div className="text-xs font-medium text-[var(--text-secondary)] mt-2 mb-1 px-1">Offset Y</div>
+            <BezierCurveEditor
+              points={offsetAxisToPoints(params.bezierOffset.points, 1)}
+              onPointChange={(index, point) => {
+                setBezierOffsetPointY(index, Math.round(point[0] * 20) / 20);
+              }}
+              onPointAdd={(point) => {
+                const h = point[1];
+                const pts = params.bezierOffset.points;
+                let afterIdx = pts.length - 1;
+                for (let i = 0; i < pts.length - 1; i++) {
+                  const hI = pts.length > 1 ? i / (pts.length - 1) : 0;
+                  const hNext = pts.length > 1 ? (i + 1) / (pts.length - 1) : 0;
+                  if (h >= hI && h <= hNext) { afterIdx = i; break; }
+                }
+                addBezierOffsetPoint(afterIdx);
+              }}
+              onPointRemove={removeBezierOffsetPoint}
+              xRange={[-1, 1]}
+              yRange={[0, 1]}
+              xLabel="Y Offset"
+            />
+            <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
+              Drag left/right to set offset. Scale sliders amplify the effect.
+            </div>
           </>
         )}
       </Section>

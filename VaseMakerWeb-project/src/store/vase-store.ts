@@ -39,6 +39,8 @@ interface VaseStore {
   // Actions — bezier twist
   setBezierTwist: (update: Partial<VaseParameters['bezierTwist']>) => void;
   setBezierTwistPoint: (index: number, value: number) => void;
+  addBezierTwistPoint: (value: number, afterIndex: number) => void;
+  removeBezierTwistPoint: (index: number) => void;
 
   // Actions — sine twist
   setSineTwist: (update: Partial<VaseParameters['sineTwist']>) => void;
@@ -50,6 +52,10 @@ interface VaseStore {
   // Actions — offset
   setFixedOffset: (update: Partial<VaseParameters['fixedOffset']>) => void;
   setBezierOffset: (update: Partial<VaseParameters['bezierOffset']>) => void;
+  setBezierOffsetPointX: (index: number, value: number) => void;
+  setBezierOffsetPointY: (index: number, value: number) => void;
+  addBezierOffsetPoint: (afterIndex: number) => void;
+  removeBezierOffsetPoint: (index: number) => void;
 
   // Actions — resolution
   setPreviewResolution: (update: Partial<VaseParameters['previewResolution']>) => void;
@@ -155,6 +161,25 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
         params: { ...state.params, bezierTwist: { ...state.params.bezierTwist, points } },
       };
     }),
+  addBezierTwistPoint: (value, afterIndex) =>
+    set((state) => {
+      const points = [...state.params.bezierTwist.points];
+      if (points.length >= 8) return state;
+      points.splice(afterIndex + 1, 0, value);
+      return {
+        params: { ...state.params, bezierTwist: { ...state.params.bezierTwist, points } },
+      };
+    }),
+  removeBezierTwistPoint: (index) =>
+    set((state) => {
+      const points = [...state.params.bezierTwist.points];
+      if (points.length <= 2) return state;
+      if (index === 0 || index === points.length - 1) return state;
+      points.splice(index, 1);
+      return {
+        params: { ...state.params, bezierTwist: { ...state.params.bezierTwist, points } },
+      };
+    }),
 
   // Sine twist
   setSineTwist: (update) =>
@@ -181,6 +206,41 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     set((state) => ({
       params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, ...update } },
     })),
+  setBezierOffsetPointX: (index, value) =>
+    set((state) => {
+      const points = state.params.bezierOffset.points.map(p => [...p] as [number, number]);
+      points[index][0] = value;
+      return {
+        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, points } },
+      };
+    }),
+  setBezierOffsetPointY: (index, value) =>
+    set((state) => {
+      const points = state.params.bezierOffset.points.map(p => [...p] as [number, number]);
+      points[index][1] = value;
+      return {
+        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, points } },
+      };
+    }),
+  addBezierOffsetPoint: (afterIndex) =>
+    set((state) => {
+      const points = state.params.bezierOffset.points.map(p => [...p] as [number, number]);
+      if (points.length >= 8) return state;
+      points.splice(afterIndex + 1, 0, [0, 0]);
+      return {
+        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, points } },
+      };
+    }),
+  removeBezierOffsetPoint: (index) =>
+    set((state) => {
+      const points = state.params.bezierOffset.points.map(p => [...p] as [number, number]);
+      if (points.length <= 2) return state;
+      if (index === 0 || index === points.length - 1) return state;
+      points.splice(index, 1);
+      return {
+        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, points } },
+      };
+    }),
 
   // Resolution
   setPreviewResolution: (update) =>

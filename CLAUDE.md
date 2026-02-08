@@ -36,6 +36,7 @@ VaseMakerWeb-project/src/
 │   ├── editor/Editor.tsx    # Main layout (sidebar + viewport)
 │   ├── editor/Sidebar.tsx   # Preset selector, reset, STL export button
 │   ├── parameters/DimensionControls.tsx  # ALL parameter UI (sliders, toggles, shape dropdowns)
+│   ├── parameters/BezierCurveEditor.tsx # Reusable SVG curve editor (drag points, double-click add, right-click remove)
 │   └── viewport/
 │       ├── Viewport.tsx     # R3F Canvas, lighting, camera, controls
 │       ├── VaseMesh.tsx     # Renders BufferGeometry from mesh data
@@ -92,6 +93,9 @@ For each vertex at height v (0-1) and angle t (0-360):
 5. **Top shape offsets** — `mesh-generator.ts:58-59` only uses bottomParams offsets for center position. Same as OpenSCAD behavior. Could be improved to blend offsets during morph.
 
 ## Recently Completed
+- **Custom Twist curve editor** — Replaced fixed-count twist sliders with interactive BezierCurveEditor. Drag points to set twist degrees at each height. Add/remove points with double-click/right-click.
+- **XY Sway curve editors** — New sidebar section with two BezierCurveEditors (X and Y offset) plus Scale X/Y sliders. Uses adapter functions to bridge `[x,y][]` engine format with the curve editor's `BezierPoint[]` format.
+- **Bezier profile curve editor** — Interactive SVG widget in sidebar. Drag control points, double-click to add (max 8), right-click to remove. Reusable component for future twist/offset editors.
 - **Shape-specific parameter UI** — All 18 shapes have sliders for their specific params (polygon sides, rose petals, superformula m/n1/n2/n3, etc.)
 - **Colored axis labels** — Canvas-texture sprites along each axis in dimmed R/G/B
 - **Z-up orbit controls** — Mouse behavior matches OpenSCAD (left-drag rotates around Z)
@@ -99,8 +103,7 @@ For each vertex at height v (0-1) and angle t (0-360):
 - **Morph offset interpolation** — Top shape offsets now blend with height during morphing
 
 ## What's NOT Implemented Yet (Phase 1 gaps)
-- **Bezier curve editor widget** — Needed for both the vertical profile editor AND Bezier twist. Build one reusable visual curve editor component that serves both features (instead of the current fixed-count twist sliders).
-- **Offset controls UI** — Fixed offset and Bezier offset have no UI
+- **Fixed offset controls UI** — Fixed offset has no UI
 - **Resolution controls UI** — No way to change preview/export resolution
 - **Wall thickness / hollow shell** — Types exist, engine doesn't implement it
 - **Debouncing** — use-debounce.ts exists but useVaseMesh uses raw useMemo
@@ -109,7 +112,7 @@ For each vertex at height v (0-1) and angle t (0-360):
 - **shadcn/ui** — Not installed; using native HTML inputs
 - **ui-store.ts** — No UI state management yet
 - **Fixed-position XYZ gizmo** — Previous useFrame/scissor approach broke vase rendering. In-scene gizmo at origin works but a fixed-corner overlay needs careful re-implementation.
-/mm
+
 ## Important Notes
 - The drei `Grid` component renders on XZ plane (Y-up) and its shader doesn't support rotation. We use a custom `GroundGrid` component that draws on XY plane (Z-up).
 - Avoid `useFrame` with viewport/scissor manipulation in R3F — it can break the main scene render. The previous AxisGizmo implementation caused the vase to disappear.
@@ -119,4 +122,4 @@ For each vertex at height v (0-1) and angle t (0-360):
 
 ## Git Info
 - Branch: master (main branch is "main")
-- Latest commit: d5193a2 — "Extract tweakable config into typed data files, add shape param sliders"
+- Latest commit: 11800e9 — "Add Custom Twist and XY Sway curve editors"
