@@ -3,6 +3,7 @@
 import { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { useVaseMesh } from '@/hooks/use-vase-mesh';
+import { useVaseStore } from '@/store/vase-store';
 
 /**
  * Renders the vase mesh in the Three.js scene.
@@ -12,6 +13,7 @@ export function VaseMeshComponent() {
   const meshRef = useRef<THREE.Mesh>(null);
   const geometryRef = useRef<THREE.BufferGeometry>(null);
   const vaseMesh = useVaseMesh();
+  const color = useVaseStore((s) => s.params.color);
 
   useEffect(() => {
     if (!geometryRef.current) return;
@@ -38,7 +40,7 @@ export function VaseMeshComponent() {
     <mesh ref={meshRef} castShadow receiveShadow>
       <bufferGeometry ref={geometryRef} />
       <meshStandardMaterial
-        color="#6d9fff"
+        color={color}
         roughness={0.4}
         metalness={0.1}
         side={THREE.DoubleSide}

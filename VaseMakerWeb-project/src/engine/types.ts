@@ -132,6 +132,9 @@ export interface VaseParameters {
   wallThickness: number;        // mm, 0 = no shell (thin surface)
   bottomThickness: number;      // mm, 0 = no base
   rimShape: 'flat' | 'rounded'; // only used when wallThickness > 0
+
+  // Appearance
+  color: string;                // hex color for preview (e.g. '#6d9fff')
 }
 
 /** Generated mesh data ready for Three.js */

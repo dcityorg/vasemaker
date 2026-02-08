@@ -96,6 +96,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 5. **Top shape offsets** — `mesh-generator.ts:58-59` only uses bottomParams offsets for center position. Same as OpenSCAD behavior. Could be improved to blend offsets during morph.
 
 ## Recently Completed
+- **Vase color picker** — Appearance section with native color picker. Color saved/loaded with design JSON, so each vase can have its own color. Default color (`#6d9fff`) configured in `APPEARANCE` export in shape-params.ts. Reset button appears when color differs from default. Wired into VaseMesh.tsx `meshStandardMaterial`.
 - **Reset buttons & active indicators** — Each toggleable section has a Reset button (visible when enabled) that restores its values to defaults. Green dot on accordion headers shows which features are currently active — visible even when collapsed for quick scanning. Shape section dot indicates morph is on. Dimensions and Shell have no dot (always-on).
 - **Resolution config** — Preview and export resolution values are set in `src/config/shape-params.ts` under `RESOLUTION` (preview: 60v/120r, export: 120v/180r). No UI sliders — edit the config file to change.
 - **Wall thickness, base, and rim** — Full solid shell generation when wallThickness > 0. Outer + inner surfaces, solid base cap (outer disc + inner disc + connecting wall strip), and rim (flat or rounded half-torus). Inner surface uses reversed winding for correct inward normals. Base follows outer shell contour exactly (uses row 0 shape for both discs and inner surface start). Base disc also works when wallThickness = 0 (simple cap). UI: Shell section with Wall/Base sliders (0–5mm) and Flat/Rounded rim radio buttons. Defaults: wall 0.8mm, base 2mm, rounded rim. Config in `SHELL` export in shape-params.ts.
@@ -112,7 +113,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 ## What's NOT Implemented Yet (Phase 1 gaps)
 - **Wall thickness edge cases** — Very thin walls on complex shapes (e.g. star/rose with deep concavities) may cause inner surface self-intersection despite MIN_INNER_RADIUS clamp
 - **Debouncing** — use-debounce.ts exists but useVaseMesh uses raw useMemo
-- **Viewport features** — Wireframe toggle, color picker, dimension annotations
+- **Viewport features** — Wireframe toggle, dimension annotations
 - **Component split** — DimensionControls.tsx handles everything; planned to split into ShapeSelector, ProfileEditor, RippleControls, TwistControls, etc.
 - **shadcn/ui** — Not installed; using native HTML inputs
 - **ui-store.ts** — No UI state management yet

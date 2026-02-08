@@ -152,6 +152,11 @@ export const SHELL = {
   bottomThickness: { min: 0, max: 5, step: 0.1 } as SliderRange,
 } as const;
 
+/** Default vase appearance */
+export const APPEARANCE = {
+  defaultColor: '#6d9fff',
+} as const;
+
 /** Bezier offset slider ranges */
 export const BEZIER_OFFSET = {
   scaleX: { min: 0, max: 50, step: 1 } as SliderRange,

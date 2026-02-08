@@ -4,7 +4,7 @@
  */
 
 import type { VaseParameters, ShapeType, ShapeParams } from '@/engine/types';
-import { RESOLUTION } from '@/config/shape-params';
+import { RESOLUTION, APPEARANCE } from '@/config/shape-params';
 
 /** Default shape params for each shape type */
 function defaultShapeParams(): Record<ShapeType, ShapeParams> {
@@ -98,4 +98,6 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
   wallThickness: 0.8,
   bottomThickness: 2,
   rimShape: 'rounded',
+
+  color: APPEARANCE.defaultColor,
 };

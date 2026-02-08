@@ -4,7 +4,7 @@ import { useVaseStore } from '@/store/vase-store';
 import type { ShapeType } from '@/engine/types';
 import {
   SHAPE_OPTIONS, SHAPE_PARAM_CONFIG, UNIVERSAL_PARAMS,
-  DIMENSIONS, SHELL, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
+  DIMENSIONS, SHELL, APPEARANCE, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
   SINE_TWIST, VERTICAL_SMOOTHING, RADIAL_SMOOTHING, BEZIER_OFFSET,
 } from '@/config/shape-params';
 import type { BezierPoint } from '@/engine/types';
@@ -159,6 +159,7 @@ export function DimensionControls() {
     setBezierOffset, setBezierOffsetPointX, setBezierOffsetPointY,
     addBezierOffsetPoint, removeBezierOffsetPoint,
     setWallThickness, setBottomThickness, setRimShape,
+    setColor,
   } = useVaseStore();
 
   // Reset helpers — patch specific param groups back to defaults
@@ -217,6 +218,27 @@ export function DimensionControls() {
             </div>
           </div>
         )}
+      </Section>
+
+      <Section title="Appearance">
+        <div className="flex items-center gap-3 mb-2">
+          <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Color</label>
+          <input
+            type="color"
+            value={params.color}
+            onChange={(e) => setColor(e.target.value)}
+            className="w-8 h-8 rounded cursor-pointer border border-[var(--border-color)] bg-transparent p-0"
+          />
+          {params.color !== APPEARANCE.defaultColor && (
+            <button
+              onClick={() => setColor(APPEARANCE.defaultColor)}
+              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors"
+              title="Reset to default color"
+            >
+              Reset
+            </button>
+          )}
+        </div>
       </Section>
 
       <Section title="Profile" active={params.profileEnabled}>

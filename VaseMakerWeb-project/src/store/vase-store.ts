@@ -62,6 +62,9 @@ interface VaseStore {
   setBottomThickness: (value: number) => void;
   setRimShape: (shape: 'flat' | 'rounded') => void;
 
+  // Actions — appearance
+  setColor: (color: string) => void;
+
   // Actions — resolution
   setPreviewResolution: (update: Partial<VaseParameters['previewResolution']>) => void;
 
@@ -254,6 +257,10 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     set((state) => ({ params: { ...state.params, bottomThickness: value } })),
   setRimShape: (shape) =>
     set((state) => ({ params: { ...state.params, rimShape: shape } })),
+
+  // Appearance
+  setColor: (color) =>
+    set((state) => ({ params: { ...state.params, color } })),
 
   // Resolution
   setPreviewResolution: (update) =>
