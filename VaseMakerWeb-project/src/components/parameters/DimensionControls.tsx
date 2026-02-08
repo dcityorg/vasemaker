@@ -159,7 +159,7 @@ export function DimensionControls() {
     setBezierOffset, setBezierOffsetPointX, setBezierOffsetPointY,
     addBezierOffsetPoint, removeBezierOffsetPoint,
     setWallThickness, setBottomThickness, setRimShape,
-    setColor, setResolution,
+    setColor, setResolution, setFlatShading,
   } = useVaseStore();
 
   // Reset helpers — patch specific param groups back to defaults
@@ -450,10 +450,25 @@ export function DimensionControls() {
 
       <Section title="Resolution" defaultOpen={false} active={
         params.resolution.vertical !== RESOLUTION.defaults.vertical ||
-        params.resolution.radial !== RESOLUTION.defaults.radial
+        params.resolution.radial !== RESOLUTION.defaults.radial ||
+        params.flatShading
       }>
+        {(params.resolution.vertical !== RESOLUTION.defaults.vertical ||
+          params.resolution.radial !== RESOLUTION.defaults.radial ||
+          params.flatShading) && (
+          <div className="flex justify-end mb-1">
+            <button
+              onClick={() => { setResolution({ ...RESOLUTION.defaults }); setFlatShading(false); }}
+              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors"
+              title="Reset to defaults"
+            >
+              Reset
+            </button>
+          </div>
+        )}
         <SliderRow label="Vertical" value={params.resolution.vertical} {...RESOLUTION.vertical} onChange={(v) => setResolution({ vertical: v })} />
         <SliderRow label="Radial" value={params.resolution.radial} {...RESOLUTION.radial} onChange={(v) => setResolution({ radial: v })} />
+        <Toggle label="Show Facets" checked={params.flatShading} onChange={setFlatShading} />
       </Section>
     </>
   );

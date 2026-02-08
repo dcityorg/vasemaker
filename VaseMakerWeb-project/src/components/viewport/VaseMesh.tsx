@@ -14,6 +14,7 @@ export function VaseMeshComponent() {
   const geometryRef = useRef<THREE.BufferGeometry>(null);
   const vaseMesh = useVaseMesh();
   const color = useVaseStore((s) => s.params.color);
+  const flatShading = useVaseStore((s) => s.params.flatShading);
 
   useEffect(() => {
     if (!geometryRef.current) return;
@@ -40,10 +41,12 @@ export function VaseMeshComponent() {
     <mesh ref={meshRef} castShadow receiveShadow>
       <bufferGeometry ref={geometryRef} />
       <meshStandardMaterial
+        key={flatShading ? 'flat' : 'smooth'}
         color={color}
         roughness={0.4}
         metalness={0.1}
         side={THREE.DoubleSide}
+        flatShading={flatShading}
       />
     </mesh>
   );

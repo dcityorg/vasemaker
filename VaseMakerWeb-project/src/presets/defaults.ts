@@ -93,6 +93,7 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
   },
 
   resolution: { ...RESOLUTION.defaults },
+  flatShading: false,
 
   wallThickness: 0.8,
   bottomThickness: 2,

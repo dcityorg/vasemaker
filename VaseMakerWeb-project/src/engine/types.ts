@@ -123,6 +123,7 @@ export interface VaseParameters {
     vertical: number;
     radial: number;
   };
+  flatShading: boolean;
 
   // Shell (new — not in OpenSCAD)
   wallThickness: number;        // mm, 0 = no shell (thin surface)
