@@ -35,3 +35,12 @@ body {
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background: #444;
 }
+
+/* Help panel slide-in animation */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.help-panel-enter {
+  animation: slide-in-right 200ms ease-out;
+}

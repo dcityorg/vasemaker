@@ -32,9 +32,12 @@ VaseMakerWeb-project/src/
 │   ├── modifiers.ts     # Ripple, twist, smoothing functions
 │   ├── mesh-generator.ts # Main generateMesh() — vertex grid + triangle indices
 │   └── stl-export.ts    # Binary STL generation + browser download
+├── content/
+│   └── help-content.ts     # Structured help text (5 sections, pure data, no JSX)
 ├── components/
-│   ├── editor/Editor.tsx    # Main layout (sidebar + viewport)
-│   ├── editor/Sidebar.tsx   # Preset selector, save/load, undo/redo, STL export
+│   ├── editor/Editor.tsx    # Main layout (sidebar + viewport + optional help panel)
+│   ├── editor/Sidebar.tsx   # Preset selector, save/load, undo/redo, STL export, help toggle
+│   ├── editor/HelpPanel.tsx # Right-side help panel (accordion sections, slide-in animation)
 │   ├── parameters/DimensionControls.tsx  # ALL parameter UI (sliders, toggles, shape dropdowns)
 │   ├── parameters/BezierCurveEditor.tsx # Reusable SVG curve editor (drag points, double-click add, right-click remove)
 │   └── viewport/
@@ -111,6 +114,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Vase color picker** — Appearance section with native picker, default `#6d9fff`
 - **Resolution** — Vertical (8–200) and Radial (8–360) sliders + Show Facets toggle
 - **Sidebar UI** — Indented content with left border, Reset buttons always visible
+- **Help panel** — Right-side push-layout panel toggled by "?" button. 5 sections: Quick Start, Shapes (with SuperFormula guide), Profile/Twist/Sway, Textures, 3D Printing Tips. Pure data in `content/help-content.ts`, rendered by `HelpPanel.tsx`. Slide-in animation, viewport auto-resizes
 
 ## What's NOT Implemented Yet
 

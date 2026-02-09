@@ -9,7 +9,7 @@ import { downloadSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 
-export function Sidebar() {
+export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggleHelp: () => void }) {
   const { loadPreset, getParams, undo: doUndo, redo: doRedo } = useVaseStore();
   const { canUndo, canRedo } = useHistoryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,7 +73,7 @@ export function Sidebar() {
   };
 
   return (
-    <div className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col">
+    <div className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
       {/* Header */}
       <div className="px-4 py-3 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-2">
@@ -93,6 +93,13 @@ export function Sidebar() {
             title="Redo (⌘⇧Z)"
           >
             ↷
+          </button>
+          <button
+            onClick={onToggleHelp}
+            className={`text-sm font-bold leading-none w-6 h-6 rounded-full flex items-center justify-center transition-colors ${helpOpen ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}
+            title="Toggle help panel"
+          >
+            ?
           </button>
         </div>
         <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer</p>
