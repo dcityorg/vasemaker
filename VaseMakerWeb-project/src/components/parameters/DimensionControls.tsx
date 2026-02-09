@@ -3,7 +3,7 @@
 import { useVaseStore } from '@/store/vase-store';
 import type { ShapeType } from '@/engine/types';
 import {
-  SHAPE_OPTIONS, SHAPE_PARAM_CONFIG, UNIVERSAL_PARAMS,
+  SHAPE_OPTIONS, SHAPE_PARAM_CONFIG,
   DIMENSIONS, SHELL, APPEARANCE, RESOLUTION, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
   SINE_TWIST, VERTICAL_SMOOTHING, RADIAL_SMOOTHING, BEZIER_OFFSET,
 } from '@/config/shape-params';
@@ -96,38 +96,21 @@ function ShapeParamControls({ shape, isTop }: { shape: ShapeType; isTop: boolean
   const setParam = isTop ? setTopShapeParam : setBottomShapeParam;
   const specificParams = SHAPE_PARAM_CONFIG[shape];
 
+  if (!specificParams || specificParams.length === 0) return null;
+
   return (
     <div className="ml-2 mt-1 mb-2">
-      {specificParams && specificParams.length > 0 && (
-        <div className="mb-2">
-          <div className="text-xs font-medium text-[var(--text-secondary)] mb-1 px-1">Shape Params</div>
-          {specificParams.map((spec) => (
-            <SliderRow
-              key={spec.key}
-              label={spec.label}
-              value={(shapeParams[spec.key] as number) ?? 0}
-              min={spec.min}
-              max={spec.max}
-              step={spec.step}
-              onChange={(v) => setParam(shape, spec.key, v)}
-            />
-          ))}
-        </div>
-      )}
-      <div>
-        <div className="text-xs font-medium text-[var(--text-secondary)] mb-1 px-1">Transform</div>
-        {UNIVERSAL_PARAMS.map((spec) => (
-          <SliderRow
-            key={spec.key}
-            label={spec.label}
-            value={(shapeParams[spec.key] as number) ?? 0}
-            min={spec.min}
-            max={spec.max}
-            step={spec.step}
-            onChange={(v) => setParam(shape, spec.key, v)}
-          />
-        ))}
-      </div>
+      {specificParams.map((spec) => (
+        <SliderRow
+          key={spec.key}
+          label={spec.label}
+          value={(shapeParams[spec.key] as number) ?? 0}
+          min={spec.min}
+          max={spec.max}
+          step={spec.step}
+          onChange={(v) => setParam(shape, spec.key, v)}
+        />
+      ))}
     </div>
   );
 }

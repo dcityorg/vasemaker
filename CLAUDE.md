@@ -141,6 +141,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **ui-store.ts** — No UI state management yet
 
 ## Design Decisions
+- **Transform sliders removed from UI** — The per-shape `scaleFactor`, `offsetX`, `offsetY` sliders (the "Transform" section) were removed from the Shape UI. Reasoning: (1) `scaleFactor` is redundant with the Radius slider in Dimensions — it's just another multiplier on the shape radius. (2) `offsetX`/`offsetY` shift the shape center off-origin, which is only needed to compensate for math formulas that aren't naturally centered (Heart1, Egg1, Cardioid1, etc.) — those offsets are already baked into the default values. Users have no practical reason to shift shapes off-center (vases should stay centered for 3D printing). The data fields still exist in `ShapeParams` and `defaults.ts`, and the values are still saved/loaded in JSON files. The `UNIVERSAL_PARAMS` config still exists in `shape-params.ts`. To restore: re-import `UNIVERSAL_PARAMS` in `DimensionControls.tsx` and add back the Transform `<div>` block inside `ShapeParamControls` (render `UNIVERSAL_PARAMS.map(...)` sliders below the shape-specific sliders).
 - **Fixed offset UI skipped** — `fixedOffset` (constant X/Y shift at all heights) exists in the engine but no UI was built. It's redundant now that XY Sway can do the same thing, and there's no practical reason to shift the entire vase off the origin (it should stay centered for 3D printing).
 
 ## Important Notes
