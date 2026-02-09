@@ -530,13 +530,12 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   const innerVerts = innerRows * rRes;
   const rimVerts = params.rimShape === 'rounded' ? (rimSteps + 1) * rRes : 0;
   const flatRimVerts = params.rimShape === 'flat' ? 2 * rRes : 0;
-  // Bottom cap uses the bottom row (row 0) shape for both discs
+  // Bottom cap: outer disc at z=0, inner disc at z=innerStartStep height
   const bottomOuterDiscVerts = hasBase ? 1 + rRes : 0;
   const bottomInnerDiscVerts = hasBase ? 1 + rRes : 0;
-  const bottomWallVerts = hasBase ? 2 * rRes : 0;
 
   const totalVertices = outerVerts + innerVerts + rimVerts
-    + bottomOuterDiscVerts + bottomInnerDiscVerts + bottomWallVerts
+    + bottomOuterDiscVerts + bottomInnerDiscVerts
     + flatRimVerts;
 
   const positions = new Float32Array(totalVertices * 3);
@@ -550,7 +549,6 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   const flatRimOffset = vertexCursor; vertexCursor += flatRimVerts;
   const bottomOuterDiscOffset = vertexCursor; vertexCursor += bottomOuterDiscVerts;
   const bottomInnerDiscOffset = vertexCursor; vertexCursor += bottomInnerDiscVerts;
-  const bottomWallOffset = vertexCursor; vertexCursor += bottomWallVerts;
 
   // ---- 1. Outer surface vertices ----
   for (let vStep = 0; vStep <= vRes; vStep++) {
@@ -565,15 +563,11 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   }
 
   // ---- 2. Inner surface vertices ----
-  // When there's a base, the first inner row uses row 0's shape (matching the
-  // inner disc ring) placed at z=bt, so there's no visible step at the base.
   for (let vStep = innerStartStep; vStep <= vRes; vStep++) {
-    const isFirstInnerRow = hasBase && vStep === innerStartStep;
-    const row = isFirstInnerRow ? rowContexts[0] : rowContexts[vStep];
+    const row = rowContexts[vStep];
     const innerRow = vStep - innerStartStep;
     for (let tStep = 0; tStep < rRes; tStep++) {
-      const zOverride = isFirstInnerRow ? bt : undefined;
-      const [x, y, z] = computeVertex(row, tStep, -wt, zOverride);
+      const [x, y, z] = computeVertex(row, tStep, -wt);
       const idx = (innerOffset + innerRow * rRes + tStep) * 3;
       positions[idx] = x;
       positions[idx + 1] = y;
@@ -629,9 +623,8 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   }
 
   // ---- 5. Bottom cap vertices ----
-  // All bottom cap geometry uses the bottom row (row 0) shape so the base
-  // follows the outer shell contour exactly. The inner disc ring is the
-  // same bottom shape inset by wallThickness, placed at z=bt.
+  // Outer disc at z=0 closes the bottom visually.
+  // Inner disc at innerStartStep height seals the inner cavity.
   if (hasBase) {
     const bottomRow = rowContexts[0];
     const [cx, cy] = computeCenter(bottomRow);
@@ -652,36 +645,21 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       }
     }
 
-    // Inner disc: center + ring at z=bt, using bottom row shape inset by wt
+    // Inner disc: center + ring at innerStartStep, using that row's shape inset by wt
     {
+      const innerRow = rowContexts[innerStartStep];
+      const [icx, icy] = computeCenter(innerRow);
       const cIdx = bottomInnerDiscOffset * 3;
-      positions[cIdx] = cx;
-      positions[cIdx + 1] = cy;
-      positions[cIdx + 2] = bt;
+      positions[cIdx] = icx;
+      positions[cIdx + 1] = icy;
+      positions[cIdx + 2] = innerRow.height;
 
       for (let tStep = 0; tStep < rRes; tStep++) {
-        const [x, y] = computeVertex(bottomRow, tStep, -wt);
+        const [x, y, z] = computeVertex(innerRow, tStep, -wt);
         const idx = (bottomInnerDiscOffset + 1 + tStep) * 3;
         positions[idx] = x;
         positions[idx + 1] = y;
-        positions[idx + 2] = bt;
-      }
-    }
-
-    // Bottom wall strip: outer ring at z=0 to inner ring at z=bt
-    {
-      for (let tStep = 0; tStep < rRes; tStep++) {
-        const [ox, oy] = computeVertex(bottomRow, tStep, 0);
-        const idx0 = (bottomWallOffset + tStep) * 3;
-        positions[idx0] = ox;
-        positions[idx0 + 1] = oy;
-        positions[idx0 + 2] = 0;
-
-        const [ix, iy] = computeVertex(bottomRow, tStep, -wt);
-        const idx1 = (bottomWallOffset + rRes + tStep) * 3;
-        positions[idx1] = ix;
-        positions[idx1 + 1] = iy;
-        positions[idx1 + 2] = bt;
+        positions[idx + 2] = z;
       }
     }
   }
@@ -696,7 +674,6 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   const flatRimQuads = params.rimShape === 'flat' ? rRes : 0;
   const bottomOuterDiscTris = hasBase ? rRes : 0;
   const bottomInnerDiscTris = hasBase ? rRes : 0;
-  const bottomWallQuads = hasBase ? rRes : 0;
 
   const totalTriangles =
     outerQuads * 2 +
@@ -704,8 +681,7 @@ export function generateMesh(params: VaseParameters): VaseMesh {
     rimQuads * 2 +
     flatRimQuads * 2 +
     bottomOuterDiscTris +
-    bottomInnerDiscTris +
-    bottomWallQuads * 2;
+    bottomInnerDiscTris;
 
   const indices = new Uint32Array(totalTriangles * 3);
   let idxOffset = 0;
@@ -793,7 +769,7 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       indices[idxOffset++] = a;
     }
 
-    // Inner disc (z=bt) — triangle fan, normals pointing up
+    // Inner disc — triangle fan, normals pointing up
     const innerCenter = bottomInnerDiscOffset;
     for (let tStep = 0; tStep < rRes; tStep++) {
       const tNext = (tStep + 1) % rRes;
@@ -802,21 +778,6 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       indices[idxOffset++] = innerCenter;
       indices[idxOffset++] = a;
       indices[idxOffset++] = b;
-    }
-
-    // Bottom wall strip: outer (z=0) to inner (z=bt)
-    for (let tStep = 0; tStep < rRes; tStep++) {
-      const tNext = (tStep + 1) % rRes;
-      const outerA = bottomWallOffset + tStep;
-      const outerB = bottomWallOffset + tNext;
-      const innerA = bottomWallOffset + rRes + tStep;
-      const innerB = bottomWallOffset + rRes + tNext;
-      indices[idxOffset++] = outerA;
-      indices[idxOffset++] = outerB;
-      indices[idxOffset++] = innerB;
-      indices[idxOffset++] = outerA;
-      indices[idxOffset++] = innerB;
-      indices[idxOffset++] = innerA;
     }
   }
 
