@@ -106,6 +106,12 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
     points: [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]],
   },
 
+  textures: {
+    fluting: { enabled: false, count: 12, depth: 2 },
+    basketWeave: { enabled: false, bands: 8, waves: 12, depth: 1.5 },
+    voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0 },
+  },
+
   resolution: { ...RESOLUTION.defaults },
   flatShading: false,
 

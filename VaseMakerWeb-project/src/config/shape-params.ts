@@ -174,6 +174,25 @@ export const RADIAL_SMOOTHING = {
   offsetAngle: { min: -180, max: 180, step: 1 } as SliderRange,
 } as const;
 
+/** Texture slider ranges */
+export const TEXTURES = {
+  fluting: {
+    count: { min: 3, max: 60, step: 1 } as SliderRange,
+    depth: { min: 0.1, max: 10, step: 0.1 } as SliderRange,
+  },
+  basketWeave: {
+    bands: { min: 3, max: 30, step: 1 } as SliderRange,
+    waves: { min: 3, max: 30, step: 1 } as SliderRange,
+    depth: { min: 0.1, max: 10, step: 0.1 } as SliderRange,
+  },
+  voronoi: {
+    scale: { min: 5, max: 50, step: 1 } as SliderRange,
+    depth: { min: 0.05, max: 5, step: 0.05 } as SliderRange,
+    edgeWidth: { min: 0, max: 1, step: 0.05 } as SliderRange,
+    seed: { min: 0, max: 99, step: 1 } as SliderRange,
+  },
+} as const;
+
 /** Mesh resolution — defaults and slider ranges */
 export const RESOLUTION = {
   defaults: { vertical: 60, radial: 120 },

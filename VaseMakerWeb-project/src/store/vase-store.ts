@@ -58,6 +58,11 @@ interface VaseStore {
   addBezierOffsetPoint: (afterIndex: number) => void;
   removeBezierOffsetPoint: (index: number) => void;
 
+  // Actions — textures
+  setFluting: (update: Partial<VaseParameters['textures']['fluting']>) => void;
+  setBasketWeave: (update: Partial<VaseParameters['textures']['basketWeave']>) => void;
+  setVoronoi: (update: Partial<VaseParameters['textures']['voronoi']>) => void;
+
   // Actions — shell
   setWallThickness: (value: number) => void;
   setBottomThickness: (value: number) => void;
@@ -255,6 +260,38 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
         params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, points } },
       };
     }),
+
+  // Textures
+  setFluting: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: {
+          ...state.params.textures,
+          fluting: { ...state.params.textures.fluting, ...update },
+        },
+      },
+    })),
+  setBasketWeave: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: {
+          ...state.params.textures,
+          basketWeave: { ...state.params.textures.basketWeave, ...update },
+        },
+      },
+    })),
+  setVoronoi: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: {
+          ...state.params.textures,
+          voronoi: { ...state.params.textures.voronoi, ...update },
+        },
+      },
+    })),
 
   // Shell
   setWallThickness: (value) =>

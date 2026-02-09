@@ -30,6 +30,72 @@ import { sinD, cosD } from '@/lib/math-utils';
 /** Minimum inner radius to prevent self-intersection */
 const MIN_INNER_RADIUS = 0.1;
 
+/**
+ * Deterministic 2D hash returning two values in [0,1).
+ * Uses a pair of large primes for mixing — no trig, no sin().
+ */
+function hash2D(ix: number, iy: number, seed: number): [number, number] {
+  let h = ix * 374761393 + iy * 668265263 + seed * 1274126177;
+  h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+  const a = (h & 0x7fffffff) / 0x7fffffff;
+  h = ((h ^ (h >> 13)) * 1103515245 + 12345) | 0;
+  const b = (h & 0x7fffffff) / 0x7fffffff;
+  return [a, b];
+}
+
+/**
+ * Compute Voronoi cell value (0–1) at a point in cell-space.
+ * Returns 1 at cell centers, 0 at edges.
+ * @param u - horizontal position in cell-space (wraps at cellsU)
+ * @param w - vertical position in cell-space
+ * @param cellsU - number of cells around circumference (for wrapping)
+ * @param seed - random seed for pattern variation
+ * @param edgeWidth - edge sharpness (0 = smooth, 1 = sharp)
+ */
+function voronoiCell(
+  u: number, w: number, cellsU: number, seed: number, edgeWidth: number
+): number {
+  const cellX = Math.floor(u);
+  const cellY = Math.floor(w);
+
+  let d1 = 1e10; // nearest seed distance
+  let d2 = 1e10; // second nearest
+
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      let nx = cellX + dx;
+      const ny = cellY + dy;
+
+      // Wrap horizontally for seamless 0/360
+      let wrappedNx = nx;
+      if (wrappedNx < 0) wrappedNx += cellsU;
+      else if (wrappedNx >= cellsU) wrappedNx -= cellsU;
+
+      const [jx, jy] = hash2D(wrappedNx, ny, seed);
+      const seedU = nx + jx;
+      const seedW = ny + jy;
+
+      const ddx = u - seedU;
+      const ddy = w - seedW;
+      const dist = ddx * ddx + ddy * ddy;
+
+      if (dist < d1) {
+        d2 = d1;
+        d1 = dist;
+      } else if (dist < d2) {
+        d2 = dist;
+      }
+    }
+  }
+
+  // Edge detection: difference between second-nearest and nearest
+  const diff = Math.sqrt(d2) - Math.sqrt(d1);
+  // Smoothstep with edgeWidth controlling transition width
+  const edge = 0.05 + (1 - edgeWidth) * 0.45; // range 0.05 (sharp) to 0.5 (smooth)
+  const t = Math.min(diff / edge, 1);
+  return t * t * (3 - 2 * t); // smoothstep
+}
+
 /** Number of intermediate rings for rounded rim */
 const RIM_STEPS = 5;
 
@@ -143,9 +209,36 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       ? verticalRipple(row.v, params.verticalRipple.depth, params.verticalRipple.count)
       : 0;
 
+    const fluting = params.textures.fluting.enabled
+      ? -params.textures.fluting.depth * Math.abs(sinD(params.textures.fluting.count * t))
+      : 0;
+
+    const basketWeave = params.textures.basketWeave.enabled
+      ? params.textures.basketWeave.depth * sinD(
+          params.textures.basketWeave.waves * t
+          + 180 * Math.floor(row.v * params.textures.basketWeave.bands)
+        )
+      : 0;
+
+    // Voronoi cellular texture
+    let voronoi = 0;
+    if (params.textures.voronoi?.enabled) {
+      const vor = params.textures.voronoi;
+      const cellsU = vor.scale;
+      // Auto-scale vertical cells by aspect ratio so cells appear roughly square
+      const circumference = 2 * Math.PI * params.radius;
+      const cellsW = Math.max(1, Math.round(cellsU * params.height / circumference));
+      const u = (t / 360) * cellsU;
+      const w = row.v * cellsW;
+      voronoi = vor.depth * voronoiCell(u, w, cellsU, vor.seed, vor.edgeWidth);
+    }
+
     let radius = shapeValue * row.shapeRadius
       + radRipple * row.vSmooth * rSmooth
-      + vertRipple * row.vSmooth * rSmooth;
+      + vertRipple * row.vSmooth * rSmooth
+      + fluting
+      + basketWeave
+      + voronoi;
 
     // Apply radial offset (for inner wall)
     radius = Math.max(radius + radiusOffset, MIN_INNER_RADIUS);

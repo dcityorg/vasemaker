@@ -143,6 +143,28 @@ export interface VaseParameters {
   };
   flatShading: boolean;
 
+  // Textures
+  textures: {
+    fluting: {
+      enabled: boolean;
+      count: number;    // number of flutes around circumference
+      depth: number;    // groove depth in mm
+    };
+    basketWeave: {
+      enabled: boolean;
+      bands: number;    // number of horizontal bands
+      waves: number;    // number of waves around circumference
+      depth: number;    // weave depth in mm
+    };
+    voronoi: {
+      enabled: boolean;
+      scale: number;    // number of cells around circumference
+      depth: number;    // emboss height in mm
+      edgeWidth: number; // edge sharpness 0–1
+      seed: number;     // pattern variation 0–99
+    };
+  };
+
   // Shell (new — not in OpenSCAD)
   wallThickness: number;        // mm, 0 = no shell (thin surface)
   bottomThickness: number;      // mm, 0 = no base

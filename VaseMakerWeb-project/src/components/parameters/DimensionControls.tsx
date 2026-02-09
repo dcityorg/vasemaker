@@ -4,7 +4,7 @@ import { useVaseStore } from '@/store/vase-store';
 import type { ShapeType } from '@/engine/types';
 import {
   SHAPE_OPTIONS, SHAPE_PARAM_CONFIG,
-  DIMENSIONS, SHELL, APPEARANCE, RESOLUTION, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
+  DIMENSIONS, SHELL, APPEARANCE, RESOLUTION, TEXTURES, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
   SINE_TWIST, VERTICAL_SMOOTHING, RADIAL_SMOOTHING, BEZIER_OFFSET,
 } from '@/config/shape-params';
 import type { BezierPoint } from '@/engine/types';
@@ -137,6 +137,7 @@ export function DimensionControls() {
     addBezierOffsetPoint, removeBezierOffsetPoint,
     setWallThickness, setBottomThickness, setRimShape,
     setColor, setResolution, setFlatShading,
+    setFluting, setBasketWeave, setVoronoi,
   } = useVaseStore();
 
   // Reset helpers — patch specific param groups back to defaults
@@ -165,6 +166,9 @@ export function DimensionControls() {
   });
   const resetVerticalSmoothing = () => setVerticalSmoothing({ cycles: DEFAULT_PARAMETERS.verticalSmoothing.cycles, startPercent: DEFAULT_PARAMETERS.verticalSmoothing.startPercent });
   const resetRadialSmoothing = () => setRadialSmoothing({ cycles: DEFAULT_PARAMETERS.radialSmoothing.cycles, offsetAngle: DEFAULT_PARAMETERS.radialSmoothing.offsetAngle });
+  const resetFluting = () => setFluting({ count: DEFAULT_PARAMETERS.textures.fluting.count, depth: DEFAULT_PARAMETERS.textures.fluting.depth });
+  const resetBasketWeave = () => setBasketWeave({ bands: DEFAULT_PARAMETERS.textures.basketWeave.bands, waves: DEFAULT_PARAMETERS.textures.basketWeave.waves, depth: DEFAULT_PARAMETERS.textures.basketWeave.depth });
+  const resetVoronoi = () => setVoronoi({ scale: DEFAULT_PARAMETERS.textures.voronoi.scale, depth: DEFAULT_PARAMETERS.textures.voronoi.depth, edgeWidth: DEFAULT_PARAMETERS.textures.voronoi.edgeWidth, seed: DEFAULT_PARAMETERS.textures.voronoi.seed });
 
   return (
     <>
@@ -428,6 +432,33 @@ export function DimensionControls() {
           <>
             <SliderRow label="Cycles" value={params.radialSmoothing.cycles} {...RADIAL_SMOOTHING.cycles} onChange={(v) => setRadialSmoothing({ cycles: v })} />
             <SliderRow label="Offset" value={params.radialSmoothing.offsetAngle} {...RADIAL_SMOOTHING.offsetAngle} onChange={(v) => setRadialSmoothing({ offsetAngle: v })} />
+          </>
+        )}
+      </Section>
+
+      <Section title="Textures" defaultOpen={false} active={params.textures.fluting.enabled || params.textures.basketWeave.enabled || params.textures.voronoi?.enabled}>
+        <Toggle label="Fluting" checked={params.textures.fluting.enabled} onChange={(v) => setFluting({ enabled: v })} onReset={resetFluting} />
+        {params.textures.fluting.enabled && (
+          <>
+            <SliderRow label="Count" value={params.textures.fluting.count} {...TEXTURES.fluting.count} onChange={(v) => setFluting({ count: v })} />
+            <SliderRow label="Depth" value={params.textures.fluting.depth} {...TEXTURES.fluting.depth} onChange={(v) => setFluting({ depth: v })} />
+          </>
+        )}
+        <Toggle label="Basket Weave" checked={params.textures.basketWeave.enabled} onChange={(v) => setBasketWeave({ enabled: v })} onReset={resetBasketWeave} />
+        {params.textures.basketWeave.enabled && (
+          <>
+            <SliderRow label="Bands" value={params.textures.basketWeave.bands} {...TEXTURES.basketWeave.bands} onChange={(v) => setBasketWeave({ bands: v })} />
+            <SliderRow label="Waves" value={params.textures.basketWeave.waves} {...TEXTURES.basketWeave.waves} onChange={(v) => setBasketWeave({ waves: v })} />
+            <SliderRow label="Depth" value={params.textures.basketWeave.depth} {...TEXTURES.basketWeave.depth} onChange={(v) => setBasketWeave({ depth: v })} />
+          </>
+        )}
+        <Toggle label="Voronoi" checked={params.textures.voronoi?.enabled ?? false} onChange={(v) => setVoronoi({ enabled: v })} onReset={resetVoronoi} />
+        {params.textures.voronoi?.enabled && (
+          <>
+            <SliderRow label="Scale" value={params.textures.voronoi.scale} {...TEXTURES.voronoi.scale} onChange={(v) => setVoronoi({ scale: v })} />
+            <SliderRow label="Depth" value={params.textures.voronoi.depth} {...TEXTURES.voronoi.depth} onChange={(v) => setVoronoi({ depth: v })} />
+            <SliderRow label="Edge" value={params.textures.voronoi.edgeWidth} {...TEXTURES.voronoi.edgeWidth} onChange={(v) => setVoronoi({ edgeWidth: v })} />
+            <SliderRow label="Seed" value={params.textures.voronoi.seed} {...TEXTURES.voronoi.seed} onChange={(v) => setVoronoi({ seed: v })} />
           </>
         )}
       </Section>
