@@ -159,6 +159,138 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Transform sliders removed from UI** — The per-shape `scaleFactor`, `offsetX`, `offsetY` sliders (the "Transform" section) were removed from the Shape UI. Reasoning: (1) `scaleFactor` is redundant with the Radius slider in Dimensions — it's just another multiplier on the shape radius. (2) `offsetX`/`offsetY` shift the shape center off-origin, which is only needed to compensate for math formulas that aren't naturally centered (Heart1, Egg1, Cardioid1, etc.) — those offsets are already baked into the default values. Users have no practical reason to shift shapes off-center (vases should stay centered for 3D printing). The data fields still exist in `ShapeParams` and `defaults.ts`, and the values are still saved/loaded in JSON files. The `UNIVERSAL_PARAMS` config still exists in `shape-params.ts`. To restore: re-import `UNIVERSAL_PARAMS` in `DimensionControls.tsx` and add back the Transform `<div>` block inside `ShapeParamControls` (render `UNIVERSAL_PARAMS.map(...)` sliders below the shape-specific sliders).
 - **Fixed offset UI skipped** — `fixedOffset` (constant X/Y shift at all heights) exists in the engine but no UI was built. It's redundant now that XY Sway can do the same thing, and there's no practical reason to shift the entire vase off the origin (it should stay centered for 3D printing).
 
+## How to Add a New Texture (Recipe)
+
+Adding a texture follows a strict 6-file pattern. Use Voronoi and Simplex as reference implementations.
+
+### 1. `src/engine/types.ts` — Define the parameter shape
+Add a new entry to `VaseParameters.textures`:
+```typescript
+myTexture: {
+  enabled: boolean;
+  // your params here (scale, depth, seed, etc.)
+};
+```
+
+### 2. `src/presets/defaults.ts` — Set defaults
+Add to the `textures` object in `DEFAULT_PARAMETERS`:
+```typescript
+myTexture: { enabled: false, scale: 10, depth: 1.0, /* ... */ },
+```
+
+### 3. `src/config/shape-params.ts` — Define slider ranges
+Add to the `TEXTURES` object:
+```typescript
+myTexture: {
+  scale: { min: 1, max: 50, step: 1 } as SliderRange,
+  // one entry per slider
+},
+```
+
+### 4. `src/store/vase-store.ts` — Add store action
+Two edits — interface declaration and implementation:
+```typescript
+// In VaseStore interface:
+setMyTexture: (update: Partial<VaseParameters['textures']['myTexture']>) => void;
+
+// In create<VaseStore>:
+setMyTexture: (update) =>
+  set((state) => ({
+    params: {
+      ...state.params,
+      textures: {
+        ...state.params.textures,
+        myTexture: { ...state.params.textures.myTexture, ...update },
+      },
+    },
+  })),
+```
+
+### 5. `src/engine/mesh-generator.ts` — The algorithm
+This is the core math work. The pattern:
+
+**a) Add algorithm functions** before `generateMesh()`:
+- Your noise/pattern function(s)
+- Any lookup tables, helper functions
+- Keep it pure math, no dependencies on UI or store
+
+**b) Cache expensive setup** at the top of `generateMesh()`:
+```typescript
+const myPerm = params.textures.myTexture?.enabled
+  ? buildSomethingExpensive(params.textures.myTexture.seed)
+  : null;
+```
+This runs once per mesh rebuild, not per-vertex.
+
+**c) Evaluate per-vertex** inside `computeVertex()`, after existing textures:
+```typescript
+let myTextureVal = 0;
+if (params.textures.myTexture?.enabled) {
+  const mt = params.textures.myTexture;
+  // compute value from t (angle 0-360), row.v (height 0-1), params
+  myTextureVal = mt.depth * yourFunction(/* ... */);
+}
+```
+
+**d) Add to the radius sum:**
+```typescript
+let radius = shapeValue * row.shapeRadius
+  + /* ... existing terms ... */
+  + myTextureVal;
+```
+
+**Key details for the algorithm:**
+- `t` = angle in degrees (0–360), `row.v` = normalized height (0–1)
+- `params.radius` and `params.height` = vase dimensions in mm
+- Output is a radial offset in mm (positive = outward, negative = inward)
+- **Seamless wrapping at 0/360:** Either map angle to cos/sin circle in higher-dimensional space (like Simplex does), or use integer cell wrapping (like Voronoi does)
+- **Aspect ratio correction:** To get roughly square cells/features, compute `circumference = 2 * Math.PI * params.radius` and scale vertical dimension by `height / circumference`
+- Use `?.` optional chaining on `params.textures.myTexture` for backward compat with old save files that don't have the field
+- Existing reusable functions: `hash2D(ix, iy, seed)` returns `[0,1)` pair, `simplex3D(x,y,z,perm)` returns `[-1,1]`, `fbm3D(x,y,z,octaves,persistence,lacunarity,perm)` returns `[-1,1]`
+
+### 6. `src/components/parameters/DimensionControls.tsx` — UI controls
+Four edits:
+
+**a) Destructure the setter:**
+```typescript
+const { /* ...existing... */, setMyTexture } = useVaseStore();
+```
+
+**b) Add reset helper:**
+```typescript
+const resetMyTexture = () => setMyTexture({
+  scale: DEFAULT_PARAMETERS.textures.myTexture.scale,
+  // ... all params except enabled
+});
+```
+
+**c) Update Textures section `active` prop:**
+```typescript
+active={/* ...existing... */ || params.textures.myTexture?.enabled}
+```
+
+**d) Add toggle + sliders** (after the last texture block, before `</Section>`):
+```typescript
+<Toggle label="My Texture" checked={params.textures.myTexture?.enabled ?? false}
+  onChange={(v) => setMyTexture({ enabled: v })} onReset={resetMyTexture} />
+{params.textures.myTexture?.enabled && (
+  <>
+    <SliderRow label="Scale" value={params.textures.myTexture.scale}
+      {...TEXTURES.myTexture.scale} onChange={(v) => setMyTexture({ scale: v })} />
+    {/* ... more sliders ... */}
+  </>
+)}
+```
+
+### Verification checklist
+1. `npx tsc --noEmit` — clean compile
+2. Toggle on — texture visible on vase
+3. Each slider changes the appearance as expected
+4. No visible seam at 0/360 boundary
+5. Stacks with other textures (fluting, basket weave, voronoi, simplex)
+6. Save/Load — old JSON files without the new texture still load correctly
+7. Undo/redo works with the new sliders
+
 ## Important Notes
 - The drei `Grid` component renders on XZ plane (Y-up) and its shader doesn't support rotation. We use a custom `GroundGrid` component that draws on XY plane (Z-up).
 - Avoid `useFrame` with viewport/scissor manipulation in R3F — it can break the main scene render. The previous AxisGizmo implementation caused the vase to disappear.
