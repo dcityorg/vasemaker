@@ -239,8 +239,8 @@ export function DimensionControls() {
       </Section>
 
       <Section title="Shape" active={params.morphEnabled}>
-        <div className="flex items-center gap-3 mb-2">
-          <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Bottom</label>
+        <div className="flex items-center gap-2 mb-2">
+          <label className="text-sm text-[var(--text-secondary)] w-16 shrink-0">Bottom</label>
           <select
             value={params.bottomShape}
             onChange={(e) => setBottomShape(e.target.value as ShapeType)}
@@ -265,17 +265,24 @@ export function DimensionControls() {
 
         {params.morphEnabled && (
           <>
-            <div className="flex items-center gap-3 mb-2">
-              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Top</label>
+            <div className="flex items-center gap-2 mb-2">
+              <label className="text-sm text-[var(--text-secondary)] w-16 shrink-0">Top</label>
               <select
                 value={params.topShape}
                 onChange={(e) => setTopShape(e.target.value as ShapeType)}
-                className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm text-[var(--text-primary)]"
+                className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm text-[var(--text-primary)] min-w-0"
               >
                 {SHAPE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
+              <button
+                onClick={resetShape}
+                className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors shrink-0"
+                title="Reset shape params to defaults"
+              >
+                Reset
+              </button>
             </div>
 
             <ShapeParamControls shape={params.topShape} isTop={true} />
