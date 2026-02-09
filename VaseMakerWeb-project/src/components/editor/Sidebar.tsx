@@ -99,7 +99,7 @@ export function Sidebar() {
       </div>
 
       {/* Toolbar */}
-      <div className="px-3 py-2 border-b border-[var(--border-color)] flex gap-2">
+      <div className="px-3 py-2 border-b border-[var(--border-color)] flex flex-col gap-2">
         <select
           onChange={(e) => {
             const preset = BUILT_IN_PRESETS[parseInt(e.target.value)];
@@ -107,34 +107,36 @@ export function Sidebar() {
             e.target.value = '';
           }}
           value=""
-          className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs text-[var(--text-primary)]"
+          className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs text-[var(--text-primary)]"
         >
           <option value="" disabled>Select a starting vase</option>
           {BUILT_IN_PRESETS.map((p, i) => (
             <option key={i} value={i}>{p.name}</option>
           ))}
         </select>
-        <button
-          onClick={handleSaveDesign}
-          className="px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
-          title="Save design as JSON"
-        >
-          Save
-        </button>
-        <button
-          onClick={handleLoadDesign}
-          className="px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
-          title="Load design from JSON"
-        >
-          Load
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={handleFileSelected}
-          className="hidden"
-        />
+        <div className="flex gap-2">
+          <button
+            onClick={handleSaveDesign}
+            className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
+            title="Save design as JSON"
+          >
+            Save Design
+          </button>
+          <button
+            onClick={handleLoadDesign}
+            className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
+            title="Load design from JSON"
+          >
+            Load Design
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileSelected}
+            className="hidden"
+          />
+        </div>
       </div>
 
       {/* Parameter controls — scrollable */}

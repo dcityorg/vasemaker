@@ -64,7 +64,7 @@ function Section({ title, children, defaultOpen = true, active, checked, onToggl
           active && <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
         )}
       </summary>
-      <div className="pt-3 px-1">
+      <div className="pt-3 px-4 ml-2 border-l-2 border-[var(--border-color)]">
         {children}
       </div>
     </details>
@@ -206,11 +206,17 @@ export function DimensionControls() {
       </Section>
 
       <Section title="Dimensions">
+        <div className="flex justify-end mb-1">
+          <button onClick={() => { setRadius(DEFAULT_PARAMETERS.radius); setHeight(DEFAULT_PARAMETERS.height); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+        </div>
         <SliderRow label="Radius" value={params.radius} {...DIMENSIONS.radius} onChange={setRadius} />
         <SliderRow label="Height" value={params.height} {...DIMENSIONS.height} onChange={setHeight} />
       </Section>
 
       <Section title="Shell">
+        <div className="flex justify-end mb-1">
+          <button onClick={() => { setWallThickness(DEFAULT_PARAMETERS.wallThickness); setBottomThickness(DEFAULT_PARAMETERS.bottomThickness); setRimShape(DEFAULT_PARAMETERS.rimShape); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+        </div>
         <SliderRow label="Wall" value={params.wallThickness} {...SHELL.wallThickness} onChange={setWallThickness} />
         <SliderRow label="Base" value={params.bottomThickness} {...SHELL.bottomThickness} onChange={setBottomThickness} />
         {params.wallThickness > 0 && (
@@ -467,19 +473,9 @@ export function DimensionControls() {
         params.resolution.radial !== RESOLUTION.defaults.radial ||
         params.flatShading
       }>
-        {(params.resolution.vertical !== RESOLUTION.defaults.vertical ||
-          params.resolution.radial !== RESOLUTION.defaults.radial ||
-          params.flatShading) && (
-          <div className="flex justify-end mb-1">
-            <button
-              onClick={() => { setResolution({ ...RESOLUTION.defaults }); setFlatShading(false); }}
-              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors"
-              title="Reset to defaults"
-            >
-              Reset
-            </button>
-          </div>
-        )}
+        <div className="flex justify-end mb-1">
+          <button onClick={() => { setResolution({ ...RESOLUTION.defaults }); setFlatShading(false); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+        </div>
         <SliderRow label="Vertical" value={params.resolution.vertical} {...RESOLUTION.vertical} onChange={(v) => setResolution({ vertical: v })} />
         <SliderRow label="Radial" value={params.resolution.radial} {...RESOLUTION.radial} onChange={(v) => setResolution({ radial: v })} />
         <Toggle label="Show Facets" checked={params.flatShading} onChange={setFlatShading} />
