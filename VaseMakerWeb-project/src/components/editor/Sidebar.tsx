@@ -104,11 +104,12 @@ export function Sidebar() {
           onChange={(e) => {
             const preset = BUILT_IN_PRESETS[parseInt(e.target.value)];
             if (preset) loadPreset(preset);
+            e.target.value = '';
           }}
-          defaultValue=""
+          value=""
           className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs text-[var(--text-primary)]"
         >
-          <option value="" disabled>Load Preset...</option>
+          <option value="" disabled>Select a starting vase</option>
           {BUILT_IN_PRESETS.map((p, i) => (
             <option key={i} value={i}>{p.name}</option>
           ))}

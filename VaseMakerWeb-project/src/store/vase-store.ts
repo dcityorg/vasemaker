@@ -59,6 +59,7 @@ interface VaseStore {
   removeBezierOffsetPoint: (index: number) => void;
 
   // Actions — textures
+  setTexturesEnabled: (enabled: boolean) => void;
   setFluting: (update: Partial<VaseParameters['textures']['fluting']>) => void;
   setBasketWeave: (update: Partial<VaseParameters['textures']['basketWeave']>) => void;
   setVoronoi: (update: Partial<VaseParameters['textures']['voronoi']>) => void;
@@ -263,6 +264,13 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     }),
 
   // Textures
+  setTexturesEnabled: (enabled) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: { ...state.params.textures, enabled },
+      },
+    })),
   setFluting: (update) =>
     set((state) => ({
       params: {

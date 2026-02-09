@@ -234,7 +234,6 @@ interface RowContext {
   centerX: number;
   centerY: number;
   twistAngle: number;
-  sineTwistValue: number;
   vSmooth: number;
 }
 
@@ -251,8 +250,11 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   const hasShell = wt > 0;
   const hasBase = bt > 0;
 
+  // Master textures gate (backward compat: treat missing field as enabled)
+  const texturesEnabled = params.textures.enabled !== false;
+
   // Precompute simplex permutation table (once per mesh generation, not per vertex)
-  const simplexPerm = params.textures.simplex?.enabled
+  const simplexPerm = texturesEnabled && params.textures.simplex?.enabled
     ? buildPermTable(params.textures.simplex.seed)
     : null;
 
@@ -296,15 +298,15 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       twistAngle = evaluateBezierScalar(v, params.bezierTwist.points);
     }
 
-    const sineTwistValue = params.sineTwist.enabled
-      ? sineTwist(v, params.sineTwist.cycles, params.sineTwist.maxDegrees)
-      : 0;
+    if (params.sineTwist.enabled) {
+      twistAngle += sineTwist(v, params.sineTwist.cycles, params.sineTwist.maxDegrees);
+    }
 
     const vSmooth = params.verticalSmoothing.enabled
       ? verticalSmoothing(v, params.verticalSmoothing.cycles, params.verticalSmoothing.startPercent)
       : 1;
 
-    rowContexts.push({ m, shapeRadius, height, v, centerX, centerY, twistAngle, sineTwistValue, vSmooth });
+    rowContexts.push({ m, shapeRadius, height, v, centerX, centerY, twistAngle, vSmooth });
   }
 
   /**
@@ -330,18 +332,18 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       : 1;
 
     const radRipple = params.radialRipple.enabled
-      ? radialRipple(row.v, t, params.radialRipple.depth, params.radialRipple.count, row.sineTwistValue)
+      ? radialRipple(row.v, t, params.radialRipple.depth, params.radialRipple.count, 0)
       : 0;
 
     const vertRipple = params.verticalRipple.enabled
       ? verticalRipple(row.v, params.verticalRipple.depth, params.verticalRipple.count)
       : 0;
 
-    const fluting = params.textures.fluting.enabled
+    const fluting = texturesEnabled && params.textures.fluting.enabled
       ? -params.textures.fluting.depth * Math.abs(sinD(params.textures.fluting.count * t))
       : 0;
 
-    const basketWeave = params.textures.basketWeave.enabled
+    const basketWeave = texturesEnabled && params.textures.basketWeave.enabled
       ? params.textures.basketWeave.depth * sinD(
           params.textures.basketWeave.waves * t
           + 180 * Math.floor(row.v * params.textures.basketWeave.bands)
@@ -350,7 +352,7 @@ export function generateMesh(params: VaseParameters): VaseMesh {
 
     // Voronoi cellular texture
     let voronoi = 0;
-    if (params.textures.voronoi?.enabled) {
+    if (texturesEnabled && params.textures.voronoi?.enabled) {
       const vor = params.textures.voronoi;
       const cellsU = vor.scale;
       // Auto-scale vertical cells by aspect ratio so cells appear roughly square
@@ -363,7 +365,7 @@ export function generateMesh(params: VaseParameters): VaseMesh {
 
     // Simplex noise texture
     let simplex = 0;
-    if (simplexPerm && params.textures.simplex?.enabled) {
+    if (texturesEnabled && simplexPerm && params.textures.simplex?.enabled) {
       const sx = params.textures.simplex;
       const angle = t * Math.PI / 180;
       const nx = Math.cos(angle) * sx.scale;

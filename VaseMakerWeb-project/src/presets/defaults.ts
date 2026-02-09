@@ -74,12 +74,12 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
 
   profileEnabled: true,
   profilePoints: [
-    [1.0, 0],     // bottom
-    [1.0, 0.2],
-    [1.0, 0.4],
-    [1.0, 0.6],
-    [1.0, 0.8],
-    [1.0, 1.0],   // top
+    [0.8, 0],     // bottom — slightly narrower base
+    [1.2, 0.2],   // widens out
+    [0.7, 0.5],   // narrows at waist
+    [0.9, 0.75],  // flares toward top
+    [1.1, 0.9],   // wide opening
+    [1.0, 1.0],   // top — clean rim
   ],
 
   bottomShape: 'Circle1',
@@ -107,6 +107,7 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
   },
 
   textures: {
+    enabled: true,
     fluting: { enabled: false, count: 12, depth: 2 },
     basketWeave: { enabled: false, bands: 8, waves: 12, depth: 1.5 },
     voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0 },

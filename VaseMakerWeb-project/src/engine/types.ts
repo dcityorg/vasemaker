@@ -145,6 +145,7 @@ export interface VaseParameters {
 
   // Textures
   textures: {
+    enabled: boolean;
     fluting: {
       enabled: boolean;
       count: number;    // number of flutes around circumference
