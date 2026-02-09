@@ -32,6 +32,13 @@ export const SHAPE_OPTIONS: { value: ShapeType; label: string }[] = [
   { value: 'Rectangle1', label: 'Rectangle' },
   { value: 'Rose1', label: 'Rose' },
   { value: 'Square1', label: 'Square' },
+  { value: 'Astroid1', label: 'Astroid' },
+  { value: 'Folium1', label: 'Folium' },
+  { value: 'Gear1', label: 'Gear' },
+  { value: 'Limacon1', label: 'Limacon' },
+  { value: 'Lissajous1', label: 'Lissajous' },
+  { value: 'RationalRose1', label: 'Rational Rose' },
+  { value: 'Spirograph1', label: 'Spirograph' },
   { value: 'SuperEllipse1', label: 'SuperEllipse' },
   { value: 'SuperFormula1', label: 'SuperFormula' },
 ];
@@ -86,6 +93,33 @@ export const SHAPE_PARAM_CONFIG: Partial<Record<ShapeType, ParamSpec[]>> = {
     { key: 'n1', label: 'n1', min: 0.1, max: 3, step: 0.1 },
     { key: 'n2', label: 'n2', min: 0.1, max: 3, step: 0.1 },
     { key: 'n3', label: 'n3', min: 0.1, max: 3, step: 0.1 },
+  ],
+  Astroid1: [
+    { key: 'power', label: 'Power', min: 0.1, max: 2, step: 0.01 },
+  ],
+  Gear1: [
+    { key: 'teeth', label: 'Teeth', min: 3, max: 24, step: 1 },
+    { key: 'depth', label: 'Depth', min: 0.05, max: 1, step: 0.05 },
+    { key: 'steepness', label: 'Steepness', min: 1, max: 10, step: 0.5 },
+  ],
+  Limacon1: [
+    { key: 'a', label: 'a', min: 0.1, max: 5, step: 0.1 },
+    { key: 'b', label: 'b', min: 0.1, max: 5, step: 0.1 },
+  ],
+  Lissajous1: [
+    { key: 'a', label: 'Freq A', min: 1, max: 8, step: 1 },
+    { key: 'b', label: 'Freq B', min: 1, max: 8, step: 1 },
+    { key: 'phase', label: 'Phase', min: 0, max: 360, step: 5 },
+  ],
+  RationalRose1: [
+    { key: 'p', label: 'p (num)', min: 1, max: 12, step: 1 },
+    { key: 'q', label: 'q (den)', min: 1, max: 12, step: 1 },
+    { key: 'centerSize', label: 'Center', min: 0, max: 3, step: 0.1 },
+  ],
+  Spirograph1: [
+    { key: 'bigR', label: 'Big R', min: 1, max: 8, step: 0.5 },
+    { key: 'smallR', label: 'Small R', min: 0.5, max: 5, step: 0.5 },
+    { key: 'd', label: 'Pen Dist', min: 0.1, max: 2, step: 0.1 },
   ],
 };
 

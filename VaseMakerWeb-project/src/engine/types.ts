@@ -16,6 +16,13 @@ export type ShapeType =
   | 'Rectangle1'
   | 'Rose1'
   | 'Square1'
+  | 'Astroid1'
+  | 'Folium1'
+  | 'Gear1'
+  | 'Limacon1'
+  | 'Lissajous1'
+  | 'RationalRose1'
+  | 'Spirograph1'
   | 'SuperEllipse1'
   | 'SuperFormula1';
 
@@ -39,6 +46,17 @@ export interface ShapeParams {
   n1?: number;            // SuperFormula1
   n2?: number;            // SuperFormula1
   n3?: number;            // SuperFormula1
+  // New shapes
+  bigR?: number;          // Spirograph1
+  smallR?: number;        // Spirograph1
+  d?: number;             // Spirograph1
+  power?: number;         // Astroid1
+  p?: number;             // RationalRose1
+  q?: number;             // RationalRose1
+  phase?: number;         // Lissajous1
+  teeth?: number;         // Gear1
+  depth?: number;         // Gear1
+  steepness?: number;     // Gear1
 }
 
 /** A Bezier control point: [value, heightFraction] */

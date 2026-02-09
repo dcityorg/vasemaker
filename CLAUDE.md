@@ -71,9 +71,12 @@ VaseMesh.tsx updates BufferGeometry → Three.js renders
 - Camera positioned at [80, 80, 120] looking at [0, 0, 50]
 - OrbitControls target is [0, 0, 50] (mid-height of default vase)
 
-## The 18 Polar Shapes
+## The 25 Polar Shapes
 All defined in `shapes.ts` as `(angleDegrees, ShapeParams) => radius`:
-Butterfly1, Cardioid1/2/3, Circle1, Diamond1, Egg1/2, Ellipse1, Heart1, Infinity1, Misc1, Polygon1, Rectangle1, Rose1, Square1, SuperEllipse1, SuperFormula1
+
+**Original 18 (from OpenSCAD):** Butterfly1, Cardioid1/2/3, Circle1, Diamond1, Egg1/2, Ellipse1, Heart1, Infinity1, Misc1, Polygon1, Rectangle1, Rose1, Square1, SuperEllipse1, SuperFormula1
+
+**7 new shapes:** Astroid1 (pinched star, `power` param), Folium1 (three-lobed clover), Gear1 (teeth/depth/steepness), Limacon1 (a + b*cos, unifies cardioid family), Lissajous1 (freqA/freqB/phase), RationalRose1 (p/q ratio + center), Spirograph1 (bigR/smallR/penDist epitrochoid)
 
 Note: OpenSCAD spells it "Cardiod" (typo) but the TS port uses "Cardioid".
 
@@ -97,6 +100,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 5. **Top shape offsets** — `mesh-generator.ts:58-59` only uses bottomParams offsets for center position. Same as OpenSCAD behavior. Could be improved to blend offsets during morph.
 
 ## Recently Completed
+- **7 new shapes** — Astroid (pinched star), Folium (clover), Gear (mechanical cog), Limacon (unified cardioid family), Lissajous (multi-lobed), Rational Rose (overlapping petals), Spirograph (epitrochoid flowers). Each with tunable parameters and slider configs. Total: 25 shapes.
 - **Undo/Redo** — 50-step history with ↶/↷ buttons next to "VaseMaker" title and Cmd+Z/Cmd+Shift+Z keyboard shortcuts. Debounced at 300ms so one slider drag = one undo step. History clears on preset load, reset, and file load. Custom implementation in `src/store/history.ts` using a separate Zustand store (no extra dependencies).
 - **Vase color picker** — Appearance section (first in sidebar) with native color picker and green dot indicator when color differs from default. Color saved/loaded with design JSON, so each vase can have its own color. Default color (`#6d9fff`) configured in `APPEARANCE` export in shape-params.ts. Reset button appears when color differs from default.
 - **Reset buttons & active indicators** — Each toggleable section has a Reset button (visible when enabled) that restores its values to defaults. Green dot on accordion headers shows which features are currently active — visible even when collapsed for quick scanning. Shape section dot indicates morph is on. Dimensions and Shell have no dot (always-on).
@@ -113,13 +117,28 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Morph offset interpolation** — Top shape offsets now blend with height during morphing
 
 ## What's NOT Implemented Yet (Phase 1 gaps)
-- **Wall thickness edge cases** — Very thin walls on complex shapes (e.g. star/rose with deep concavities) may cause inner surface self-intersection despite MIN_INNER_RADIUS clamp
+
+### Surface Textures (from FEATURES.md)
+- **Additive Sine Noise** — Layer sine waves at irrational frequency ratios for organic texture.
+- **Basket Weave** — Radial waves with phase shifts per vertical band.
+- **Honeycomb / Dimple** — Isolated bumps in grid pattern.
+- **Vertical Fluting** — `abs(sin(n*t))` classical column channels.
+- **Perlin/Simplex Noise** — JS noise library for organic non-repeating variation.
+- **Image-Based Displacement** — Upload grayscale image as radial displacement map.
+
+### UI & UX
+- **Dimension annotations** — Show mm dimensions on the 3D preview (height, diameter)
+- **More presets** — Add interesting built-in designs showcasing what's possible
+- **Preset thumbnails/descriptions** — Make preset dropdown more discoverable
+- **Export filename** — Let user pick filename before STL download
+- **Component split** — DimensionControls.tsx handles everything; planned to split into smaller files
+- **Fixed-position XYZ gizmo** — Corner orientation widget (had rendering issues before)
+
+### Technical
+- **Wall thickness edge cases** — Very thin walls on complex shapes may cause inner surface self-intersection despite MIN_INNER_RADIUS clamp
 - **Debouncing** — use-debounce.ts exists but useVaseMesh uses raw useMemo
-- **Viewport features** — Wireframe toggle, dimension annotations
-- **Component split** — DimensionControls.tsx handles everything; planned to split into ShapeSelector, ProfileEditor, RippleControls, TwistControls, etc.
 - **shadcn/ui** — Not installed; using native HTML inputs
 - **ui-store.ts** — No UI state management yet
-- **Fixed-position XYZ gizmo** — Previous useFrame/scissor approach broke vase rendering. In-scene gizmo at origin works but a fixed-corner overlay needs careful re-implementation.
 
 ## Design Decisions
 - **Fixed offset UI skipped** — `fixedOffset` (constant X/Y shift at all heights) exists in the engine but no UI was built. It's redundant now that XY Sway can do the same thing, and there's no practical reason to shift the entire vase off the origin (it should stay centered for 3D printing).

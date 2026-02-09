@@ -70,16 +70,10 @@ function Toggle({ label, checked, onChange, onReset }: {
       <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">{label}</label>
       <button
         onClick={() => onChange(!checked)}
-        className={`w-10 h-5 rounded-full transition-colors relative ${
+        className={`w-8 h-4 rounded-full transition-colors ${
           checked ? 'bg-[var(--accent)]' : 'bg-[var(--border-color)]'
         }`}
-      >
-        <span
-          className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-            checked ? 'translate-x-5' : 'translate-x-0.5'
-          }`}
-        />
-      </button>
+      />
       {onReset && checked && (
         <button
           onClick={onReset}

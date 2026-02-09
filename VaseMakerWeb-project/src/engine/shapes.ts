@@ -122,6 +122,73 @@ export const shapeRegistry: Record<ShapeType, ShapeFunction> = {
   Square1: (t, p) =>
     p.scaleFactor * Math.min(1 / Math.abs(cosD(t)), 1 / Math.abs(sinD(t))),
 
+  // Astroid — pinched four-pointed star with concave sides
+  // https://en.wikipedia.org/wiki/Astroid
+  Astroid1: (t, p) => {
+    const pw = p.power ?? 0.667;
+    const ct = cosD(t);
+    const st = sinD(t);
+    // Parametric astroid in polar: r = (|cos|^pw + |sin|^pw)^(1/pw) inverted
+    // Use superellipse-style formula with exponent < 1 for concave shape
+    const sum = Math.pow(Math.abs(ct), pw) + Math.pow(Math.abs(st), pw);
+    return p.scaleFactor * Math.pow(sum, 1 / pw);
+  },
+
+  // Folium — three-lobed clover shape
+  // https://en.wikipedia.org/wiki/Folium
+  Folium1: (t, p) => {
+    const r = cosD(t) * (4 * sinD(t) * sinD(t) - 1);
+    return p.scaleFactor * (0.5 + 0.5 * Math.abs(r));
+  },
+
+  // Gear / Cog — steep-sided bumps for mechanical look
+  Gear1: (t, p) => {
+    const teeth = p.teeth ?? 8;
+    const depth = p.depth ?? 0.3;
+    const steepness = p.steepness ?? 4;
+    return p.scaleFactor * (1 + depth * Math.tanh(steepness * sinD(teeth * t)));
+  },
+
+  // Limacon — unifies cardioid family: a + b*cos(t)
+  // https://en.wikipedia.org/wiki/Lima%C3%A7on
+  Limacon1: (t, p) => {
+    const a = p.a ?? 1.5;
+    const b = p.b ?? 1;
+    return p.scaleFactor * Math.abs(a + b * cosD(t)) / (a + Math.abs(b));
+  },
+
+  // Lissajous — complex multi-lobed flowing shapes
+  // Convert parametric Lissajous to polar
+  Lissajous1: (t, p) => {
+    const a = p.a ?? 3;
+    const b = p.b ?? 2;
+    const phase = p.phase ?? 90;
+    const x = sinD(a * t);
+    const y = sinD(b * t + phase);
+    return p.scaleFactor * Math.sqrt(x * x + y * y) / Math.SQRT2;
+  },
+
+  // Rational Rose — cos(p/q * t) with non-integer ratio for overlapping petals
+  // https://en.wikipedia.org/wiki/Rose_(mathematics)
+  RationalRose1: (t, p) => {
+    const pn = p.p ?? 3;
+    const q = p.q ?? 2;
+    const center = p.centerSize ?? 0.5;
+    return p.scaleFactor * (center + Math.abs(cosD(pn / q * t))) / (1 + center);
+  },
+
+  // Spirograph / Epitrochoid — classic flower patterns
+  // https://en.wikipedia.org/wiki/Epitrochoid
+  Spirograph1: (t, p) => {
+    const R = p.bigR ?? 3;
+    const r = p.smallR ?? 1;
+    const d = p.d ?? 0.5;
+    const angle = (R + r) / r * t;
+    const x = (R + r) * cosD(t) - d * r * cosD(angle);
+    const y = (R + r) * sinD(t) - d * r * sinD(angle);
+    return p.scaleFactor * Math.sqrt(x * x + y * y) / (R + r + d * r);
+  },
+
   // SuperEllipse — squircle family
   // https://en.wikipedia.org/wiki/Superellipse
   SuperEllipse1: (t, p) => {
