@@ -163,6 +163,15 @@ export interface VaseParameters {
       edgeWidth: number; // edge sharpness 0–1
       seed: number;     // pattern variation 0–99
     };
+    simplex: {
+      enabled: boolean;
+      scale: number;      // feature size (higher = more features)
+      depth: number;      // displacement amplitude in mm
+      octaves: number;    // detail layers (1=smooth, 6=craggy)
+      persistence: number; // amplitude decay per octave
+      lacunarity: number;  // frequency multiplier per octave
+      seed: number;       // pattern variation 0–99
+    };
   };
 
   // Shell (new — not in OpenSCAD)

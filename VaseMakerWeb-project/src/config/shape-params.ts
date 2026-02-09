@@ -191,6 +191,14 @@ export const TEXTURES = {
     edgeWidth: { min: 0, max: 1, step: 0.05 } as SliderRange,
     seed: { min: 0, max: 99, step: 1 } as SliderRange,
   },
+  simplex: {
+    scale: { min: 1, max: 50, step: 1 } as SliderRange,
+    depth: { min: 0.05, max: 5, step: 0.05 } as SliderRange,
+    octaves: { min: 1, max: 6, step: 1 } as SliderRange,
+    persistence: { min: 0.1, max: 0.9, step: 0.05 } as SliderRange,
+    lacunarity: { min: 1.5, max: 3, step: 0.1 } as SliderRange,
+    seed: { min: 0, max: 99, step: 1 } as SliderRange,
+  },
 } as const;
 
 /** Mesh resolution — defaults and slider ranges */

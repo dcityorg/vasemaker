@@ -110,6 +110,7 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
     fluting: { enabled: false, count: 12, depth: 2 },
     basketWeave: { enabled: false, bands: 8, waves: 12, depth: 1.5 },
     voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0 },
+    simplex: { enabled: false, scale: 10, depth: 1.0, octaves: 3, persistence: 0.5, lacunarity: 2.0, seed: 0 },
   },
 
   resolution: { ...RESOLUTION.defaults },

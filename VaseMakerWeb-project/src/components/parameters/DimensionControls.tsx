@@ -137,7 +137,7 @@ export function DimensionControls() {
     addBezierOffsetPoint, removeBezierOffsetPoint,
     setWallThickness, setBottomThickness, setRimShape,
     setColor, setResolution, setFlatShading,
-    setFluting, setBasketWeave, setVoronoi,
+    setFluting, setBasketWeave, setVoronoi, setSimplex,
   } = useVaseStore();
 
   // Reset helpers — patch specific param groups back to defaults
@@ -169,6 +169,7 @@ export function DimensionControls() {
   const resetFluting = () => setFluting({ count: DEFAULT_PARAMETERS.textures.fluting.count, depth: DEFAULT_PARAMETERS.textures.fluting.depth });
   const resetBasketWeave = () => setBasketWeave({ bands: DEFAULT_PARAMETERS.textures.basketWeave.bands, waves: DEFAULT_PARAMETERS.textures.basketWeave.waves, depth: DEFAULT_PARAMETERS.textures.basketWeave.depth });
   const resetVoronoi = () => setVoronoi({ scale: DEFAULT_PARAMETERS.textures.voronoi.scale, depth: DEFAULT_PARAMETERS.textures.voronoi.depth, edgeWidth: DEFAULT_PARAMETERS.textures.voronoi.edgeWidth, seed: DEFAULT_PARAMETERS.textures.voronoi.seed });
+  const resetSimplex = () => setSimplex({ scale: DEFAULT_PARAMETERS.textures.simplex.scale, depth: DEFAULT_PARAMETERS.textures.simplex.depth, octaves: DEFAULT_PARAMETERS.textures.simplex.octaves, persistence: DEFAULT_PARAMETERS.textures.simplex.persistence, lacunarity: DEFAULT_PARAMETERS.textures.simplex.lacunarity, seed: DEFAULT_PARAMETERS.textures.simplex.seed });
 
   return (
     <>
@@ -436,7 +437,7 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Textures" defaultOpen={false} active={params.textures.fluting.enabled || params.textures.basketWeave.enabled || params.textures.voronoi?.enabled}>
+      <Section title="Textures" defaultOpen={false} active={params.textures.fluting.enabled || params.textures.basketWeave.enabled || params.textures.voronoi?.enabled || params.textures.simplex?.enabled}>
         <Toggle label="Fluting" checked={params.textures.fluting.enabled} onChange={(v) => setFluting({ enabled: v })} onReset={resetFluting} />
         {params.textures.fluting.enabled && (
           <>
@@ -459,6 +460,17 @@ export function DimensionControls() {
             <SliderRow label="Depth" value={params.textures.voronoi.depth} {...TEXTURES.voronoi.depth} onChange={(v) => setVoronoi({ depth: v })} />
             <SliderRow label="Edge" value={params.textures.voronoi.edgeWidth} {...TEXTURES.voronoi.edgeWidth} onChange={(v) => setVoronoi({ edgeWidth: v })} />
             <SliderRow label="Seed" value={params.textures.voronoi.seed} {...TEXTURES.voronoi.seed} onChange={(v) => setVoronoi({ seed: v })} />
+          </>
+        )}
+        <Toggle label="Simplex" checked={params.textures.simplex?.enabled ?? false} onChange={(v) => setSimplex({ enabled: v })} onReset={resetSimplex} />
+        {params.textures.simplex?.enabled && (
+          <>
+            <SliderRow label="Scale" value={params.textures.simplex.scale} {...TEXTURES.simplex.scale} onChange={(v) => setSimplex({ scale: v })} />
+            <SliderRow label="Depth" value={params.textures.simplex.depth} {...TEXTURES.simplex.depth} onChange={(v) => setSimplex({ depth: v })} />
+            <SliderRow label="Octaves" value={params.textures.simplex.octaves} {...TEXTURES.simplex.octaves} onChange={(v) => setSimplex({ octaves: v })} />
+            <SliderRow label="Persistence" value={params.textures.simplex.persistence} {...TEXTURES.simplex.persistence} onChange={(v) => setSimplex({ persistence: v })} />
+            <SliderRow label="Lacunarity" value={params.textures.simplex.lacunarity} {...TEXTURES.simplex.lacunarity} onChange={(v) => setSimplex({ lacunarity: v })} />
+            <SliderRow label="Seed" value={params.textures.simplex.seed} {...TEXTURES.simplex.seed} onChange={(v) => setSimplex({ seed: v })} />
           </>
         )}
       </Section>

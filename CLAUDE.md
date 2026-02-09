@@ -88,8 +88,9 @@ For each vertex at height v (0-1) and angle t (0-360):
 4. Add radial ripple * vertical smoothing * radial smoothing
 5. Add vertical ripple * vertical smoothing * radial smoothing
 6. Add Voronoi cellular texture offset (if enabled)
-7. Apply radial offset (−wallThickness for inner surface, clamped to MIN_INNER_RADIUS)
-8. Convert polar → cartesian, add XY offset, apply Bezier twist rotation
+7. Add Simplex noise texture offset (if enabled)
+8. Apply radial offset (−wallThickness for inner surface, clamped to MIN_INNER_RADIUS)
+9. Convert polar → cartesian, add XY offset, apply Bezier twist rotation
 
 When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface (reversed winding), bottom cap (two discs + wall strip), and rim (flat quad strip or rounded semicircular arc with RIM_STEPS=5 intermediate rings). Per-row data is precomputed into `RowContext` structs and shared via `computeVertex()` helper.
 
@@ -101,6 +102,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 5. **Top shape offsets** — `mesh-generator.ts:58-59` only uses bottomParams offsets for center position. Same as OpenSCAD behavior. Could be improved to blend offsets during morph.
 
 ## Recently Completed
+- **Simplex noise texture** — Organic/natural surface displacement using 3D simplex noise with fractal Brownian motion (fBm). From-scratch implementation (~120 lines, no npm dependency): `GRAD3` table (12 gradient vectors), `buildPermTable(seed)` (Fisher-Yates shuffled, 512 entries), `simplex3D()` (standard 4-corner tetrahedra evaluation), `fbm3D()` (multi-octave layering). Seamless 0/360 wrapping via mapping angle to cos/sin circle in 3D noise space — no special boundary logic needed. Perm table cached once per `generateMesh()` call, not per-vertex. Vertical scale auto-adjusts by aspect ratio for roughly square features. Params: Scale (1–50 feature size), Depth (0.05–5mm displacement), Octaves (1–6 detail layers), Persistence (0.1–0.9 amplitude decay), Lacunarity (1.5–3 frequency multiplier), Seed (0–99 pattern variation). Uses optional chaining for backward compat with old save files. UI in Textures section alongside Fluting, Basket Weave, and Voronoi.
 - **Voronoi texture** — Cellular/organic surface pattern using Worley noise. Hash-based 2D algorithm (`hash2D` + `voronoiCell` in mesh-generator.ts) computes nearest/second-nearest seed distances with smoothstep edge detection. Params: Scale (5–50 cells around circumference), Depth (0.05–5mm emboss), Edge Width (0–1 sharpness), Seed (0–99 pattern variation). Vertical cell count auto-scales by aspect ratio for roughly square cells. Seamless at 0/360 boundary. Uses optional chaining for backward compat with old save files. UI in Textures section alongside Fluting and Basket Weave.
 - **7 new shapes** — Astroid (pinched star), Folium (clover), Gear (mechanical cog), Limacon (unified cardioid family), Lissajous (multi-lobed), Rational Rose (overlapping petals), Spirograph (epitrochoid flowers). Each with tunable parameters and slider configs. Total: 25 shapes.
 - **Undo/Redo** — 50-step history with ↶/↷ buttons next to "VaseMaker" title and Cmd+Z/Cmd+Shift+Z keyboard shortcuts. Debounced at 300ms so one slider drag = one undo step. History clears on preset load, reset, and file load. Custom implementation in `src/store/history.ts` using a separate Zustand store (no extra dependencies).
@@ -120,10 +122,23 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 
 ## What's NOT Implemented Yet (Phase 1 gaps)
 
-### Surface Textures (from FEATURES.md)
+### Surface Textures — Ideas & Possibilities
+
+**Highly Organic**
+- **Reaction-Diffusion (Turing Patterns)** — The math behind animal skin patterns (leopard spots, zebra stripes, coral). Precompute a 2D Gray-Scott simulation grid, sample as displacement. Computationally heavier but stunning organic results.
+- **Domain-Warped Noise** — Feed noise coordinates through *another* noise function before evaluating. Creates swirling, marbled, almost fluid-like distortions. Very alien/organic. Can build on the existing simplex3D/fbm3D implementation in mesh-generator.ts.
+
+**Geometric but Natural-Looking**
+- **Scales / Fish Scale** — Overlapping circles in a staggered grid. Each scale is a radial bump offset per row (similar math to basket weave but with circular falloff). Looks like pinecones, dragon skin, roof tiles. Params: rows, columns, depth, overlap.
+- **Hexagonal Cells (Honeycomb)** — Like Voronoi but perfectly regular hex grid. Raised hexagons with flat gaps, or inverse (sunken dimples). Clean geometric counterpart to Voronoi's randomness. Params: scale, depth, gap width.
+- **Brick / Staggered Grid** — Rectangular cells with alternating row offsets. With rounded edges looks like woven bamboo or stone wall. Params: rows, columns, depth, gap, stagger.
+
+**Mathematical / Decorative**
+- **Moire / Interference** — Multiply two sine waves at slightly different frequencies. Creates beautiful beating patterns with organic-looking nodes and antinodes. Params: freq1, freq2, depth.
+- **Truchet Tiling** — Divide surface into grid, randomly rotate quarter-circle arcs per cell. Creates maze-like flowing curves. Params: scale, depth, seed.
+- **Lissajous Surface** — `sin(a*t + phase) * sin(b*v)` with tunable frequency ratios. At irrational ratios produces non-repeating organic interference. Params: freqA, freqB, phase, depth.
+- **Wavelet/Ripple Interference** — Multiple point sources of circular ripples at random positions, summed together. Like pond surface in rain. Params: sources, frequency, depth, seed.
 - **Additive Sine Noise** — Layer sine waves at irrational frequency ratios for organic texture.
-- **Honeycomb / Dimple** — Isolated bumps in grid pattern.
-- **Perlin/Simplex Noise** — JS noise library for organic non-repeating variation.
 - **Image-Based Displacement** — Upload grayscale image as radial displacement map.
 
 ### UI & UX
