@@ -173,6 +173,14 @@ export interface VaseParameters {
       lacunarity: number;  // frequency multiplier per octave
       seed: number;       // pattern variation 0–99
     };
+    woodGrain: {
+      enabled: boolean;
+      count: number;      // number of grain lines around circumference
+      depth: number;      // groove depth in mm
+      wobble: number;     // how much lines meander (0–1)
+      sharpness: number;  // edge hardness (0=soft, 1=sharp)
+      seed: number;       // pattern variation 0–99
+    };
   };
 
   // Shell (new — not in OpenSCAD)

@@ -199,6 +199,13 @@ export const TEXTURES = {
     lacunarity: { min: 1.5, max: 3, step: 0.1 } as SliderRange,
     seed: { min: 0, max: 99, step: 1 } as SliderRange,
   },
+  woodGrain: {
+    count: { min: 5, max: 80, step: 1 } as SliderRange,
+    depth: { min: 0.1, max: 5, step: 0.1 } as SliderRange,
+    wobble: { min: 0, max: 1, step: 0.05 } as SliderRange,
+    sharpness: { min: 0, max: 1, step: 0.05 } as SliderRange,
+    seed: { min: 0, max: 99, step: 1 } as SliderRange,
+  },
 } as const;
 
 /** Mesh resolution — defaults and slider ranges */

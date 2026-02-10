@@ -90,7 +90,7 @@ For each vertex at height v (0-1) and angle t (0-360):
 3. Multiply by Bezier profile radius at this height
 4. Add radial ripple * vertical smoothing * radial smoothing
 5. Add vertical ripple * vertical smoothing * radial smoothing
-6. Add texture offsets (fluting, basket weave, voronoi, simplex) if textures master gate is on
+6. Add texture offsets (fluting, basket weave, voronoi, simplex, wood grain) if textures master gate is on
 7. Apply radial offset (−wallThickness for inner surface, clamped to MIN_INNER_RADIUS). When `smoothInner` is enabled, inner surface uses `computeRadius(skipTextures=true)` and enforces `minWallThickness` gap relative to textured outer surface
 8. Convert polar → cartesian, add XY offset, apply twist rotation (bezier + wave twist)
 
@@ -104,7 +104,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Custom Twist** — BezierCurveEditor for twist degrees at each height
 - **Wave Twist** — Sinusoidal twist that rotates entire cross-section via unified `twistAngle`
 - **XY Sway** — Two BezierCurveEditors (X/Y offset) with scale sliders
-- **Textures** — Master gate toggle + 4 individual textures: Fluting, Basket Weave, Voronoi (Worley noise), Simplex (fBm). Seamless 0/360 wrapping, aspect-ratio-corrected cells. Reusable functions: `hash2D`, `simplex3D`, `fbm3D`
+- **Textures** — Master gate toggle + 5 individual textures: Fluting, Basket Weave, Voronoi (Worley noise), Simplex (fBm), Wood Grain (wobbled vertical stripes via simplex-perturbed sine). Seamless 0/360 wrapping, aspect-ratio-corrected cells. Reusable functions: `hash2D`, `simplex3D`, `fbm3D`
 - **Wall thickness, base cap, rim** — Outer + inner surfaces, base cap (no wall strip — avoids lip on flared profiles), flat/rounded rim. Base thickness measured vertically. **Smooth Inner** toggle keeps inner wall texture-free; **Min Wall** slider prevents paper-thin walls where textures indent inward
 - **Undo/redo** — 50-step debounced history, ↶/↷ buttons + Cmd+Z/Cmd+Shift+Z
 - **Save/Load** — JSON export/import, merges onto DEFAULT_PARAMETERS for forward-compat

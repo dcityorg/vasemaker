@@ -39,7 +39,7 @@ function SliderRow({
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="flex-1 h-1.5 accent-[var(--accent)]"
       />
-      <span className="text-xs text-[var(--text-secondary)] w-12 text-right tabular-nums">
+      <span className="text-xs text-[var(--text-secondary)] w-12 shrink-0 text-right tabular-nums">
         {value}
       </span>
     </div>
@@ -147,7 +147,7 @@ export function DimensionControls() {
     addBezierOffsetPoint, removeBezierOffsetPoint,
     setWallThickness, setBottomThickness, setRimShape, setSmoothInner, setMinWallThickness,
     setColor, setResolution, setFlatShading,
-    setTexturesEnabled, setFluting, setBasketWeave, setVoronoi, setSimplex,
+    setTexturesEnabled, setFluting, setBasketWeave, setVoronoi, setSimplex, setWoodGrain,
   } = useVaseStore();
 
   // Reset helpers — patch specific param groups back to defaults
@@ -181,6 +181,7 @@ export function DimensionControls() {
   const resetBasketWeave = () => setBasketWeave({ bands: DEFAULT_PARAMETERS.textures.basketWeave.bands, waves: DEFAULT_PARAMETERS.textures.basketWeave.waves, depth: DEFAULT_PARAMETERS.textures.basketWeave.depth });
   const resetVoronoi = () => setVoronoi({ scale: DEFAULT_PARAMETERS.textures.voronoi.scale, depth: DEFAULT_PARAMETERS.textures.voronoi.depth, edgeWidth: DEFAULT_PARAMETERS.textures.voronoi.edgeWidth, seed: DEFAULT_PARAMETERS.textures.voronoi.seed });
   const resetSimplex = () => setSimplex({ scale: DEFAULT_PARAMETERS.textures.simplex.scale, depth: DEFAULT_PARAMETERS.textures.simplex.depth, octaves: DEFAULT_PARAMETERS.textures.simplex.octaves, persistence: DEFAULT_PARAMETERS.textures.simplex.persistence, lacunarity: DEFAULT_PARAMETERS.textures.simplex.lacunarity, seed: DEFAULT_PARAMETERS.textures.simplex.seed });
+  const resetWoodGrain = () => setWoodGrain({ count: DEFAULT_PARAMETERS.textures.woodGrain.count, depth: DEFAULT_PARAMETERS.textures.woodGrain.depth, wobble: DEFAULT_PARAMETERS.textures.woodGrain.wobble, sharpness: DEFAULT_PARAMETERS.textures.woodGrain.sharpness, seed: DEFAULT_PARAMETERS.textures.woodGrain.seed });
 
   return (
     <>
@@ -473,6 +474,16 @@ export function DimensionControls() {
             <SliderRow label="Persistence" value={params.textures.simplex.persistence} {...TEXTURES.simplex.persistence} onChange={(v) => setSimplex({ persistence: v })} />
             <SliderRow label="Lacunarity" value={params.textures.simplex.lacunarity} {...TEXTURES.simplex.lacunarity} onChange={(v) => setSimplex({ lacunarity: v })} />
             <SliderRow label="Seed" value={params.textures.simplex.seed} {...TEXTURES.simplex.seed} onChange={(v) => setSimplex({ seed: v })} />
+          </div>
+        )}
+        <Toggle label="Wood Grain" checked={params.textures.woodGrain?.enabled ?? false} onChange={(v) => setWoodGrain({ enabled: v })} onReset={resetWoodGrain} />
+        {params.textures.woodGrain?.enabled && (
+          <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
+            <SliderRow label="Count" value={params.textures.woodGrain.count} {...TEXTURES.woodGrain.count} onChange={(v) => setWoodGrain({ count: v })} />
+            <SliderRow label="Depth" value={params.textures.woodGrain.depth} {...TEXTURES.woodGrain.depth} onChange={(v) => setWoodGrain({ depth: v })} />
+            <SliderRow label="Wobble" value={params.textures.woodGrain.wobble} {...TEXTURES.woodGrain.wobble} onChange={(v) => setWoodGrain({ wobble: v })} />
+            <SliderRow label="Sharpness" value={params.textures.woodGrain.sharpness} {...TEXTURES.woodGrain.sharpness} onChange={(v) => setWoodGrain({ sharpness: v })} />
+            <SliderRow label="Seed" value={params.textures.woodGrain.seed} {...TEXTURES.woodGrain.seed} onChange={(v) => setWoodGrain({ seed: v })} />
           </div>
         )}
       </Section>

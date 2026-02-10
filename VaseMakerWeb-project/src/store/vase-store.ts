@@ -64,6 +64,7 @@ interface VaseStore {
   setBasketWeave: (update: Partial<VaseParameters['textures']['basketWeave']>) => void;
   setVoronoi: (update: Partial<VaseParameters['textures']['voronoi']>) => void;
   setSimplex: (update: Partial<VaseParameters['textures']['simplex']>) => void;
+  setWoodGrain: (update: Partial<VaseParameters['textures']['woodGrain']>) => void;
 
   // Actions — shell
   setWallThickness: (value: number) => void;
@@ -310,6 +311,16 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
         textures: {
           ...state.params.textures,
           simplex: { ...state.params.textures.simplex, ...update },
+        },
+      },
+    })),
+  setWoodGrain: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: {
+          ...state.params.textures,
+          woodGrain: { ...state.params.textures.woodGrain, ...update },
         },
       },
     })),

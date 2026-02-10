@@ -112,6 +112,7 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
     basketWeave: { enabled: false, bands: 8, waves: 12, depth: 1.5 },
     voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0 },
     simplex: { enabled: false, scale: 10, depth: 1.0, octaves: 3, persistence: 0.5, lacunarity: 2.0, seed: 0 },
+    woodGrain: { enabled: false, count: 30, depth: 0.8, wobble: 0.5, sharpness: 0.6, seed: 0 },
   },
 
   resolution: { ...RESOLUTION.defaults },

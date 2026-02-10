@@ -219,6 +219,49 @@ function fbm3D(
   return total / maxAmplitude; // Normalize to [-1, 1]
 }
 
+/**
+ * Wood grain texture — vertical streaks with organic wobble.
+ * Uses simplex noise to perturb horizontal stripe positions so they
+ * meander side-to-side like flat-sawn wood grain.
+ *
+ * @param u - horizontal position (angle mapped to 0..count)
+ * @param v - vertical position (height 0..1, scaled by aspect ratio)
+ * @param count - number of grain lines
+ * @param wobble - how much lines meander (0–1)
+ * @param sharpness - edge sharpness (0=soft grooves, 1=sharp lines)
+ * @param perm - simplex permutation table
+ * @returns value in [-1, 0] — negative = groove inward
+ */
+function woodGrain(
+  u: number, v: number, count: number,
+  wobble: number, sharpness: number, perm: Uint8Array
+): number {
+  // Wobble the horizontal position using simplex noise seeded by height.
+  // Use two octaves at different scales for organic irregularity.
+  const wobbleAmount = wobble * count * 0.3;
+  const warp = wobbleAmount * (
+    0.7 * simplex3D(u * 0.5, v * 4, 0, perm)
+    + 0.3 * simplex3D(u * 1.2, v * 8, 3.7, perm)
+  );
+
+  // Vary stripe width using a slower noise field
+  const widthVar = 0.3 * simplex3D(u * 0.3, v * 2, 7.1, perm);
+
+  // Sine wave for the base stripe pattern
+  const phase = (u + warp) * Math.PI * 2;
+  const raw = Math.sin(phase); // -1 to 1
+
+  // Threshold to create distinct grooves.
+  // Map sharpness: 0 = gentle sine, 1 = hard binary edge.
+  // The threshold shifts by widthVar to create varying widths.
+  const threshold = 0.2 + widthVar;
+  const edge = 0.05 + (1 - sharpness) * 0.6; // transition width
+  const t = (raw - threshold) / edge;
+  const groove = Math.max(0, Math.min(1, t * 0.5 + 0.5));
+
+  return -(1 - groove); // negative = inward groove, 0 = flush
+}
+
 /** Number of intermediate rings for rounded rim */
 const RIM_STEPS = 5;
 
@@ -254,8 +297,13 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   const texturesEnabled = params.textures.enabled !== false;
 
   // Precompute simplex permutation table (once per mesh generation, not per vertex)
+  // Shared by simplex texture and wood grain (which uses simplex3D for wobble)
   const simplexPerm = texturesEnabled && params.textures.simplex?.enabled
     ? buildPermTable(params.textures.simplex.seed)
+    : null;
+
+  const woodGrainPerm = texturesEnabled && params.textures.woodGrain?.enabled
+    ? buildPermTable(params.textures.woodGrain.seed)
     : null;
 
   // Get shape functions
@@ -344,6 +392,7 @@ export function generateMesh(params: VaseParameters): VaseMesh {
     let basketWeaveVal = 0;
     let voronoi = 0;
     let simplex = 0;
+    let woodGrainVal = 0;
 
     if (!skipTextures) {
       fluting = texturesEnabled && params.textures.fluting.enabled
@@ -379,6 +428,17 @@ export function generateMesh(params: VaseParameters): VaseMesh {
         const nz = row.v * scaleV;
         simplex = sx.depth * fbm3D(nx, ny, nz, sx.octaves, sx.persistence, sx.lacunarity, simplexPerm);
       }
+
+      // Wood grain texture
+      if (texturesEnabled && woodGrainPerm && params.textures.woodGrain?.enabled) {
+        const wg = params.textures.woodGrain;
+        // Map angle to horizontal stripe position (0..count), seamless at 0/360
+        const u = (t / 360) * wg.count;
+        // Aspect-ratio-corrected vertical coordinate
+        const circumference = 2 * Math.PI * params.radius;
+        const vScaled = row.v * (params.height / circumference) * wg.count;
+        woodGrainVal = wg.depth * woodGrain(u, vScaled, wg.count, wg.wobble, wg.sharpness, woodGrainPerm);
+      }
     }
 
     return shapeValue * row.shapeRadius
@@ -387,7 +447,8 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       + fluting
       + basketWeaveVal
       + voronoi
-      + simplex;
+      + simplex
+      + woodGrainVal;
   }
 
   /**
