@@ -285,5 +285,42 @@ active={/* ...existing... */ || params.textures.myTexture?.enabled}
 - Avoid drei `Html` components for many labels — DOM overlay performance issues.
 - OpenSCAD uses degrees for all trig; the TS port uses sinD/cosD/tanD helpers from math-utils.ts.
 
+## Troubleshooting
+
+### White screen with sidebar visible (recurring issue)
+**Symptom:** Sidebar renders but the 3D viewport is blank white. Browser console shows 404 errors for `_next/static/chunks/*.js` and `layout.css`.
+
+**Cause:** The `.next` build cache gets stale after multiple hot-reload cycles. The dev server references chunk hashes that no longer exist on disk.
+
+**Fix:**
+```bash
+cd VaseMakerWeb-project
+lsof -ti :3000 | xargs kill -9 2>/dev/null   # kill dev server
+rm -rf .next                                   # clear stale cache
+npm run dev                                    # restart clean
+```
+Then **hard refresh** the browser (Cmd+Shift+R) to clear cached chunk references.
+
+**Note:** This is a Next.js dev server issue, not a code bug. If the white screen persists after clearing `.next`, then check for actual runtime errors in the browser console (e.g. TypeError from undefined params — see backward compat notes above).
+
+## Wood Grain Texture — Iteration Notes
+
+The current Wood Grain texture (v1) uses simplex-perturbed sine waves. It produces organic-looking patterns but NOT realistic flat-sawn wood grain with thin delicate vertical lines. Multiple algorithm approaches were tried:
+
+- **v1 (current/kept):** Simplex-perturbed sine waves with 2 octaves of wobble, width variation via slow noise field, sharpness-controlled groove profile. Organic but blobby. User's best preset: count=43, depth=2.2, wobble=0.05, sharpness=0.1, seed=32
+- **v2–v4:** Tried `abs(sin)^power` for narrow grooves, fractional power, V-groove thresholding — improved verticality but grooves still too wide
+- **v5:** Domain-warped simplex noise with contour extraction — still blobby (noise is fundamentally isotropic)
+- **v6:** 2D ring noise (sample noise on cos/sin circle) — still blobby
+- **v7:** Sine-wave stripes with noise only for wobble + width variation — clean verticals but too regular/uniform
+- **v8:** Per-stripe hash-based random width/depth + independent per-stripe wobble — better variation but still not thin delicate lines like real wood
+
+**Key insight:** Simplex noise is inherently isotropic and cannot be forced into vertical lines regardless of anisotropic scaling or domain warping. The sine-wave approach (v7/v8) guarantees verticals but needs more work on making grooves thin/delicate with organic forking/merging.
+
+**Future directions to explore:**
+- Per-stripe 1D noise (each groove position = independent 1D noise function of height only)
+- Line forking/merging: hash-based probability that a groove splits into 2 at certain heights
+- Multi-scale: broad shallow channels with thin sharp lines within them
+- Reference: aim for thin white indented lines like flat-sawn wood grain, where lines meander, fork, have variable width, and some are faint while others are pronounced
+
 ## Git Info
 - Branch: master (main branch is "main")

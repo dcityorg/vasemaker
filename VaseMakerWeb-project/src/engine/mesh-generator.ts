@@ -433,11 +433,11 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       if (texturesEnabled && woodGrainPerm && params.textures.woodGrain?.enabled) {
         const wg = params.textures.woodGrain;
         // Map angle to horizontal stripe position (0..count), seamless at 0/360
-        const u = (t / 360) * wg.count;
+        const wgU = (t / 360) * wg.count;
         // Aspect-ratio-corrected vertical coordinate
         const circumference = 2 * Math.PI * params.radius;
         const vScaled = row.v * (params.height / circumference) * wg.count;
-        woodGrainVal = wg.depth * woodGrain(u, vScaled, wg.count, wg.wobble, wg.sharpness, woodGrainPerm);
+        woodGrainVal = wg.depth * woodGrain(wgU, vScaled, wg.count, wg.wobble, wg.sharpness, woodGrainPerm);
       }
     }
 

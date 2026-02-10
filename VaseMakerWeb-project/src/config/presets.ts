@@ -59,4 +59,22 @@ export const BUILT_IN_PRESETS: Preset[] = [
       bottomShape: 'SuperFormula1',
     },
   },
+  {
+    name: 'Wood Grain 1',
+    description: 'Organic vertical grain texture',
+    parameters: {
+      profilePoints: [
+        [1.0, 0], [1.0, 0.2], [1.0, 0.4], [1.0, 0.6], [1.0, 0.8], [1.0, 1.0],
+      ],
+      textures: {
+        enabled: true,
+        fluting: { enabled: false, count: 12, depth: 2 },
+        basketWeave: { enabled: false, bands: 8, waves: 12, depth: 1.5 },
+        voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0 },
+        simplex: { enabled: false, scale: 10, depth: 1.0, octaves: 3, persistence: 0.5, lacunarity: 2.0, seed: 0 },
+        woodGrain: { enabled: true, count: 43, depth: 2.2, wobble: 0.05, sharpness: 0.1, seed: 32 },
+      },
+      resolution: { vertical: 100, radial: 200 },
+    },
+  },
 ];

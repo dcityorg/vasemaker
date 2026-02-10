@@ -28,8 +28,8 @@ function SliderRow({
   onChange: (v: number) => void;
 }) {
   return (
-    <div className="flex items-center gap-3 mb-2">
-      <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">{label}</label>
+    <div className="flex items-center gap-2 mb-2">
+      <label className="text-sm text-[var(--text-secondary)] w-20 shrink-0">{label}</label>
       <input
         type="range"
         min={min}
@@ -37,9 +37,9 @@ function SliderRow({
         step={step}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="flex-1 h-1.5 accent-[var(--accent)]"
+        className="flex-1 min-w-0 h-1.5 accent-[var(--accent)]"
       />
-      <span className="text-xs text-[var(--text-secondary)] w-12 shrink-0 text-right tabular-nums">
+      <span className="text-xs text-[var(--text-secondary)] w-10 shrink-0 text-right tabular-nums">
         {value}
       </span>
     </div>
@@ -443,14 +443,14 @@ export function DimensionControls() {
       <Section title="Textures" defaultOpen={false} checked={params.textures.enabled !== false} onToggle={(v) => setTexturesEnabled(v)}>
         <Toggle label="Fluting" checked={params.textures.fluting.enabled} onChange={(v) => setFluting({ enabled: v })} onReset={resetFluting} />
         {params.textures.fluting.enabled && (
-          <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
+          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
             <SliderRow label="Count" value={params.textures.fluting.count} {...TEXTURES.fluting.count} onChange={(v) => setFluting({ count: v })} />
             <SliderRow label="Depth" value={params.textures.fluting.depth} {...TEXTURES.fluting.depth} onChange={(v) => setFluting({ depth: v })} />
           </div>
         )}
         <Toggle label="Basket Weave" checked={params.textures.basketWeave.enabled} onChange={(v) => setBasketWeave({ enabled: v })} onReset={resetBasketWeave} />
         {params.textures.basketWeave.enabled && (
-          <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
+          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
             <SliderRow label="Bands" value={params.textures.basketWeave.bands} {...TEXTURES.basketWeave.bands} onChange={(v) => setBasketWeave({ bands: v })} />
             <SliderRow label="Waves" value={params.textures.basketWeave.waves} {...TEXTURES.basketWeave.waves} onChange={(v) => setBasketWeave({ waves: v })} />
             <SliderRow label="Depth" value={params.textures.basketWeave.depth} {...TEXTURES.basketWeave.depth} onChange={(v) => setBasketWeave({ depth: v })} />
@@ -458,7 +458,7 @@ export function DimensionControls() {
         )}
         <Toggle label="Voronoi" checked={params.textures.voronoi?.enabled ?? false} onChange={(v) => setVoronoi({ enabled: v })} onReset={resetVoronoi} />
         {params.textures.voronoi?.enabled && (
-          <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
+          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
             <SliderRow label="Scale" value={params.textures.voronoi.scale} {...TEXTURES.voronoi.scale} onChange={(v) => setVoronoi({ scale: v })} />
             <SliderRow label="Depth" value={params.textures.voronoi.depth} {...TEXTURES.voronoi.depth} onChange={(v) => setVoronoi({ depth: v })} />
             <SliderRow label="Edge" value={params.textures.voronoi.edgeWidth} {...TEXTURES.voronoi.edgeWidth} onChange={(v) => setVoronoi({ edgeWidth: v })} />
@@ -467,7 +467,7 @@ export function DimensionControls() {
         )}
         <Toggle label="Simplex" checked={params.textures.simplex?.enabled ?? false} onChange={(v) => setSimplex({ enabled: v })} onReset={resetSimplex} />
         {params.textures.simplex?.enabled && (
-          <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
+          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
             <SliderRow label="Scale" value={params.textures.simplex.scale} {...TEXTURES.simplex.scale} onChange={(v) => setSimplex({ scale: v })} />
             <SliderRow label="Depth" value={params.textures.simplex.depth} {...TEXTURES.simplex.depth} onChange={(v) => setSimplex({ depth: v })} />
             <SliderRow label="Octaves" value={params.textures.simplex.octaves} {...TEXTURES.simplex.octaves} onChange={(v) => setSimplex({ octaves: v })} />
@@ -478,7 +478,7 @@ export function DimensionControls() {
         )}
         <Toggle label="Wood Grain" checked={params.textures.woodGrain?.enabled ?? false} onChange={(v) => setWoodGrain({ enabled: v })} onReset={resetWoodGrain} />
         {params.textures.woodGrain?.enabled && (
-          <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
+          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
             <SliderRow label="Count" value={params.textures.woodGrain.count} {...TEXTURES.woodGrain.count} onChange={(v) => setWoodGrain({ count: v })} />
             <SliderRow label="Depth" value={params.textures.woodGrain.depth} {...TEXTURES.woodGrain.depth} onChange={(v) => setWoodGrain({ depth: v })} />
             <SliderRow label="Wobble" value={params.textures.woodGrain.wobble} {...TEXTURES.woodGrain.wobble} onChange={(v) => setWoodGrain({ wobble: v })} />
