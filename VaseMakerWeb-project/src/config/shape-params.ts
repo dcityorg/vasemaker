@@ -210,8 +210,9 @@ export const RESOLUTION = {
 
 /** Shell / wall thickness slider ranges */
 export const SHELL = {
-  wallThickness:   { min: 0, max: 5, step: 0.1 } as SliderRange,
-  bottomThickness: { min: 0, max: 5, step: 0.1 } as SliderRange,
+  wallThickness:    { min: 0, max: 5, step: 0.1 } as SliderRange,
+  bottomThickness:  { min: 0, max: 5, step: 0.1 } as SliderRange,
+  minWallThickness: { min: 0.1, max: 5, step: 0.1 } as SliderRange,
 } as const;
 
 /** Default vase appearance */

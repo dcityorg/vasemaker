@@ -310,12 +310,13 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   }
 
   /**
-   * Compute a single vertex position for a given row and angle, with an optional
-   * radial offset (negative = inward for inner wall).
+   * Compute the radial distance for a given row and angle.
+   * When skipTextures is true, texture terms (fluting, basket weave, voronoi, simplex)
+   * are zeroed out — used for smooth inner surface calculation.
    */
-  function computeVertex(
-    row: RowContext, tStep: number, radiusOffset: number, zOverride?: number
-  ): [number, number, number] {
+  function computeRadius(
+    row: RowContext, tStep: number, skipTextures: boolean
+  ): number {
     const t = tStep * 360 / rRes;
 
     let shapeValue: number;
@@ -339,56 +340,111 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       ? verticalRipple(row.v, params.verticalRipple.depth, params.verticalRipple.count)
       : 0;
 
-    const fluting = texturesEnabled && params.textures.fluting.enabled
-      ? -params.textures.fluting.depth * Math.abs(sinD(params.textures.fluting.count * t))
-      : 0;
-
-    const basketWeave = texturesEnabled && params.textures.basketWeave.enabled
-      ? params.textures.basketWeave.depth * sinD(
-          params.textures.basketWeave.waves * t
-          + 180 * Math.floor(row.v * params.textures.basketWeave.bands)
-        )
-      : 0;
-
-    // Voronoi cellular texture
+    let fluting = 0;
+    let basketWeaveVal = 0;
     let voronoi = 0;
-    if (texturesEnabled && params.textures.voronoi?.enabled) {
-      const vor = params.textures.voronoi;
-      const cellsU = vor.scale;
-      // Auto-scale vertical cells by aspect ratio so cells appear roughly square
-      const circumference = 2 * Math.PI * params.radius;
-      const cellsW = Math.max(1, Math.round(cellsU * params.height / circumference));
-      const u = (t / 360) * cellsU;
-      const w = row.v * cellsW;
-      voronoi = vor.depth * voronoiCell(u, w, cellsU, vor.seed, vor.edgeWidth);
-    }
-
-    // Simplex noise texture
     let simplex = 0;
-    if (texturesEnabled && simplexPerm && params.textures.simplex?.enabled) {
-      const sx = params.textures.simplex;
-      const angle = t * Math.PI / 180;
-      const nx = Math.cos(angle) * sx.scale;
-      const ny = Math.sin(angle) * sx.scale;
-      const circumference = 2 * Math.PI * params.radius;
-      const scaleV = sx.scale * params.height / circumference;
-      const nz = row.v * scaleV;
-      simplex = sx.depth * fbm3D(nx, ny, nz, sx.octaves, sx.persistence, sx.lacunarity, simplexPerm);
+
+    if (!skipTextures) {
+      fluting = texturesEnabled && params.textures.fluting.enabled
+        ? -params.textures.fluting.depth * Math.abs(sinD(params.textures.fluting.count * t))
+        : 0;
+
+      basketWeaveVal = texturesEnabled && params.textures.basketWeave.enabled
+        ? params.textures.basketWeave.depth * sinD(
+            params.textures.basketWeave.waves * t
+            + 180 * Math.floor(row.v * params.textures.basketWeave.bands)
+          )
+        : 0;
+
+      // Voronoi cellular texture
+      if (texturesEnabled && params.textures.voronoi?.enabled) {
+        const vor = params.textures.voronoi;
+        const cellsU = vor.scale;
+        const circumference = 2 * Math.PI * params.radius;
+        const cellsW = Math.max(1, Math.round(cellsU * params.height / circumference));
+        const u = (t / 360) * cellsU;
+        const w = row.v * cellsW;
+        voronoi = vor.depth * voronoiCell(u, w, cellsU, vor.seed, vor.edgeWidth);
+      }
+
+      // Simplex noise texture
+      if (texturesEnabled && simplexPerm && params.textures.simplex?.enabled) {
+        const sx = params.textures.simplex;
+        const angle = t * Math.PI / 180;
+        const nx = Math.cos(angle) * sx.scale;
+        const ny = Math.sin(angle) * sx.scale;
+        const circumference = 2 * Math.PI * params.radius;
+        const scaleV = sx.scale * params.height / circumference;
+        const nz = row.v * scaleV;
+        simplex = sx.depth * fbm3D(nx, ny, nz, sx.octaves, sx.persistence, sx.lacunarity, simplexPerm);
+      }
     }
 
-    let radius = shapeValue * row.shapeRadius
+    return shapeValue * row.shapeRadius
       + radRipple * row.vSmooth * rSmooth
       + vertRipple * row.vSmooth * rSmooth
       + fluting
-      + basketWeave
+      + basketWeaveVal
       + voronoi
       + simplex;
+  }
 
-    // Apply radial offset (for inner wall)
-    radius = Math.max(radius + radiusOffset, MIN_INNER_RADIUS);
+  /**
+   * Compute a single vertex position for a given row and angle, with an optional
+   * radial offset (negative = inward for inner wall).
+   */
+  function computeVertex(
+    row: RowContext, tStep: number, radiusOffset: number, zOverride?: number
+  ): [number, number, number] {
+    const t = tStep * 360 / rRes;
+    let radius = Math.max(computeRadius(row, tStep, false) + radiusOffset, MIN_INNER_RADIUS);
 
     let x = radius * cosD(t) + row.centerX;
     let y = radius * sinD(t) + row.centerY;
+    const z = zOverride !== undefined ? zOverride : row.height;
+
+    if (row.twistAngle !== 0) {
+      const cosR = cosD(row.twistAngle);
+      const sinR = sinD(row.twistAngle);
+      const rx = x * cosR - y * sinR;
+      const ry = y * cosR + x * sinR;
+      x = rx;
+      y = ry;
+    }
+
+    return [x, y, z];
+  }
+
+  /**
+   * Compute inner surface vertex with smooth inner logic.
+   * When smoothInner is enabled, the inner surface ignores textures and
+   * enforces a minimum wall thickness relative to the textured outer surface.
+   */
+  function computeInnerVertex(
+    row: RowContext, tStep: number, zOverride?: number
+  ): [number, number, number] {
+    const t = tStep * 360 / rRes;
+    const smoothInner = params.smoothInner ?? false;
+    let innerRadius: number;
+
+    if (smoothInner) {
+      const texturedRadius = computeRadius(row, tStep, false);
+      const smoothRadius = computeRadius(row, tStep, true);
+      innerRadius = smoothRadius - wt;
+      // Enforce minimum wall thickness
+      const minWall = params.minWallThickness ?? 0.4;
+      if (texturedRadius - innerRadius < minWall) {
+        innerRadius = texturedRadius - minWall;
+      }
+    } else {
+      innerRadius = computeRadius(row, tStep, false) - wt;
+    }
+
+    innerRadius = Math.max(innerRadius, MIN_INNER_RADIUS);
+
+    let x = innerRadius * cosD(t) + row.centerX;
+    let y = innerRadius * sinD(t) + row.centerY;
     const z = zOverride !== undefined ? zOverride : row.height;
 
     if (row.twistAngle !== 0) {
@@ -567,7 +623,7 @@ export function generateMesh(params: VaseParameters): VaseMesh {
     const row = rowContexts[vStep];
     const innerRow = vStep - innerStartStep;
     for (let tStep = 0; tStep < rRes; tStep++) {
-      const [x, y, z] = computeVertex(row, tStep, -wt);
+      const [x, y, z] = computeInnerVertex(row, tStep);
       const idx = (innerOffset + innerRow * rRes + tStep) * 3;
       positions[idx] = x;
       positions[idx + 1] = y;
@@ -585,7 +641,7 @@ export function generateMesh(params: VaseParameters): VaseMesh {
 
       for (let tStep = 0; tStep < rRes; tStep++) {
         const [ox, oy, oz] = computeVertex(topRow, tStep, 0);
-        const [ix, iy, ] = computeVertex(topRow, tStep, -wt);
+        const [ix, iy, ] = computeInnerVertex(topRow, tStep);
 
         const mx = (ox + ix) / 2;
         const my = (oy + iy) / 2;
@@ -614,7 +670,7 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       positions[idx0 + 1] = oy;
       positions[idx0 + 2] = oz;
 
-      const [ix, iy, iz] = computeVertex(topRow, tStep, -wt);
+      const [ix, iy, iz] = computeInnerVertex(topRow, tStep);
       const idx1 = (flatRimOffset + rRes + tStep) * 3;
       positions[idx1] = ix;
       positions[idx1 + 1] = iy;
@@ -655,7 +711,7 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       positions[cIdx + 2] = innerRow.height;
 
       for (let tStep = 0; tStep < rRes; tStep++) {
-        const [x, y, z] = computeVertex(innerRow, tStep, -wt);
+        const [x, y, z] = computeInnerVertex(innerRow, tStep);
         const idx = (bottomInnerDiscOffset + 1 + tStep) * 3;
         positions[idx] = x;
         positions[idx + 1] = y;

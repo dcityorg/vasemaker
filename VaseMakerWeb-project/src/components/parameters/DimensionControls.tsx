@@ -145,7 +145,7 @@ export function DimensionControls() {
     setVerticalSmoothing, setRadialSmoothing,
     setBezierOffset, setBezierOffsetPointX, setBezierOffsetPointY,
     addBezierOffsetPoint, removeBezierOffsetPoint,
-    setWallThickness, setBottomThickness, setRimShape,
+    setWallThickness, setBottomThickness, setRimShape, setSmoothInner, setMinWallThickness,
     setColor, setResolution, setFlatShading,
     setTexturesEnabled, setFluting, setBasketWeave, setVoronoi, setSimplex,
   } = useVaseStore();
@@ -215,28 +215,37 @@ export function DimensionControls() {
 
       <Section title="Shell">
         <div className="flex justify-end mb-1">
-          <button onClick={() => { setWallThickness(DEFAULT_PARAMETERS.wallThickness); setBottomThickness(DEFAULT_PARAMETERS.bottomThickness); setRimShape(DEFAULT_PARAMETERS.rimShape); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+          <button onClick={() => { setWallThickness(DEFAULT_PARAMETERS.wallThickness); setBottomThickness(DEFAULT_PARAMETERS.bottomThickness); setRimShape(DEFAULT_PARAMETERS.rimShape); setSmoothInner(DEFAULT_PARAMETERS.smoothInner); setMinWallThickness(DEFAULT_PARAMETERS.minWallThickness); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Wall" value={params.wallThickness} {...SHELL.wallThickness} onChange={setWallThickness} />
         <SliderRow label="Base" value={params.bottomThickness} {...SHELL.bottomThickness} onChange={setBottomThickness} />
+        <SliderRow label="Wall" value={params.wallThickness} {...SHELL.wallThickness} onChange={setWallThickness} />
         {params.wallThickness > 0 && (
-          <div className="flex items-center gap-3 mb-2">
-            <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Rim</label>
-            <div className="flex gap-3">
-              {(['flat', 'rounded'] as const).map((shape) => (
-                <label key={shape} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
-                  <input
-                    type="radio"
-                    name="rimShape"
-                    checked={params.rimShape === shape}
-                    onChange={() => setRimShape(shape)}
-                    className="accent-[var(--accent)]"
-                  />
-                  {shape.charAt(0).toUpperCase() + shape.slice(1)}
-                </label>
-              ))}
+          <>
+            <SliderRow label="Min Wall" value={params.minWallThickness ?? DEFAULT_PARAMETERS.minWallThickness} {...SHELL.minWallThickness} max={params.wallThickness} onChange={(v) => setMinWallThickness(Math.min(v, params.wallThickness))} />
+            <div className="flex items-center gap-3 mb-2">
+              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Rim</label>
+              <div className="flex gap-3">
+                {(['flat', 'rounded'] as const).map((shape) => (
+                  <label key={shape} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
+                    <input
+                      type="radio"
+                      name="rimShape"
+                      checked={params.rimShape === shape}
+                      onChange={() => setRimShape(shape)}
+                      className="accent-[var(--accent)]"
+                    />
+                    {shape.charAt(0).toUpperCase() + shape.slice(1)}
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+            <Toggle label="Smooth Inner" checked={params.smoothInner ?? false} onChange={setSmoothInner} />
+            {(params.smoothInner ?? false) && (
+              <div className="text-xs text-[var(--text-secondary)] mb-2 ml-[calc(6rem+0.75rem)] opacity-60">
+                Inner wall ignores textures
+              </div>
+            )}
+          </>
         )}
       </Section>
 
@@ -433,38 +442,38 @@ export function DimensionControls() {
       <Section title="Textures" defaultOpen={false} checked={params.textures.enabled !== false} onToggle={(v) => setTexturesEnabled(v)}>
         <Toggle label="Fluting" checked={params.textures.fluting.enabled} onChange={(v) => setFluting({ enabled: v })} onReset={resetFluting} />
         {params.textures.fluting.enabled && (
-          <>
+          <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
             <SliderRow label="Count" value={params.textures.fluting.count} {...TEXTURES.fluting.count} onChange={(v) => setFluting({ count: v })} />
             <SliderRow label="Depth" value={params.textures.fluting.depth} {...TEXTURES.fluting.depth} onChange={(v) => setFluting({ depth: v })} />
-          </>
+          </div>
         )}
         <Toggle label="Basket Weave" checked={params.textures.basketWeave.enabled} onChange={(v) => setBasketWeave({ enabled: v })} onReset={resetBasketWeave} />
         {params.textures.basketWeave.enabled && (
-          <>
+          <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
             <SliderRow label="Bands" value={params.textures.basketWeave.bands} {...TEXTURES.basketWeave.bands} onChange={(v) => setBasketWeave({ bands: v })} />
             <SliderRow label="Waves" value={params.textures.basketWeave.waves} {...TEXTURES.basketWeave.waves} onChange={(v) => setBasketWeave({ waves: v })} />
             <SliderRow label="Depth" value={params.textures.basketWeave.depth} {...TEXTURES.basketWeave.depth} onChange={(v) => setBasketWeave({ depth: v })} />
-          </>
+          </div>
         )}
         <Toggle label="Voronoi" checked={params.textures.voronoi?.enabled ?? false} onChange={(v) => setVoronoi({ enabled: v })} onReset={resetVoronoi} />
         {params.textures.voronoi?.enabled && (
-          <>
+          <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
             <SliderRow label="Scale" value={params.textures.voronoi.scale} {...TEXTURES.voronoi.scale} onChange={(v) => setVoronoi({ scale: v })} />
             <SliderRow label="Depth" value={params.textures.voronoi.depth} {...TEXTURES.voronoi.depth} onChange={(v) => setVoronoi({ depth: v })} />
             <SliderRow label="Edge" value={params.textures.voronoi.edgeWidth} {...TEXTURES.voronoi.edgeWidth} onChange={(v) => setVoronoi({ edgeWidth: v })} />
             <SliderRow label="Seed" value={params.textures.voronoi.seed} {...TEXTURES.voronoi.seed} onChange={(v) => setVoronoi({ seed: v })} />
-          </>
+          </div>
         )}
         <Toggle label="Simplex" checked={params.textures.simplex?.enabled ?? false} onChange={(v) => setSimplex({ enabled: v })} onReset={resetSimplex} />
         {params.textures.simplex?.enabled && (
-          <>
+          <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
             <SliderRow label="Scale" value={params.textures.simplex.scale} {...TEXTURES.simplex.scale} onChange={(v) => setSimplex({ scale: v })} />
             <SliderRow label="Depth" value={params.textures.simplex.depth} {...TEXTURES.simplex.depth} onChange={(v) => setSimplex({ depth: v })} />
             <SliderRow label="Octaves" value={params.textures.simplex.octaves} {...TEXTURES.simplex.octaves} onChange={(v) => setSimplex({ octaves: v })} />
             <SliderRow label="Persistence" value={params.textures.simplex.persistence} {...TEXTURES.simplex.persistence} onChange={(v) => setSimplex({ persistence: v })} />
             <SliderRow label="Lacunarity" value={params.textures.simplex.lacunarity} {...TEXTURES.simplex.lacunarity} onChange={(v) => setSimplex({ lacunarity: v })} />
             <SliderRow label="Seed" value={params.textures.simplex.seed} {...TEXTURES.simplex.seed} onChange={(v) => setSimplex({ seed: v })} />
-          </>
+          </div>
         )}
       </Section>
 

@@ -69,6 +69,8 @@ interface VaseStore {
   setWallThickness: (value: number) => void;
   setBottomThickness: (value: number) => void;
   setRimShape: (shape: 'flat' | 'rounded') => void;
+  setSmoothInner: (value: boolean) => void;
+  setMinWallThickness: (value: number) => void;
 
   // Actions — appearance
   setColor: (color: string) => void;
@@ -319,6 +321,10 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     set((state) => ({ params: { ...state.params, bottomThickness: value } })),
   setRimShape: (shape) =>
     set((state) => ({ params: { ...state.params, rimShape: shape } })),
+  setSmoothInner: (value) =>
+    set((state) => ({ params: { ...state.params, smoothInner: value } })),
+  setMinWallThickness: (value) =>
+    set((state) => ({ params: { ...state.params, minWallThickness: value } })),
 
   // Appearance
   setColor: (color) =>

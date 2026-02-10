@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
 import { useHistoryStore, skipNextHistoryRecord } from '@/store/history';
@@ -13,6 +13,15 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
   const { loadPreset, getParams, undo: doUndo, redo: doRedo } = useVaseStore();
   const { canUndo, canRedo } = useHistoryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const handleToggleAll = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const details = container.querySelectorAll('details');
+    const allOpen = Array.from(details).every(d => d.open);
+    details.forEach(d => d.open = !allOpen);
+  }, []);
 
   // Keyboard shortcuts: Cmd+Z / Cmd+Shift+Z
   useEffect(() => {
@@ -95,6 +104,13 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
             ↷
           </button>
           <button
+            onClick={handleToggleAll}
+            className="text-xs leading-none px-1 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors text-[var(--text-secondary)]"
+            title="Expand/collapse all sections"
+          >
+            &#x2195;
+          </button>
+          <button
             onClick={onToggleHelp}
             className={`text-sm font-bold leading-none w-6 h-6 rounded-full flex items-center justify-center transition-colors ${helpOpen ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}
             title="Toggle help panel"
@@ -147,7 +163,7 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
       </div>
 
       {/* Parameter controls — scrollable */}
-      <div className="flex-1 overflow-y-auto sidebar-scroll px-3 py-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto sidebar-scroll px-3 py-3">
         <DimensionControls />
       </div>
 

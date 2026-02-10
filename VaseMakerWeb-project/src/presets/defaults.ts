@@ -120,6 +120,8 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
   wallThickness: 0.8,
   bottomThickness: 2,
   rimShape: 'rounded',
+  smoothInner: false,
+  minWallThickness: 0.4,
 
   color: APPEARANCE.defaultColor,
 };

@@ -91,7 +91,7 @@ For each vertex at height v (0-1) and angle t (0-360):
 4. Add radial ripple * vertical smoothing * radial smoothing
 5. Add vertical ripple * vertical smoothing * radial smoothing
 6. Add texture offsets (fluting, basket weave, voronoi, simplex) if textures master gate is on
-7. Apply radial offset (−wallThickness for inner surface, clamped to MIN_INNER_RADIUS)
+7. Apply radial offset (−wallThickness for inner surface, clamped to MIN_INNER_RADIUS). When `smoothInner` is enabled, inner surface uses `computeRadius(skipTextures=true)` and enforces `minWallThickness` gap relative to textured outer surface
 8. Convert polar → cartesian, add XY offset, apply twist rotation (bezier + wave twist)
 
 When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface (reversed winding), bottom cap (outer disc at z=0 + inner disc at inner start height), and rim (flat or rounded). Per-row data is precomputed into `RowContext` structs.
@@ -105,7 +105,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Wave Twist** — Sinusoidal twist that rotates entire cross-section via unified `twistAngle`
 - **XY Sway** — Two BezierCurveEditors (X/Y offset) with scale sliders
 - **Textures** — Master gate toggle + 4 individual textures: Fluting, Basket Weave, Voronoi (Worley noise), Simplex (fBm). Seamless 0/360 wrapping, aspect-ratio-corrected cells. Reusable functions: `hash2D`, `simplex3D`, `fbm3D`
-- **Wall thickness, base cap, rim** — Outer + inner surfaces, base cap (no wall strip — avoids lip on flared profiles), flat/rounded rim. Base thickness measured vertically
+- **Wall thickness, base cap, rim** — Outer + inner surfaces, base cap (no wall strip — avoids lip on flared profiles), flat/rounded rim. Base thickness measured vertically. **Smooth Inner** toggle keeps inner wall texture-free; **Min Wall** slider prevents paper-thin walls where textures indent inward
 - **Undo/redo** — 50-step debounced history, ↶/↷ buttons + Cmd+Z/Cmd+Shift+Z
 - **Save/Load** — JSON export/import, merges onto DEFAULT_PARAMETERS for forward-compat
 - **Presets** — Dropdown with "Select a starting vase" placeholder, re-selectable
@@ -113,7 +113,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Reset buttons** — All sections have reset to neutral defaults (independent of loaded preset). Profile resets to flat cylinder
 - **Vase color picker** — Appearance section with native picker, default `#6d9fff`
 - **Resolution** — Vertical (8–200) and Radial (8–360) sliders + Show Facets toggle
-- **Sidebar UI** — Indented content with left border, Reset buttons always visible
+- **Sidebar UI** — Indented content with left border, Reset buttons always visible. Texture sub-sliders have second-level indentation with vertical border line
 - **Help panel** — Right-side push-layout panel toggled by "?" button. 5 sections: Quick Start, Shapes (with SuperFormula guide), Profile/Twist/Sway, Textures, 3D Printing Tips. Pure data in `content/help-content.ts`, rendered by `HelpPanel.tsx`. Slide-in animation, viewport auto-resizes
 
 ## What's NOT Implemented Yet
@@ -210,19 +210,19 @@ const myPerm = params.textures.myTexture?.enabled
 ```
 This runs once per mesh rebuild, not per-vertex.
 
-**c) Evaluate per-vertex** inside `computeVertex()`, after existing textures:
+**c) Evaluate per-vertex** inside `computeRadius()`, in the `if (!skipTextures)` block, after existing textures:
 ```typescript
 let myTextureVal = 0;
-if (params.textures.myTexture?.enabled) {
+if (texturesEnabled && params.textures.myTexture?.enabled) {
   const mt = params.textures.myTexture;
   // compute value from t (angle 0-360), row.v (height 0-1), params
   myTextureVal = mt.depth * yourFunction(/* ... */);
 }
 ```
 
-**d) Add to the radius sum:**
+**d) Add to the radius sum** (inside `computeRadius()` return statement):
 ```typescript
-let radius = shapeValue * row.shapeRadius
+return shapeValue * row.shapeRadius
   + /* ... existing terms ... */
   + myTextureVal;
 ```
@@ -262,11 +262,11 @@ active={/* ...existing... */ || params.textures.myTexture?.enabled}
 <Toggle label="My Texture" checked={params.textures.myTexture?.enabled ?? false}
   onChange={(v) => setMyTexture({ enabled: v })} onReset={resetMyTexture} />
 {params.textures.myTexture?.enabled && (
-  <>
+  <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
     <SliderRow label="Scale" value={params.textures.myTexture.scale}
       {...TEXTURES.myTexture.scale} onChange={(v) => setMyTexture({ scale: v })} />
     {/* ... more sliders ... */}
-  </>
+  </div>
 )}
 ```
 
