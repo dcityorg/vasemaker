@@ -185,6 +185,38 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Seed', value: 'Random seed for different patterns' },
       ] },
       { type: 'tip', text: 'Suggested starting point: Scale 10, Depth 1.5, Octaves 3, Persistence 0.5, Lacunarity 2.0.' },
+
+      { type: 'heading', text: 'Wood Grain' },
+      { type: 'paragraph', text: 'Vertical grain lines that meander organically, like flat-sawn wood. Uses simplex noise to wobble the stripe positions.' },
+      { type: 'keyvalue', items: [
+        { key: 'Count', value: 'Number of grain lines around the circumference' },
+        { key: 'Depth', value: 'Groove depth (mm)' },
+        { key: 'Wobble', value: 'How much lines meander side-to-side (0\u20131)' },
+        { key: 'Sharpness', value: 'Edge hardness (0=soft grooves, 1=sharp lines)' },
+        { key: 'Seed', value: 'Random seed for different grain patterns' },
+      ] },
+
+      { type: 'heading', text: 'SVG Pattern' },
+      { type: 'paragraph', text: 'Use any SVG image as a displacement map. Dark areas become grooves, white areas stay flush. Paste SVG code from pattern sites like Hero Patterns, or any SVG markup.' },
+      { type: 'keyvalue', items: [
+        { key: 'Repeat X', value: 'Number of pattern tiles around the circumference' },
+        { key: 'Repeat Y', value: 'Number of pattern tiles up the height' },
+        { key: 'Depth', value: 'How deep the pattern displaces (mm)' },
+        { key: 'Invert', value: 'Swap which areas are grooves vs. ridges' },
+      ] },
+      { type: 'tip', text: 'Use high-contrast black and white SVGs for the clearest patterns. Increase Resolution (100+ vertical, 200+ radial) for fine detail.' },
+
+      { type: 'heading', text: 'Cutout Mode' },
+      { type: 'paragraph', text: 'Voronoi and SVG Pattern have a Cutout toggle that punches holes through the vase wall, creating lattice or perforated designs. Instead of displacing the surface, cutout removes triangles entirely and seals the hole edges with connecting walls.' },
+      { type: 'list', items: [
+        'Voronoi Cutout: cell centers become holes, edges remain as a lattice framework',
+        'SVG Pattern Cutout: dark areas become holes, white areas stay solid. Use high-contrast black/white SVGs for clean cutouts',
+        'The Edge Width slider (Voronoi) controls how thick the lattice bars are',
+        'Holes are suppressed in the base and rim zones (using Base Thickness) to keep the vase structurally sound',
+        'Higher Resolution produces smoother, rounder hole edges. At low resolution, holes will look blocky/rectangular',
+        'Wall Thickness must be > 0 (shell mode) for cutout to work',
+      ] },
+      { type: 'tip', text: 'For round or organic hole shapes with SVG cutout, use 150+ vertical and 200+ radial resolution. The hole boundaries follow the mesh grid, so more polygons = smoother curves.' },
     ],
   },
 
@@ -226,6 +258,18 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'paragraph', text: 'Use the Show Facets toggle to preview the actual polygon edges that will be in your STL file. If you can see visible flat faces, increase resolution.' },
       { type: 'tip', text: 'For final export, bump radial resolution to 180\u2013360. For quick iteration, keep it at 72.' },
+
+      { type: 'heading', text: 'Cutout / Lattice Prints' },
+      { type: 'paragraph', text: 'Cutout vases have holes through the wall, creating decorative lattice designs. The mesh is manifold (hole edges are sealed with connecting walls), so slicers should handle them correctly.' },
+      { type: 'list', items: [
+        'Use 1.0\u20132.0mm wall thickness for structural lattice bars',
+        'Base Thickness controls the solid band at both bottom and top \u2014 increase if the rim is too fragile',
+        'Voronoi: lower Edge Width = thicker lattice bars, more printable',
+        'SVG Pattern: use high-contrast black/white images. Grayscale areas may produce unpredictable partial holes',
+        'High resolution (150+ vertical, 200+ radial) gives smoother hole edges and better slicer results',
+        'Preview with Show Facets on to see the actual polygon edges the slicer will receive',
+      ] },
+      { type: 'tip', text: 'Print a small test piece first. Lattice vases with thin bars may need supports or slower print speed.' },
 
       { type: 'heading', text: 'Troubleshooting' },
       { type: 'list', items: [
