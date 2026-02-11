@@ -340,6 +340,15 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   // Master textures gate (backward compat: treat missing field as enabled)
   const texturesEnabled = params.textures.enabled !== false;
 
+  // Solid band height for cutout — no holes or cutout-texture displacement in this zone
+  const hasCutoutTexture = texturesEnabled && (
+    (params.textures.voronoi?.enabled && params.textures.voronoi?.cutout) ||
+    (params.textures.svgPattern?.enabled && params.textures.svgPattern?.cutout)
+  );
+  const cutoutSolidBand = hasCutoutTexture
+    ? Math.max(Math.max(bt, wt) * 3, params.height * 0.05)
+    : 0;
+
   // Precompute simplex permutation table (once per mesh generation, not per vertex)
   // Shared by simplex texture and wood grain (which uses simplex3D for wobble)
   const simplexPerm = texturesEnabled && params.textures.simplex?.enabled
@@ -452,14 +461,20 @@ export function generateMesh(params: VaseParameters): VaseMesh {
         : 0;
 
       // Voronoi cellular texture
+      // When cutout is on, suppress displacement in the solid band zones
+      // so the base/rim are completely smooth (no partial indentations).
       if (texturesEnabled && params.textures.voronoi?.enabled) {
-        const vor = params.textures.voronoi;
-        const cellsU = vor.scale;
-        const circumference = 2 * Math.PI * params.radius;
-        const cellsW = Math.max(1, Math.round(cellsU * params.height / circumference));
-        const u = (t / 360) * cellsU;
-        const w = row.v * cellsW;
-        voronoi = vor.depth * voronoiCell(u, w, cellsU, vor.seed, vor.edgeWidth);
+        const inSolidBand = params.textures.voronoi.cutout && cutoutSolidBand > 0 &&
+          (row.height <= cutoutSolidBand || row.height >= params.height - cutoutSolidBand);
+        if (!inSolidBand) {
+          const vor = params.textures.voronoi;
+          const cellsU = vor.scale;
+          const circumference = 2 * Math.PI * params.radius;
+          const cellsW = Math.max(1, Math.round(cellsU * params.height / circumference));
+          const u = (t / 360) * cellsU;
+          const w = row.v * cellsW;
+          voronoi = vor.depth * voronoiCell(u, w, cellsU, vor.seed, vor.edgeWidth);
+        }
       }
 
       // Simplex noise texture
@@ -486,14 +501,19 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       }
 
       // SVG pattern texture
+      // When cutout is on, suppress displacement in the solid band zones.
       if (texturesEnabled && svgPatternData && params.textures.svgPattern?.enabled && params.textures.svgPattern.svgText) {
-        const sp = params.textures.svgPattern;
-        // Integer tile counts guarantee seamless wrapping at 0/360 and top/bottom
-        const tileU = ((t / 360) * sp.repeatX) % 1;
-        const tileV = (row.v * sp.repeatY) % 1;
-        const brightness = sampleSvgPattern(tileU, tileV);
-        // Black areas = grooves (negative offset), white = flush
-        svgPatternVal = -sp.depth * (sp.invert ? brightness : 1 - brightness);
+        const inSolidBand = params.textures.svgPattern.cutout && cutoutSolidBand > 0 &&
+          (row.height <= cutoutSolidBand || row.height >= params.height - cutoutSolidBand);
+        if (!inSolidBand) {
+          const sp = params.textures.svgPattern;
+          // Integer tile counts guarantee seamless wrapping at 0/360 and top/bottom
+          const tileU = ((t / 360) * sp.repeatX) % 1;
+          const tileV = (row.v * sp.repeatY) % 1;
+          const brightness = sampleSvgPattern(tileU, tileV);
+          // Black areas = grooves (negative offset), white = flush
+          svgPatternVal = -sp.depth * (sp.invert ? brightness : 1 - brightness);
+        }
       }
     }
 
@@ -542,9 +562,9 @@ export function generateMesh(params: VaseParameters): VaseMesh {
    */
   function computeCutoutFactor(row: RowContext, tStep: number): number {
     if (!texturesEnabled) return 0;
-    // No cutout in base or rim zone — keeps solid bottom and top intact
-    if (hasBase && row.height <= bt) return 0;
-    if (hasBase && row.height >= params.height - bt) return 0;
+    // No cutout in base or rim zone — keeps solid bottom and top intact.
+    if (row.height <= cutoutSolidBand) return 0;
+    if (row.height >= params.height - cutoutSolidBand) return 0;
     const t = tStep * 360 / rRes;
     let factor = 0;
 
