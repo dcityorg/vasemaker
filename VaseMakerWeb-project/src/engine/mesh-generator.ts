@@ -262,6 +262,50 @@ function woodGrain(
   return -(1 - groove); // negative = inward groove, 0 = flush
 }
 
+// ============================================================
+// SVG Pattern sampling — pixel data set externally by use-vase-mesh.ts
+// ============================================================
+
+/** Cached SVG pattern pixel data (module-level, set externally) */
+let svgPatternData: { pixels: Uint8Array; width: number; height: number } | null = null;
+
+/** Set the rasterized SVG pixel data for sampling. Called from use-vase-mesh.ts. */
+export function setSvgPatternData(data: { pixels: Uint8Array; width: number; height: number } | null): void {
+  svgPatternData = data;
+}
+
+/**
+ * Sample the SVG pattern with bilinear interpolation.
+ * @param u - horizontal tile coordinate (0–1 within one tile)
+ * @param v - vertical tile coordinate (0–1 within one tile)
+ * @returns brightness 0–1 (0 = black, 1 = white)
+ */
+function sampleSvgPattern(u: number, v: number): number {
+  if (!svgPatternData) return 0;
+  const { pixels, width, height } = svgPatternData;
+
+  // Map to pixel coordinates (tile wraps via modulo already applied by caller)
+  const px = u * (width - 1);
+  const py = v * (height - 1);
+
+  const x0 = Math.floor(px);
+  const y0 = Math.floor(py);
+  const x1 = Math.min(x0 + 1, width - 1);
+  const y1 = Math.min(y0 + 1, height - 1);
+
+  const fx = px - x0;
+  const fy = py - y0;
+
+  const p00 = pixels[y0 * width + x0];
+  const p10 = pixels[y0 * width + x1];
+  const p01 = pixels[y1 * width + x0];
+  const p11 = pixels[y1 * width + x1];
+
+  const top = p00 + (p10 - p00) * fx;
+  const bottom = p01 + (p11 - p01) * fx;
+  return (top + (bottom - top) * fy) / 255;
+}
+
 /** Number of intermediate rings for rounded rim */
 const RIM_STEPS = 5;
 
@@ -393,6 +437,7 @@ export function generateMesh(params: VaseParameters): VaseMesh {
     let voronoi = 0;
     let simplex = 0;
     let woodGrainVal = 0;
+    let svgPatternVal = 0;
 
     if (!skipTextures) {
       fluting = texturesEnabled && params.textures.fluting.enabled
@@ -439,6 +484,17 @@ export function generateMesh(params: VaseParameters): VaseMesh {
         const vScaled = row.v * (params.height / circumference) * wg.count;
         woodGrainVal = wg.depth * woodGrain(wgU, vScaled, wg.count, wg.wobble, wg.sharpness, woodGrainPerm);
       }
+
+      // SVG pattern texture
+      if (texturesEnabled && svgPatternData && params.textures.svgPattern?.enabled && params.textures.svgPattern.svgText) {
+        const sp = params.textures.svgPattern;
+        // Integer tile counts guarantee seamless wrapping at 0/360 and top/bottom
+        const tileU = ((t / 360) * sp.repeatX) % 1;
+        const tileV = (row.v * sp.repeatY) % 1;
+        const brightness = sampleSvgPattern(tileU, tileV);
+        // Black areas = grooves (negative offset), white = flush
+        svgPatternVal = -sp.depth * (sp.invert ? brightness : 1 - brightness);
+      }
     }
 
     return shapeValue * row.shapeRadius
@@ -448,7 +504,8 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       + basketWeaveVal
       + voronoi
       + simplex
-      + woodGrainVal;
+      + woodGrainVal
+      + svgPatternVal;
   }
 
   /**

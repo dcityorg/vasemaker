@@ -206,6 +206,11 @@ export const TEXTURES = {
     sharpness: { min: 0, max: 1, step: 0.05 } as SliderRange,
     seed: { min: 0, max: 99, step: 1 } as SliderRange,
   },
+  svgPattern: {
+    repeatX: { min: 1, max: 50, step: 1 } as SliderRange,
+    repeatY: { min: 1, max: 60, step: 1 } as SliderRange,
+    depth: { min: 0.1, max: 5, step: 0.1 } as SliderRange,
+  },
 } as const;
 
 /** Mesh resolution — defaults and slider ranges */

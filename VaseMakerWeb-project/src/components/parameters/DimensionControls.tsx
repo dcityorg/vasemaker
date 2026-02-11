@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useRef, useEffect } from 'react';
 import { useVaseStore } from '@/store/vase-store';
 import type { ShapeType } from '@/engine/types';
 import {
@@ -10,6 +11,7 @@ import {
 import type { BezierPoint } from '@/engine/types';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { BezierCurveEditor } from './BezierCurveEditor';
+import { parseSvgInput } from '@/engine/svg-rasterizer';
 
 /** Reusable slider row */
 function SliderRow({
@@ -135,6 +137,150 @@ function offsetAxisToPoints(points: [number, number][], axis: 0 | 1): BezierPoin
   return points.map((p, i) => [p[axis], points.length > 1 ? i / (points.length - 1) : 0]);
 }
 
+/** Extract native w/h from SVG string for aspect-correct preview tiling */
+function getSvgAspect(svgMarkup: string): number {
+  const svgTag = svgMarkup.match(/<svg\b([^>]*)>/);
+  if (!svgTag) return 1;
+  const attrs = svgTag[1];
+  const wMatch = attrs.match(/\bwidth\s*=\s*['"]?([\d.]+)/);
+  const hMatch = attrs.match(/\bheight\s*=\s*['"]?([\d.]+)/);
+  if (wMatch && hMatch) return parseFloat(wMatch[1]) / parseFloat(hMatch[1]);
+  const vbMatch = attrs.match(/viewBox\s*=\s*["']?\s*[\d.]+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)/);
+  if (vbMatch) return parseFloat(vbMatch[1]) / parseFloat(vbMatch[2]);
+  return 1;
+}
+
+/** Dialog for loading SVG pattern text — only mounted when open */
+function SvgLoadDialog({ onClose, onApply, initialSvg }: {
+  onClose: () => void; onApply: (svg: string) => void; initialSvg: string;
+}) {
+  const [text, setText] = useState(initialSvg);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewAspect, setPreviewAspect] = useState(1);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  // Open modal on mount
+  useEffect(() => {
+    dialogRef.current?.showModal();
+  }, []);
+
+  // Update preview when text changes
+  useEffect(() => {
+    if (!text.trim()) {
+      setPreviewUrl(null);
+      return;
+    }
+    let revoke: string | null = null;
+    try {
+      const markup = parseSvgInput(text);
+      const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      revoke = url;
+      setPreviewUrl(url);
+      setPreviewAspect(getSvgAspect(markup));
+    } catch {
+      setPreviewUrl(null);
+    }
+    return () => { if (revoke) URL.revokeObjectURL(revoke); };
+  }, [text]);
+
+  const handleApply = () => {
+    if (text.trim()) {
+      onApply(text.trim());
+      onClose();
+    }
+  };
+
+  return (
+    <dialog
+      ref={dialogRef}
+      onClose={onClose}
+      className="rounded-lg p-0 w-[480px] max-w-[90vw] max-h-[80vh] bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-color)] shadow-xl backdrop:bg-black/50"
+    >
+      <div className="p-4 flex flex-col gap-3">
+        <h3 className="text-sm font-medium">Load SVG Pattern</h3>
+        <p className="text-xs text-[var(--text-secondary)]">
+          Paste SVG code, a data URL, or a CSS background-image line (e.g. from Hero Patterns).
+        </p>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder='<svg xmlns="http://www.w3.org/2000/svg" ...>...</svg>'
+          className="w-full h-40 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded p-2 text-xs font-mono text-[var(--text-primary)] resize-y"
+          spellCheck={false}
+        />
+        {previewUrl && (() => {
+          const tileW = 64;
+          const tileH = Math.max(4, Math.round(tileW / previewAspect));
+          return (
+            <div className="flex justify-center">
+              <div
+                className="w-48 h-48 border border-[var(--border-color)] rounded bg-white"
+                style={{
+                  backgroundImage: `url(${previewUrl})`,
+                  backgroundSize: `${tileW}px ${tileH}px`,
+                  backgroundRepeat: 'repeat',
+                }}
+              />
+            </div>
+          );
+        })()}
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="text-sm px-3 py-1.5 rounded hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleApply}
+            disabled={!text.trim()}
+            className="text-sm px-3 py-1.5 rounded bg-[var(--accent)] text-white hover:opacity-90 transition-colors disabled:opacity-40"
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
+/** Small inline SVG preview thumbnail */
+function SvgPreviewThumb({ svgText }: { svgText: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [aspect, setAspect] = useState(1);
+
+  useEffect(() => {
+    if (!svgText) { setUrl(null); return; }
+    let revoke: string | null = null;
+    try {
+      const markup = parseSvgInput(svgText);
+      const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
+      const blobUrl = URL.createObjectURL(blob);
+      revoke = blobUrl;
+      setUrl(blobUrl);
+      setAspect(getSvgAspect(markup));
+    } catch {
+      setUrl(null);
+    }
+    return () => { if (revoke) URL.revokeObjectURL(revoke); };
+  }, [svgText]);
+
+  if (!url) return null;
+  const tileW = 24;
+  const tileH = Math.max(2, Math.round(tileW / aspect));
+  return (
+    <div
+      className="w-12 h-12 border border-[var(--border-color)] rounded shrink-0 bg-white"
+      style={{
+        backgroundImage: `url(${url})`,
+        backgroundSize: `${tileW}px ${tileH}px`,
+        backgroundRepeat: 'repeat',
+      }}
+    />
+  );
+}
+
 export function DimensionControls() {
   const params = useVaseStore((s) => s.params);
   const {
@@ -147,7 +293,7 @@ export function DimensionControls() {
     addBezierOffsetPoint, removeBezierOffsetPoint,
     setWallThickness, setBottomThickness, setRimShape, setSmoothInner, setMinWallThickness,
     setColor, setResolution, setFlatShading,
-    setTexturesEnabled, setFluting, setBasketWeave, setVoronoi, setSimplex, setWoodGrain,
+    setTexturesEnabled, setFluting, setBasketWeave, setVoronoi, setSimplex, setWoodGrain, setSvgPattern,
   } = useVaseStore();
 
   // Reset helpers — patch specific param groups back to defaults
@@ -182,6 +328,9 @@ export function DimensionControls() {
   const resetVoronoi = () => setVoronoi({ scale: DEFAULT_PARAMETERS.textures.voronoi.scale, depth: DEFAULT_PARAMETERS.textures.voronoi.depth, edgeWidth: DEFAULT_PARAMETERS.textures.voronoi.edgeWidth, seed: DEFAULT_PARAMETERS.textures.voronoi.seed });
   const resetSimplex = () => setSimplex({ scale: DEFAULT_PARAMETERS.textures.simplex.scale, depth: DEFAULT_PARAMETERS.textures.simplex.depth, octaves: DEFAULT_PARAMETERS.textures.simplex.octaves, persistence: DEFAULT_PARAMETERS.textures.simplex.persistence, lacunarity: DEFAULT_PARAMETERS.textures.simplex.lacunarity, seed: DEFAULT_PARAMETERS.textures.simplex.seed });
   const resetWoodGrain = () => setWoodGrain({ count: DEFAULT_PARAMETERS.textures.woodGrain.count, depth: DEFAULT_PARAMETERS.textures.woodGrain.depth, wobble: DEFAULT_PARAMETERS.textures.woodGrain.wobble, sharpness: DEFAULT_PARAMETERS.textures.woodGrain.sharpness, seed: DEFAULT_PARAMETERS.textures.woodGrain.seed });
+  const resetSvgPattern = () => setSvgPattern({ repeatX: DEFAULT_PARAMETERS.textures.svgPattern.repeatX, repeatY: DEFAULT_PARAMETERS.textures.svgPattern.repeatY, depth: DEFAULT_PARAMETERS.textures.svgPattern.depth, invert: DEFAULT_PARAMETERS.textures.svgPattern.invert });
+
+  const [svgDialogOpen, setSvgDialogOpen] = useState(false);
 
   return (
     <>
@@ -485,6 +634,48 @@ export function DimensionControls() {
             <SliderRow label="Sharpness" value={params.textures.woodGrain.sharpness} {...TEXTURES.woodGrain.sharpness} onChange={(v) => setWoodGrain({ sharpness: v })} />
             <SliderRow label="Seed" value={params.textures.woodGrain.seed} {...TEXTURES.woodGrain.seed} onChange={(v) => setWoodGrain({ seed: v })} />
           </div>
+        )}
+        <Toggle label="SVG Pattern" checked={params.textures.svgPattern?.enabled ?? false} onChange={(v) => setSvgPattern({ enabled: v })} onReset={resetSvgPattern} />
+        {params.textures.svgPattern?.enabled && (
+          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
+            <div className="flex items-center gap-2 mb-2">
+              {params.textures.svgPattern.svgText && (
+                <SvgPreviewThumb svgText={params.textures.svgPattern.svgText} />
+              )}
+              <button
+                onClick={() => setSvgDialogOpen(true)}
+                className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
+              >
+                {params.textures.svgPattern.svgText ? 'Change SVG' : 'Load SVG'}
+              </button>
+              {params.textures.svgPattern.svgText && (
+                <button
+                  onClick={() => setSvgPattern({ svgText: '' })}
+                  className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {params.textures.svgPattern.svgText && (
+              <>
+                <SliderRow label="Repeat X" value={params.textures.svgPattern.repeatX} {...TEXTURES.svgPattern.repeatX} onChange={(v) => setSvgPattern({ repeatX: v })} />
+                <SliderRow label="Repeat Y" value={params.textures.svgPattern.repeatY} {...TEXTURES.svgPattern.repeatY} onChange={(v) => setSvgPattern({ repeatY: v })} />
+                <SliderRow label="Depth" value={params.textures.svgPattern.depth} {...TEXTURES.svgPattern.depth} onChange={(v) => setSvgPattern({ depth: v })} />
+                <Toggle label="Invert" checked={params.textures.svgPattern.invert ?? false} onChange={(v) => setSvgPattern({ invert: v })} />
+                <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
+                  Increase Resolution for finer detail
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {svgDialogOpen && (
+          <SvgLoadDialog
+            onClose={() => setSvgDialogOpen(false)}
+            onApply={(svg) => setSvgPattern({ svgText: svg })}
+            initialSvg={params.textures.svgPattern?.svgText ?? ''}
+          />
         )}
       </Section>
 

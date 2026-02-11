@@ -3,9 +3,10 @@
  * Rebuilds the mesh whenever parameters change (with debouncing).
  */
 
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { useVaseStore } from '@/store/vase-store';
-import { generateMesh } from '@/engine/mesh-generator';
+import { generateMesh, setSvgPatternData } from '@/engine/mesh-generator';
+import { parseSvgInput, rasterizeSvg } from '@/engine/svg-rasterizer';
 import type { VaseMesh } from '@/engine/types';
 
 /**
@@ -14,10 +15,45 @@ import type { VaseMesh } from '@/engine/types';
  */
 export function useVaseMesh(): VaseMesh {
   const params = useVaseStore((state) => state.params);
+  const [svgVersion, setSvgVersion] = useState(0);
+
+  // Async rasterize SVG when svgText changes
+  const svgText = params.textures.svgPattern?.svgText ?? '';
+  const svgEnabled = params.textures.svgPattern?.enabled ?? false;
+
+  useEffect(() => {
+    if (!svgText || !svgEnabled) {
+      setSvgPatternData(null);
+      setSvgVersion((v) => v + 1);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const markup = parseSvgInput(svgText);
+        const data = await rasterizeSvg(markup);
+        if (!cancelled) {
+          setSvgPatternData(data);
+          setSvgVersion((v) => v + 1);
+        }
+      } catch (err) {
+        console.warn('SVG rasterization failed:', err);
+        if (!cancelled) {
+          setSvgPatternData(null);
+          setSvgVersion((v) => v + 1);
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [svgText, svgEnabled]);
 
   const mesh = useMemo(() => {
+    // svgVersion is included to trigger rebuild after async rasterization
+    void svgVersion;
     return generateMesh(params);
-  }, [params]);
+  }, [params, svgVersion]);
 
   return mesh;
 }

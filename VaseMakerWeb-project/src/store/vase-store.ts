@@ -65,6 +65,7 @@ interface VaseStore {
   setVoronoi: (update: Partial<VaseParameters['textures']['voronoi']>) => void;
   setSimplex: (update: Partial<VaseParameters['textures']['simplex']>) => void;
   setWoodGrain: (update: Partial<VaseParameters['textures']['woodGrain']>) => void;
+  setSvgPattern: (update: Partial<VaseParameters['textures']['svgPattern']>) => void;
 
   // Actions — shell
   setWallThickness: (value: number) => void;
@@ -321,6 +322,16 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
         textures: {
           ...state.params.textures,
           woodGrain: { ...state.params.textures.woodGrain, ...update },
+        },
+      },
+    })),
+  setSvgPattern: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: {
+          ...state.params.textures,
+          svgPattern: { ...state.params.textures.svgPattern, ...update },
         },
       },
     })),

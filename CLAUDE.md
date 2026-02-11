@@ -22,6 +22,14 @@ npm run dev    # starts at localhost:3000
 npm run build  # production build (use to check for type errors)
 ```
 
+## Vercel Deployment
+Project name: **vasemaker** (gary-muhonens-projects). No git remote — deploy via Vercel CLI.
+User will ask daily with "deploy to vercel" or similar.
+```bash
+cd VaseMakerWeb-project
+vercel --prod
+```
+
 ## Project Structure
 ```
 VaseMakerWeb-project/src/
@@ -31,6 +39,7 @@ VaseMakerWeb-project/src/
 │   ├── bezier.ts        # De Casteljau Bezier evaluation
 │   ├── modifiers.ts     # Ripple, twist, smoothing functions
 │   ├── mesh-generator.ts # Main generateMesh() — vertex grid + triangle indices
+│   ├── svg-rasterizer.ts # SVG → grayscale pixels via canvas (browser-only, used by use-vase-mesh.ts)
 │   └── stl-export.ts    # Binary STL generation + browser download
 ├── content/
 │   └── help-content.ts     # Structured help text (5 sections, pure data, no JSX)
@@ -90,7 +99,7 @@ For each vertex at height v (0-1) and angle t (0-360):
 3. Multiply by Bezier profile radius at this height
 4. Add radial ripple * vertical smoothing * radial smoothing
 5. Add vertical ripple * vertical smoothing * radial smoothing
-6. Add texture offsets (fluting, basket weave, voronoi, simplex, wood grain) if textures master gate is on
+6. Add texture offsets (fluting, basket weave, voronoi, simplex, wood grain, SVG pattern) if textures master gate is on
 7. Apply radial offset (−wallThickness for inner surface, clamped to MIN_INNER_RADIUS). When `smoothInner` is enabled, inner surface uses `computeRadius(skipTextures=true)` and enforces `minWallThickness` gap relative to textured outer surface
 8. Convert polar → cartesian, add XY offset, apply twist rotation (bezier + wave twist)
 
@@ -104,7 +113,8 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Custom Twist** — BezierCurveEditor for twist degrees at each height
 - **Wave Twist** — Sinusoidal twist that rotates entire cross-section via unified `twistAngle`
 - **XY Sway** — Two BezierCurveEditors (X/Y offset) with scale sliders
-- **Textures** — Master gate toggle + 5 individual textures: Fluting, Basket Weave, Voronoi (Worley noise), Simplex (fBm), Wood Grain (wobbled vertical stripes via simplex-perturbed sine). Seamless 0/360 wrapping, aspect-ratio-corrected cells. Reusable functions: `hash2D`, `simplex3D`, `fbm3D`
+- **Textures** — Master gate toggle + 6 individual textures: Fluting, Basket Weave, Voronoi (Worley noise), Simplex (fBm), Wood Grain (wobbled vertical stripes via simplex-perturbed sine), SVG Pattern (user-supplied SVG as displacement map). Seamless 0/360 wrapping, aspect-ratio-corrected cells. Reusable functions: `hash2D`, `simplex3D`, `fbm3D`
+- **SVG Pattern texture** — Paste SVG from pattern sites (Hero Patterns, etc.) as radial displacement. Accepts raw SVG, data URLs, or CSS `background-image: url(...)` lines. Modal dialog with tiled preview, aspect-ratio-preserving rasterization via offscreen canvas, Gaussian blur anti-aliasing, bilinear interpolation sampling. Sliders: Repeat X (circumference tiles), Repeat Y (height tiles, max 60), Depth, Invert toggle. Architecture: `svg-rasterizer.ts` (browser-only DOM) rasterizes to grayscale `Uint8Array`; `mesh-generator.ts` stores pixel data at module level via `setSvgPatternData()` setter (keeps it DOM-free); `use-vase-mesh.ts` bridges async rasterization to synchronous mesh rebuild via version counter. Higher mesh resolution (100+ vertical/radial) recommended for fine patterns
 - **Wall thickness, base cap, rim** — Outer + inner surfaces, base cap (no wall strip — avoids lip on flared profiles), flat/rounded rim. Base thickness measured vertically. **Smooth Inner** toggle keeps inner wall texture-free; **Min Wall** slider prevents paper-thin walls where textures indent inward
 - **Undo/redo** — 50-step debounced history, ↶/↷ buttons + Cmd+Z/Cmd+Shift+Z
 - **Save/Load** — JSON export/import, merges onto DEFAULT_PARAMETERS for forward-compat
@@ -128,7 +138,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Truchet Tiling** — Randomly rotated quarter-circle arcs per cell
 - **Lissajous Surface** — `sin(a*t + phase) * sin(b*v)` interference
 - **Wavelet/Ripple Interference** — Multiple point sources summed
-- **Image-Based Displacement** — Grayscale image as radial displacement map
+- **Image-Based Displacement** — Grayscale raster image (PNG/JPG) as radial displacement map (SVG Pattern covers SVG input)
 
 ### UI & UX
 - Dimension annotations on 3D preview
@@ -149,7 +159,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 
 ## How to Add a New Texture (Recipe)
 
-Adding a texture follows a strict 6-file pattern. Use Voronoi and Simplex as reference implementations.
+Adding a texture follows a strict 6-file pattern. Use Voronoi and Simplex as reference implementations. (SVG Pattern is a special case — it adds `svg-rasterizer.ts` and async hooks in `use-vase-mesh.ts`.)
 
 ### 1. `src/engine/types.ts` — Define the parameter shape
 Add a new entry to `VaseParameters.textures`:

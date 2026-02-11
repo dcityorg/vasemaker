@@ -21,6 +21,7 @@ export const LIGHTING = {
   ambient: { intensity: 0.4 },
   main: { position: [100, 150, 100] as [number, number, number], intensity: 1 },
   fill: { position: [-50, 80, -50] as [number, number, number], intensity: 0.3 },
+  back: { position: [-80, -120, 80] as [number, number, number], intensity: 0.5 },
 } as const;
 
 export const GRID = {

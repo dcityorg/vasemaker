@@ -73,6 +73,7 @@ export const BUILT_IN_PRESETS: Preset[] = [
         voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0 },
         simplex: { enabled: false, scale: 10, depth: 1.0, octaves: 3, persistence: 0.5, lacunarity: 2.0, seed: 0 },
         woodGrain: { enabled: true, count: 43, depth: 2.2, wobble: 0.05, sharpness: 0.1, seed: 32 },
+        svgPattern: { enabled: false, svgText: '', repeatX: 12, repeatY: 8, depth: 1.0, invert: false },
       },
       resolution: { vertical: 100, radial: 200 },
     },

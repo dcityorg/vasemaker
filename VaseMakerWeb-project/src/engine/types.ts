@@ -181,6 +181,14 @@ export interface VaseParameters {
       sharpness: number;  // edge hardness (0=soft, 1=sharp)
       seed: number;       // pattern variation 0–99
     };
+    svgPattern: {
+      enabled: boolean;
+      svgText: string;      // raw SVG markup (stored in save files)
+      repeatX: number;      // tiles around circumference (1–50)
+      repeatY: number;      // tiles up height (1–30)
+      depth: number;        // displacement in mm (0.1–5)
+      invert: boolean;      // swap grooves/ridges
+    };
   };
 
   // Shell (new — not in OpenSCAD)

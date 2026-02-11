@@ -29,6 +29,7 @@ export function Viewport() {
           intensity={LIGHTING.main.intensity}
         />
         <directionalLight position={LIGHTING.fill.position} intensity={LIGHTING.fill.intensity} />
+        <directionalLight position={LIGHTING.back.position} intensity={LIGHTING.back.intensity} />
 
         {/* Ground grid on XY plane at Z=0 */}
         <GroundGrid />
