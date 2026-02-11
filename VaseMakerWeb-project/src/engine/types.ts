@@ -163,6 +163,7 @@ export interface VaseParameters {
       depth: number;    // emboss height in mm
       edgeWidth: number; // edge sharpness 0–1
       seed: number;     // pattern variation 0–99
+      cutout?: boolean; // when true, punch holes through wall at cell centers
     };
     simplex: {
       enabled: boolean;
@@ -188,6 +189,7 @@ export interface VaseParameters {
       repeatY: number;      // tiles up height (1–30)
       depth: number;        // displacement in mm (0.1–5)
       invert: boolean;      // swap grooves/ridges
+      cutout?: boolean;     // when true, punch holes through wall at dark areas
     };
   };
 

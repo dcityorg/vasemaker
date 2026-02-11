@@ -110,10 +110,10 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
     enabled: true,
     fluting: { enabled: false, count: 12, depth: 2 },
     basketWeave: { enabled: false, bands: 8, waves: 12, depth: 1.5 },
-    voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0 },
+    voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0, cutout: false },
     simplex: { enabled: false, scale: 10, depth: 1.0, octaves: 3, persistence: 0.5, lacunarity: 2.0, seed: 0 },
     woodGrain: { enabled: false, count: 30, depth: 0.8, wobble: 0.5, sharpness: 0.6, seed: 0 },
-    svgPattern: { enabled: false, svgText: '', repeatX: 4, repeatY: 6, depth: 1.0, invert: false },
+    svgPattern: { enabled: false, svgText: '', repeatX: 4, repeatY: 6, depth: 1.0, invert: false, cutout: false },
   },
 
   resolution: { ...RESOLUTION.defaults },

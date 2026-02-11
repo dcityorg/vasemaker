@@ -535,6 +535,52 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   }
 
   /**
+   * Compute cutout factor (0 or 1) for a vertex using a hard threshold.
+   * Returns 0 = solid wall, 1 = hole (inner pushed to match outer).
+   * Uses a threshold so only areas well inside cells/dark regions become holes,
+   * while edges remain fully solid.
+   */
+  function computeCutoutFactor(row: RowContext, tStep: number): number {
+    if (!texturesEnabled) return 0;
+    // No cutout in base or rim zone — keeps solid bottom and top intact
+    if (hasBase && row.height <= bt) return 0;
+    if (hasBase && row.height >= params.height - bt) return 0;
+    const t = tStep * 360 / rRes;
+    let factor = 0;
+
+    // Voronoi cutout: voronoiCell returns 0 at edges, 1 at cell centers.
+    // Threshold at 0.5 — above = hole, below = solid. Smoothstep for clean boundary.
+    if (params.textures.voronoi?.enabled && params.textures.voronoi?.cutout) {
+      const vor = params.textures.voronoi;
+      const cellsU = vor.scale;
+      const circumference = 2 * Math.PI * params.radius;
+      const cellsW = Math.max(1, Math.round(cellsU * params.height / circumference));
+      const u = (t / 360) * cellsU;
+      const w = row.v * cellsW;
+      const raw = voronoiCell(u, w, cellsU, vor.seed, vor.edgeWidth);
+      // Sharp transition: remap 0.3–0.7 → 0–1 with smoothstep
+      const lo = 0.3, hi = 0.7;
+      const clamped = Math.max(0, Math.min(1, (raw - lo) / (hi - lo)));
+      factor = Math.max(factor, clamped * clamped * (3 - 2 * clamped));
+    }
+
+    // SVG Pattern cutout: dark areas = hole.
+    // Apply similar threshold for clean edges.
+    if (svgPatternData && params.textures.svgPattern?.enabled && params.textures.svgPattern?.cutout && params.textures.svgPattern.svgText) {
+      const sp = params.textures.svgPattern;
+      const tileU = ((t / 360) * sp.repeatX) % 1;
+      const tileV = (row.v * sp.repeatY) % 1;
+      const brightness = sampleSvgPattern(tileU, tileV);
+      const raw = sp.invert ? brightness : 1 - brightness;
+      const lo = 0.3, hi = 0.7;
+      const clamped = Math.max(0, Math.min(1, (raw - lo) / (hi - lo)));
+      factor = Math.max(factor, clamped * clamped * (3 - 2 * clamped));
+    }
+
+    return factor;
+  }
+
+  /**
    * Compute inner surface vertex with smooth inner logic.
    * When smoothInner is enabled, the inner surface ignores textures and
    * enforces a minimum wall thickness relative to the textured outer surface.
@@ -544,19 +590,19 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   ): [number, number, number] {
     const t = tStep * 360 / rRes;
     const smoothInner = params.smoothInner ?? false;
+    const outerRadius = computeRadius(row, tStep, false);
     let innerRadius: number;
 
     if (smoothInner) {
-      const texturedRadius = computeRadius(row, tStep, false);
       const smoothRadius = computeRadius(row, tStep, true);
       innerRadius = smoothRadius - wt;
       // Enforce minimum wall thickness
       const minWall = params.minWallThickness ?? 0.4;
-      if (texturedRadius - innerRadius < minWall) {
-        innerRadius = texturedRadius - minWall;
+      if (outerRadius - innerRadius < minWall) {
+        innerRadius = outerRadius - minWall;
       }
     } else {
-      innerRadius = computeRadius(row, tStep, false) - wt;
+      innerRadius = outerRadius - wt;
     }
 
     innerRadius = Math.max(innerRadius, MIN_INNER_RADIUS);
@@ -839,6 +885,35 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   }
 
   // ============================================================
+  // Precompute cutout grid — true where triangles should be omitted
+  // ============================================================
+  const hasCutout = texturesEnabled && (
+    (params.textures.voronoi?.enabled && params.textures.voronoi?.cutout) ||
+    (params.textures.svgPattern?.enabled && params.textures.svgPattern?.cutout)
+  );
+
+  // cutoutGrid[vStep][tStep] = true if this vertex is in a cutout hole
+  const CUTOUT_THRESHOLD = 0.5;
+  let cutoutGrid: boolean[][] | null = null;
+  if (hasCutout) {
+    cutoutGrid = [];
+    for (let vStep = 0; vStep <= vRes; vStep++) {
+      const row: boolean[] = [];
+      for (let tStep = 0; tStep < rRes; tStep++) {
+        row.push(computeCutoutFactor(rowContexts[vStep], tStep) >= CUTOUT_THRESHOLD);
+      }
+      cutoutGrid.push(row);
+    }
+  }
+
+  /** Check if a quad should be skipped (all 4 corners are in cutout region) */
+  function isQuadCutout(vStep: number, tStep: number, tNext: number): boolean {
+    if (!cutoutGrid) return false;
+    return cutoutGrid[vStep][tStep] && cutoutGrid[vStep][tNext]
+      && cutoutGrid[vStep + 1][tStep] && cutoutGrid[vStep + 1][tNext];
+  }
+
+  // ============================================================
   // Build index buffer
   // ============================================================
 
@@ -849,21 +924,28 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   const bottomOuterDiscTris = hasBase ? rRes : 0;
   const bottomInnerDiscTris = hasBase ? rRes : 0;
 
-  const totalTriangles =
+  // Estimate cutout wall quads: each boundary edge between cutout/non-cutout quads
+  // needs 1 wall quad (2 triangles). Worst case: every cutout quad has 4 boundary edges.
+  const maxCutoutWallQuads = hasCutout ? outerQuads * 4 : 0;
+
+  // Over-allocate — cutout may skip some quads but adds wall quads
+  const maxTriangles =
     outerQuads * 2 +
     innerQuads * 2 +
+    maxCutoutWallQuads * 2 +
     rimQuads * 2 +
     flatRimQuads * 2 +
     bottomOuterDiscTris +
     bottomInnerDiscTris;
 
-  const indices = new Uint32Array(totalTriangles * 3);
+  const indices = new Uint32Array(maxTriangles * 3);
   let idxOffset = 0;
 
   // ---- Outer surface quads (CCW = outward-facing normals) ----
   for (let vStep = 0; vStep < vRes; vStep++) {
     for (let tStep = 0; tStep < rRes; tStep++) {
       const tNext = (tStep + 1) % rRes;
+      if (isQuadCutout(vStep, tStep, tNext)) continue;
       const bl = outerOffset + vStep * rRes + tStep;
       const br = outerOffset + vStep * rRes + tNext;
       const tl = outerOffset + (vStep + 1) * rRes + tStep;
@@ -881,6 +963,11 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   for (let iRow = 0; iRow < innerRows - 1; iRow++) {
     for (let tStep = 0; tStep < rRes; tStep++) {
       const tNext = (tStep + 1) % rRes;
+      // Map inner row back to global vStep for cutout lookup
+      const vStep = iRow + innerStartStep;
+      if (cutoutGrid && vStep + 1 <= vRes &&
+          cutoutGrid[vStep][tStep] && cutoutGrid[vStep][tNext] &&
+          cutoutGrid[vStep + 1][tStep] && cutoutGrid[vStep + 1][tNext]) continue;
       const bl = innerOffset + iRow * rRes + tStep;
       const br = innerOffset + iRow * rRes + tNext;
       const tl = innerOffset + (iRow + 1) * rRes + tStep;
@@ -891,6 +978,100 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       indices[idxOffset++] = bl;
       indices[idxOffset++] = br;
       indices[idxOffset++] = tr;
+    }
+  }
+
+  // ---- Cutout wall quads (connect outer↔inner at hole boundaries) ----
+  // For each cutout quad, check 4 edges. If the neighbor is NOT cutout (or at
+  // the mesh boundary), emit a wall quad connecting outer and inner surfaces.
+  // Wall normals face outward from the hole (into the solid region).
+  if (cutoutGrid) {
+    for (let vStep = 0; vStep < vRes; vStep++) {
+      for (let tStep = 0; tStep < rRes; tStep++) {
+        const tNext = (tStep + 1) % rRes;
+        const thisIsCutout = isQuadCutout(vStep, tStep, tNext);
+        if (!thisIsCutout) continue;
+
+        // Only emit walls for edges where inner surface exists
+        const iRow = vStep - innerStartStep;
+        if (iRow < 0) continue; // below inner start, no inner surface
+
+        // Helper: get outer and inner vertex indices for a vertex at (v, t)
+        const outerIdx = (v: number, t: number) => outerOffset + v * rRes + t;
+        const innerIdx = (v: number, t: number) => innerOffset + (v - innerStartStep) * rRes + t;
+
+        // Left edge (tStep side): neighbor is quad at (vStep, tStep-1)
+        const tPrev = (tStep - 1 + rRes) % rRes;
+        const leftNeighborCutout = isQuadCutout(vStep, tPrev, tStep);
+        if (!leftNeighborCutout && iRow >= 0 && iRow + 1 < innerRows) {
+          // Wall edge runs vertically along tStep from vStep to vStep+1
+          // Normal faces left (toward the solid neighbor)
+          const o0 = outerIdx(vStep, tStep);
+          const o1 = outerIdx(vStep + 1, tStep);
+          const i0 = innerIdx(vStep, tStep);
+          const i1 = innerIdx(vStep + 1, tStep);
+          // Winding: looking from the solid side toward the hole
+          indices[idxOffset++] = o0;
+          indices[idxOffset++] = i0;
+          indices[idxOffset++] = i1;
+          indices[idxOffset++] = o0;
+          indices[idxOffset++] = i1;
+          indices[idxOffset++] = o1;
+        }
+
+        // Right edge (tNext side): neighbor is quad at (vStep, tNext)
+        const tNextNext = (tNext + 1) % rRes;
+        const rightNeighborCutout = isQuadCutout(vStep, tNext, tNextNext);
+        if (!rightNeighborCutout && iRow >= 0 && iRow + 1 < innerRows) {
+          const o0 = outerIdx(vStep, tNext);
+          const o1 = outerIdx(vStep + 1, tNext);
+          const i0 = innerIdx(vStep, tNext);
+          const i1 = innerIdx(vStep + 1, tNext);
+          // Winding: looking from the solid side (right) toward the hole (left)
+          indices[idxOffset++] = o0;
+          indices[idxOffset++] = o1;
+          indices[idxOffset++] = i1;
+          indices[idxOffset++] = o0;
+          indices[idxOffset++] = i1;
+          indices[idxOffset++] = i0;
+        }
+
+        // Bottom edge (vStep side): neighbor is quad at (vStep-1, tStep)
+        if (vStep > 0) {
+          const bottomNeighborCutout = isQuadCutout(vStep - 1, tStep, tNext);
+          if (!bottomNeighborCutout && iRow >= 0 && (vStep - innerStartStep) >= 0) {
+            const o0 = outerIdx(vStep, tStep);
+            const o1 = outerIdx(vStep, tNext);
+            const i0 = innerIdx(vStep, tStep);
+            const i1 = innerIdx(vStep, tNext);
+            // Winding: looking from below (solid) toward above (hole)
+            indices[idxOffset++] = o0;
+            indices[idxOffset++] = o1;
+            indices[idxOffset++] = i1;
+            indices[idxOffset++] = o0;
+            indices[idxOffset++] = i1;
+            indices[idxOffset++] = i0;
+          }
+        }
+
+        // Top edge (vStep+1 side): neighbor is quad at (vStep+1, tStep)
+        if (vStep + 1 < vRes) {
+          const topNeighborCutout = isQuadCutout(vStep + 1, tStep, tNext);
+          if (!topNeighborCutout && iRow + 1 < innerRows && (vStep + 1 - innerStartStep) >= 0) {
+            const o0 = outerIdx(vStep + 1, tStep);
+            const o1 = outerIdx(vStep + 1, tNext);
+            const i0 = innerIdx(vStep + 1, tStep);
+            const i1 = innerIdx(vStep + 1, tNext);
+            // Winding: looking from above (solid) toward below (hole)
+            indices[idxOffset++] = o0;
+            indices[idxOffset++] = i0;
+            indices[idxOffset++] = i1;
+            indices[idxOffset++] = o0;
+            indices[idxOffset++] = i1;
+            indices[idxOffset++] = o1;
+          }
+        }
+      }
     }
   }
 
@@ -955,15 +1136,19 @@ export function generateMesh(params: VaseParameters): VaseMesh {
     }
   }
 
+  // Trim index buffer if cutout skipped some triangles
+  const actualTriangles = idxOffset / 3;
+  const finalIndices = hasCutout ? indices.slice(0, idxOffset) : indices;
+
   // Compute normals
-  computeNormals(positions, indices, normals);
+  computeNormals(positions, finalIndices, normals);
 
   return {
     positions,
     normals,
-    indices,
+    indices: finalIndices,
     vertexCount: totalVertices,
-    triangleCount: totalTriangles,
+    triangleCount: actualTriangles,
   };
 }
 
