@@ -322,6 +322,7 @@ interface RowContext {
   centerY: number;
   twistAngle: number;
   vSmooth: number;
+  smoothZoneFactor: number; // 0 = suppressed (in zone), 1 = normal
 }
 
 /**
@@ -340,14 +341,10 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   // Master textures gate (backward compat: treat missing field as enabled)
   const texturesEnabled = params.textures.enabled !== false;
 
-  // Solid band height for cutout — no holes or cutout-texture displacement in this zone
-  const hasCutoutTexture = texturesEnabled && (
-    (params.textures.voronoi?.enabled && params.textures.voronoi?.cutout) ||
-    (params.textures.svgPattern?.enabled && params.textures.svgPattern?.cutout)
-  );
-  const cutoutSolidBand = hasCutoutTexture
-    ? Math.max(Math.max(bt, wt) * 3, params.height * 0.05)
-    : 0;
+  // Smooth zones — precompute base/rim fractions (0–1)
+  const szBase = (params.smoothZones?.basePercent ?? 0) / 100;
+  const szRim  = (params.smoothZones?.rimPercent ?? 0) / 100;
+  const szFade = (params.smoothZones?.transition ?? 'hard') === 'fade';
 
   // Precompute simplex permutation table (once per mesh generation, not per vertex)
   // Shared by simplex texture and wood grain (which uses simplex3D for wobble)
@@ -407,16 +404,39 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       ? verticalSmoothing(v, params.verticalSmoothing.cycles, params.verticalSmoothing.startPercent)
       : 1;
 
-    rowContexts.push({ m, shapeRadius, height, v, centerX, centerY, twistAngle, vSmooth });
+    // Smooth zone factor: 0 = fully suppressed, 1 = normal
+    let smoothZoneFactor = 1;
+    if (szBase > 0 || szRim > 0) {
+      if (szBase > 0 && v < szBase) {
+        smoothZoneFactor = szFade
+          ? (szBase > 0 ? v / szBase : 1)  // linear fade 0→1 across zone
+          : 0;                               // hard cutoff
+        // Apply smoothstep for fade mode
+        if (szFade && smoothZoneFactor < 1) {
+          smoothZoneFactor = smoothZoneFactor * smoothZoneFactor * (3 - 2 * smoothZoneFactor);
+        }
+      }
+      if (szRim > 0 && v > 1 - szRim) {
+        const rimFactor = szFade
+          ? (szRim > 0 ? (1 - v) / szRim : 1)
+          : 0;
+        const rimSmooth = szFade
+          ? rimFactor * rimFactor * (3 - 2 * rimFactor)
+          : rimFactor;
+        smoothZoneFactor = Math.min(smoothZoneFactor, rimSmooth);
+      }
+    }
+
+    rowContexts.push({ m, shapeRadius, height, v, centerX, centerY, twistAngle, vSmooth, smoothZoneFactor });
   }
 
   /**
    * Compute the radial distance for a given row and angle.
-   * When skipTextures is true, texture terms (fluting, basket weave, voronoi, simplex)
-   * are zeroed out — used for smooth inner surface calculation.
+   * When skipEffects is true, ripples and textures are zeroed out — used for
+   * smooth inner surface calculation (suppresses both ripples AND textures).
    */
   function computeRadius(
-    row: RowContext, tStep: number, skipTextures: boolean
+    row: RowContext, tStep: number, skipEffects: boolean
   ): number {
     const t = tStep * 360 / rRes;
 
@@ -433,14 +453,8 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       ? radialSmoothing(t, params.radialSmoothing.cycles, params.radialSmoothing.offsetAngle)
       : 1;
 
-    const radRipple = params.radialRipple.enabled
-      ? radialRipple(row.v, t, params.radialRipple.depth, params.radialRipple.count, 0)
-      : 0;
-
-    const vertRipple = params.verticalRipple.enabled
-      ? verticalRipple(row.v, params.verticalRipple.depth, params.verticalRipple.count)
-      : 0;
-
+    let radRipple = 0;
+    let vertRipple = 0;
     let fluting = 0;
     let basketWeaveVal = 0;
     let voronoi = 0;
@@ -448,7 +462,17 @@ export function generateMesh(params: VaseParameters): VaseMesh {
     let woodGrainVal = 0;
     let svgPatternVal = 0;
 
-    if (!skipTextures) {
+    const szf = row.smoothZoneFactor;
+
+    if (!skipEffects) {
+      radRipple = params.radialRipple.enabled
+        ? radialRipple(row.v, t, params.radialRipple.depth, params.radialRipple.count, 0)
+        : 0;
+
+      vertRipple = params.verticalRipple.enabled
+        ? verticalRipple(row.v, params.verticalRipple.depth, params.verticalRipple.count)
+        : 0;
+
       fluting = texturesEnabled && params.textures.fluting.enabled
         ? -params.textures.fluting.depth * Math.abs(sinD(params.textures.fluting.count * t))
         : 0;
@@ -461,20 +485,14 @@ export function generateMesh(params: VaseParameters): VaseMesh {
         : 0;
 
       // Voronoi cellular texture
-      // When cutout is on, suppress displacement in the solid band zones
-      // so the base/rim are completely smooth (no partial indentations).
       if (texturesEnabled && params.textures.voronoi?.enabled) {
-        const inSolidBand = params.textures.voronoi.cutout && cutoutSolidBand > 0 &&
-          (row.height <= cutoutSolidBand || row.height >= params.height - cutoutSolidBand);
-        if (!inSolidBand) {
-          const vor = params.textures.voronoi;
-          const cellsU = vor.scale;
-          const circumference = 2 * Math.PI * params.radius;
-          const cellsW = Math.max(1, Math.round(cellsU * params.height / circumference));
-          const u = (t / 360) * cellsU;
-          const w = row.v * cellsW;
-          voronoi = vor.depth * voronoiCell(u, w, cellsU, vor.seed, vor.edgeWidth);
-        }
+        const vor = params.textures.voronoi;
+        const cellsU = vor.scale;
+        const circumference = 2 * Math.PI * params.radius;
+        const cellsW = Math.max(1, Math.round(cellsU * params.height / circumference));
+        const u = (t / 360) * cellsU;
+        const w = row.v * cellsW;
+        voronoi = vor.depth * voronoiCell(u, w, cellsU, vor.seed, vor.edgeWidth);
       }
 
       // Simplex noise texture
@@ -492,40 +510,31 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       // Wood grain texture
       if (texturesEnabled && woodGrainPerm && params.textures.woodGrain?.enabled) {
         const wg = params.textures.woodGrain;
-        // Map angle to horizontal stripe position (0..count), seamless at 0/360
         const wgU = (t / 360) * wg.count;
-        // Aspect-ratio-corrected vertical coordinate
         const circumference = 2 * Math.PI * params.radius;
         const vScaled = row.v * (params.height / circumference) * wg.count;
         woodGrainVal = wg.depth * woodGrain(wgU, vScaled, wg.count, wg.wobble, wg.sharpness, woodGrainPerm);
       }
 
       // SVG pattern texture
-      // When cutout is on, suppress displacement in the solid band zones.
       if (texturesEnabled && svgPatternData && params.textures.svgPattern?.enabled && params.textures.svgPattern.svgText) {
-        const inSolidBand = params.textures.svgPattern.cutout && cutoutSolidBand > 0 &&
-          (row.height <= cutoutSolidBand || row.height >= params.height - cutoutSolidBand);
-        if (!inSolidBand) {
-          const sp = params.textures.svgPattern;
-          // Integer tile counts guarantee seamless wrapping at 0/360 and top/bottom
-          const tileU = ((t / 360) * sp.repeatX) % 1;
-          const tileV = (row.v * sp.repeatY) % 1;
-          const brightness = sampleSvgPattern(tileU, tileV);
-          // Black areas = grooves (negative offset), white = flush
-          svgPatternVal = -sp.depth * (sp.invert ? brightness : 1 - brightness);
-        }
+        const sp = params.textures.svgPattern;
+        const tileU = ((t / 360) * sp.repeatX) % 1;
+        const tileV = (row.v * sp.repeatY) % 1;
+        const brightness = sampleSvgPattern(tileU, tileV);
+        svgPatternVal = -sp.depth * (sp.invert ? brightness : 1 - brightness);
       }
     }
 
     return shapeValue * row.shapeRadius
-      + radRipple * row.vSmooth * rSmooth
-      + vertRipple * row.vSmooth * rSmooth
-      + fluting
-      + basketWeaveVal
-      + voronoi
-      + simplex
-      + woodGrainVal
-      + svgPatternVal;
+      + radRipple * row.vSmooth * rSmooth * szf
+      + vertRipple * row.vSmooth * rSmooth * szf
+      + fluting * szf
+      + basketWeaveVal * szf
+      + voronoi * szf
+      + simplex * szf
+      + woodGrainVal * szf
+      + svgPatternVal * szf;
   }
 
   /**
@@ -562,9 +571,8 @@ export function generateMesh(params: VaseParameters): VaseMesh {
    */
   function computeCutoutFactor(row: RowContext, tStep: number): number {
     if (!texturesEnabled) return 0;
-    // No cutout in base or rim zone — keeps solid bottom and top intact.
-    if (row.height <= cutoutSolidBand) return 0;
-    if (row.height >= params.height - cutoutSolidBand) return 0;
+    // No cutout in smooth zones — keeps solid base/rim intact.
+    if (row.smoothZoneFactor < 1) return 0;
     const t = tStep * 360 / rRes;
     let factor = 0;
 

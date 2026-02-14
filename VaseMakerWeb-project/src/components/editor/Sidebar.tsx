@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
 import { useHistoryStore, skipNextHistoryRecord } from '@/store/history';
@@ -14,6 +14,7 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
   const { canUndo, canRedo } = useHistoryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [designName, setDesignName] = useState<string | null>(null);
 
   const handleToggleAll = useCallback(() => {
     const container = scrollRef.current;
@@ -42,7 +43,8 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
   const handleExportSTL = () => {
     const params = getParams();
     const mesh = generateMesh(params);
-    downloadSTL(mesh, 'vasemaker-export.stl');
+    const stlName = designName ? `${designName}.stl` : 'vasemaker-export.stl';
+    downloadSTL(mesh, stlName);
   };
 
   const handleSaveDesign = () => {
@@ -52,9 +54,11 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'vase-design.json';
+    const saveName = designName || 'vase-design';
+    a.download = `${saveName}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    setDesignName(saveName);
   };
 
   const handleLoadDesign = () => {
@@ -64,6 +68,8 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
   const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Extract name without .json extension for reuse in Save/Export
+    const baseName = file.name.replace(/\.json$/i, '');
     const reader = new FileReader();
     reader.onload = () => {
       try {
@@ -72,6 +78,7 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
         skipNextHistoryRecord();
         useHistoryStore.getState().clear();
         useVaseStore.setState({ params });
+        setDesignName(baseName);
       } catch {
         alert('Invalid design file.');
       }
@@ -118,7 +125,7 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.6</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.7</p>
       </div>
 
       {/* Toolbar */}
@@ -139,18 +146,18 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
         </select>
         <div className="flex gap-2">
           <button
-            onClick={handleSaveDesign}
-            className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
-            title="Save design as JSON"
-          >
-            Save Design
-          </button>
-          <button
             onClick={handleLoadDesign}
             className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
             title="Load design from JSON"
           >
             Load Design
+          </button>
+          <button
+            onClick={handleSaveDesign}
+            className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
+            title="Save design as JSON"
+          >
+            Save Design
           </button>
           <input
             ref={fileInputRef}

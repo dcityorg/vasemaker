@@ -97,13 +97,13 @@ For each vertex at height v (0-1) and angle t (0-360):
 1. Evaluate bottom shape (and top shape if morphing)
 2. Blend shapes by height ratio if morphing enabled
 3. Multiply by Bezier profile radius at this height
-4. Add radial ripple * vertical smoothing * radial smoothing
-5. Add vertical ripple * vertical smoothing * radial smoothing
-6. Add texture offsets (fluting, basket weave, voronoi, simplex, wood grain, SVG pattern) if textures master gate is on
-7. Apply radial offset (−wallThickness for inner surface, clamped to MIN_INNER_RADIUS). When `smoothInner` is enabled, inner surface uses `computeRadius(skipTextures=true)` and enforces `minWallThickness` gap relative to textured outer surface
+4. Add radial ripple * vertical smoothing * radial smoothing * smoothZoneFactor
+5. Add vertical ripple * vertical smoothing * radial smoothing * smoothZoneFactor
+6. Add texture offsets (fluting, basket weave, voronoi, simplex, carved wood, SVG pattern) * smoothZoneFactor if textures master gate is on
+7. Apply radial offset (−wallThickness for inner surface, clamped to MIN_INNER_RADIUS). When `smoothInner` is enabled, inner surface uses `computeRadius(skipEffects=true)` and enforces `minWallThickness` gap relative to textured outer surface
 8. Convert polar → cartesian, add XY offset, apply twist rotation (bezier + wave twist)
 
-When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface (reversed winding), bottom cap (outer disc at z=0 + inner disc at inner start height), rim (flat or rounded), and cutout wall quads (if cutout enabled). Per-row data is precomputed into `RowContext` structs. Cutout skips triangles where `cutoutGrid` is true and adds manifold wall quads at hole boundaries.
+When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface (reversed winding), bottom cap (outer disc at z=0 + inner disc at inner start height), rim (flat or rounded), and cutout wall quads (if cutout enabled). Per-row data is precomputed into `RowContext` structs (includes `smoothZoneFactor`). Cutout skips triangles where `cutoutGrid` is true and adds manifold wall quads at hole boundaries.
 
 ## Implemented Features
 - **25 cross-section shapes** with shape-specific parameter sliders, alphabetized in dropdown
@@ -113,10 +113,11 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Custom Twist** — BezierCurveEditor for twist degrees at each height
 - **Wave Twist** — Sinusoidal twist that rotates entire cross-section via unified `twistAngle`
 - **XY Sway** — Two BezierCurveEditors (X/Y offset) with scale sliders
-- **Textures** — Master gate toggle + 6 individual textures: Fluting, Basket Weave, Voronoi (Worley noise), Simplex (fBm), Wood Grain (wobbled vertical stripes via simplex-perturbed sine), SVG Pattern (user-supplied SVG as displacement map). Seamless 0/360 wrapping, aspect-ratio-corrected cells. Reusable functions: `hash2D`, `simplex3D`, `fbm3D`. **Cutout mode** on Voronoi and SVG Pattern punches holes through the wall for lattice/perforated designs
-- **Texture Cutout** — Per-texture `cutout` toggle (Voronoi + SVG Pattern only). Removes triangles from both outer and inner surfaces where cutout factor exceeds threshold, then generates manifold wall quads connecting outer↔inner at hole boundaries. `computeCutoutFactor()` evaluates voronoi cell value or SVG brightness with smoothstep threshold (0.3–0.7 remap). Solid band at base and rim: `cutoutSolidBand = max(max(bt,wt)*3, height*0.05)` — suppresses both hole-punching AND texture displacement in the band zone so edges are completely smooth. Precomputed `cutoutGrid` boolean array avoids per-triangle recomputation. Index buffer is over-allocated then trimmed to actual triangle count. SVG cutout works best with high-contrast black/white images — grayscale produces unpredictable partial holes. Hole boundary smoothness depends on mesh resolution (150+ vert, 200+ radial for round holes)
+- **Textures** — Master gate toggle + 6 individual textures: Fluting, Basket Weave, Voronoi (Worley noise), Simplex (fBm), Carved Wood (wobbled vertical stripes via simplex-perturbed sine, UI label "Carved Wood", engine param `woodGrain`), SVG Pattern (user-supplied SVG as displacement map). Seamless 0/360 wrapping, aspect-ratio-corrected cells. Reusable functions: `hash2D`, `simplex3D`, `fbm3D`. **Cutout mode** on Voronoi and SVG Pattern punches holes through the wall for lattice/perforated designs
+- **Texture Cutout** — Per-texture `cutout` toggle (Voronoi + SVG Pattern only). Removes triangles from both outer and inner surfaces where cutout factor exceeds threshold, then generates manifold wall quads connecting outer↔inner at hole boundaries. `computeCutoutFactor()` evaluates voronoi cell value or SVG brightness with smoothstep threshold (0.3–0.7 remap). Cutout is suppressed in smooth zones (`smoothZoneFactor < 1`). Precomputed `cutoutGrid` boolean array avoids per-triangle recomputation. Index buffer is over-allocated then trimmed to actual triangle count. SVG cutout works best with high-contrast black/white images — grayscale produces unpredictable partial holes. Hole boundary smoothness depends on mesh resolution (150+ vert, 200+ radial for round holes)
+- **Smooth Zones** — Global suppression of all surface effects (ripples + textures) near base and/or rim. `smoothZones.basePercent` and `rimPercent` (0–50%) define zone heights as % of vase height. `transition` mode: `'hard'` = step function (0 inside, 1 outside), `'fade'` = smoothstep gradient across zone. `smoothZoneFactor` is precomputed per `RowContext` row and multiplied into all effect terms in `computeRadius()`. Shape, profile, and twist are NOT affected. Replaces the old hardcoded `cutoutSolidBand` formula — cutout now checks `smoothZoneFactor < 1` instead. Default 0%/0% = no suppression (backward compatible)
 - **SVG Pattern texture** — Paste SVG from pattern sites (Hero Patterns, etc.) as radial displacement. Accepts raw SVG, data URLs, or CSS `background-image: url(...)` lines. Modal dialog with tiled preview, aspect-ratio-preserving rasterization via offscreen canvas, Gaussian blur anti-aliasing, bilinear interpolation sampling. Sliders: Repeat X (circumference tiles), Repeat Y (height tiles, max 60), Depth, Invert toggle. Architecture: `svg-rasterizer.ts` (browser-only DOM) rasterizes to grayscale `Uint8Array`; `mesh-generator.ts` stores pixel data at module level via `setSvgPatternData()` setter (keeps it DOM-free); `use-vase-mesh.ts` bridges async rasterization to synchronous mesh rebuild via version counter. Higher mesh resolution (100+ vertical/radial) recommended for fine patterns
-- **Wall thickness, base cap, rim** — Outer + inner surfaces, base cap (no wall strip — avoids lip on flared profiles), flat/rounded rim. Base thickness measured vertically. **Smooth Inner** toggle keeps inner wall texture-free; **Min Wall** slider prevents paper-thin walls where textures indent inward
+- **Wall thickness, base cap, rim** — Outer + inner surfaces, base cap (no wall strip — avoids lip on flared profiles), flat/rounded rim. Base thickness measured vertically. **Smooth Inner** toggle keeps inner wall completely smooth (no ripples or textures) via `skipEffects=true`; **Min Wall** slider prevents paper-thin walls where effects indent inward
 - **Undo/redo** — 50-step debounced history, ↶/↷ buttons + Cmd+Z/Cmd+Shift+Z
 - **Save/Load** — JSON export/import, merges onto DEFAULT_PARAMETERS for forward-compat
 - **Presets** — Dropdown with "Select a starting vase" placeholder, re-selectable
@@ -221,7 +222,7 @@ const myPerm = params.textures.myTexture?.enabled
 ```
 This runs once per mesh rebuild, not per-vertex.
 
-**c) Evaluate per-vertex** inside `computeRadius()`, in the `if (!skipTextures)` block, after existing textures:
+**c) Evaluate per-vertex** inside `computeRadius()`, in the `if (!skipEffects)` block, after existing textures:
 ```typescript
 let myTextureVal = 0;
 if (texturesEnabled && params.textures.myTexture?.enabled) {
@@ -231,11 +232,11 @@ if (texturesEnabled && params.textures.myTexture?.enabled) {
 }
 ```
 
-**d) Add to the radius sum** (inside `computeRadius()` return statement):
+**d) Add to the radius sum** (inside `computeRadius()` return statement, multiply by `szf`):
 ```typescript
 return shapeValue * row.shapeRadius
   + /* ... existing terms ... */
-  + myTextureVal;
+  + myTextureVal * szf;
 ```
 
 **Key details for the algorithm:**
@@ -314,9 +315,9 @@ Then **hard refresh** the browser (Cmd+Shift+R) to clear cached chunk references
 
 **Note:** This is a Next.js dev server issue, not a code bug. If the white screen persists after clearing `.next`, then check for actual runtime errors in the browser console (e.g. TypeError from undefined params — see backward compat notes above).
 
-## Wood Grain Texture — Iteration Notes
+## Carved Wood Texture (engine: `woodGrain`) — Iteration Notes
 
-The current Wood Grain texture (v1) uses simplex-perturbed sine waves. It produces organic-looking patterns but NOT realistic flat-sawn wood grain with thin delicate vertical lines. Multiple algorithm approaches were tried:
+The current Carved Wood texture (v1) uses simplex-perturbed sine waves. It produces organic-looking patterns but NOT realistic flat-sawn wood grain with thin delicate vertical lines. Multiple algorithm approaches were tried:
 
 - **v1 (current/kept):** Simplex-perturbed sine waves with 2 octaves of wobble, width variation via slow noise field, sharpness-controlled groove profile. Organic but blobby. User's best preset: count=43, depth=2.2, wobble=0.05, sharpness=0.1, seed=32
 - **v2–v4:** Tried `abs(sin)^power` for narrow grooves, fractional power, V-groove thresholding — improved verticality but grooves still too wide

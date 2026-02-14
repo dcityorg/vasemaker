@@ -220,6 +220,12 @@ export const RESOLUTION = {
   radial:   { min: 8, max: 360, step: 1 } as SliderRange,
 } as const;
 
+/** Smooth zones slider ranges */
+export const SMOOTH_ZONES = {
+  basePercent: { min: 0, max: 50, step: 1 } as SliderRange,
+  rimPercent:  { min: 0, max: 50, step: 1 } as SliderRange,
+} as const;
+
 /** Shell / wall thickness slider ranges */
 export const SHELL = {
   wallThickness:    { min: 0, max: 5, step: 0.1 } as SliderRange,

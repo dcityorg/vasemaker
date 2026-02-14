@@ -200,6 +200,13 @@ export interface VaseParameters {
   smoothInner: boolean;         // when true, inner wall ignores textures
   minWallThickness: number;     // mm, minimum wall thickness when smoothInner is on
 
+  // Smooth zones — suppress ripples & textures near base/rim
+  smoothZones: {
+    basePercent: number;          // 0–50: % of vase height
+    rimPercent: number;           // 0–50: % of vase height
+    transition: 'hard' | 'fade'; // step function vs smoothstep
+  };
+
   // Appearance
   color: string;                // hex color for preview (e.g. '#6d9fff')
 }

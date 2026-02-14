@@ -5,7 +5,7 @@ import { useVaseStore } from '@/store/vase-store';
 import type { ShapeType } from '@/engine/types';
 import {
   SHAPE_OPTIONS, SHAPE_PARAM_CONFIG,
-  DIMENSIONS, SHELL, APPEARANCE, RESOLUTION, TEXTURES, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
+  DIMENSIONS, SHELL, SMOOTH_ZONES, APPEARANCE, RESOLUTION, TEXTURES, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
   SINE_TWIST, VERTICAL_SMOOTHING, RADIAL_SMOOTHING, BEZIER_OFFSET,
 } from '@/config/shape-params';
 import type { BezierPoint } from '@/engine/types';
@@ -291,6 +291,7 @@ export function DimensionControls() {
     setVerticalSmoothing, setRadialSmoothing,
     setBezierOffset, setBezierOffsetPointX, setBezierOffsetPointY,
     addBezierOffsetPoint, removeBezierOffsetPoint,
+    setSmoothZones,
     setWallThickness, setBottomThickness, setRimShape, setSmoothInner, setMinWallThickness,
     setColor, setResolution, setFlatShading,
     setTexturesEnabled, setFluting, setBasketWeave, setVoronoi, setSimplex, setWoodGrain, setSvgPattern,
@@ -323,6 +324,7 @@ export function DimensionControls() {
   });
   const resetVerticalSmoothing = () => setVerticalSmoothing({ cycles: DEFAULT_PARAMETERS.verticalSmoothing.cycles, startPercent: DEFAULT_PARAMETERS.verticalSmoothing.startPercent });
   const resetRadialSmoothing = () => setRadialSmoothing({ cycles: DEFAULT_PARAMETERS.radialSmoothing.cycles, offsetAngle: DEFAULT_PARAMETERS.radialSmoothing.offsetAngle });
+  const resetSmoothZones = () => setSmoothZones({ basePercent: DEFAULT_PARAMETERS.smoothZones.basePercent, rimPercent: DEFAULT_PARAMETERS.smoothZones.rimPercent, transition: DEFAULT_PARAMETERS.smoothZones.transition });
   const resetFluting = () => setFluting({ count: DEFAULT_PARAMETERS.textures.fluting.count, depth: DEFAULT_PARAMETERS.textures.fluting.depth });
   const resetBasketWeave = () => setBasketWeave({ bands: DEFAULT_PARAMETERS.textures.basketWeave.bands, waves: DEFAULT_PARAMETERS.textures.basketWeave.waves, depth: DEFAULT_PARAMETERS.textures.basketWeave.depth });
   const resetVoronoi = () => setVoronoi({ scale: DEFAULT_PARAMETERS.textures.voronoi.scale, depth: DEFAULT_PARAMETERS.textures.voronoi.depth, edgeWidth: DEFAULT_PARAMETERS.textures.voronoi.edgeWidth, seed: DEFAULT_PARAMETERS.textures.voronoi.seed, cutout: false });
@@ -363,6 +365,34 @@ export function DimensionControls() {
         <SliderRow label="Height" value={params.height} {...DIMENSIONS.height} onChange={setHeight} />
       </Section>
 
+      <Section title="Smooth Zones" defaultOpen={false} active={(params.smoothZones?.basePercent ?? 0) > 0 || (params.smoothZones?.rimPercent ?? 0) > 0}>
+        <div className="flex justify-end mb-1">
+          <button onClick={resetSmoothZones} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+        </div>
+        <SliderRow label="Base %" value={params.smoothZones?.basePercent ?? 0} {...SMOOTH_ZONES.basePercent} onChange={(v) => setSmoothZones({ basePercent: v })} />
+        <SliderRow label="Rim %" value={params.smoothZones?.rimPercent ?? 0} {...SMOOTH_ZONES.rimPercent} onChange={(v) => setSmoothZones({ rimPercent: v })} />
+        <div className="flex items-center gap-3 mb-2">
+          <label className="text-sm text-[var(--text-secondary)] w-20 shrink-0">Transition</label>
+          <div className="flex gap-3">
+            {(['hard', 'fade'] as const).map((mode) => (
+              <label key={mode} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
+                <input
+                  type="radio"
+                  name="smoothZoneTransition"
+                  checked={(params.smoothZones?.transition ?? 'hard') === mode}
+                  onChange={() => setSmoothZones({ transition: mode })}
+                  className="accent-[var(--accent)]"
+                />
+                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
+          Suppresses ripples and textures near base/rim. Does not affect profile or twist.
+        </div>
+      </Section>
+
       <Section title="Shell">
         <div className="flex justify-end mb-1">
           <button onClick={() => { setWallThickness(DEFAULT_PARAMETERS.wallThickness); setBottomThickness(DEFAULT_PARAMETERS.bottomThickness); setRimShape(DEFAULT_PARAMETERS.rimShape); setSmoothInner(DEFAULT_PARAMETERS.smoothInner); setMinWallThickness(DEFAULT_PARAMETERS.minWallThickness); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
@@ -391,8 +421,8 @@ export function DimensionControls() {
             </div>
             <Toggle label="Smooth Inner" checked={params.smoothInner ?? false} onChange={setSmoothInner} />
             {(params.smoothInner ?? false) && (
-              <div className="text-xs text-[var(--text-secondary)] mb-2 ml-[calc(6rem+0.75rem)] opacity-60">
-                Inner wall ignores textures
+              <div className="text-xs text-[var(--text-secondary)] mb-2 opacity-60">
+                Inner wall is completely smooth (no ripples or textures). Deep effects may require adjusting Wall or Min Wall above.
               </div>
             )}
           </>
@@ -626,7 +656,7 @@ export function DimensionControls() {
             <SliderRow label="Seed" value={params.textures.simplex.seed} {...TEXTURES.simplex.seed} onChange={(v) => setSimplex({ seed: v })} />
           </div>
         )}
-        <Toggle label="Wood Grain" checked={params.textures.woodGrain?.enabled ?? false} onChange={(v) => setWoodGrain({ enabled: v })} onReset={resetWoodGrain} />
+        <Toggle label="Carved Wood" checked={params.textures.woodGrain?.enabled ?? false} onChange={(v) => setWoodGrain({ enabled: v })} onReset={resetWoodGrain} />
         {params.textures.woodGrain?.enabled && (
           <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
             <SliderRow label="Count" value={params.textures.woodGrain.count} {...TEXTURES.woodGrain.count} onChange={(v) => setWoodGrain({ count: v })} />
