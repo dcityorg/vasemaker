@@ -5,12 +5,14 @@ import { OrbitControls } from '@react-three/drei';
 import { VaseMeshComponent } from './VaseMesh';
 import { GroundGrid, AxisRulers, AxisGizmo, AxisLabels } from './SceneHelpers';
 import { CAMERA, ORBIT_CONTROLS, LIGHTING } from '@/config/viewport';
+import { useVaseStore } from '@/store/vase-store';
 
 /**
  * 3D viewport — renders the vase in a Three.js scene with orbit controls.
  * Uses Z-up convention to match OpenSCAD and the mesh generator.
  */
 export function Viewport() {
+  const showRulers = useVaseStore((s) => s.params.showRulers ?? false);
   return (
     <div className="w-full h-full">
       <Canvas
@@ -35,16 +37,16 @@ export function Viewport() {
         <GroundGrid />
 
         {/* Axis rulers with tick marks */}
-        <AxisRulers />
+        {showRulers && <AxisRulers />}
 
         {/* Colored numeric labels on each axis */}
-        <AxisLabels />
+        {showRulers && <AxisLabels />}
 
         {/* The vase */}
         <VaseMeshComponent />
 
-        {/* XYZ orientation gizmo in lower-left corner */}
-        <AxisGizmo />
+        {/* XYZ orientation gizmo */}
+        {showRulers && <AxisGizmo />}
 
         {/* Camera controls */}
         <OrbitControls

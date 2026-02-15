@@ -216,6 +216,7 @@ export interface VaseParameters {
 
   // Appearance
   color: string;                // hex color for preview (e.g. '#6d9fff')
+  showRulers: boolean;          // show axis lines, tick marks, and dimension labels
 }
 
 /** Generated mesh data ready for Three.js */

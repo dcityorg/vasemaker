@@ -80,6 +80,7 @@ interface VaseStore {
 
   // Actions — appearance
   setColor: (color: string) => void;
+  setShowRulers: (show: boolean) => void;
 
   // Actions — resolution
   setResolution: (update: Partial<VaseParameters['resolution']>) => void;
@@ -371,6 +372,8 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
   // Appearance
   setColor: (color) =>
     set((state) => ({ params: { ...state.params, color } })),
+  setShowRulers: (show) =>
+    set((state) => ({ params: { ...state.params, showRulers: show } })),
 
   // Resolution
   setResolution: (update) =>

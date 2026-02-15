@@ -124,6 +124,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Header toggles** — On/off switch in section headers, independent of accordion open/close. Content always renders when expanded. Off-state toggle uses `#888`
 - **Reset buttons** — All sections have reset to neutral defaults (independent of loaded preset). Profile resets to flat cylinder
 - **Vase color picker** — Appearance section with native picker, default `#6d9fff`
+- **Show Rulers** — Toggle in Appearance section to show/hide axis lines, tick marks, numeric dimension labels, and XYZ gizmo. Off by default for a clean view. Stored as `showRulers` in VaseParameters, read by Viewport.tsx to conditionally render SceneHelpers (AxisRulers, AxisLabels, AxisGizmo). GroundGrid always visible
 - **Resolution** — Vertical (8–500) and Radial (8–720) sliders + Show Facets toggle. Defaults: 200 vertical, 360 radial. High resolution needed for dense textures (Square Flute 40+ count, fine Voronoi, SVG patterns). Info note in UI about file size vs. resolution trade-off
 - **Sidebar UI** — Indented content with left border, Reset buttons always visible. Texture sub-sliders have second-level indentation with vertical border line
 - **Tooltips** — Native browser tooltips (`title` attribute) on all sliders, toggles, and section headers. Provides brief descriptions of each parameter's effect without cluttering the UI
@@ -144,7 +145,6 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Image-Based Displacement** — Grayscale raster image (PNG/JPG) as radial displacement map (SVG Pattern covers SVG input)
 
 ### UI & UX
-- Dimension annotations on 3D preview
 - More presets, preset thumbnails/descriptions
 - Export filename picker
 - DimensionControls.tsx component split

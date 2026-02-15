@@ -48,6 +48,8 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'heading', text: 'Save & Load' },
       { type: 'paragraph', text: 'Save Design exports your parameters as a JSON file. Load Design imports a previously saved file. Your design is fully described by the parameters \u2014 no mesh data is stored, so files are tiny.' },
       { type: 'tip', text: 'Save frequently! There\'s no auto-save. If you refresh the page, unsaved changes are lost.' },
+      { type: 'heading', text: 'Appearance' },
+      { type: 'paragraph', text: 'The Appearance section lets you change the preview color and toggle Show Rulers. Rulers display axis lines with dimension markers (mm) in the 3D view \u2014 useful for checking size, hidden by default for a cleaner view.' },
       { type: 'heading', text: 'Tooltips' },
       { type: 'paragraph', text: 'Hover over any slider label, toggle, or section header to see a tooltip describing what it does.' },
     ],

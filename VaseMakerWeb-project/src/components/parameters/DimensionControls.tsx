@@ -295,7 +295,7 @@ export function DimensionControls() {
     addBezierOffsetPoint, removeBezierOffsetPoint,
     setSmoothZones,
     setWallThickness, setBottomThickness, setRimShape, setSmoothInner, setMinWallThickness,
-    setColor, setResolution, setFlatShading,
+    setColor, setShowRulers, setResolution, setFlatShading,
     setTexturesEnabled, setFluting, setBasketWeave, setVoronoi, setSimplex, setWoodGrain, setSvgPattern, setSquareFlute,
   } = useVaseStore();
 
@@ -339,7 +339,7 @@ export function DimensionControls() {
 
   return (
     <>
-      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor} tooltip="Visual settings for the 3D preview">
+      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor || params.showRulers} tooltip="Visual settings for the 3D preview">
         <div className="flex items-center gap-3 mb-2">
           <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Preview color for the 3D model">Color</label>
           <input
@@ -358,6 +358,7 @@ export function DimensionControls() {
             </button>
           )}
         </div>
+        <Toggle label="Show Rulers" checked={params.showRulers ?? false} onChange={setShowRulers} tooltip="Display axis lines and dimension markers (mm) in the 3D view" />
       </Section>
 
       <Section title="Dimensions" tooltip="Overall size of the vase">
