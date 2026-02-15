@@ -516,6 +516,24 @@ export function generateMesh(params: VaseParameters): VaseMesh {
         woodGrainVal = wg.depth * woodGrain(wgU, vScaled, wg.count, wg.wobble, wg.sharpness, woodGrainPerm);
       }
 
+      // Square flute texture — flat-topped pillars with rectangular channels
+      if (texturesEnabled && params.textures.squareFlute?.enabled) {
+        const sf = params.textures.squareFlute;
+        // Position within one period (0–1)
+        const phase = ((t / 360) * sf.count) % 1;
+        // Pillar occupies center of period: [0.5 - duty/2, 0.5 + duty/2]
+        // Groove is everything outside that range
+        const halfDuty = sf.duty * 0.5;
+        // Distance from pillar center (0.5), normalized so pillar edge = 0
+        const dist = Math.abs(phase - 0.5) - halfDuty;
+        // Edge transition width: sharpness=1 → razor sharp, 0 → rounded
+        const edge = 0.005 + (1 - sf.sharpness) * 0.15;
+        // Smoothstep: dist < 0 → 0 (pillar, flush), dist > edge → 1 (groove)
+        const tNorm = Math.max(0, Math.min(1, dist / edge));
+        const groove = tNorm * tNorm * (3 - 2 * tNorm);
+        fluting += -sf.depth * groove;
+      }
+
       // SVG pattern texture
       if (texturesEnabled && svgPatternData && params.textures.svgPattern?.enabled && params.textures.svgPattern.svgText) {
         const sp = params.textures.svgPattern;

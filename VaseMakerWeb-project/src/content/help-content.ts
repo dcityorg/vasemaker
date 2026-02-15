@@ -48,6 +48,8 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'heading', text: 'Save & Load' },
       { type: 'paragraph', text: 'Save Design exports your parameters as a JSON file. Load Design imports a previously saved file. Your design is fully described by the parameters \u2014 no mesh data is stored, so files are tiny.' },
       { type: 'tip', text: 'Save frequently! There\'s no auto-save. If you refresh the page, unsaved changes are lost.' },
+      { type: 'heading', text: 'Tooltips' },
+      { type: 'paragraph', text: 'Hover over any slider label, toggle, or section header to see a tooltip describing what it does.' },
     ],
   },
 
@@ -62,7 +64,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Simple', value: 'Circle, Ellipse, Square, Rectangle, Diamond, Polygon' },
         { key: 'Organic', value: 'Heart, Egg (2 variants), Butterfly, Cardioid (3 variants)' },
         { key: 'Mathematical', value: 'Rose, SuperEllipse, SuperFormula, Infinity, Limacon, Folium, Astroid, Lissajous, RationalRose' },
-        { key: 'Mechanical', value: 'Gear, Spirograph, Misc' },
+        { key: 'Mechanical', value: 'Gear (up to 60 teeth), Spirograph, Misc' },
       ] },
       { type: 'heading', text: 'Shape Morphing' },
       { type: 'paragraph', text: 'Bottom Shape is always active. Open the Top Shape section and toggle it on to enable morphing \u2014 the vase will smoothly blend from the bottom shape at the base to the top shape at the rim. Each shape has its own independent parameters.' },
@@ -122,8 +124,8 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'heading', text: 'Wave Twist' },
       { type: 'paragraph', text: 'Wave Twist applies a sinusoidal (back-and-forth) twist. Unlike Custom Twist which is a one-way rotation, Wave Twist oscillates.' },
       { type: 'keyvalue', items: [
-        { key: 'Amplitude', value: 'How far it twists in degrees' },
         { key: 'Cycles', value: 'How many back-and-forth oscillations over the height' },
+        { key: 'Max Degrees', value: 'How far it twists in degrees' },
       ] },
       { type: 'tip', text: 'Wave Twist + Radial Ripple creates beautiful swirling patterns.' },
 
@@ -147,15 +149,27 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: 'textures',
     title: 'Textures',
     blocks: [
-      { type: 'paragraph', text: 'Textures add surface detail by displacing vertices inward or outward. The master toggle in the section header enables/disables all textures at once. Individual textures have their own enable toggles.' },
+      { type: 'paragraph', text: 'Textures add surface detail by displacing vertices inward or outward. Multiple textures can be combined for complex effects.' },
+      { type: 'heading', text: 'Master Switch' },
+      { type: 'paragraph', text: 'The toggle next to the Textures header is a master switch. It starts off. You can set up individual textures first (their toggles remember their state), then flip the master on to see the result. Turning the master off hides all textures without changing individual settings \u2014 like a power strip.' },
       { type: 'tip', text: 'Textures stack additively. You can combine multiple textures for complex effects \u2014 e.g. Fluting + Voronoi for fluted panels with organic cells.' },
 
       { type: 'heading', text: 'Fluting' },
-      { type: 'paragraph', text: 'Vertical grooves running up the vase, like a fluted column. Clean, architectural look.' },
+      { type: 'paragraph', text: 'Smooth sine-wave grooves running up the vase, like a fluted column. Clean, architectural look.' },
       { type: 'keyvalue', items: [
-        { key: 'Count', value: 'Number of flutes around the circumference (4\u201360)' },
+        { key: 'Count', value: 'Number of flutes around the circumference (3\u201360)' },
         { key: 'Depth', value: 'How deep the grooves cut (mm)' },
       ] },
+
+      { type: 'heading', text: 'Square Flute' },
+      { type: 'paragraph', text: 'Flat-topped rectangular pillars separated by sharp-edged channels. A square-wave version of Fluting \u2014 produces a columned or castle-parapet look instead of smooth grooves.' },
+      { type: 'keyvalue', items: [
+        { key: 'Count', value: 'Number of pillars around the circumference (3\u201380)' },
+        { key: 'Depth', value: 'Channel depth in mm' },
+        { key: 'Duty', value: 'Pillar-to-groove ratio. Higher = wider pillars, narrower channels. 0.5 = equal widths' },
+        { key: 'Sharpness', value: 'Edge transition. 1 = perfectly square edges, 0 = rounded/beveled' },
+      ] },
+      { type: 'tip', text: 'High pillar counts require high radial resolution. With 80 pillars, set radial resolution to 400+ for clean square edges.' },
 
       { type: 'heading', text: 'Basket Weave' },
       { type: 'paragraph', text: 'Interlocking horizontal and vertical bands that alternate in/out, mimicking woven material.' },
@@ -168,43 +182,45 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'heading', text: 'Voronoi' },
       { type: 'paragraph', text: 'Organic cell pattern based on Worley noise. Creates a natural, cracked-earth or honeycomb-like texture.' },
       { type: 'keyvalue', items: [
-        { key: 'Scale', value: 'Cell size (smaller = more cells)' },
-        { key: 'Depth', value: 'How deep the cell edges indent (mm)' },
-        { key: 'Edge Width', value: 'Thickness of ridges between cells' },
+        { key: 'Scale', value: 'Number of cells around the circumference' },
+        { key: 'Depth', value: 'How much the cells raise outward (mm)' },
+        { key: 'Edge Width', value: 'Sharpness of ridges between cells (0=smooth, 1=sharp)' },
         { key: 'Seed', value: 'Random seed \u2014 change for different cell layouts' },
+        { key: 'Cutout', value: 'Punch holes through the wall at cell centers (see Cutout Mode below)' },
       ] },
 
       { type: 'heading', text: 'Simplex Noise' },
       { type: 'paragraph', text: 'Smooth, organic noise using fBm (fractal Brownian motion). Creates terrain-like, cloudy, or coral-like surfaces depending on settings.' },
       { type: 'keyvalue', items: [
-        { key: 'Scale', value: 'Feature size (larger = broader bumps)' },
+        { key: 'Scale', value: 'Feature density (larger = more features)' },
         { key: 'Depth', value: 'Displacement amplitude (mm)' },
-        { key: 'Octaves', value: 'Layers of detail (1=smooth, 4+=rough)' },
-        { key: 'Persistence', value: 'How much each octave contributes (0\u20131)' },
-        { key: 'Lacunarity', value: 'Frequency multiplier between octaves' },
+        { key: 'Octaves', value: 'Layers of detail (1=smooth, 6=craggy)' },
+        { key: 'Persistence', value: 'How much each octave contributes (lower=smoother)' },
+        { key: 'Lacunarity', value: 'Frequency multiplier between octaves (higher=finer detail)' },
         { key: 'Seed', value: 'Random seed for different patterns' },
       ] },
       { type: 'tip', text: 'Suggested starting point: Scale 10, Depth 1.5, Octaves 3, Persistence 0.5, Lacunarity 2.0.' },
 
-      { type: 'heading', text: 'Wood Grain' },
-      { type: 'paragraph', text: 'Vertical grain lines that meander organically, like flat-sawn wood. Uses simplex noise to wobble the stripe positions.' },
+      { type: 'heading', text: 'Carved Wood' },
+      { type: 'paragraph', text: 'Vertical grain lines that meander organically, like flat-sawn wood. Uses simplex noise to wobble the stripe positions for a natural carved appearance.' },
       { type: 'keyvalue', items: [
         { key: 'Count', value: 'Number of grain lines around the circumference' },
         { key: 'Depth', value: 'Groove depth (mm)' },
-        { key: 'Wobble', value: 'How much lines meander side-to-side (0\u20131)' },
+        { key: 'Wobble', value: 'How much lines meander side-to-side (0=straight, 1=wavy)' },
         { key: 'Sharpness', value: 'Edge hardness (0=soft grooves, 1=sharp lines)' },
         { key: 'Seed', value: 'Random seed for different grain patterns' },
       ] },
 
       { type: 'heading', text: 'SVG Pattern' },
-      { type: 'paragraph', text: 'Use any SVG image as a displacement map. Dark areas become grooves, white areas stay flush. Paste SVG code from pattern sites like Hero Patterns, or any SVG markup.' },
+      { type: 'paragraph', text: 'Use any SVG image as a displacement map. Dark areas become grooves, white areas stay flush. Paste SVG code from pattern sites like Hero Patterns, or any SVG markup. Also accepts data URLs and CSS background-image lines.' },
       { type: 'keyvalue', items: [
         { key: 'Repeat X', value: 'Number of pattern tiles around the circumference' },
         { key: 'Repeat Y', value: 'Number of pattern tiles up the height' },
         { key: 'Depth', value: 'How deep the pattern displaces (mm)' },
         { key: 'Invert', value: 'Swap which areas are grooves vs. ridges' },
+        { key: 'Cutout', value: 'Punch holes through the wall at dark areas (see Cutout Mode below)' },
       ] },
-      { type: 'tip', text: 'Use high-contrast black and white SVGs for the clearest patterns. Increase Resolution (100+ vertical, 200+ radial) for fine detail.' },
+      { type: 'tip', text: 'Use high-contrast black and white SVGs for the clearest patterns. Increase Resolution for fine detail.' },
 
       { type: 'heading', text: 'Cutout Mode' },
       { type: 'paragraph', text: 'Voronoi and SVG Pattern have a Cutout toggle that punches holes through the vase wall, creating lattice or perforated designs. Instead of displacing the surface, cutout removes triangles entirely and seals the hole edges with connecting walls.' },
@@ -212,11 +228,21 @@ export const HELP_SECTIONS: HelpSection[] = [
         'Voronoi Cutout: cell centers become holes, edges remain as a lattice framework',
         'SVG Pattern Cutout: dark areas become holes, white areas stay solid. Use high-contrast black/white SVGs for clean cutouts',
         'The Edge Width slider (Voronoi) controls how thick the lattice bars are',
-        'Holes are suppressed in the base and rim zones (using Base Thickness) to keep the vase structurally sound',
-        'Higher Resolution produces smoother, rounder hole edges. At low resolution, holes will look blocky/rectangular',
+        'Cutout holes are automatically suppressed in Smooth Zones to keep the base and rim solid',
+        'Higher Resolution produces smoother, rounder hole edges. At low resolution, holes will look blocky',
         'Wall Thickness must be > 0 (shell mode) for cutout to work',
       ] },
       { type: 'tip', text: 'For round or organic hole shapes with SVG cutout, use 150+ vertical and 200+ radial resolution. The hole boundaries follow the mesh grid, so more polygons = smoother curves.' },
+
+      { type: 'heading', text: 'Smooth Zones' },
+      { type: 'paragraph', text: 'Smooth Zones suppress all surface effects (ripples, textures, and cutout holes) near the base and/or rim. This creates clean, solid bands at the top and bottom while keeping the textured middle.' },
+      { type: 'keyvalue', items: [
+        { key: 'Base %', value: 'Height percentage from the bottom that is kept smooth (0\u2013100%)' },
+        { key: 'Rim %', value: 'Height percentage from the top that is kept smooth (0\u2013100%)' },
+        { key: 'Transition', value: 'Hard = instant cutoff between smooth and textured. Fade = gradual blend' },
+      ] },
+      { type: 'paragraph', text: 'Base and Rim percentages automatically adjust so they never exceed 100% combined. Smooth Zones do not affect the profile curve, shape, or twist \u2014 only ripples and textures.' },
+      { type: 'tip', text: 'Use 5\u201310% base and rim with Fade transition for a polished look. Essential for cutout designs to keep the vase structurally sound at top and bottom.' },
     ],
   },
 
@@ -235,6 +261,14 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'tip', text: 'Too thin = fragile and may not slice properly. Too thick = wastes filament and hides surface detail.' },
 
+      { type: 'heading', text: 'Smooth Inner Wall' },
+      { type: 'paragraph', text: 'When Smooth Inner is enabled (Shell section), the inner wall ignores all ripples and textures, keeping it perfectly smooth. This prevents textures from creating paper-thin spots on the inside.' },
+      { type: 'keyvalue', items: [
+        { key: 'Smooth Inner', value: 'Toggle on for a smooth inner surface with textured outer' },
+        { key: 'Min Wall', value: 'Minimum wall thickness (mm) \u2014 prevents textures from pushing through' },
+      ] },
+      { type: 'tip', text: 'Enable Smooth Inner when using deep textures (Voronoi, Simplex, or Carved Wood with high depth) to prevent thin walls that won\'t print well.' },
+
       { type: 'heading', text: 'Vase Mode (Spiral)' },
       { type: 'paragraph', text: 'For decorative vases, you can use your slicer\'s "vase mode" (spiral outer contour). Set wall thickness to 0 in VaseMaker \u2014 this exports a single surface. Your slicer will print it as one continuous spiral.' },
       { type: 'list', items: [
@@ -251,19 +285,19 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
 
       { type: 'heading', text: 'Resolution' },
-      { type: 'paragraph', text: 'Higher resolution = smoother print but larger file and slower preview.' },
+      { type: 'paragraph', text: 'Higher resolution = smoother print but larger STL file size.' },
       { type: 'keyvalue', items: [
-        { key: 'Vertical', value: '60\u2013100 for most prints. Higher for tall vases.' },
-        { key: 'Radial', value: '72\u2013180 for smooth curves. 360 for maximum quality.' },
+        { key: 'Vertical', value: '100\u2013200 for most prints. Up to 500 for fine textures or tall vases.' },
+        { key: 'Radial', value: '200\u2013360 for smooth curves. Up to 720 for high-count textures (Square Flute, Fluting).' },
       ] },
       { type: 'paragraph', text: 'Use the Show Facets toggle to preview the actual polygon edges that will be in your STL file. If you can see visible flat faces, increase resolution.' },
-      { type: 'tip', text: 'For final export, bump radial resolution to 180\u2013360. For quick iteration, keep it at 72.' },
+      { type: 'tip', text: 'For final export, bump radial resolution to 360+. For quick iteration, keep it lower. Dense textures like 80-count Square Flute need 400+ radial to look sharp.' },
 
       { type: 'heading', text: 'Cutout / Lattice Prints' },
       { type: 'paragraph', text: 'Cutout vases have holes through the wall, creating decorative lattice designs. The mesh is manifold (hole edges are sealed with connecting walls), so slicers should handle them correctly.' },
       { type: 'list', items: [
         'Use 1.0\u20132.0mm wall thickness for structural lattice bars',
-        'Base Thickness controls the solid band at both bottom and top \u2014 increase if the rim is too fragile',
+        'Use Smooth Zones (5\u201310% base and rim) to keep the top and bottom solid',
         'Voronoi: lower Edge Width = thicker lattice bars, more printable',
         'SVG Pattern: use high-contrast black/white images. Grayscale areas may produce unpredictable partial holes',
         'High resolution (150+ vertical, 200+ radial) gives smoother hole edges and better slicer results',
@@ -278,6 +312,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         'Surface detail not visible: reduce wall thickness or increase texture depth',
         'File too large: lower resolution (especially radial)',
         'Complex shapes self-intersect: simplify the cross-section or reduce ripple amplitude',
+        'Textures not showing: make sure the master Textures toggle is on',
       ] },
     ],
   },

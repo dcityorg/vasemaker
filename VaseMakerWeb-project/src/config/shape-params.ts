@@ -98,7 +98,7 @@ export const SHAPE_PARAM_CONFIG: Partial<Record<ShapeType, ParamSpec[]>> = {
     { key: 'power', label: 'Power', min: 0.1, max: 2, step: 0.01 },
   ],
   Gear1: [
-    { key: 'teeth', label: 'Teeth', min: 3, max: 24, step: 1 },
+    { key: 'teeth', label: 'Teeth', min: 3, max: 60, step: 1 },
     { key: 'depth', label: 'Depth', min: 0.05, max: 1, step: 0.05 },
     { key: 'steepness', label: 'Steepness', min: 1, max: 10, step: 0.5 },
   ],
@@ -211,19 +211,25 @@ export const TEXTURES = {
     repeatY: { min: 1, max: 60, step: 1 } as SliderRange,
     depth: { min: 0.1, max: 5, step: 0.1 } as SliderRange,
   },
+  squareFlute: {
+    count:     { min: 3, max: 80, step: 1 } as SliderRange,
+    depth:     { min: 0.1, max: 10, step: 0.1 } as SliderRange,
+    duty:      { min: 0.1, max: 0.9, step: 0.05 } as SliderRange,
+    sharpness: { min: 0, max: 1, step: 0.05 } as SliderRange,
+  },
 } as const;
 
 /** Mesh resolution — defaults and slider ranges */
 export const RESOLUTION = {
-  defaults: { vertical: 60, radial: 120 },
-  vertical: { min: 8, max: 200, step: 1 } as SliderRange,
-  radial:   { min: 8, max: 360, step: 1 } as SliderRange,
+  defaults: { vertical: 200, radial: 360 },
+  vertical: { min: 8, max: 500, step: 1 } as SliderRange,
+  radial:   { min: 8, max: 720, step: 1 } as SliderRange,
 } as const;
 
 /** Smooth zones slider ranges */
 export const SMOOTH_ZONES = {
-  basePercent: { min: 0, max: 50, step: 1 } as SliderRange,
-  rimPercent:  { min: 0, max: 50, step: 1 } as SliderRange,
+  basePercent: { min: 0, max: 100, step: 1 } as SliderRange,
+  rimPercent:  { min: 0, max: 100, step: 1 } as SliderRange,
 } as const;
 
 /** Shell / wall thickness slider ranges */

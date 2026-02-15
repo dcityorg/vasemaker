@@ -66,6 +66,7 @@ interface VaseStore {
   setSimplex: (update: Partial<VaseParameters['textures']['simplex']>) => void;
   setWoodGrain: (update: Partial<VaseParameters['textures']['woodGrain']>) => void;
   setSvgPattern: (update: Partial<VaseParameters['textures']['svgPattern']>) => void;
+  setSquareFlute: (update: Partial<VaseParameters['textures']['squareFlute']>) => void;
 
   // Actions — smooth zones
   setSmoothZones: (update: Partial<VaseParameters['smoothZones']>) => void;
@@ -335,6 +336,16 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
         textures: {
           ...state.params.textures,
           svgPattern: { ...state.params.textures.svgPattern, ...update },
+        },
+      },
+    })),
+  setSquareFlute: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: {
+          ...state.params.textures,
+          squareFlute: { ...state.params.textures.squareFlute, ...update },
         },
       },
     })),

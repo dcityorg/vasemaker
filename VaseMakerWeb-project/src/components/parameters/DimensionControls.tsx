@@ -21,6 +21,7 @@ function SliderRow({
   max,
   step,
   onChange,
+  tooltip,
 }: {
   label: string;
   value: number;
@@ -28,10 +29,11 @@ function SliderRow({
   max: number;
   step: number;
   onChange: (v: number) => void;
+  tooltip?: string;
 }) {
   return (
     <div className="flex items-center gap-2 mb-2">
-      <label className="text-sm text-[var(--text-secondary)] w-20 shrink-0">{label}</label>
+      <label className="text-sm text-[var(--text-secondary)] w-20 shrink-0" title={tooltip}>{label}</label>
       <input
         type="range"
         min={min}
@@ -49,13 +51,13 @@ function SliderRow({
 }
 
 /** Collapsible section wrapper — supports optional header toggle */
-function Section({ title, children, defaultOpen = true, active, checked, onToggle }: {
+function Section({ title, children, defaultOpen = true, active, checked, onToggle, tooltip }: {
   title: string; children: React.ReactNode; defaultOpen?: boolean;
-  active?: boolean; checked?: boolean; onToggle?: (v: boolean) => void;
+  active?: boolean; checked?: boolean; onToggle?: (v: boolean) => void; tooltip?: string;
 }) {
   return (
     <details open={defaultOpen} className="mb-4">
-      <summary className="cursor-pointer text-sm font-medium text-[var(--text-primary)] py-2 px-3 bg-[var(--bg-secondary)] rounded select-none hover:bg-[var(--border-color)] transition-colors flex items-center gap-2">
+      <summary className="cursor-pointer text-sm font-medium text-[var(--text-primary)] py-2 px-3 bg-[var(--bg-secondary)] rounded select-none hover:bg-[var(--border-color)] transition-colors flex items-center gap-2" title={tooltip}>
         <span className="flex-1">{title}</span>
         {onToggle ? (
           <button
@@ -74,12 +76,12 @@ function Section({ title, children, defaultOpen = true, active, checked, onToggl
 }
 
 /** Toggle switch with optional reset button */
-function Toggle({ label, checked, onChange, onReset }: {
-  label: string; checked: boolean; onChange: (v: boolean) => void; onReset?: () => void;
+function Toggle({ label, checked, onChange, onReset, tooltip }: {
+  label: string; checked: boolean; onChange: (v: boolean) => void; onReset?: () => void; tooltip?: string;
 }) {
   return (
     <div className="flex items-center gap-3 mb-2">
-      <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">{label}</label>
+      <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title={tooltip}>{label}</label>
       <button
         onClick={() => onChange(!checked)}
         className={`w-8 h-4 rounded-full transition-colors ${
@@ -294,7 +296,7 @@ export function DimensionControls() {
     setSmoothZones,
     setWallThickness, setBottomThickness, setRimShape, setSmoothInner, setMinWallThickness,
     setColor, setResolution, setFlatShading,
-    setTexturesEnabled, setFluting, setBasketWeave, setVoronoi, setSimplex, setWoodGrain, setSvgPattern,
+    setTexturesEnabled, setFluting, setBasketWeave, setVoronoi, setSimplex, setWoodGrain, setSvgPattern, setSquareFlute,
   } = useVaseStore();
 
   // Reset helpers — patch specific param groups back to defaults
@@ -331,14 +333,15 @@ export function DimensionControls() {
   const resetSimplex = () => setSimplex({ scale: DEFAULT_PARAMETERS.textures.simplex.scale, depth: DEFAULT_PARAMETERS.textures.simplex.depth, octaves: DEFAULT_PARAMETERS.textures.simplex.octaves, persistence: DEFAULT_PARAMETERS.textures.simplex.persistence, lacunarity: DEFAULT_PARAMETERS.textures.simplex.lacunarity, seed: DEFAULT_PARAMETERS.textures.simplex.seed });
   const resetWoodGrain = () => setWoodGrain({ count: DEFAULT_PARAMETERS.textures.woodGrain.count, depth: DEFAULT_PARAMETERS.textures.woodGrain.depth, wobble: DEFAULT_PARAMETERS.textures.woodGrain.wobble, sharpness: DEFAULT_PARAMETERS.textures.woodGrain.sharpness, seed: DEFAULT_PARAMETERS.textures.woodGrain.seed });
   const resetSvgPattern = () => setSvgPattern({ repeatX: DEFAULT_PARAMETERS.textures.svgPattern.repeatX, repeatY: DEFAULT_PARAMETERS.textures.svgPattern.repeatY, depth: DEFAULT_PARAMETERS.textures.svgPattern.depth, invert: DEFAULT_PARAMETERS.textures.svgPattern.invert, cutout: false });
+  const resetSquareFlute = () => setSquareFlute({ count: DEFAULT_PARAMETERS.textures.squareFlute.count, depth: DEFAULT_PARAMETERS.textures.squareFlute.depth, duty: DEFAULT_PARAMETERS.textures.squareFlute.duty, sharpness: DEFAULT_PARAMETERS.textures.squareFlute.sharpness });
 
   const [svgDialogOpen, setSvgDialogOpen] = useState(false);
 
   return (
     <>
-      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor}>
+      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor} tooltip="Visual settings for the 3D preview">
         <div className="flex items-center gap-3 mb-2">
-          <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Color</label>
+          <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Preview color for the 3D model">Color</label>
           <input
             type="color"
             value={params.color}
@@ -357,22 +360,30 @@ export function DimensionControls() {
         </div>
       </Section>
 
-      <Section title="Dimensions">
+      <Section title="Dimensions" tooltip="Overall size of the vase">
         <div className="flex justify-end mb-1">
           <button onClick={() => { setRadius(DEFAULT_PARAMETERS.radius); setHeight(DEFAULT_PARAMETERS.height); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Radius" value={params.radius} {...DIMENSIONS.radius} onChange={setRadius} />
-        <SliderRow label="Height" value={params.height} {...DIMENSIONS.height} onChange={setHeight} />
+        <SliderRow label="Radius" value={params.radius} {...DIMENSIONS.radius} onChange={setRadius} tooltip="Outer radius of the vase in mm" />
+        <SliderRow label="Height" value={params.height} {...DIMENSIONS.height} onChange={setHeight} tooltip="Total height of the vase in mm" />
       </Section>
 
-      <Section title="Smooth Zones" defaultOpen={false} active={(params.smoothZones?.basePercent ?? 0) > 0 || (params.smoothZones?.rimPercent ?? 0) > 0}>
+      <Section title="Smooth Zones" defaultOpen={false} active={(params.smoothZones?.basePercent ?? 0) > 0 || (params.smoothZones?.rimPercent ?? 0) > 0} tooltip="Suppress ripples and textures near the base or rim">
         <div className="flex justify-end mb-1">
           <button onClick={resetSmoothZones} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Base %" value={params.smoothZones?.basePercent ?? 0} {...SMOOTH_ZONES.basePercent} onChange={(v) => setSmoothZones({ basePercent: v })} />
-        <SliderRow label="Rim %" value={params.smoothZones?.rimPercent ?? 0} {...SMOOTH_ZONES.rimPercent} onChange={(v) => setSmoothZones({ rimPercent: v })} />
+        <SliderRow label="Base %" value={params.smoothZones?.basePercent ?? 0} {...SMOOTH_ZONES.basePercent} max={100 - (params.smoothZones?.rimPercent ?? 0)} tooltip="Suppress effects near the base (% of height)" onChange={(v) => {
+          const rim = params.smoothZones?.rimPercent ?? 0;
+          if (v + rim > 100) setSmoothZones({ basePercent: v, rimPercent: 100 - v });
+          else setSmoothZones({ basePercent: v });
+        }} />
+        <SliderRow label="Rim %" value={params.smoothZones?.rimPercent ?? 0} {...SMOOTH_ZONES.rimPercent} max={100 - (params.smoothZones?.basePercent ?? 0)} tooltip="Suppress effects near the rim (% of height)" onChange={(v) => {
+          const base = params.smoothZones?.basePercent ?? 0;
+          if (v + base > 100) setSmoothZones({ rimPercent: v, basePercent: 100 - v });
+          else setSmoothZones({ rimPercent: v });
+        }} />
         <div className="flex items-center gap-3 mb-2">
-          <label className="text-sm text-[var(--text-secondary)] w-20 shrink-0">Transition</label>
+          <label className="text-sm text-[var(--text-secondary)] w-20 shrink-0" title="Hard = instant cutoff, Fade = gradual blend">Transition</label>
           <div className="flex gap-3">
             {(['hard', 'fade'] as const).map((mode) => (
               <label key={mode} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
@@ -393,17 +404,17 @@ export function DimensionControls() {
         </div>
       </Section>
 
-      <Section title="Shell">
+      <Section title="Shell" tooltip="Wall thickness, base, and rim for a printable hollow vase">
         <div className="flex justify-end mb-1">
           <button onClick={() => { setWallThickness(DEFAULT_PARAMETERS.wallThickness); setBottomThickness(DEFAULT_PARAMETERS.bottomThickness); setRimShape(DEFAULT_PARAMETERS.rimShape); setSmoothInner(DEFAULT_PARAMETERS.smoothInner); setMinWallThickness(DEFAULT_PARAMETERS.minWallThickness); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Base" value={params.bottomThickness} {...SHELL.bottomThickness} onChange={setBottomThickness} />
-        <SliderRow label="Wall" value={params.wallThickness} {...SHELL.wallThickness} onChange={setWallThickness} />
+        <SliderRow label="Base" value={params.bottomThickness} {...SHELL.bottomThickness} onChange={setBottomThickness} tooltip="Base thickness in mm (0 = no base)" />
+        <SliderRow label="Wall" value={params.wallThickness} {...SHELL.wallThickness} onChange={setWallThickness} tooltip="Wall thickness in mm (0 = thin surface)" />
         {params.wallThickness > 0 && (
           <>
-            <SliderRow label="Min Wall" value={params.minWallThickness ?? DEFAULT_PARAMETERS.minWallThickness} {...SHELL.minWallThickness} max={params.wallThickness} onChange={(v) => setMinWallThickness(Math.min(v, params.wallThickness))} />
+            <SliderRow label="Min Wall" value={params.minWallThickness ?? DEFAULT_PARAMETERS.minWallThickness} {...SHELL.minWallThickness} max={params.wallThickness} onChange={(v) => setMinWallThickness(Math.min(v, params.wallThickness))} tooltip="Minimum wall thickness when Smooth Inner is on" />
             <div className="flex items-center gap-3 mb-2">
-              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Rim</label>
+              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Shape of the top edge where outer meets inner wall">Rim</label>
               <div className="flex gap-3">
                 {(['flat', 'rounded'] as const).map((shape) => (
                   <label key={shape} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
@@ -419,7 +430,7 @@ export function DimensionControls() {
                 ))}
               </div>
             </div>
-            <Toggle label="Smooth Inner" checked={params.smoothInner ?? false} onChange={setSmoothInner} />
+            <Toggle label="Smooth Inner" checked={params.smoothInner ?? false} onChange={setSmoothInner} tooltip="Keep inner wall smooth (no ripples or textures)" />
             {(params.smoothInner ?? false) && (
               <div className="text-xs text-[var(--text-secondary)] mb-2 opacity-60">
                 Inner wall is completely smooth (no ripples or textures). Deep effects may require adjusting Wall or Min Wall above.
@@ -429,7 +440,7 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Profile" checked={params.profileEnabled} onToggle={setProfileEnabled}>
+      <Section title="Profile" checked={params.profileEnabled} onToggle={setProfileEnabled} tooltip="Bezier curve controlling radius from bottom to top">
         <div className="flex justify-end mb-1">
           <button onClick={resetProfile} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
@@ -447,7 +458,7 @@ export function DimensionControls() {
         </div>
       </Section>
 
-      <Section title="Bottom Shape">
+      <Section title="Bottom Shape" tooltip="Cross-section shape at the base of the vase">
         <div className="flex items-center gap-2 mb-2">
           <select
             value={params.bottomShape}
@@ -469,7 +480,7 @@ export function DimensionControls() {
         <ShapeParamControls shape={params.bottomShape} isTop={false} />
       </Section>
 
-      <Section title="Top Shape" defaultOpen={false} checked={params.morphEnabled} onToggle={setMorphEnabled}>
+      <Section title="Top Shape" defaultOpen={false} checked={params.morphEnabled} onToggle={setMorphEnabled} tooltip="Enable to morph from Bottom Shape to a different Top Shape">
         <div className="flex items-center gap-2 mb-2">
           <select
             value={params.topShape}
@@ -491,23 +502,23 @@ export function DimensionControls() {
         <ShapeParamControls shape={params.topShape} isTop={true} />
       </Section>
 
-      <Section title="Radial Ripples" defaultOpen={false} checked={params.radialRipple.enabled} onToggle={(v) => setRadialRipple({ enabled: v })}>
+      <Section title="Radial Ripples" defaultOpen={false} checked={params.radialRipple.enabled} onToggle={(v) => setRadialRipple({ enabled: v })} tooltip="Sine-wave bumps around the circumference">
         <div className="flex justify-end mb-1">
           <button onClick={resetRadialRipple} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Count" value={params.radialRipple.count} {...RADIAL_RIPPLE.count} onChange={(v) => setRadialRipple({ count: v })} />
-        <SliderRow label="Depth" value={params.radialRipple.depth} {...RADIAL_RIPPLE.depth} onChange={(v) => setRadialRipple({ depth: v })} />
+        <SliderRow label="Count" value={params.radialRipple.count} {...RADIAL_RIPPLE.count} onChange={(v) => setRadialRipple({ count: v })} tooltip="Number of ripple peaks around circumference" />
+        <SliderRow label="Depth" value={params.radialRipple.depth} {...RADIAL_RIPPLE.depth} onChange={(v) => setRadialRipple({ depth: v })} tooltip="Ripple amplitude in mm" />
       </Section>
 
-      <Section title="Vertical Ripples" defaultOpen={false} checked={params.verticalRipple.enabled} onToggle={(v) => setVerticalRipple({ enabled: v })}>
+      <Section title="Vertical Ripples" defaultOpen={false} checked={params.verticalRipple.enabled} onToggle={(v) => setVerticalRipple({ enabled: v })} tooltip="Horizontal ring-shaped ripples up the height">
         <div className="flex justify-end mb-1">
           <button onClick={resetVerticalRipple} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Count" value={params.verticalRipple.count} {...VERTICAL_RIPPLE.count} onChange={(v) => setVerticalRipple({ count: v })} />
-        <SliderRow label="Depth" value={params.verticalRipple.depth} {...VERTICAL_RIPPLE.depth} onChange={(v) => setVerticalRipple({ depth: v })} />
+        <SliderRow label="Count" value={params.verticalRipple.count} {...VERTICAL_RIPPLE.count} onChange={(v) => setVerticalRipple({ count: v })} tooltip="Number of ripple rings up the height" />
+        <SliderRow label="Depth" value={params.verticalRipple.depth} {...VERTICAL_RIPPLE.depth} onChange={(v) => setVerticalRipple({ depth: v })} tooltip="Ripple amplitude in mm" />
       </Section>
 
-      <Section title="Custom Twist" defaultOpen={false} checked={params.bezierTwist.enabled} onToggle={(v) => setBezierTwist({ enabled: v })}>
+      <Section title="Custom Twist" defaultOpen={false} checked={params.bezierTwist.enabled} onToggle={(v) => setBezierTwist({ enabled: v })} tooltip="Bezier curve controlling twist angle at each height">
         <div className="flex justify-end mb-1">
           <button onClick={resetBezierTwist} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
@@ -538,20 +549,20 @@ export function DimensionControls() {
         </div>
       </Section>
 
-      <Section title="Wave Twist" defaultOpen={false} checked={params.sineTwist.enabled} onToggle={(v) => setSineTwist({ enabled: v })}>
+      <Section title="Wave Twist" defaultOpen={false} checked={params.sineTwist.enabled} onToggle={(v) => setSineTwist({ enabled: v })} tooltip="Sinusoidal back-and-forth twist">
         <div className="flex justify-end mb-1">
           <button onClick={resetSineTwist} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Cycles" value={params.sineTwist.cycles} {...SINE_TWIST.cycles} onChange={(v) => setSineTwist({ cycles: v })} />
-        <SliderRow label="Max Deg" value={params.sineTwist.maxDegrees} {...SINE_TWIST.maxDegrees} onChange={(v) => setSineTwist({ maxDegrees: v })} />
+        <SliderRow label="Cycles" value={params.sineTwist.cycles} {...SINE_TWIST.cycles} onChange={(v) => setSineTwist({ cycles: v })} tooltip="Number of back-and-forth twist cycles" />
+        <SliderRow label="Max Deg" value={params.sineTwist.maxDegrees} {...SINE_TWIST.maxDegrees} onChange={(v) => setSineTwist({ maxDegrees: v })} tooltip="Maximum twist angle in degrees" />
       </Section>
 
-      <Section title="XY Sway" defaultOpen={false} checked={params.bezierOffset.enabled} onToggle={(v) => setBezierOffset({ enabled: v })}>
+      <Section title="XY Sway" defaultOpen={false} checked={params.bezierOffset.enabled} onToggle={(v) => setBezierOffset({ enabled: v })} tooltip="Shift the vase center side-to-side along its height">
         <div className="flex justify-end mb-1">
           <button onClick={resetBezierOffset} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Scale X" value={params.bezierOffset.scaleX} {...BEZIER_OFFSET.scaleX} onChange={(v) => setBezierOffset({ scaleX: v })} />
-        <SliderRow label="Scale Y" value={params.bezierOffset.scaleY} {...BEZIER_OFFSET.scaleY} onChange={(v) => setBezierOffset({ scaleY: v })} />
+        <SliderRow label="Scale X" value={params.bezierOffset.scaleX} {...BEZIER_OFFSET.scaleX} onChange={(v) => setBezierOffset({ scaleX: v })} tooltip="Amplifies the X offset curve" />
+        <SliderRow label="Scale Y" value={params.bezierOffset.scaleY} {...BEZIER_OFFSET.scaleY} onChange={(v) => setBezierOffset({ scaleY: v })} tooltip="Amplifies the Y offset curve" />
 
         <div className="text-xs font-medium text-[var(--text-secondary)] mt-2 mb-1 px-1">Offset X</div>
         <BezierCurveEditor
@@ -603,70 +614,79 @@ export function DimensionControls() {
         </div>
       </Section>
 
-      <Section title="Vertical Smoothing" defaultOpen={false} checked={params.verticalSmoothing.enabled} onToggle={(v) => setVerticalSmoothing({ enabled: v })}>
+      <Section title="Vertical Smoothing" defaultOpen={false} checked={params.verticalSmoothing.enabled} onToggle={(v) => setVerticalSmoothing({ enabled: v })} tooltip="Modulate ripple strength at different heights">
         <div className="flex justify-end mb-1">
           <button onClick={resetVerticalSmoothing} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Cycles" value={params.verticalSmoothing.cycles} {...VERTICAL_SMOOTHING.cycles} onChange={(v) => setVerticalSmoothing({ cycles: v })} />
-        <SliderRow label="Start %" value={params.verticalSmoothing.startPercent} {...VERTICAL_SMOOTHING.startPercent} onChange={(v) => setVerticalSmoothing({ startPercent: v })} />
+        <SliderRow label="Cycles" value={params.verticalSmoothing.cycles} {...VERTICAL_SMOOTHING.cycles} onChange={(v) => setVerticalSmoothing({ cycles: v })} tooltip="Number of smoothing bands up the height" />
+        <SliderRow label="Start %" value={params.verticalSmoothing.startPercent} {...VERTICAL_SMOOTHING.startPercent} onChange={(v) => setVerticalSmoothing({ startPercent: v })} tooltip="Height % where smoothing begins" />
       </Section>
 
-      <Section title="Radial Smoothing" defaultOpen={false} checked={params.radialSmoothing.enabled} onToggle={(v) => setRadialSmoothing({ enabled: v })}>
+      <Section title="Radial Smoothing" defaultOpen={false} checked={params.radialSmoothing.enabled} onToggle={(v) => setRadialSmoothing({ enabled: v })} tooltip="Modulate ripple strength around the circumference">
         <div className="flex justify-end mb-1">
           <button onClick={resetRadialSmoothing} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Cycles" value={params.radialSmoothing.cycles} {...RADIAL_SMOOTHING.cycles} onChange={(v) => setRadialSmoothing({ cycles: v })} />
-        <SliderRow label="Offset" value={params.radialSmoothing.offsetAngle} {...RADIAL_SMOOTHING.offsetAngle} onChange={(v) => setRadialSmoothing({ offsetAngle: v })} />
+        <SliderRow label="Cycles" value={params.radialSmoothing.cycles} {...RADIAL_SMOOTHING.cycles} onChange={(v) => setRadialSmoothing({ cycles: v })} tooltip="Number of smoothing lobes around circumference" />
+        <SliderRow label="Offset" value={params.radialSmoothing.offsetAngle} {...RADIAL_SMOOTHING.offsetAngle} onChange={(v) => setRadialSmoothing({ offsetAngle: v })} tooltip="Angular offset of smoothing pattern in degrees" />
       </Section>
 
-      <Section title="Textures" defaultOpen={false} checked={params.textures.enabled !== false} onToggle={(v) => setTexturesEnabled(v)}>
-        <Toggle label="Fluting" checked={params.textures.fluting.enabled} onChange={(v) => setFluting({ enabled: v })} onReset={resetFluting} />
+      <Section title="Textures" defaultOpen={false} checked={params.textures.enabled !== false} onToggle={(v) => setTexturesEnabled(v)} tooltip="Surface textures — master switch must be on for textures to render">
+        <Toggle label="Fluting" checked={params.textures.fluting.enabled} onChange={(v) => setFluting({ enabled: v })} onReset={resetFluting} tooltip="Smooth sine-wave grooves around the vase" />
         {params.textures.fluting.enabled && (
           <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
-            <SliderRow label="Count" value={params.textures.fluting.count} {...TEXTURES.fluting.count} onChange={(v) => setFluting({ count: v })} />
-            <SliderRow label="Depth" value={params.textures.fluting.depth} {...TEXTURES.fluting.depth} onChange={(v) => setFluting({ depth: v })} />
+            <SliderRow label="Count" value={params.textures.fluting.count} {...TEXTURES.fluting.count} onChange={(v) => setFluting({ count: v })} tooltip="Number of flutes around circumference" />
+            <SliderRow label="Depth" value={params.textures.fluting.depth} {...TEXTURES.fluting.depth} onChange={(v) => setFluting({ depth: v })} tooltip="Groove depth in mm" />
           </div>
         )}
-        <Toggle label="Basket Weave" checked={params.textures.basketWeave.enabled} onChange={(v) => setBasketWeave({ enabled: v })} onReset={resetBasketWeave} />
+        <Toggle label="Square Flute" checked={params.textures.squareFlute?.enabled ?? false} onChange={(v) => setSquareFlute({ enabled: v })} onReset={resetSquareFlute} tooltip="Flat-topped pillars with rectangular channels" />
+        {params.textures.squareFlute?.enabled && (
+          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
+            <SliderRow label="Count" value={params.textures.squareFlute.count} {...TEXTURES.squareFlute.count} onChange={(v) => setSquareFlute({ count: v })} tooltip="Number of pillars around circumference" />
+            <SliderRow label="Depth" value={params.textures.squareFlute.depth} {...TEXTURES.squareFlute.depth} onChange={(v) => setSquareFlute({ depth: v })} tooltip="Channel depth in mm" />
+            <SliderRow label="Duty" value={params.textures.squareFlute.duty} {...TEXTURES.squareFlute.duty} onChange={(v) => setSquareFlute({ duty: v })} tooltip="Pillar-to-groove ratio (high = wide pillars, narrow channels)" />
+            <SliderRow label="Sharpness" value={params.textures.squareFlute.sharpness} {...TEXTURES.squareFlute.sharpness} onChange={(v) => setSquareFlute({ sharpness: v })} tooltip="Edge transition (1 = sharp square, 0 = rounded)" />
+          </div>
+        )}
+        <Toggle label="Basket Weave" checked={params.textures.basketWeave.enabled} onChange={(v) => setBasketWeave({ enabled: v })} onReset={resetBasketWeave} tooltip="Alternating horizontal band weave pattern" />
         {params.textures.basketWeave.enabled && (
           <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
-            <SliderRow label="Bands" value={params.textures.basketWeave.bands} {...TEXTURES.basketWeave.bands} onChange={(v) => setBasketWeave({ bands: v })} />
-            <SliderRow label="Waves" value={params.textures.basketWeave.waves} {...TEXTURES.basketWeave.waves} onChange={(v) => setBasketWeave({ waves: v })} />
-            <SliderRow label="Depth" value={params.textures.basketWeave.depth} {...TEXTURES.basketWeave.depth} onChange={(v) => setBasketWeave({ depth: v })} />
+            <SliderRow label="Bands" value={params.textures.basketWeave.bands} {...TEXTURES.basketWeave.bands} onChange={(v) => setBasketWeave({ bands: v })} tooltip="Number of horizontal bands" />
+            <SliderRow label="Waves" value={params.textures.basketWeave.waves} {...TEXTURES.basketWeave.waves} onChange={(v) => setBasketWeave({ waves: v })} tooltip="Number of waves around circumference" />
+            <SliderRow label="Depth" value={params.textures.basketWeave.depth} {...TEXTURES.basketWeave.depth} onChange={(v) => setBasketWeave({ depth: v })} tooltip="Weave depth in mm" />
           </div>
         )}
-        <Toggle label="Voronoi" checked={params.textures.voronoi?.enabled ?? false} onChange={(v) => setVoronoi({ enabled: v })} onReset={resetVoronoi} />
+        <Toggle label="Voronoi" checked={params.textures.voronoi?.enabled ?? false} onChange={(v) => setVoronoi({ enabled: v })} onReset={resetVoronoi} tooltip="Organic cellular pattern (like cracked mud or giraffe skin)" />
         {params.textures.voronoi?.enabled && (
           <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
-            <SliderRow label="Scale" value={params.textures.voronoi.scale} {...TEXTURES.voronoi.scale} onChange={(v) => setVoronoi({ scale: v })} />
-            <SliderRow label="Depth" value={params.textures.voronoi.depth} {...TEXTURES.voronoi.depth} onChange={(v) => setVoronoi({ depth: v })} />
-            <SliderRow label="Edge" value={params.textures.voronoi.edgeWidth} {...TEXTURES.voronoi.edgeWidth} onChange={(v) => setVoronoi({ edgeWidth: v })} />
-            <SliderRow label="Seed" value={params.textures.voronoi.seed} {...TEXTURES.voronoi.seed} onChange={(v) => setVoronoi({ seed: v })} />
-            <Toggle label="Cutout" checked={params.textures.voronoi.cutout ?? false} onChange={(v) => setVoronoi({ cutout: v })} />
+            <SliderRow label="Scale" value={params.textures.voronoi.scale} {...TEXTURES.voronoi.scale} onChange={(v) => setVoronoi({ scale: v })} tooltip="Number of cells around circumference" />
+            <SliderRow label="Depth" value={params.textures.voronoi.depth} {...TEXTURES.voronoi.depth} onChange={(v) => setVoronoi({ depth: v })} tooltip="Cell emboss height in mm" />
+            <SliderRow label="Edge" value={params.textures.voronoi.edgeWidth} {...TEXTURES.voronoi.edgeWidth} onChange={(v) => setVoronoi({ edgeWidth: v })} tooltip="Edge sharpness (0 = smooth, 1 = sharp)" />
+            <SliderRow label="Seed" value={params.textures.voronoi.seed} {...TEXTURES.voronoi.seed} onChange={(v) => setVoronoi({ seed: v })} tooltip="Pattern variation — change for a different random layout" />
+            <Toggle label="Cutout" checked={params.textures.voronoi.cutout ?? false} onChange={(v) => setVoronoi({ cutout: v })} tooltip="Punch holes through the wall at cell centers" />
           </div>
         )}
-        <Toggle label="Simplex" checked={params.textures.simplex?.enabled ?? false} onChange={(v) => setSimplex({ enabled: v })} onReset={resetSimplex} />
+        <Toggle label="Simplex" checked={params.textures.simplex?.enabled ?? false} onChange={(v) => setSimplex({ enabled: v })} onReset={resetSimplex} tooltip="Organic noise displacement (rocky, craggy surface)" />
         {params.textures.simplex?.enabled && (
           <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
-            <SliderRow label="Scale" value={params.textures.simplex.scale} {...TEXTURES.simplex.scale} onChange={(v) => setSimplex({ scale: v })} />
-            <SliderRow label="Depth" value={params.textures.simplex.depth} {...TEXTURES.simplex.depth} onChange={(v) => setSimplex({ depth: v })} />
-            <SliderRow label="Octaves" value={params.textures.simplex.octaves} {...TEXTURES.simplex.octaves} onChange={(v) => setSimplex({ octaves: v })} />
-            <SliderRow label="Persistence" value={params.textures.simplex.persistence} {...TEXTURES.simplex.persistence} onChange={(v) => setSimplex({ persistence: v })} />
-            <SliderRow label="Lacunarity" value={params.textures.simplex.lacunarity} {...TEXTURES.simplex.lacunarity} onChange={(v) => setSimplex({ lacunarity: v })} />
-            <SliderRow label="Seed" value={params.textures.simplex.seed} {...TEXTURES.simplex.seed} onChange={(v) => setSimplex({ seed: v })} />
+            <SliderRow label="Scale" value={params.textures.simplex.scale} {...TEXTURES.simplex.scale} onChange={(v) => setSimplex({ scale: v })} tooltip="Feature density (higher = more features)" />
+            <SliderRow label="Depth" value={params.textures.simplex.depth} {...TEXTURES.simplex.depth} onChange={(v) => setSimplex({ depth: v })} tooltip="Displacement amplitude in mm" />
+            <SliderRow label="Octaves" value={params.textures.simplex.octaves} {...TEXTURES.simplex.octaves} onChange={(v) => setSimplex({ octaves: v })} tooltip="Detail layers (1 = smooth, 6 = craggy)" />
+            <SliderRow label="Persistence" value={params.textures.simplex.persistence} {...TEXTURES.simplex.persistence} onChange={(v) => setSimplex({ persistence: v })} tooltip="How much each octave contributes (lower = smoother)" />
+            <SliderRow label="Lacunarity" value={params.textures.simplex.lacunarity} {...TEXTURES.simplex.lacunarity} onChange={(v) => setSimplex({ lacunarity: v })} tooltip="Frequency multiplier per octave (higher = finer detail)" />
+            <SliderRow label="Seed" value={params.textures.simplex.seed} {...TEXTURES.simplex.seed} onChange={(v) => setSimplex({ seed: v })} tooltip="Pattern variation — change for a different random pattern" />
           </div>
         )}
-        <Toggle label="Carved Wood" checked={params.textures.woodGrain?.enabled ?? false} onChange={(v) => setWoodGrain({ enabled: v })} onReset={resetWoodGrain} />
+        <Toggle label="Carved Wood" checked={params.textures.woodGrain?.enabled ?? false} onChange={(v) => setWoodGrain({ enabled: v })} onReset={resetWoodGrain} tooltip="Vertical grooves with organic wobble (like carved wood)" />
         {params.textures.woodGrain?.enabled && (
           <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
-            <SliderRow label="Count" value={params.textures.woodGrain.count} {...TEXTURES.woodGrain.count} onChange={(v) => setWoodGrain({ count: v })} />
-            <SliderRow label="Depth" value={params.textures.woodGrain.depth} {...TEXTURES.woodGrain.depth} onChange={(v) => setWoodGrain({ depth: v })} />
-            <SliderRow label="Wobble" value={params.textures.woodGrain.wobble} {...TEXTURES.woodGrain.wobble} onChange={(v) => setWoodGrain({ wobble: v })} />
-            <SliderRow label="Sharpness" value={params.textures.woodGrain.sharpness} {...TEXTURES.woodGrain.sharpness} onChange={(v) => setWoodGrain({ sharpness: v })} />
-            <SliderRow label="Seed" value={params.textures.woodGrain.seed} {...TEXTURES.woodGrain.seed} onChange={(v) => setWoodGrain({ seed: v })} />
+            <SliderRow label="Count" value={params.textures.woodGrain.count} {...TEXTURES.woodGrain.count} onChange={(v) => setWoodGrain({ count: v })} tooltip="Number of grain lines around circumference" />
+            <SliderRow label="Depth" value={params.textures.woodGrain.depth} {...TEXTURES.woodGrain.depth} onChange={(v) => setWoodGrain({ depth: v })} tooltip="Groove depth in mm" />
+            <SliderRow label="Wobble" value={params.textures.woodGrain.wobble} {...TEXTURES.woodGrain.wobble} onChange={(v) => setWoodGrain({ wobble: v })} tooltip="How much lines meander side-to-side" />
+            <SliderRow label="Sharpness" value={params.textures.woodGrain.sharpness} {...TEXTURES.woodGrain.sharpness} onChange={(v) => setWoodGrain({ sharpness: v })} tooltip="Edge hardness (0 = soft grooves, 1 = sharp lines)" />
+            <SliderRow label="Seed" value={params.textures.woodGrain.seed} {...TEXTURES.woodGrain.seed} onChange={(v) => setWoodGrain({ seed: v })} tooltip="Pattern variation — change for a different random pattern" />
           </div>
         )}
-        <Toggle label="SVG Pattern" checked={params.textures.svgPattern?.enabled ?? false} onChange={(v) => setSvgPattern({ enabled: v })} onReset={resetSvgPattern} />
+        <Toggle label="SVG Pattern" checked={params.textures.svgPattern?.enabled ?? false} onChange={(v) => setSvgPattern({ enabled: v })} onReset={resetSvgPattern} tooltip="Use SVG artwork as a displacement pattern" />
         {params.textures.svgPattern?.enabled && (
           <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
             <div className="flex items-center gap-2 mb-2">
@@ -690,11 +710,11 @@ export function DimensionControls() {
             </div>
             {params.textures.svgPattern.svgText && (
               <>
-                <SliderRow label="Repeat X" value={params.textures.svgPattern.repeatX} {...TEXTURES.svgPattern.repeatX} onChange={(v) => setSvgPattern({ repeatX: v })} />
-                <SliderRow label="Repeat Y" value={params.textures.svgPattern.repeatY} {...TEXTURES.svgPattern.repeatY} onChange={(v) => setSvgPattern({ repeatY: v })} />
-                <SliderRow label="Depth" value={params.textures.svgPattern.depth} {...TEXTURES.svgPattern.depth} onChange={(v) => setSvgPattern({ depth: v })} />
-                <Toggle label="Invert" checked={params.textures.svgPattern.invert ?? false} onChange={(v) => setSvgPattern({ invert: v })} />
-                <Toggle label="Cutout" checked={params.textures.svgPattern.cutout ?? false} onChange={(v) => setSvgPattern({ cutout: v })} />
+                <SliderRow label="Repeat X" value={params.textures.svgPattern.repeatX} {...TEXTURES.svgPattern.repeatX} onChange={(v) => setSvgPattern({ repeatX: v })} tooltip="Number of tile repeats around circumference" />
+                <SliderRow label="Repeat Y" value={params.textures.svgPattern.repeatY} {...TEXTURES.svgPattern.repeatY} onChange={(v) => setSvgPattern({ repeatY: v })} tooltip="Number of tile repeats up the height" />
+                <SliderRow label="Depth" value={params.textures.svgPattern.depth} {...TEXTURES.svgPattern.depth} onChange={(v) => setSvgPattern({ depth: v })} tooltip="Displacement depth in mm" />
+                <Toggle label="Invert" checked={params.textures.svgPattern.invert ?? false} onChange={(v) => setSvgPattern({ invert: v })} tooltip="Swap grooves and ridges" />
+                <Toggle label="Cutout" checked={params.textures.svgPattern.cutout ?? false} onChange={(v) => setSvgPattern({ cutout: v })} tooltip="Punch holes through the wall at dark areas" />
                 <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
                   Increase Resolution for finer detail
                 </div>
@@ -711,7 +731,7 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Resolution" defaultOpen={false} active={
+      <Section title="Resolution" defaultOpen={false} tooltip="Mesh density — higher values show finer detail but create larger files" active={
         params.resolution.vertical !== RESOLUTION.defaults.vertical ||
         params.resolution.radial !== RESOLUTION.defaults.radial ||
         params.flatShading
@@ -719,9 +739,12 @@ export function DimensionControls() {
         <div className="flex justify-end mb-1">
           <button onClick={() => { setResolution({ ...RESOLUTION.defaults }); setFlatShading(false); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Vertical" value={params.resolution.vertical} {...RESOLUTION.vertical} onChange={(v) => setResolution({ vertical: v })} />
-        <SliderRow label="Radial" value={params.resolution.radial} {...RESOLUTION.radial} onChange={(v) => setResolution({ radial: v })} />
-        <Toggle label="Show Facets" checked={params.flatShading} onChange={setFlatShading} />
+        <SliderRow label="Vertical" value={params.resolution.vertical} {...RESOLUTION.vertical} onChange={(v) => setResolution({ vertical: v })} tooltip="Number of rows from bottom to top" />
+        <SliderRow label="Radial" value={params.resolution.radial} {...RESOLUTION.radial} onChange={(v) => setResolution({ radial: v })} tooltip="Number of segments around circumference" />
+        <Toggle label="Show Facets" checked={params.flatShading} onChange={setFlatShading} tooltip="Show flat-shaded triangles instead of smooth surface" />
+        <div className="text-xs text-[var(--text-secondary)] mt-2 opacity-60">
+          Dense or detailed textures require higher resolution. Higher values produce larger STL files.
+        </div>
       </Section>
     </>
   );

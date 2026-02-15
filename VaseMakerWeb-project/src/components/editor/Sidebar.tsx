@@ -125,7 +125,7 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.7</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.71</p>
       </div>
 
       {/* Toolbar */}

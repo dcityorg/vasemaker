@@ -191,6 +191,13 @@ export interface VaseParameters {
       invert: boolean;      // swap grooves/ridges
       cutout?: boolean;     // when true, punch holes through wall at dark areas
     };
+    squareFlute: {
+      enabled: boolean;
+      count: number;        // number of flutes around circumference
+      depth: number;        // groove depth in mm
+      duty: number;         // ratio of flat-top width to period (0.1–0.9)
+      sharpness: number;    // edge transition (0=rounded, 1=perfectly square)
+    };
   };
 
   // Shell (new — not in OpenSCAD)
