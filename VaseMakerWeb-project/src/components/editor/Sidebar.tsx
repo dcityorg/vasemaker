@@ -7,6 +7,7 @@ import { useHistoryStore, skipNextHistoryRecord } from '@/store/history';
 import { BUILT_IN_PRESETS, applyPreset } from '@/presets';
 import { downloadSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
+import { UI_MUTED } from '@/config/colors';
 
 export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggleHelp: () => void }) {
   const { loadPreset, getParams, undo: doUndo, redo: doRedo } = useVaseStore();
@@ -124,7 +125,7 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.72</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.73</p>
       </div>
 
       {/* Toolbar */}
@@ -139,7 +140,8 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
             e.target.value = '';
           }}
           value=""
-          className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs text-[var(--text-primary)]"
+          className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs"
+          style={{ color: UI_MUTED }}
         >
           <option value="" disabled>Select a starting vase</option>
           {BUILT_IN_PRESETS.map((p, i) => (
@@ -150,6 +152,7 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
           <button
             onClick={handleLoadDesign}
             className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
+            style={{ color: UI_MUTED }}
             title="Load design from JSON"
           >
             Load Design
@@ -157,6 +160,7 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
           <button
             onClick={handleSaveDesign}
             className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
+            style={{ color: UI_MUTED }}
             title="Save design as JSON"
           >
             Save Design

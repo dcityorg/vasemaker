@@ -56,6 +56,7 @@ VaseMakerWeb-project/src/
 ├── config/
 │   ├── shape-params.ts  # All slider ranges (dimensions, shapes, ripples, twists, smoothing, textures)
 │   ├── viewport.ts      # Camera, lighting, grid, axis colors/sizes
+│   ├── colors.ts        # UI color palette — sidebar group colors + utility muted color
 │   └── presets.ts       # Built-in preset definitions (data only)
 ├── store/
 │   ├── vase-store.ts    # Zustand store — single source of truth for all params
@@ -126,7 +127,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Vase color picker** — Appearance section with native picker, default `#6d9fff`
 - **Show Rulers** — Toggle in Appearance section to show/hide axis lines, tick marks, numeric dimension labels, and XYZ gizmo. Off by default for a clean view. Stored as `showRulers` in VaseParameters, read by Viewport.tsx to conditionally render SceneHelpers (AxisRulers, AxisLabels, AxisGizmo). GroundGrid always visible
 - **Resolution** — Vertical (8–500) and Radial (8–720) sliders + Show Facets toggle. Defaults: 200 vertical, 360 radial. High resolution needed for dense textures (Square Flute 40+ count, fine Voronoi, SVG patterns). Info note in UI about file size vs. resolution trade-off
-- **Sidebar UI** — Sections organized into labeled groups: Shape & Structure, Surface, Smoothing, Twist, Settings. Group headers are small uppercase accent-colored labels with extra spacing for visual separation. Indented content with left border, Reset buttons always visible. Texture sub-sliders have second-level indentation with vertical border line. Hint text on Vertical/Radial Smoothing sections clarifying they affect ripples only, not textures
+- **Sidebar UI** — Sections organized into 5 color-coded groups: Shape & Structure (blue `#7BA3CF`), Surface (amber `#C9A84C`), Smoothing (green `#7BAF7B`), Twist (purple `#A78BBA`), Settings (gray `#9B9B9B`). Group headers and section titles share the same color. Utility elements (preset dropdown, Load/Save buttons, shape dropdowns) use muted gray (`#9B9B9B`). All colors defined in `config/colors.ts` for easy customization. Indented content with left border, Reset buttons always visible. Texture sub-sliders have second-level indentation with vertical border line. Hint text on Vertical/Radial Smoothing sections clarifying they affect ripples only, not textures
 - **Tooltips** — Native browser tooltips (`title` attribute) on all sliders, toggles, and section headers. Provides brief descriptions of each parameter's effect without cluttering the UI
 - **Help panel** — Right-side push-layout panel toggled by "?" button. 5 sections: Quick Start, Shapes (with SuperFormula guide), Profile/Twist/Sway, Textures, 3D Printing Tips. Pure data in `content/help-content.ts`, rendered by `HelpPanel.tsx`. Slide-in animation, viewport auto-resizes
 

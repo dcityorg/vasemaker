@@ -12,6 +12,7 @@ import type { BezierPoint } from '@/engine/types';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { BezierCurveEditor } from './BezierCurveEditor';
 import { parseSvgInput } from '@/engine/svg-rasterizer';
+import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 
 /** Reusable slider row */
 function SliderRow({
@@ -51,13 +52,13 @@ function SliderRow({
 }
 
 /** Collapsible section wrapper — supports optional header toggle */
-function Section({ title, children, defaultOpen = true, active, checked, onToggle, tooltip }: {
+function Section({ title, children, defaultOpen = true, active, checked, onToggle, tooltip, titleColor }: {
   title: string; children: React.ReactNode; defaultOpen?: boolean;
-  active?: boolean; checked?: boolean; onToggle?: (v: boolean) => void; tooltip?: string;
+  active?: boolean; checked?: boolean; onToggle?: (v: boolean) => void; tooltip?: string; titleColor?: string;
 }) {
   return (
     <details open={defaultOpen} className="mb-4">
-      <summary className="cursor-pointer text-sm font-medium text-[var(--text-primary)] py-2 px-3 bg-[var(--bg-secondary)] rounded select-none hover:bg-[var(--border-color)] transition-colors flex items-center gap-2" title={tooltip}>
+      <summary className="cursor-pointer text-sm font-medium py-2 px-3 bg-[var(--bg-secondary)] rounded select-none hover:bg-[var(--border-color)] transition-colors flex items-center gap-2" style={titleColor ? { color: titleColor } : { color: 'var(--text-primary)' }} title={tooltip}>
         <span className="flex-1">{title}</span>
         {onToggle ? (
           <button
@@ -76,9 +77,9 @@ function Section({ title, children, defaultOpen = true, active, checked, onToggl
 }
 
 /** Group header label for visual separation between section groups */
-function GroupHeader({ label }: { label: string }) {
+function GroupHeader({ label, color }: { label: string; color: string }) {
   return (
-    <div className="mt-6 mb-2 px-1 text-[10px] font-semibold tracking-[0.15em] uppercase text-[var(--accent)] opacity-70">
+    <div className="mt-6 mb-2 px-1 text-[10px] font-semibold tracking-[0.15em] uppercase" style={{ color }}>
       {label}
     </div>
   );
@@ -348,9 +349,9 @@ export function DimensionControls() {
 
   return (
     <>
-      <GroupHeader label="Shape & Structure" />
+      <GroupHeader label="Shape & Structure" color={GROUP_COLORS.structure} />
 
-      <Section title="Dimensions" tooltip="Overall size of the vase">
+      <Section title="Dimensions" tooltip="Overall size of the vase" titleColor={GROUP_COLORS.structure}>
         <div className="flex justify-end mb-1">
           <button onClick={() => { setRadius(DEFAULT_PARAMETERS.radius); setHeight(DEFAULT_PARAMETERS.height); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
@@ -358,7 +359,7 @@ export function DimensionControls() {
         <SliderRow label="Height" value={params.height} {...DIMENSIONS.height} onChange={setHeight} tooltip="Total height of the vase in mm" />
       </Section>
 
-      <Section title="Shell" tooltip="Wall thickness, base, and rim for a printable hollow vase">
+      <Section title="Shell" tooltip="Wall thickness, base, and rim for a printable hollow vase" titleColor={GROUP_COLORS.structure}>
         <div className="flex justify-end mb-1">
           <button onClick={() => { setWallThickness(DEFAULT_PARAMETERS.wallThickness); setBottomThickness(DEFAULT_PARAMETERS.bottomThickness); setRimShape(DEFAULT_PARAMETERS.rimShape); setSmoothInner(DEFAULT_PARAMETERS.smoothInner); setMinWallThickness(DEFAULT_PARAMETERS.minWallThickness); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
@@ -394,12 +395,12 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Bottom Shape" tooltip="Cross-section shape at the base of the vase">
+      <Section title="Bottom Shape" tooltip="Cross-section shape at the base of the vase" titleColor={GROUP_COLORS.structure}>
         <div className="flex items-center gap-2 mb-2">
           <select
             value={params.bottomShape}
             onChange={(e) => setBottomShape(e.target.value as ShapeType)}
-            className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm text-[var(--text-primary)] min-w-0"
+            className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm min-w-0" style={{ color: UI_MUTED }}
           >
             {SHAPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -416,12 +417,12 @@ export function DimensionControls() {
         <ShapeParamControls shape={params.bottomShape} isTop={false} />
       </Section>
 
-      <Section title="Top Shape" defaultOpen={false} checked={params.morphEnabled} onToggle={setMorphEnabled} tooltip="Enable to morph from Bottom Shape to a different Top Shape">
+      <Section title="Top Shape" defaultOpen={false} checked={params.morphEnabled} onToggle={setMorphEnabled} tooltip="Enable to morph from Bottom Shape to a different Top Shape" titleColor={GROUP_COLORS.structure}>
         <div className="flex items-center gap-2 mb-2">
           <select
             value={params.topShape}
             onChange={(e) => setTopShape(e.target.value as ShapeType)}
-            className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm text-[var(--text-primary)] min-w-0"
+            className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm min-w-0" style={{ color: UI_MUTED }}
           >
             {SHAPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -438,7 +439,7 @@ export function DimensionControls() {
         <ShapeParamControls shape={params.topShape} isTop={true} />
       </Section>
 
-      <Section title="Profile" checked={params.profileEnabled} onToggle={setProfileEnabled} tooltip="Bezier curve controlling radius from bottom to top">
+      <Section title="Profile" checked={params.profileEnabled} onToggle={setProfileEnabled} tooltip="Bezier curve controlling radius from bottom to top" titleColor={GROUP_COLORS.structure}>
         <div className="flex justify-end mb-1">
           <button onClick={resetProfile} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
@@ -456,7 +457,7 @@ export function DimensionControls() {
         </div>
       </Section>
 
-      <Section title="XY Sway" defaultOpen={false} checked={params.bezierOffset.enabled} onToggle={(v) => setBezierOffset({ enabled: v })} tooltip="Shift the vase center side-to-side along its height">
+      <Section title="XY Sway" defaultOpen={false} checked={params.bezierOffset.enabled} onToggle={(v) => setBezierOffset({ enabled: v })} tooltip="Shift the vase center side-to-side along its height" titleColor={GROUP_COLORS.structure}>
         <div className="flex justify-end mb-1">
           <button onClick={resetBezierOffset} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
@@ -513,9 +514,9 @@ export function DimensionControls() {
         </div>
       </Section>
 
-      <GroupHeader label="Surface" />
+      <GroupHeader label="Surface" color={GROUP_COLORS.surface} />
 
-      <Section title="Textures" defaultOpen={false} checked={params.textures.enabled !== false} onToggle={(v) => setTexturesEnabled(v)} tooltip="Surface textures — master switch must be on for textures to render">
+      <Section title="Textures" defaultOpen={false} checked={params.textures.enabled !== false} onToggle={(v) => setTexturesEnabled(v)} tooltip="Surface textures — master switch must be on for textures to render" titleColor={GROUP_COLORS.surface}>
         <Toggle label="Fluting" checked={params.textures.fluting.enabled} onChange={(v) => setFluting({ enabled: v })} onReset={resetFluting} tooltip="Smooth sine-wave grooves around the vase" />
         {params.textures.fluting.enabled && (
           <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
@@ -616,7 +617,7 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Radial Ripples" defaultOpen={false} checked={params.radialRipple.enabled} onToggle={(v) => setRadialRipple({ enabled: v })} tooltip="Sine-wave bumps around the circumference">
+      <Section title="Radial Ripples" defaultOpen={false} checked={params.radialRipple.enabled} onToggle={(v) => setRadialRipple({ enabled: v })} tooltip="Sine-wave bumps around the circumference" titleColor={GROUP_COLORS.surface}>
         <div className="flex justify-end mb-1">
           <button onClick={resetRadialRipple} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
@@ -624,7 +625,7 @@ export function DimensionControls() {
         <SliderRow label="Depth" value={params.radialRipple.depth} {...RADIAL_RIPPLE.depth} onChange={(v) => setRadialRipple({ depth: v })} tooltip="Ripple amplitude in mm" />
       </Section>
 
-      <Section title="Vertical Ripples" defaultOpen={false} checked={params.verticalRipple.enabled} onToggle={(v) => setVerticalRipple({ enabled: v })} tooltip="Horizontal ring-shaped ripples up the height">
+      <Section title="Vertical Ripples" defaultOpen={false} checked={params.verticalRipple.enabled} onToggle={(v) => setVerticalRipple({ enabled: v })} tooltip="Horizontal ring-shaped ripples up the height" titleColor={GROUP_COLORS.surface}>
         <div className="flex justify-end mb-1">
           <button onClick={resetVerticalRipple} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
@@ -632,9 +633,9 @@ export function DimensionControls() {
         <SliderRow label="Depth" value={params.verticalRipple.depth} {...VERTICAL_RIPPLE.depth} onChange={(v) => setVerticalRipple({ depth: v })} tooltip="Ripple amplitude in mm" />
       </Section>
 
-      <GroupHeader label="Smoothing" />
+      <GroupHeader label="Smoothing" color={GROUP_COLORS.smoothing} />
 
-      <Section title="Smooth Zones" defaultOpen={false} checked={params.smoothZones?.enabled ?? false} onToggle={(v) => setSmoothZones({ enabled: v })} tooltip="Suppress ripples and textures near the base or rim">
+      <Section title="Smooth Zones" defaultOpen={false} checked={params.smoothZones?.enabled ?? false} onToggle={(v) => setSmoothZones({ enabled: v })} tooltip="Suppress ripples and textures near the base or rim" titleColor={GROUP_COLORS.smoothing}>
         <div className="flex justify-end mb-1">
           <button onClick={resetSmoothZones} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
@@ -659,7 +660,7 @@ export function DimensionControls() {
         </div>
       </Section>
 
-      <Section title="Radial Smoothing" defaultOpen={false} checked={params.radialSmoothing.enabled} onToggle={(v) => setRadialSmoothing({ enabled: v })} tooltip="Modulate ripple strength around the circumference">
+      <Section title="Radial Smoothing" defaultOpen={false} checked={params.radialSmoothing.enabled} onToggle={(v) => setRadialSmoothing({ enabled: v })} tooltip="Modulate ripple strength around the circumference" titleColor={GROUP_COLORS.smoothing}>
         <div className="flex justify-end mb-1">
           <button onClick={resetRadialSmoothing} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
@@ -670,7 +671,7 @@ export function DimensionControls() {
         </div>
       </Section>
 
-      <Section title="Vertical Smoothing" defaultOpen={false} checked={params.verticalSmoothing.enabled} onToggle={(v) => setVerticalSmoothing({ enabled: v })} tooltip="Modulate ripple strength at different heights">
+      <Section title="Vertical Smoothing" defaultOpen={false} checked={params.verticalSmoothing.enabled} onToggle={(v) => setVerticalSmoothing({ enabled: v })} tooltip="Modulate ripple strength at different heights" titleColor={GROUP_COLORS.smoothing}>
         <div className="flex justify-end mb-1">
           <button onClick={resetVerticalSmoothing} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
@@ -681,9 +682,9 @@ export function DimensionControls() {
         </div>
       </Section>
 
-      <GroupHeader label="Twist" />
+      <GroupHeader label="Twist" color={GROUP_COLORS.twist} />
 
-      <Section title="Custom Twist" defaultOpen={false} checked={params.bezierTwist.enabled} onToggle={(v) => setBezierTwist({ enabled: v })} tooltip="Bezier curve controlling twist angle at each height">
+      <Section title="Custom Twist" defaultOpen={false} checked={params.bezierTwist.enabled} onToggle={(v) => setBezierTwist({ enabled: v })} tooltip="Bezier curve controlling twist angle at each height" titleColor={GROUP_COLORS.twist}>
         <div className="flex justify-end mb-1">
           <button onClick={resetBezierTwist} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
@@ -714,7 +715,7 @@ export function DimensionControls() {
         </div>
       </Section>
 
-      <Section title="Wave Twist" defaultOpen={false} checked={params.sineTwist.enabled} onToggle={(v) => setSineTwist({ enabled: v })} tooltip="Sinusoidal back-and-forth twist">
+      <Section title="Wave Twist" defaultOpen={false} checked={params.sineTwist.enabled} onToggle={(v) => setSineTwist({ enabled: v })} tooltip="Sinusoidal back-and-forth twist" titleColor={GROUP_COLORS.twist}>
         <div className="flex justify-end mb-1">
           <button onClick={resetSineTwist} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
@@ -722,9 +723,9 @@ export function DimensionControls() {
         <SliderRow label="Max Deg" value={params.sineTwist.maxDegrees} {...SINE_TWIST.maxDegrees} onChange={(v) => setSineTwist({ maxDegrees: v })} tooltip="Maximum twist angle in degrees" />
       </Section>
 
-      <GroupHeader label="Settings" />
+      <GroupHeader label="Settings" color={GROUP_COLORS.settings} />
 
-      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor || params.showRulers} tooltip="Visual settings for the 3D preview">
+      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor || params.showRulers} tooltip="Visual settings for the 3D preview" titleColor={GROUP_COLORS.settings}>
         <div className="flex items-center gap-3 mb-2">
           <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Preview color for the 3D model">Color</label>
           <input
@@ -746,7 +747,7 @@ export function DimensionControls() {
         <Toggle label="Show Rulers" checked={params.showRulers ?? false} onChange={setShowRulers} tooltip="Display axis lines and dimension markers (mm) in the 3D view" />
       </Section>
 
-      <Section title="Resolution" defaultOpen={false} tooltip="Mesh density — higher values show finer detail but create larger files" active={
+      <Section title="Resolution" defaultOpen={false} tooltip="Mesh density — higher values show finer detail but create larger files" titleColor={GROUP_COLORS.settings} active={
         params.resolution.vertical !== RESOLUTION.defaults.vertical ||
         params.resolution.radial !== RESOLUTION.defaults.radial ||
         params.flatShading

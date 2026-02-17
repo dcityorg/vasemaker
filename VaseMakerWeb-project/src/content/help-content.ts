@@ -214,7 +214,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
 
       { type: 'heading', text: 'SVG Pattern' },
-      { type: 'paragraph', text: 'Use any SVG image as a displacement map. Dark areas become grooves, white areas stay flush. Paste SVG code from pattern sites like Hero Patterns, or any SVG markup. Also accepts data URLs and CSS background-image lines.' },
+      { type: 'paragraph', text: 'Use any SVG image as a displacement map. Dark areas become grooves, white areas stay flush. Paste from pattern sites like Pattern Monster (SVG or CSS button) or Hero Patterns. Accepts raw SVG markup, data URLs, and CSS background-image lines.' },
       { type: 'keyvalue', items: [
         { key: 'Repeat X', value: 'Number of pattern tiles around the circumference' },
         { key: 'Repeat Y', value: 'Number of pattern tiles up the height' },
