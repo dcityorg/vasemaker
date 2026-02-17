@@ -14,6 +14,10 @@ interface VaseStore {
   // The full parameter state
   params: VaseParameters;
 
+  // Dirty flag — true when params changed since last load/save/preset
+  isDirty: boolean;
+  markClean: () => void;
+
   // Actions — dimension
   setRadius: (radius: number) => void;
   setHeight: (height: number) => void;
@@ -100,6 +104,8 @@ interface VaseStore {
 
 export const useVaseStore = create<VaseStore>((set, get) => ({
   params: { ...DEFAULT_PARAMETERS },
+  isDirty: false,
+  markClean: () => set({ isDirty: false }),
 
   // Dimensions
   setRadius: (radius) =>
@@ -386,13 +392,15 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
   // Presets
   loadPreset: (preset) => {
     skipNextHistoryRecord();
+    _skipNextDirty = true;
     useHistoryStore.getState().clear();
-    set({ params: applyPreset(preset) });
+    set({ params: applyPreset(preset), isDirty: false });
   },
   resetToDefaults: () => {
     skipNextHistoryRecord();
+    _skipNextDirty = true;
     useHistoryStore.getState().clear();
-    set({ params: { ...DEFAULT_PARAMETERS } });
+    set({ params: { ...DEFAULT_PARAMETERS }, isDirty: false });
   },
 
   // Undo/Redo
@@ -415,7 +423,20 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
   getParams: () => get().params,
 }));
 
-// Subscribe to params changes for undo history
+// Skip flag — set before load/preset/save/reset to prevent subscriber from marking dirty
+let _skipNextDirty = false;
+export function skipNextDirtyMark() { _skipNextDirty = true; }
+
+// Subscribe to params changes for undo history + dirty flag
 useVaseStore.subscribe(
-  (state) => recordChange(state.params),
+  (state, prevState) => {
+    recordChange(state.params);
+    if (state.params !== prevState.params) {
+      if (_skipNextDirty) {
+        _skipNextDirty = false;
+      } else {
+        useVaseStore.setState({ isDirty: true });
+      }
+    }
+  },
 );

@@ -47,6 +47,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'heading', text: 'Save & Load' },
       { type: 'paragraph', text: 'Save Design exports your parameters as a JSON file. Load Design imports a previously saved file. Your design is fully described by the parameters \u2014 no mesh data is stored, so files are tiny.' },
+      { type: 'paragraph', text: 'If you have unsaved changes and try to load a design or select a preset, you\'ll see a confirmation dialog with options to Save & Continue, Don\'t Save, or Cancel. This prevents accidentally losing your work.' },
       { type: 'tip', text: 'Save frequently! There\'s no auto-save. If you refresh the page, unsaved changes are lost.' },
       { type: 'heading', text: 'Appearance' },
       { type: 'paragraph', text: 'The Appearance section lets you change the preview color and toggle Show Rulers. Rulers display axis lines with dimension markers (mm) in the 3D view \u2014 useful for checking size, hidden by default for a cleaner view.' },

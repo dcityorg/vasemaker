@@ -4,17 +4,19 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
 import { useHistoryStore, skipNextHistoryRecord } from '@/store/history';
+import { skipNextDirtyMark } from '@/store/vase-store';
 import { BUILT_IN_PRESETS, applyPreset } from '@/presets';
 import { downloadSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
 import { UI_MUTED } from '@/config/colors';
 
 export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggleHelp: () => void }) {
-  const { loadPreset, getParams, undo: doUndo, redo: doRedo } = useVaseStore();
+  const { loadPreset, getParams, isDirty, markClean, undo: doUndo, redo: doRedo } = useVaseStore();
   const { canUndo, canRedo } = useHistoryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [designName, setDesignName] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
 
   const handleToggleAll = useCallback(() => {
     const container = scrollRef.current;
@@ -40,6 +42,15 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
     return () => window.removeEventListener('keydown', handler);
   }, [doUndo, doRedo]);
 
+  /** If dirty, show confirmation dialog; otherwise run immediately */
+  const guardDirty = (action: () => void) => {
+    if (isDirty) {
+      setConfirmAction(() => action);
+    } else {
+      action();
+    }
+  };
+
   const handleExportSTL = () => {
     const params = getParams();
     const mesh = generateMesh(params);
@@ -59,10 +70,11 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
     a.click();
     URL.revokeObjectURL(url);
     setDesignName(saveName);
+    markClean();
   };
 
   const handleLoadDesign = () => {
-    fileInputRef.current?.click();
+    guardDirty(() => fileInputRef.current?.click());
   };
 
   const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,8 +88,9 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
         const loaded = JSON.parse(reader.result as string);
         const params = applyPreset({ parameters: loaded });
         skipNextHistoryRecord();
+        skipNextDirtyMark();
         useHistoryStore.getState().clear();
-        useVaseStore.setState({ params });
+        useVaseStore.setState({ params, isDirty: false });
         setDesignName(baseName);
       } catch {
         alert('Invalid design file.');
@@ -125,7 +138,7 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.73</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.74</p>
       </div>
 
       {/* Toolbar */}
@@ -134,8 +147,10 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
           onChange={(e) => {
             const preset = BUILT_IN_PRESETS[parseInt(e.target.value)];
             if (preset) {
-              loadPreset(preset);
-              setDesignName(null);
+              guardDirty(() => {
+                loadPreset(preset);
+                setDesignName(null);
+              });
             }
             e.target.value = '';
           }}
@@ -189,6 +204,44 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
           Export STL
         </button>
       </div>
+
+      {/* Unsaved changes confirmation dialog */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg p-5 max-w-sm mx-4 shadow-xl">
+            <p className="text-sm text-[var(--text-primary)] mb-4">
+              You have unsaved changes. Save first?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  handleSaveDesign();
+                  confirmAction();
+                  setConfirmAction(null);
+                }}
+                className="flex-1 px-3 py-1.5 text-xs bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded transition-colors"
+              >
+                Save &amp; Continue
+              </button>
+              <button
+                onClick={() => {
+                  confirmAction();
+                  setConfirmAction(null);
+                }}
+                className="flex-1 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
+              >
+                Don&apos;t Save
+              </button>
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="flex-1 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] text-[var(--text-secondary)] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
