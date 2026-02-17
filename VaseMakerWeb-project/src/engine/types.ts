@@ -209,9 +209,11 @@ export interface VaseParameters {
 
   // Smooth zones — suppress ripples & textures near base/rim
   smoothZones: {
+    enabled: boolean;             // master toggle
     basePercent: number;          // 0–50: % of vase height
     rimPercent: number;           // 0–50: % of vase height
-    transition: 'hard' | 'fade'; // step function vs smoothstep
+    baseFade: number;             // 0–100: % of base zone that fades (0=hard, 100=full ramp)
+    rimFade: number;              // 0–100: % of rim zone that fades (0=hard, 100=full ramp)
   };
 
   // Appearance

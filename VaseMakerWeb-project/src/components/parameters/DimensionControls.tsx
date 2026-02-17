@@ -75,6 +75,15 @@ function Section({ title, children, defaultOpen = true, active, checked, onToggl
   );
 }
 
+/** Group header label for visual separation between section groups */
+function GroupHeader({ label }: { label: string }) {
+  return (
+    <div className="mt-6 mb-2 px-1 text-[10px] font-semibold tracking-[0.15em] uppercase text-[var(--accent)] opacity-70">
+      {label}
+    </div>
+  );
+}
+
 /** Toggle switch with optional reset button */
 function Toggle({ label, checked, onChange, onReset, tooltip }: {
   label: string; checked: boolean; onChange: (v: boolean) => void; onReset?: () => void; tooltip?: string;
@@ -110,7 +119,7 @@ function ShapeParamControls({ shape, isTop }: { shape: ShapeType; isTop: boolean
   const setParam = isTop ? setTopShapeParam : setBottomShapeParam;
   const specificParams = SHAPE_PARAM_CONFIG[shape];
 
-  if (!specificParams || specificParams.length === 0) return null;
+  if (!specificParams || specificParams.length === 0 || !shapeParams) return null;
 
   return (
     <div className="ml-2 mt-1 mb-2">
@@ -326,7 +335,7 @@ export function DimensionControls() {
   });
   const resetVerticalSmoothing = () => setVerticalSmoothing({ cycles: DEFAULT_PARAMETERS.verticalSmoothing.cycles, startPercent: DEFAULT_PARAMETERS.verticalSmoothing.startPercent });
   const resetRadialSmoothing = () => setRadialSmoothing({ cycles: DEFAULT_PARAMETERS.radialSmoothing.cycles, offsetAngle: DEFAULT_PARAMETERS.radialSmoothing.offsetAngle });
-  const resetSmoothZones = () => setSmoothZones({ basePercent: DEFAULT_PARAMETERS.smoothZones.basePercent, rimPercent: DEFAULT_PARAMETERS.smoothZones.rimPercent, transition: DEFAULT_PARAMETERS.smoothZones.transition });
+  const resetSmoothZones = () => setSmoothZones({ basePercent: DEFAULT_PARAMETERS.smoothZones.basePercent, rimPercent: DEFAULT_PARAMETERS.smoothZones.rimPercent, baseFade: DEFAULT_PARAMETERS.smoothZones.baseFade, rimFade: DEFAULT_PARAMETERS.smoothZones.rimFade });
   const resetFluting = () => setFluting({ count: DEFAULT_PARAMETERS.textures.fluting.count, depth: DEFAULT_PARAMETERS.textures.fluting.depth });
   const resetBasketWeave = () => setBasketWeave({ bands: DEFAULT_PARAMETERS.textures.basketWeave.bands, waves: DEFAULT_PARAMETERS.textures.basketWeave.waves, depth: DEFAULT_PARAMETERS.textures.basketWeave.depth });
   const resetVoronoi = () => setVoronoi({ scale: DEFAULT_PARAMETERS.textures.voronoi.scale, depth: DEFAULT_PARAMETERS.textures.voronoi.depth, edgeWidth: DEFAULT_PARAMETERS.textures.voronoi.edgeWidth, seed: DEFAULT_PARAMETERS.textures.voronoi.seed, cutout: false });
@@ -339,27 +348,7 @@ export function DimensionControls() {
 
   return (
     <>
-      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor || params.showRulers} tooltip="Visual settings for the 3D preview">
-        <div className="flex items-center gap-3 mb-2">
-          <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Preview color for the 3D model">Color</label>
-          <input
-            type="color"
-            value={params.color}
-            onChange={(e) => setColor(e.target.value)}
-            className="w-8 h-8 rounded cursor-pointer border border-[var(--border-color)] bg-transparent p-0"
-          />
-          {params.color !== APPEARANCE.defaultColor && (
-            <button
-              onClick={() => setColor(APPEARANCE.defaultColor)}
-              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors"
-              title="Reset to default color"
-            >
-              Reset
-            </button>
-          )}
-        </div>
-        <Toggle label="Show Rulers" checked={params.showRulers ?? false} onChange={setShowRulers} tooltip="Display axis lines and dimension markers (mm) in the 3D view" />
-      </Section>
+      <GroupHeader label="Shape & Structure" />
 
       <Section title="Dimensions" tooltip="Overall size of the vase">
         <div className="flex justify-end mb-1">
@@ -367,42 +356,6 @@ export function DimensionControls() {
         </div>
         <SliderRow label="Radius" value={params.radius} {...DIMENSIONS.radius} onChange={setRadius} tooltip="Outer radius of the vase in mm" />
         <SliderRow label="Height" value={params.height} {...DIMENSIONS.height} onChange={setHeight} tooltip="Total height of the vase in mm" />
-      </Section>
-
-      <Section title="Smooth Zones" defaultOpen={false} active={(params.smoothZones?.basePercent ?? 0) > 0 || (params.smoothZones?.rimPercent ?? 0) > 0} tooltip="Suppress ripples and textures near the base or rim">
-        <div className="flex justify-end mb-1">
-          <button onClick={resetSmoothZones} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
-        </div>
-        <SliderRow label="Base %" value={params.smoothZones?.basePercent ?? 0} {...SMOOTH_ZONES.basePercent} max={100 - (params.smoothZones?.rimPercent ?? 0)} tooltip="Suppress effects near the base (% of height)" onChange={(v) => {
-          const rim = params.smoothZones?.rimPercent ?? 0;
-          if (v + rim > 100) setSmoothZones({ basePercent: v, rimPercent: 100 - v });
-          else setSmoothZones({ basePercent: v });
-        }} />
-        <SliderRow label="Rim %" value={params.smoothZones?.rimPercent ?? 0} {...SMOOTH_ZONES.rimPercent} max={100 - (params.smoothZones?.basePercent ?? 0)} tooltip="Suppress effects near the rim (% of height)" onChange={(v) => {
-          const base = params.smoothZones?.basePercent ?? 0;
-          if (v + base > 100) setSmoothZones({ rimPercent: v, basePercent: 100 - v });
-          else setSmoothZones({ rimPercent: v });
-        }} />
-        <div className="flex items-center gap-3 mb-2">
-          <label className="text-sm text-[var(--text-secondary)] w-20 shrink-0" title="Hard = instant cutoff, Fade = gradual blend">Transition</label>
-          <div className="flex gap-3">
-            {(['hard', 'fade'] as const).map((mode) => (
-              <label key={mode} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
-                <input
-                  type="radio"
-                  name="smoothZoneTransition"
-                  checked={(params.smoothZones?.transition ?? 'hard') === mode}
-                  onChange={() => setSmoothZones({ transition: mode })}
-                  className="accent-[var(--accent)]"
-                />
-                {mode.charAt(0).toUpperCase() + mode.slice(1)}
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
-          Suppresses ripples and textures near base/rim. Does not affect profile or twist.
-        </div>
       </Section>
 
       <Section title="Shell" tooltip="Wall thickness, base, and rim for a printable hollow vase">
@@ -439,24 +392,6 @@ export function DimensionControls() {
             )}
           </>
         )}
-      </Section>
-
-      <Section title="Profile" checked={params.profileEnabled} onToggle={setProfileEnabled} tooltip="Bezier curve controlling radius from bottom to top">
-        <div className="flex justify-end mb-1">
-          <button onClick={resetProfile} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
-        </div>
-        <BezierCurveEditor
-          points={params.profilePoints}
-          onPointChange={setProfilePoint}
-          onPointAdd={addProfilePoint}
-          onPointRemove={removeProfilePoint}
-          xRange={[0, 3]}
-          yRange={[0, 1]}
-          xLabel="Radius Multiplier"
-        />
-        <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
-          Double-click to add. Right-click to remove.
-        </div>
       </Section>
 
       <Section title="Bottom Shape" tooltip="Cross-section shape at the base of the vase">
@@ -503,59 +438,22 @@ export function DimensionControls() {
         <ShapeParamControls shape={params.topShape} isTop={true} />
       </Section>
 
-      <Section title="Radial Ripples" defaultOpen={false} checked={params.radialRipple.enabled} onToggle={(v) => setRadialRipple({ enabled: v })} tooltip="Sine-wave bumps around the circumference">
+      <Section title="Profile" checked={params.profileEnabled} onToggle={setProfileEnabled} tooltip="Bezier curve controlling radius from bottom to top">
         <div className="flex justify-end mb-1">
-          <button onClick={resetRadialRipple} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
-        </div>
-        <SliderRow label="Count" value={params.radialRipple.count} {...RADIAL_RIPPLE.count} onChange={(v) => setRadialRipple({ count: v })} tooltip="Number of ripple peaks around circumference" />
-        <SliderRow label="Depth" value={params.radialRipple.depth} {...RADIAL_RIPPLE.depth} onChange={(v) => setRadialRipple({ depth: v })} tooltip="Ripple amplitude in mm" />
-      </Section>
-
-      <Section title="Vertical Ripples" defaultOpen={false} checked={params.verticalRipple.enabled} onToggle={(v) => setVerticalRipple({ enabled: v })} tooltip="Horizontal ring-shaped ripples up the height">
-        <div className="flex justify-end mb-1">
-          <button onClick={resetVerticalRipple} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
-        </div>
-        <SliderRow label="Count" value={params.verticalRipple.count} {...VERTICAL_RIPPLE.count} onChange={(v) => setVerticalRipple({ count: v })} tooltip="Number of ripple rings up the height" />
-        <SliderRow label="Depth" value={params.verticalRipple.depth} {...VERTICAL_RIPPLE.depth} onChange={(v) => setVerticalRipple({ depth: v })} tooltip="Ripple amplitude in mm" />
-      </Section>
-
-      <Section title="Custom Twist" defaultOpen={false} checked={params.bezierTwist.enabled} onToggle={(v) => setBezierTwist({ enabled: v })} tooltip="Bezier curve controlling twist angle at each height">
-        <div className="flex justify-end mb-1">
-          <button onClick={resetBezierTwist} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+          <button onClick={resetProfile} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
         <BezierCurveEditor
-          points={scalarsToPoints(params.bezierTwist.points)}
-          onPointChange={(index, point) => {
-            setBezierTwistPoint(index, Math.round(point[0]));
-          }}
-          onPointAdd={(point) => {
-            // Find insertion index by height fraction
-            const h = point[1];
-            const pts = params.bezierTwist.points;
-            let afterIdx = pts.length - 1;
-            for (let i = 0; i < pts.length - 1; i++) {
-              const hI = pts.length > 1 ? i / (pts.length - 1) : 0;
-              const hNext = pts.length > 1 ? (i + 1) / (pts.length - 1) : 0;
-              if (h >= hI && h <= hNext) { afterIdx = i; break; }
-            }
-            addBezierTwistPoint(Math.round(point[0]), afterIdx);
-          }}
-          onPointRemove={removeBezierTwistPoint}
-          xRange={[BEZIER_TWIST.point.min, BEZIER_TWIST.point.max]}
+          points={params.profilePoints}
+          onPointChange={setProfilePoint}
+          onPointAdd={addProfilePoint}
+          onPointRemove={removeProfilePoint}
+          xRange={[0, 3]}
           yRange={[0, 1]}
-          xLabel="Twist (degrees)"
+          xLabel="Radius Multiplier"
         />
         <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
-          Drag left/right to set twist. Double-click to add. Right-click to remove.
+          Double-click to add. Right-click to remove.
         </div>
-      </Section>
-
-      <Section title="Wave Twist" defaultOpen={false} checked={params.sineTwist.enabled} onToggle={(v) => setSineTwist({ enabled: v })} tooltip="Sinusoidal back-and-forth twist">
-        <div className="flex justify-end mb-1">
-          <button onClick={resetSineTwist} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
-        </div>
-        <SliderRow label="Cycles" value={params.sineTwist.cycles} {...SINE_TWIST.cycles} onChange={(v) => setSineTwist({ cycles: v })} tooltip="Number of back-and-forth twist cycles" />
-        <SliderRow label="Max Deg" value={params.sineTwist.maxDegrees} {...SINE_TWIST.maxDegrees} onChange={(v) => setSineTwist({ maxDegrees: v })} tooltip="Maximum twist angle in degrees" />
       </Section>
 
       <Section title="XY Sway" defaultOpen={false} checked={params.bezierOffset.enabled} onToggle={(v) => setBezierOffset({ enabled: v })} tooltip="Shift the vase center side-to-side along its height">
@@ -615,21 +513,7 @@ export function DimensionControls() {
         </div>
       </Section>
 
-      <Section title="Vertical Smoothing" defaultOpen={false} checked={params.verticalSmoothing.enabled} onToggle={(v) => setVerticalSmoothing({ enabled: v })} tooltip="Modulate ripple strength at different heights">
-        <div className="flex justify-end mb-1">
-          <button onClick={resetVerticalSmoothing} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
-        </div>
-        <SliderRow label="Cycles" value={params.verticalSmoothing.cycles} {...VERTICAL_SMOOTHING.cycles} onChange={(v) => setVerticalSmoothing({ cycles: v })} tooltip="Number of smoothing bands up the height" />
-        <SliderRow label="Start %" value={params.verticalSmoothing.startPercent} {...VERTICAL_SMOOTHING.startPercent} onChange={(v) => setVerticalSmoothing({ startPercent: v })} tooltip="Height % where smoothing begins" />
-      </Section>
-
-      <Section title="Radial Smoothing" defaultOpen={false} checked={params.radialSmoothing.enabled} onToggle={(v) => setRadialSmoothing({ enabled: v })} tooltip="Modulate ripple strength around the circumference">
-        <div className="flex justify-end mb-1">
-          <button onClick={resetRadialSmoothing} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
-        </div>
-        <SliderRow label="Cycles" value={params.radialSmoothing.cycles} {...RADIAL_SMOOTHING.cycles} onChange={(v) => setRadialSmoothing({ cycles: v })} tooltip="Number of smoothing lobes around circumference" />
-        <SliderRow label="Offset" value={params.radialSmoothing.offsetAngle} {...RADIAL_SMOOTHING.offsetAngle} onChange={(v) => setRadialSmoothing({ offsetAngle: v })} tooltip="Angular offset of smoothing pattern in degrees" />
-      </Section>
+      <GroupHeader label="Surface" />
 
       <Section title="Textures" defaultOpen={false} checked={params.textures.enabled !== false} onToggle={(v) => setTexturesEnabled(v)} tooltip="Surface textures — master switch must be on for textures to render">
         <Toggle label="Fluting" checked={params.textures.fluting.enabled} onChange={(v) => setFluting({ enabled: v })} onReset={resetFluting} tooltip="Smooth sine-wave grooves around the vase" />
@@ -730,6 +614,136 @@ export function DimensionControls() {
             initialSvg={params.textures.svgPattern?.svgText ?? ''}
           />
         )}
+      </Section>
+
+      <Section title="Radial Ripples" defaultOpen={false} checked={params.radialRipple.enabled} onToggle={(v) => setRadialRipple({ enabled: v })} tooltip="Sine-wave bumps around the circumference">
+        <div className="flex justify-end mb-1">
+          <button onClick={resetRadialRipple} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+        </div>
+        <SliderRow label="Count" value={params.radialRipple.count} {...RADIAL_RIPPLE.count} onChange={(v) => setRadialRipple({ count: v })} tooltip="Number of ripple peaks around circumference" />
+        <SliderRow label="Depth" value={params.radialRipple.depth} {...RADIAL_RIPPLE.depth} onChange={(v) => setRadialRipple({ depth: v })} tooltip="Ripple amplitude in mm" />
+      </Section>
+
+      <Section title="Vertical Ripples" defaultOpen={false} checked={params.verticalRipple.enabled} onToggle={(v) => setVerticalRipple({ enabled: v })} tooltip="Horizontal ring-shaped ripples up the height">
+        <div className="flex justify-end mb-1">
+          <button onClick={resetVerticalRipple} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+        </div>
+        <SliderRow label="Count" value={params.verticalRipple.count} {...VERTICAL_RIPPLE.count} onChange={(v) => setVerticalRipple({ count: v })} tooltip="Number of ripple rings up the height" />
+        <SliderRow label="Depth" value={params.verticalRipple.depth} {...VERTICAL_RIPPLE.depth} onChange={(v) => setVerticalRipple({ depth: v })} tooltip="Ripple amplitude in mm" />
+      </Section>
+
+      <GroupHeader label="Smoothing" />
+
+      <Section title="Smooth Zones" defaultOpen={false} checked={params.smoothZones?.enabled ?? false} onToggle={(v) => setSmoothZones({ enabled: v })} tooltip="Suppress ripples and textures near the base or rim">
+        <div className="flex justify-end mb-1">
+          <button onClick={resetSmoothZones} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+        </div>
+        <SliderRow label="Base %" value={params.smoothZones?.basePercent ?? 0} {...SMOOTH_ZONES.basePercent} max={100 - (params.smoothZones?.rimPercent ?? 0)} tooltip="Suppress effects near the base (% of height)" onChange={(v) => {
+          const rim = params.smoothZones?.rimPercent ?? 0;
+          if (v + rim > 100) setSmoothZones({ basePercent: v, rimPercent: 100 - v });
+          else setSmoothZones({ basePercent: v });
+        }} />
+        <SliderRow label="Rim %" value={params.smoothZones?.rimPercent ?? 0} {...SMOOTH_ZONES.rimPercent} max={100 - (params.smoothZones?.basePercent ?? 0)} tooltip="Suppress effects near the rim (% of height)" onChange={(v) => {
+          const base = params.smoothZones?.basePercent ?? 0;
+          if (v + base > 100) setSmoothZones({ rimPercent: v, basePercent: 100 - v });
+          else setSmoothZones({ rimPercent: v });
+        }} />
+        {(params.smoothZones?.basePercent ?? 0) > 0 && (
+          <SliderRow label="Base Fade" value={params.smoothZones?.baseFade ?? 0} {...SMOOTH_ZONES.baseFade} tooltip="How much of the base zone fades gradually (0% = hard cutoff, 100% = full blend)" onChange={(v) => setSmoothZones({ baseFade: v })} />
+        )}
+        {(params.smoothZones?.rimPercent ?? 0) > 0 && (
+          <SliderRow label="Rim Fade" value={params.smoothZones?.rimFade ?? 0} {...SMOOTH_ZONES.rimFade} tooltip="How much of the rim zone fades gradually (0% = hard cutoff, 100% = full blend)" onChange={(v) => setSmoothZones({ rimFade: v })} />
+        )}
+        <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
+          Suppresses ripples and textures near base/rim. Does not affect profile or twist.
+        </div>
+      </Section>
+
+      <Section title="Radial Smoothing" defaultOpen={false} checked={params.radialSmoothing.enabled} onToggle={(v) => setRadialSmoothing({ enabled: v })} tooltip="Modulate ripple strength around the circumference">
+        <div className="flex justify-end mb-1">
+          <button onClick={resetRadialSmoothing} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+        </div>
+        <SliderRow label="Cycles" value={params.radialSmoothing.cycles} {...RADIAL_SMOOTHING.cycles} onChange={(v) => setRadialSmoothing({ cycles: v })} tooltip="Number of smoothing lobes around circumference" />
+        <SliderRow label="Offset" value={params.radialSmoothing.offsetAngle} {...RADIAL_SMOOTHING.offsetAngle} onChange={(v) => setRadialSmoothing({ offsetAngle: v })} tooltip="Angular offset of smoothing pattern in degrees" />
+        <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
+          Fades ripple intensity by angle. Does not affect textures.
+        </div>
+      </Section>
+
+      <Section title="Vertical Smoothing" defaultOpen={false} checked={params.verticalSmoothing.enabled} onToggle={(v) => setVerticalSmoothing({ enabled: v })} tooltip="Modulate ripple strength at different heights">
+        <div className="flex justify-end mb-1">
+          <button onClick={resetVerticalSmoothing} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+        </div>
+        <SliderRow label="Cycles" value={params.verticalSmoothing.cycles} {...VERTICAL_SMOOTHING.cycles} onChange={(v) => setVerticalSmoothing({ cycles: v })} tooltip="Number of smoothing bands up the height" />
+        <SliderRow label="Start %" value={params.verticalSmoothing.startPercent} {...VERTICAL_SMOOTHING.startPercent} onChange={(v) => setVerticalSmoothing({ startPercent: v })} tooltip="Height % where smoothing begins" />
+        <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
+          Fades ripple intensity by height. Does not affect textures.
+        </div>
+      </Section>
+
+      <GroupHeader label="Twist" />
+
+      <Section title="Custom Twist" defaultOpen={false} checked={params.bezierTwist.enabled} onToggle={(v) => setBezierTwist({ enabled: v })} tooltip="Bezier curve controlling twist angle at each height">
+        <div className="flex justify-end mb-1">
+          <button onClick={resetBezierTwist} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+        </div>
+        <BezierCurveEditor
+          points={scalarsToPoints(params.bezierTwist.points)}
+          onPointChange={(index, point) => {
+            setBezierTwistPoint(index, Math.round(point[0]));
+          }}
+          onPointAdd={(point) => {
+            // Find insertion index by height fraction
+            const h = point[1];
+            const pts = params.bezierTwist.points;
+            let afterIdx = pts.length - 1;
+            for (let i = 0; i < pts.length - 1; i++) {
+              const hI = pts.length > 1 ? i / (pts.length - 1) : 0;
+              const hNext = pts.length > 1 ? (i + 1) / (pts.length - 1) : 0;
+              if (h >= hI && h <= hNext) { afterIdx = i; break; }
+            }
+            addBezierTwistPoint(Math.round(point[0]), afterIdx);
+          }}
+          onPointRemove={removeBezierTwistPoint}
+          xRange={[BEZIER_TWIST.point.min, BEZIER_TWIST.point.max]}
+          yRange={[0, 1]}
+          xLabel="Twist (degrees)"
+        />
+        <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
+          Drag left/right to set twist. Double-click to add. Right-click to remove.
+        </div>
+      </Section>
+
+      <Section title="Wave Twist" defaultOpen={false} checked={params.sineTwist.enabled} onToggle={(v) => setSineTwist({ enabled: v })} tooltip="Sinusoidal back-and-forth twist">
+        <div className="flex justify-end mb-1">
+          <button onClick={resetSineTwist} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+        </div>
+        <SliderRow label="Cycles" value={params.sineTwist.cycles} {...SINE_TWIST.cycles} onChange={(v) => setSineTwist({ cycles: v })} tooltip="Number of back-and-forth twist cycles" />
+        <SliderRow label="Max Deg" value={params.sineTwist.maxDegrees} {...SINE_TWIST.maxDegrees} onChange={(v) => setSineTwist({ maxDegrees: v })} tooltip="Maximum twist angle in degrees" />
+      </Section>
+
+      <GroupHeader label="Settings" />
+
+      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor || params.showRulers} tooltip="Visual settings for the 3D preview">
+        <div className="flex items-center gap-3 mb-2">
+          <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Preview color for the 3D model">Color</label>
+          <input
+            type="color"
+            value={params.color}
+            onChange={(e) => setColor(e.target.value)}
+            className="w-8 h-8 rounded cursor-pointer border border-[var(--border-color)] bg-transparent p-0"
+          />
+          {params.color !== APPEARANCE.defaultColor && (
+            <button
+              onClick={() => setColor(APPEARANCE.defaultColor)}
+              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors"
+              title="Reset to default color"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+        <Toggle label="Show Rulers" checked={params.showRulers ?? false} onChange={setShowRulers} tooltip="Display axis lines and dimension markers (mm) in the 3D view" />
       </Section>
 
       <Section title="Resolution" defaultOpen={false} tooltip="Mesh density — higher values show finer detail but create larger files" active={

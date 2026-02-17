@@ -30,10 +30,13 @@ export function parseSvgInput(input: string): string {
     svg = trimmed;
   } else {
     // Format 3: CSS background-image line — extract the data URL
-    // Hero Patterns uses: url("data:image/svg+xml,%3Csvg...")
-    // The data URL may be wrapped in quotes inside url(), so we can't stop at quotes
+    // Hero Patterns uses: url("data:image/svg+xml,%3Csvg...") — percent-encoded
+    // Pattern Monster uses: url("data:image/svg+xml,<svg ...>...</svg>") — raw SVG with parens inside
+    // Match from opening quote to closing quote+paren to handle raw SVG content with () inside
     let dataUrl = trimmed;
-    const cssMatch = trimmed.match(/url\(\s*["']?(data:image\/svg\+xml[^)]+?)["']?\)/);
+    const cssMatch = trimmed.match(/url\(\s*"(data:image\/svg\+xml[^"]+)"\s*\)/)
+      || trimmed.match(/url\(\s*'(data:image\/svg\+xml[^']+)'\s*\)/)
+      || trimmed.match(/url\(\s*(data:image\/svg\+xml[^)]+?)\s*\)/);
     if (cssMatch) {
       dataUrl = cssMatch[1];
     }
@@ -45,9 +48,22 @@ export function parseSvgInput(input: string): string {
       if (base64Match) {
         svg = atob(base64Match[1]);
       } else {
-        // Percent-encoded (with or without charset)
-        const encoded = dataUrl.replace(/^data:image\/svg\+xml[^,]*,/, '');
-        svg = decodeURIComponent(encoded);
+        // Content after the comma — may be percent-encoded or raw SVG
+        const content = dataUrl.replace(/^data:image\/svg\+xml[^,]*,/, '');
+        if (content.startsWith('<svg') || content.startsWith('<?xml')) {
+          // Raw SVG markup (e.g. Pattern Monster) — mostly raw but may have
+          // selective percent-encoding like %23 for # in url() references.
+          // Decode only safe percent sequences that won't break the markup.
+          svg = content.replace(/%23/g, '#').replace(/%27/g, "'").replace(/%20/g, ' ');
+        } else {
+          // Percent-encoded (e.g. Hero Patterns with %3Csvg...)
+          try {
+            svg = decodeURIComponent(content);
+          } catch {
+            // If decoding fails (invalid % sequences), treat as raw markup
+            svg = content;
+          }
+        }
       }
     } else {
       // Fallback: assume it's SVG markup
@@ -71,8 +87,11 @@ function ensureSvgDimensions(svg: string, defaultW: number, defaultH: number): s
   if (!svgTagMatch) return svg;
 
   const attrs = svgTagMatch[1];
-  const hasWidth = /\bwidth\s*=/.test(attrs);
-  const hasHeight = /\bheight\s*=/.test(attrs);
+  // Percentage dimensions (e.g. width='100%') are useless for <img>/canvas rendering
+  const hasWidth = /\bwidth\s*=\s*['"]?\d+(\.\d+)?(px)?\s*['"]?/.test(attrs)
+    && !/\bwidth\s*=\s*['"]?\d+(\.\d+)?%/.test(attrs);
+  const hasHeight = /\bheight\s*=\s*['"]?\d+(\.\d+)?(px)?\s*['"]?/.test(attrs)
+    && !/\bheight\s*=\s*['"]?\d+(\.\d+)?%/.test(attrs);
 
   if (hasWidth && hasHeight) return svg;
 
@@ -85,9 +104,16 @@ function ensureSvgDimensions(svg: string, defaultW: number, defaultH: number): s
     h = parseFloat(vbMatch[4]);
   }
 
+  // Strip any existing width/height (including percentage values) before injecting numeric ones
   let newAttrs = attrs;
-  if (!hasWidth) newAttrs += ` width="${w}"`;
-  if (!hasHeight) newAttrs += ` height="${h}"`;
+  if (!hasWidth) {
+    newAttrs = newAttrs.replace(/\bwidth\s*=\s*['"][^'"]*['"]/g, '').replace(/\bwidth\s*=\s*\S+/g, '');
+    newAttrs += ` width="${w}"`;
+  }
+  if (!hasHeight) {
+    newAttrs = newAttrs.replace(/\bheight\s*=\s*['"][^'"]*['"]/g, '').replace(/\bheight\s*=\s*\S+/g, '');
+    newAttrs += ` height="${h}"`;
+  }
 
   return svg.replace(/<svg\b[^>]*>/, `<svg${newAttrs}>`);
 }
@@ -101,10 +127,12 @@ function getSvgDimensions(svgMarkup: string): [number, number] | null {
   if (!svgTag) return null;
   const attrs = svgTag[1];
 
-  // Try explicit width/height attributes
-  const wMatch = attrs.match(/\bwidth\s*=\s*['"]?([\d.]+)/);
-  const hMatch = attrs.match(/\bheight\s*=\s*['"]?([\d.]+)/);
-  if (wMatch && hMatch) {
+  // Try explicit width/height attributes (skip percentage values like '100%')
+  const wMatch = attrs.match(/\bwidth\s*=\s*['"]?([\d.]+)(px)?\s*['"]?/);
+  const hMatch = attrs.match(/\bheight\s*=\s*['"]?([\d.]+)(px)?\s*['"]?/);
+  if (wMatch && hMatch
+    && !/\bwidth\s*=\s*['"]?[\d.]+%/.test(attrs)
+    && !/\bheight\s*=\s*['"]?[\d.]+%/.test(attrs)) {
     return [parseFloat(wMatch[1]), parseFloat(hMatch[1])];
   }
 

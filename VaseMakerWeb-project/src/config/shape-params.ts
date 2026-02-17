@@ -230,6 +230,8 @@ export const RESOLUTION = {
 export const SMOOTH_ZONES = {
   basePercent: { min: 0, max: 100, step: 1 } as SliderRange,
   rimPercent:  { min: 0, max: 100, step: 1 } as SliderRange,
+  baseFade:    { min: 0, max: 100, step: 1 } as SliderRange,
+  rimFade:     { min: 0, max: 100, step: 1 } as SliderRange,
 } as const;
 
 /** Shell / wall thickness slider ranges */

@@ -241,10 +241,11 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'keyvalue', items: [
         { key: 'Base %', value: 'Height percentage from the bottom that is kept smooth (0\u2013100%)' },
         { key: 'Rim %', value: 'Height percentage from the top that is kept smooth (0\u2013100%)' },
-        { key: 'Transition', value: 'Hard = instant cutoff between smooth and textured. Fade = gradual blend' },
+        { key: 'Base Fade', value: '0% = hard cutoff at base zone edge. 100% = gradual smoothstep blend across full base zone' },
+        { key: 'Rim Fade', value: '0% = hard cutoff at rim zone edge. 100% = gradual smoothstep blend across full rim zone' },
       ] },
       { type: 'paragraph', text: 'Base and Rim percentages automatically adjust so they never exceed 100% combined. Smooth Zones do not affect the profile curve, shape, or twist \u2014 only ripples and textures.' },
-      { type: 'tip', text: 'Use 5\u201310% base and rim with Fade transition for a polished look. Essential for cutout designs to keep the vase structurally sound at top and bottom.' },
+      { type: 'tip', text: 'Use 5\u201310% base and rim with 50\u2013100% fade for a polished look. Essential for cutout designs to keep the vase structurally sound at top and bottom.' },
     ],
   },
 

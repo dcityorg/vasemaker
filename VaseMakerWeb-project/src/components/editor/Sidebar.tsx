@@ -4,10 +4,9 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
 import { useHistoryStore, skipNextHistoryRecord } from '@/store/history';
-import { BUILT_IN_PRESETS } from '@/presets';
+import { BUILT_IN_PRESETS, applyPreset } from '@/presets';
 import { downloadSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
-import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 
 export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggleHelp: () => void }) {
   const { loadPreset, getParams, undo: doUndo, redo: doRedo } = useVaseStore();
@@ -74,7 +73,7 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
     reader.onload = () => {
       try {
         const loaded = JSON.parse(reader.result as string);
-        const params = { ...DEFAULT_PARAMETERS, ...loaded };
+        const params = applyPreset({ parameters: loaded });
         skipNextHistoryRecord();
         useHistoryStore.getState().clear();
         useVaseStore.setState({ params });
@@ -125,7 +124,7 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.71</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.72</p>
       </div>
 
       {/* Toolbar */}
@@ -133,7 +132,10 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
         <select
           onChange={(e) => {
             const preset = BUILT_IN_PRESETS[parseInt(e.target.value)];
-            if (preset) loadPreset(preset);
+            if (preset) {
+              loadPreset(preset);
+              setDesignName(null);
+            }
             e.target.value = '';
           }}
           value=""

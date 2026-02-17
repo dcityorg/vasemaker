@@ -126,7 +126,7 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
   smoothInner: false,
   minWallThickness: 0.4,
 
-  smoothZones: { basePercent: 0, rimPercent: 0, transition: 'hard' },
+  smoothZones: { enabled: false, basePercent: 0, rimPercent: 0, baseFade: 0, rimFade: 0 },
 
   color: APPEARANCE.defaultColor,
   showRulers: false,

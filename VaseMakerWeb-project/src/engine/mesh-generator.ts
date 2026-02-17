@@ -15,7 +15,7 @@
  * When wallThickness === 0 and bottomThickness > 0, adds a simple disc cap at z=0.
  */
 
-import type { VaseParameters, VaseMesh } from './types';
+import type { VaseParameters, VaseMesh, ShapeParams } from './types';
 import { evaluateBezier, evaluateBezierScalar } from './bezier';
 import { getShapeFunction } from './shapes';
 import {
@@ -342,9 +342,11 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   const texturesEnabled = params.textures.enabled !== false;
 
   // Smooth zones — precompute base/rim fractions (0–1)
-  const szBase = (params.smoothZones?.basePercent ?? 0) / 100;
-  const szRim  = (params.smoothZones?.rimPercent ?? 0) / 100;
-  const szFade = (params.smoothZones?.transition ?? 'hard') === 'fade';
+  const szEnabled = params.smoothZones?.enabled !== false;
+  const szBase = szEnabled ? (params.smoothZones?.basePercent ?? 0) / 100 : 0;
+  const szRim  = szEnabled ? (params.smoothZones?.rimPercent ?? 0) / 100 : 0;
+  const szBaseFade = (params.smoothZones?.baseFade ?? 0) / 100;
+  const szRimFade  = (params.smoothZones?.rimFade ?? 0) / 100;
 
   // Precompute simplex permutation table (once per mesh generation, not per vertex)
   // Shared by simplex texture and wood grain (which uses simplex3D for wobble)
@@ -359,8 +361,9 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   // Get shape functions
   const bottomShapeFn = getShapeFunction(params.bottomShape);
   const topShapeFn = getShapeFunction(params.topShape);
-  const bottomParams = params.bottomShapeParams[params.bottomShape];
-  const topParams = params.topShapeParams[params.topShape];
+  const defaultSP: ShapeParams = { scaleFactor: 1, offsetX: 0, offsetY: 0 };
+  const bottomParams = params.bottomShapeParams[params.bottomShape] ?? defaultSP;
+  const topParams = params.topShapeParams[params.topShape] ?? defaultSP;
 
   // --- Precompute per-row context for all vertical steps ---
   const rowContexts: RowContext[] = [];
@@ -407,23 +410,29 @@ export function generateMesh(params: VaseParameters): VaseMesh {
     // Smooth zone factor: 0 = fully suppressed, 1 = normal
     let smoothZoneFactor = 1;
     if (szBase > 0 || szRim > 0) {
+      // Base zone: fadeStart marks where fade begins (below = fully suppressed)
       if (szBase > 0 && v < szBase) {
-        smoothZoneFactor = szFade
-          ? (szBase > 0 ? v / szBase : 1)  // linear fade 0→1 across zone
-          : 0;                               // hard cutoff
-        // Apply smoothstep for fade mode
-        if (szFade && smoothZoneFactor < 1) {
-          smoothZoneFactor = smoothZoneFactor * smoothZoneFactor * (3 - 2 * smoothZoneFactor);
+        const fadeStart = szBase * (1 - szBaseFade);
+        if (v < fadeStart) {
+          smoothZoneFactor = 0;
+        } else {
+          const fadeRange = szBase - fadeStart;
+          const t = fadeRange > 0 ? (v - fadeStart) / fadeRange : 1;
+          smoothZoneFactor = t * t * (3 - 2 * t); // smoothstep
         }
       }
+      // Rim zone: fadeEnd marks where fade ends (above = fully suppressed)
       if (szRim > 0 && v > 1 - szRim) {
-        const rimFactor = szFade
-          ? (szRim > 0 ? (1 - v) / szRim : 1)
-          : 0;
-        const rimSmooth = szFade
-          ? rimFactor * rimFactor * (3 - 2 * rimFactor)
-          : rimFactor;
-        smoothZoneFactor = Math.min(smoothZoneFactor, rimSmooth);
+        const fadeEnd = 1 - szRim * (1 - szRimFade);
+        let rimFactor: number;
+        if (v > fadeEnd) {
+          rimFactor = 0;
+        } else {
+          const fadeRange = fadeEnd - (1 - szRim);
+          const t = fadeRange > 0 ? (fadeEnd - v) / fadeRange : 1;
+          rimFactor = t * t * (3 - 2 * t); // smoothstep
+        }
+        smoothZoneFactor = Math.min(smoothZoneFactor, rimFactor);
       }
     }
 
