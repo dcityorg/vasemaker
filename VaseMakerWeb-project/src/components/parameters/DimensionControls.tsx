@@ -306,7 +306,7 @@ export function DimensionControls() {
     setSmoothZones,
     setWallThickness, setBottomThickness, setRimShape, setSmoothInner, setMinWallThickness,
     setColor, setShowRulers, setResolution, setFlatShading,
-    setTexturesEnabled, setFluting, setBasketWeave, setVoronoi, setSimplex, setWoodGrain, setSvgPattern, setSquareFlute,
+    setTexturesEnabled, setFluting, setBasketWeave, setVoronoi, setSimplex, setWoodGrain, setSvgPattern, setSquareFlute, setWaves, setRods,
   } = useVaseStore();
 
   // Reset helpers — patch specific param groups back to defaults
@@ -344,6 +344,8 @@ export function DimensionControls() {
   const resetWoodGrain = () => setWoodGrain({ count: DEFAULT_PARAMETERS.textures.woodGrain.count, depth: DEFAULT_PARAMETERS.textures.woodGrain.depth, wobble: DEFAULT_PARAMETERS.textures.woodGrain.wobble, sharpness: DEFAULT_PARAMETERS.textures.woodGrain.sharpness, seed: DEFAULT_PARAMETERS.textures.woodGrain.seed });
   const resetSvgPattern = () => setSvgPattern({ repeatX: DEFAULT_PARAMETERS.textures.svgPattern.repeatX, repeatY: DEFAULT_PARAMETERS.textures.svgPattern.repeatY, depth: DEFAULT_PARAMETERS.textures.svgPattern.depth, invert: DEFAULT_PARAMETERS.textures.svgPattern.invert, cutout: false });
   const resetSquareFlute = () => setSquareFlute({ count: DEFAULT_PARAMETERS.textures.squareFlute.count, depth: DEFAULT_PARAMETERS.textures.squareFlute.depth, duty: DEFAULT_PARAMETERS.textures.squareFlute.duty, sharpness: DEFAULT_PARAMETERS.textures.squareFlute.sharpness });
+  const resetWaves = () => setWaves({ count: DEFAULT_PARAMETERS.textures.waves.count, depth: DEFAULT_PARAMETERS.textures.waves.depth, duty: DEFAULT_PARAMETERS.textures.waves.duty });
+  const resetRods = () => setRods({ count: DEFAULT_PARAMETERS.textures.rods.count, depth: DEFAULT_PARAMETERS.textures.rods.depth, duty: DEFAULT_PARAMETERS.textures.rods.duty });
 
   const [svgDialogOpen, setSvgDialogOpen] = useState(false);
 
@@ -531,6 +533,22 @@ export function DimensionControls() {
             <SliderRow label="Depth" value={params.textures.squareFlute.depth} {...TEXTURES.squareFlute.depth} onChange={(v) => setSquareFlute({ depth: v })} tooltip="Channel depth in mm" />
             <SliderRow label="Duty" value={params.textures.squareFlute.duty} {...TEXTURES.squareFlute.duty} onChange={(v) => setSquareFlute({ duty: v })} tooltip="Pillar-to-groove ratio (high = wide pillars, narrow channels)" />
             <SliderRow label="Sharpness" value={params.textures.squareFlute.sharpness} {...TEXTURES.squareFlute.sharpness} onChange={(v) => setSquareFlute({ sharpness: v })} tooltip="Edge transition (1 = sharp square, 0 = rounded)" />
+          </div>
+        )}
+        <Toggle label="Waves" checked={params.textures.waves?.enabled ?? false} onChange={(v) => setWaves({ enabled: v })} onReset={resetWaves} tooltip="Smooth sinusoidal lobes going outward (softer than Rods)" />
+        {params.textures.waves?.enabled && (
+          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
+            <SliderRow label="Count" value={params.textures.waves.count} {...TEXTURES.waves.count} onChange={(v) => setWaves({ count: v })} tooltip="Number of wave lobes around circumference" />
+            <SliderRow label="Depth" value={params.textures.waves.depth} {...TEXTURES.waves.depth} onChange={(v) => setWaves({ depth: v })} tooltip="Wave height outward in mm" />
+            <SliderRow label="Duty" value={params.textures.waves.duty} {...TEXTURES.waves.duty} onChange={(v) => setWaves({ duty: v })} tooltip="Gap between waves (0 = touching, 0.9 = narrow lobes with wide gaps)" />
+          </div>
+        )}
+        <Toggle label="Rods" checked={params.textures.rods?.enabled ?? false} onChange={(v) => setRods({ enabled: v })} onReset={resetRods} tooltip="Semicircular pillars going outward — like cylindrical rods on the surface" />
+        {params.textures.rods?.enabled && (
+          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
+            <SliderRow label="Count" value={params.textures.rods.count} {...TEXTURES.rods.count} onChange={(v) => setRods({ count: v })} tooltip="Number of rods around circumference" />
+            <SliderRow label="Depth" value={params.textures.rods.depth} {...TEXTURES.rods.depth} onChange={(v) => setRods({ depth: v })} tooltip="Rod height outward in mm" />
+            <SliderRow label="Duty" value={params.textures.rods.duty} {...TEXTURES.rods.duty} onChange={(v) => setRods({ duty: v })} tooltip="Gap between rods (0 = touching, 0.9 = narrow rods with wide gaps)" />
           </div>
         )}
         <Toggle label="Basket Weave" checked={params.textures.basketWeave.enabled} onChange={(v) => setBasketWeave({ enabled: v })} onReset={resetBasketWeave} tooltip="Alternating horizontal band weave pattern" />

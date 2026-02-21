@@ -465,6 +465,8 @@ export function generateMesh(params: VaseParameters): VaseMesh {
     let radRipple = 0;
     let vertRipple = 0;
     let fluting = 0;
+    let wavesVal = 0;
+    let rodsVal = 0;
     let basketWeaveVal = 0;
     let voronoi = 0;
     let simplex = 0;
@@ -543,6 +545,33 @@ export function generateMesh(params: VaseParameters): VaseMesh {
         fluting += -sf.depth * groove;
       }
 
+      // Waves texture — smooth cosine-squared lobes going outward
+      if (texturesEnabled && params.textures.waves?.enabled) {
+        const wv = params.textures.waves;
+        const phase = ((t / 360) * wv.count) % 1;
+        const pillarWidth = 1 - wv.duty;
+        const halfPillar = pillarWidth * 0.5;
+        const dist = Math.abs(phase - 0.5) / halfPillar;
+        if (dist < 1) {
+          const cosVal = Math.cos(dist * Math.PI * 0.5);
+          wavesVal = wv.depth * cosVal * cosVal;
+        }
+      }
+
+      // Rods texture — semicircular pillars going outward with flat channels between
+      if (texturesEnabled && params.textures.rods?.enabled) {
+        const rd = params.textures.rods;
+        const phase = ((t / 360) * rd.count) % 1;
+        const pillarWidth = 1 - rd.duty;
+        const halfPillar = pillarWidth * 0.5;
+        // Distance from pillar center, normalized to pillar half-width
+        const dist = Math.abs(phase - 0.5) / halfPillar;
+        if (dist < 1) {
+          // Semicircle profile: sqrt(1 - x²), true half-circle cross-section
+          rodsVal = rd.depth * Math.sqrt(1 - dist * dist);
+        }
+      }
+
       // SVG pattern texture
       if (texturesEnabled && svgPatternData && params.textures.svgPattern?.enabled && params.textures.svgPattern.svgText) {
         const sp = params.textures.svgPattern;
@@ -557,6 +586,8 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       + radRipple * row.vSmooth * rSmooth * szf
       + vertRipple * row.vSmooth * rSmooth * szf
       + fluting * szf
+      + wavesVal * szf
+      + rodsVal * szf
       + basketWeaveVal * szf
       + voronoi * szf
       + simplex * szf

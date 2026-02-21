@@ -217,6 +217,16 @@ export const TEXTURES = {
     duty:      { min: 0.1, max: 0.9, step: 0.05 } as SliderRange,
     sharpness: { min: 0, max: 1, step: 0.05 } as SliderRange,
   },
+  waves: {
+    count: { min: 3, max: 60, step: 1 } as SliderRange,
+    depth: { min: 0.1, max: 10, step: 0.1 } as SliderRange,
+    duty:  { min: 0, max: 0.9, step: 0.05 } as SliderRange,
+  },
+  rods: {
+    count: { min: 3, max: 60, step: 1 } as SliderRange,
+    depth: { min: 0.1, max: 10, step: 0.1 } as SliderRange,
+    duty:  { min: 0, max: 0.9, step: 0.05 } as SliderRange,
+  },
 } as const;
 
 /** Mesh resolution — defaults and slider ranges */

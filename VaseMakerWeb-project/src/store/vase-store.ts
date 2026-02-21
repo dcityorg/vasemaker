@@ -71,6 +71,8 @@ interface VaseStore {
   setWoodGrain: (update: Partial<VaseParameters['textures']['woodGrain']>) => void;
   setSvgPattern: (update: Partial<VaseParameters['textures']['svgPattern']>) => void;
   setSquareFlute: (update: Partial<VaseParameters['textures']['squareFlute']>) => void;
+  setWaves: (update: Partial<VaseParameters['textures']['waves']>) => void;
+  setRods: (update: Partial<VaseParameters['textures']['rods']>) => void;
 
   // Actions — smooth zones
   setSmoothZones: (update: Partial<VaseParameters['smoothZones']>) => void;
@@ -353,6 +355,26 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
         textures: {
           ...state.params.textures,
           squareFlute: { ...state.params.textures.squareFlute, ...update },
+        },
+      },
+    })),
+  setWaves: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: {
+          ...state.params.textures,
+          waves: { ...state.params.textures.waves, ...update },
+        },
+      },
+    })),
+  setRods: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: {
+          ...state.params.textures,
+          rods: { ...state.params.textures.rods, ...update },
         },
       },
     })),

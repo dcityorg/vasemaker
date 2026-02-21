@@ -75,6 +75,8 @@ export const BUILT_IN_PRESETS: Preset[] = [
         woodGrain: { enabled: true, count: 43, depth: 2.2, wobble: 0.05, sharpness: 0.1, seed: 32 },
         svgPattern: { enabled: false, svgText: '', repeatX: 12, repeatY: 8, depth: 1.0, invert: false, cutout: false },
         squareFlute: { enabled: false, count: 20, depth: 2, duty: 0.5, sharpness: 0.9 },
+        waves: { enabled: false, count: 20, depth: 2, duty: 0.3 },
+        rods: { enabled: false, count: 20, depth: 2, duty: 0.3 },
       },
       resolution: { vertical: 100, radial: 200 },
     },

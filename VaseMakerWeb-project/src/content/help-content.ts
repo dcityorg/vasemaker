@@ -174,6 +174,22 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'tip', text: 'High pillar counts require high radial resolution. With 80 pillars, set radial resolution to 400+ for clean square edges.' },
 
+      { type: 'heading', text: 'Waves' },
+      { type: 'paragraph', text: 'Smooth outward lobes with a soft cosine profile. The opposite of Fluting \u2014 bumps go outward instead of grooves going inward. Creates a gentle scalloped look.' },
+      { type: 'keyvalue', items: [
+        { key: 'Count', value: 'Number of wave lobes around the circumference (3\u201360)' },
+        { key: 'Depth', value: 'How far the lobes protrude outward (mm)' },
+        { key: 'Duty', value: 'Gap between lobes. 0 = lobes touching, 0.9 = narrow lobes with wide flat gaps' },
+      ] },
+
+      { type: 'heading', text: 'Rods' },
+      { type: 'paragraph', text: 'Semicircular pillars going outward \u2014 like cylindrical rods attached to the surface. Sharper profile than Waves, with a true half-circle cross-section and flat channels between.' },
+      { type: 'keyvalue', items: [
+        { key: 'Count', value: 'Number of rods around the circumference (3\u201360)' },
+        { key: 'Depth', value: 'Rod height outward (mm) \u2014 also the rod radius' },
+        { key: 'Duty', value: 'Gap between rods. 0 = rods touching, 0.9 = narrow rods with wide flat gaps' },
+      ] },
+
       { type: 'heading', text: 'Basket Weave' },
       { type: 'paragraph', text: 'Interlocking horizontal and vertical bands that alternate in/out, mimicking woven material.' },
       { type: 'keyvalue', items: [

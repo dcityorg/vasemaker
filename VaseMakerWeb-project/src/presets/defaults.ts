@@ -115,6 +115,8 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
     woodGrain: { enabled: false, count: 30, depth: 0.8, wobble: 0.5, sharpness: 0.6, seed: 0 },
     svgPattern: { enabled: false, svgText: '', repeatX: 4, repeatY: 6, depth: 1.0, invert: false, cutout: false },
     squareFlute: { enabled: false, count: 20, depth: 2, duty: 0.5, sharpness: 0.9 },
+    waves: { enabled: false, count: 20, depth: 2, duty: 0.3 },
+    rods: { enabled: false, count: 20, depth: 2, duty: 0.3 },
   },
 
   resolution: { ...RESOLUTION.defaults },

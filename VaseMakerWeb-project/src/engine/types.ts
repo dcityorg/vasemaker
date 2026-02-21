@@ -198,6 +198,18 @@ export interface VaseParameters {
       duty: number;         // ratio of flat-top width to period (0.1–0.9)
       sharpness: number;    // edge transition (0=rounded, 1=perfectly square)
     };
+    waves: {
+      enabled: boolean;
+      count: number;        // number of wave lobes around circumference
+      depth: number;        // wave height outward in mm
+      duty: number;         // wave width ratio (0=touching, 0.9=narrow lobes)
+    };
+    rods: {
+      enabled: boolean;
+      count: number;        // number of semicircular rods around circumference
+      depth: number;        // rod height outward in mm
+      duty: number;         // gap ratio (0=touching, 0.9=narrow rods with wide gaps)
+    };
   };
 
   // Shell (new — not in OpenSCAD)
