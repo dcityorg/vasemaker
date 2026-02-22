@@ -210,9 +210,9 @@ function SvgLoadDialog({ onClose, onApply, initialSvg }: {
       className="rounded-lg p-0 w-[480px] max-w-[90vw] max-h-[80vh] bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-color)] shadow-xl backdrop:bg-black/50"
     >
       <div className="p-4 flex flex-col gap-3">
-        <h3 className="text-sm font-medium">Load SVG Pattern</h3>
+        <h3 className="text-sm font-medium">Paste SVG Pattern</h3>
         <p className="text-xs text-[var(--text-secondary)]">
-          Paste SVG code, a data URL, or a CSS background-image line (e.g. from Hero Patterns).
+          Paste SVG code or CSS code (e.g. from Hero Patterns).
         </p>
         <textarea
           value={text}
@@ -221,6 +221,14 @@ function SvgLoadDialog({ onClose, onApply, initialSvg }: {
           className="w-full h-40 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded p-2 text-xs font-mono text-[var(--text-primary)] resize-y"
           spellCheck={false}
         />
+        {text.trim() && (
+          <button
+            onClick={() => setText('')}
+            className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors self-start"
+          >
+            Clear
+          </button>
+        )}
         {previewUrl && (() => {
           const tileW = 64;
           const tileH = Math.max(4, Math.round(tileW / previewAspect));
@@ -351,6 +359,32 @@ export function DimensionControls() {
   const resetVerticalRods = () => setVerticalRods({ count: DEFAULT_PARAMETERS.textures.verticalRods.count, depth: DEFAULT_PARAMETERS.textures.verticalRods.depth, duty: DEFAULT_PARAMETERS.textures.verticalRods.duty });
 
   const [svgDialogOpen, setSvgDialogOpen] = useState(false);
+  const svgFileRef = useRef<HTMLInputElement>(null);
+
+  const handleSvgFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = reader.result as string;
+      setSvgPattern({ svgText: content });
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleSaveSvg = () => {
+    const raw = params.textures.svgPattern?.svgText;
+    if (!raw) return;
+    const markup = parseSvgInput(raw);
+    const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'vasemaker-pattern.svg';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <>
@@ -630,24 +664,35 @@ export function DimensionControls() {
         <Toggle label="SVG Pattern" checked={params.textures.svgPattern?.enabled ?? false} onChange={(v) => setSvgPattern({ enabled: v })} onReset={resetSvgPattern} tooltip="Use SVG artwork as a displacement pattern" />
         {params.textures.svgPattern?.enabled && (
           <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1">
               {params.textures.svgPattern.svgText && (
                 <SvgPreviewThumb svgText={params.textures.svgPattern.svgText} />
               )}
-              <button
-                onClick={() => setSvgDialogOpen(true)}
-                className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
-              >
-                {params.textures.svgPattern.svgText ? 'Change SVG' : 'Load SVG'}
-              </button>
-              {params.textures.svgPattern.svgText && (
+              <div className="flex flex-wrap gap-1">
                 <button
-                  onClick={() => setSvgPattern({ svgText: '' })}
-                  className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors"
+                  onClick={() => setSvgDialogOpen(true)}
+                  className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
                 >
-                  Clear
+                  Paste SVG
                 </button>
-              )}
+                <button
+                  onClick={() => svgFileRef.current?.click()}
+                  className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
+                >
+                  Load SVG
+                </button>
+                <button
+                  onClick={handleSaveSvg}
+                  disabled={!params.textures.svgPattern.svgText}
+                  className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Save SVG
+                </button>
+              </div>
+              <input ref={svgFileRef} type="file" accept=".svg" onChange={handleSvgFileSelected} className="hidden" />
+            </div>
+            <div className="text-xs text-[var(--text-secondary)] opacity-60 mb-2">
+              {params.textures.svgPattern.svgText ? 'SVG loaded' : 'SVG empty'}
             </div>
             {params.textures.svgPattern.svgText && (
               <>
