@@ -1,7 +1,7 @@
 # VaseMakerWeb — Claude Code Context
 
 ## Project Overview
-Browser-based parametric 3D vase designer, ported from a 13-version OpenSCAD project (VaseMaker13 A.scad). Uses polar cross-section shapes swept along a Bezier vertical profile with modulations (ripples, twist, smoothing, morphing, offset). Real-time 3D preview + STL export for 3D printing.
+Browser-based parametric 3D vase designer, ported from a 13-version OpenSCAD project (VaseMaker13 A.scad). Uses polar cross-section shapes swept along a Bezier vertical profile with modulations (twist, smoothing, morphing, offset). Real-time 3D preview + STL export for 3D printing.
 
 ## Working Directory
 - Root: `/Users/gary/Dropbox/Documents/Design/Claude/VaseMakerWeb`
@@ -37,7 +37,7 @@ VaseMakerWeb-project/src/
 │   ├── types.ts         # VaseParameters, ShapeType, VaseMesh interfaces
 │   ├── shapes.ts        # 25 polar shape functions (shapeRegistry)
 │   ├── bezier.ts        # De Casteljau Bezier evaluation
-│   ├── modifiers.ts     # Ripple, twist, smoothing functions
+│   ├── modifiers.ts     # Twist, smoothing functions
 │   ├── mesh-generator.ts # Main generateMesh() — vertex grid + triangle indices
 │   ├── svg-rasterizer.ts # SVG → grayscale pixels via canvas (browser-only, used by use-vase-mesh.ts)
 │   └── stl-export.ts    # Binary STL generation + browser download
@@ -98,11 +98,9 @@ For each vertex at height v (0-1) and angle t (0-360):
 1. Evaluate bottom shape (and top shape if morphing)
 2. Blend shapes by height ratio if morphing enabled
 3. Multiply by Bezier profile radius at this height
-4. Add radial ripple * vertical smoothing * radial smoothing * smoothZoneFactor
-5. Add vertical ripple * vertical smoothing * radial smoothing * smoothZoneFactor
-6. Add texture offsets (fluting, square flute, basket weave, voronoi, simplex, carved wood, SVG pattern) * smoothZoneFactor if textures master gate is on
-7. Apply radial offset (−wallThickness for inner surface, clamped to MIN_INNER_RADIUS). When `smoothInner` is enabled, inner surface uses `computeRadius(skipEffects=true)` and enforces `minWallThickness` gap relative to textured outer surface
-8. Convert polar → cartesian, add XY offset, apply twist rotation (bezier + wave twist)
+4. Add texture offsets (fluting, vertical fluting, square flute, vertical square flute, waves, vertical waves, rods, vertical rods, basket weave, voronoi, simplex, carved wood, SVG pattern) * verticalSmoothing * radialSmoothing * smoothZoneFactor if textures master gate is on
+5. Apply radial offset (−wallThickness for inner surface, clamped to MIN_INNER_RADIUS). When `smoothInner` is enabled, inner surface uses `computeRadius(skipEffects=true)` and enforces `minWallThickness` gap relative to textured outer surface
+6. Convert polar → cartesian, add XY offset, apply twist rotation (bezier + wave twist)
 
 When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface (reversed winding), bottom cap (outer disc at z=0 + inner disc at inner start height), rim (flat or rounded), and cutout wall quads (if cutout enabled). Per-row data is precomputed into `RowContext` structs (includes `smoothZoneFactor`). Cutout skips triangles where `cutoutGrid` is true and adds manifold wall quads at hole boundaries.
 
@@ -110,15 +108,14 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **25 cross-section shapes** with shape-specific parameter sliders, alphabetized in dropdown
 - **Bezier profile curve editor** — interactive SVG, drag/add/remove control points (max 8)
 - **Shape morphing** — Bottom Shape (always on) + Top Shape (header toggle controls morphing)
-- **Radial & vertical ripples** with smoothing modifiers
 - **Custom Twist** — BezierCurveEditor for twist degrees at each height
 - **Wave Twist** — Sinusoidal twist that rotates entire cross-section via unified `twistAngle`
 - **XY Sway** — Two BezierCurveEditors (X/Y offset) with scale sliders
-- **Textures** — Master gate toggle (defaults OFF) + 9 individual textures: Fluting, Square Flute (flat-topped pillars with rectangular channels — square-wave version of Fluting, params: count/depth/duty/sharpness), Waves (smooth outward cosine² lobes — opposite of Fluting, params: count/depth/duty), Rods (semicircular outward pillars via sqrt(1−x²) profile — like cylindrical rods on the surface, params: count/depth/duty), Basket Weave, Voronoi (Worley noise), Simplex (fBm), Carved Wood (wobbled vertical stripes via simplex-perturbed sine, UI label "Carved Wood", engine param `woodGrain`), SVG Pattern (user-supplied SVG as displacement map). Seamless 0/360 wrapping, aspect-ratio-corrected cells. Reusable functions: `hash2D`, `simplex3D`, `fbm3D`. **Cutout mode** on Voronoi and SVG Pattern punches holes through the wall for lattice/perforated designs
+- **Textures** — Master gate toggle (defaults OFF) + 13 individual textures. **Circumferential** (run vertically around the vase): Fluting (cosine-profile grooves), Square Flute (flat-topped pillars with rectangular channels, params: count/depth/duty/sharpness), Waves (smooth outward cosine² lobes, params: count/depth/duty), Rods (semicircular outward pillars via sqrt(1−x²) profile, params: count/depth/duty). **Vertical** (run horizontally as bands up the height): Vertical Fluting, Vertical Square Flute, Vertical Waves, Vertical Rods — identical algorithms to circumferential counterparts but using `row.m` (uniform parametric height) instead of angle; count min=1 for verticals. **Other**: Basket Weave, Voronoi (Worley noise), Simplex (fBm), Carved Wood (wobbled vertical stripes via simplex-perturbed sine, UI label "Carved Wood", engine param `woodGrain`), SVG Pattern (user-supplied SVG as displacement map). All textures are modulated by `verticalSmoothing * radialSmoothing * smoothZoneFactor`. Seamless 0/360 wrapping, aspect-ratio-corrected cells. Reusable functions: `hash2D`, `simplex3D`, `fbm3D`. **Cutout mode** on Voronoi and SVG Pattern punches holes through the wall for lattice/perforated designs
 - **Texture Cutout** — Per-texture `cutout` toggle (Voronoi + SVG Pattern only). Removes triangles from both outer and inner surfaces where cutout factor exceeds threshold, then generates manifold wall quads connecting outer↔inner at hole boundaries. `computeCutoutFactor()` evaluates voronoi cell value or SVG brightness with smoothstep threshold (0.3–0.7 remap). Cutout is suppressed in smooth zones (`smoothZoneFactor < 1`). Precomputed `cutoutGrid` boolean array avoids per-triangle recomputation. Index buffer is over-allocated then trimmed to actual triangle count. SVG cutout works best with high-contrast black/white images — grayscale produces unpredictable partial holes. Hole boundary smoothness depends on mesh resolution (150+ vert, 200+ radial for round holes)
-- **Smooth Zones** — Global suppression of all surface effects (ripples + textures) near base and/or rim. Has `enabled` toggle to quickly compare with/without. `smoothZones.basePercent` and `rimPercent` (0–100%, auto-clamped so sum ≤ 100%) define zone heights as % of vase height. `baseFade` and `rimFade` (0–100%) control what fraction of each zone is a smoothstep fade transition vs fully suppressed: 0% = hard cutoff (entire zone suppressed), 100% = full smoothstep ramp across zone, 50% = half hard/half fade. Fade sliders only appear when the corresponding zone percent > 0. `smoothZoneFactor` is precomputed per `RowContext` row and multiplied into all effect terms in `computeRadius()`. Shape, profile, and twist are NOT affected. Cutout checks `smoothZoneFactor < 1`. Default 0%/0% = no suppression (backward compatible)
+- **Smooth Zones** — Global suppression of all surface effects (textures) near base and/or rim. Has `enabled` toggle to quickly compare with/without. `smoothZones.basePercent` and `rimPercent` (0–100%, auto-clamped so sum ≤ 100%) define zone heights as % of vase height. `baseFade` and `rimFade` (0–100%) control what fraction of each zone is a smoothstep fade transition vs fully suppressed: 0% = hard cutoff (entire zone suppressed), 100% = full smoothstep ramp across zone, 50% = half hard/half fade. Fade sliders only appear when the corresponding zone percent > 0. `smoothZoneFactor` is precomputed per `RowContext` row and multiplied into all effect terms in `computeRadius()`. Shape, profile, and twist are NOT affected. Cutout checks `smoothZoneFactor < 1`. Default 0%/0% = no suppression (backward compatible)
 - **SVG Pattern texture** — Paste SVG from pattern sites (Hero Patterns, Pattern Monster, etc.) as radial displacement. Accepts three input formats: (1) raw SVG markup `<svg>...</svg>`, (2) data URLs `data:image/svg+xml,...` (base64 or percent-encoded), (3) CSS `background-image: url("data:image/svg+xml,...")` lines. Parser handles raw SVG with parentheses inside `url()` (Pattern Monster), percent-encoded `%23` → `#` references, and `width='100%'` percentage dimensions (stripped and replaced with pixel values). Modal dialog with tiled preview, aspect-ratio-preserving rasterization via offscreen canvas, Gaussian blur anti-aliasing, bilinear interpolation sampling. Sliders: Repeat X (circumference tiles), Repeat Y (height tiles, max 60), Depth, Invert toggle. Architecture: `svg-rasterizer.ts` (browser-only DOM) rasterizes to grayscale `Uint8Array`; `mesh-generator.ts` stores pixel data at module level via `setSvgPatternData()` setter (keeps it DOM-free); `use-vase-mesh.ts` bridges async rasterization to synchronous mesh rebuild via version counter. Higher mesh resolution (100+ vertical/radial) recommended for fine patterns
-- **Wall thickness, base cap, rim** — Outer + inner surfaces, base cap (no wall strip — avoids lip on flared profiles), flat/rounded rim. Base thickness measured vertically. **Smooth Inner** toggle keeps inner wall completely smooth (no ripples or textures) via `skipEffects=true`; **Min Wall** slider prevents paper-thin walls where effects indent inward
+- **Wall thickness, base cap, rim** — Outer + inner surfaces, base cap (no wall strip — avoids lip on flared profiles), flat/rounded rim. Base thickness measured vertically. **Smooth Inner** toggle keeps inner wall completely smooth (no textures) via `skipEffects=true`; **Min Wall** slider prevents paper-thin walls where effects indent inward
 - **Undo/redo** — 50-step debounced history, ↶/↷ buttons + Cmd+Z/Cmd+Shift+Z
 - **Save/Load** — JSON export/import, merges onto DEFAULT_PARAMETERS for forward-compat. **Unsaved changes protection**: `isDirty` flag in Zustand store tracks whether params changed since last load/save/preset. When dirty, selecting a preset or loading a design shows a confirmation dialog (Save & Continue / Don't Save / Cancel). Uses `skipNextDirtyMark()` flag pattern (same as `skipNextHistoryRecord`) to prevent subscriber from re-dirtying during load/preset/reset operations. Save Design and file load clear the dirty flag
 - **Presets** — Dropdown with "Select a starting vase" placeholder, re-selectable
@@ -127,7 +124,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Vase color picker** — Appearance section with native picker, default `#6d9fff`
 - **Show Rulers** — Toggle in Appearance section to show/hide axis lines, tick marks, numeric dimension labels, and XYZ gizmo. Off by default for a clean view. Stored as `showRulers` in VaseParameters, read by Viewport.tsx to conditionally render SceneHelpers (AxisRulers, AxisLabels, AxisGizmo). GroundGrid always visible
 - **Resolution** — Vertical (8–500) and Radial (8–720) sliders + Show Facets toggle. Defaults: 200 vertical, 360 radial. High resolution needed for dense textures (Square Flute 40+ count, fine Voronoi, SVG patterns). Info note in UI about file size vs. resolution trade-off
-- **Sidebar UI** — Sections organized into 5 color-coded groups: Shape & Structure (blue `#7BA3CF`), Surface (amber `#C9A84C`), Smoothing (green `#7BAF7B`), Twist (purple `#A78BBA`), Settings (gray `#9B9B9B`). Group headers and section titles share the same color. Utility elements (preset dropdown, Load/Save buttons, shape dropdowns) use muted gray (`#9B9B9B`). All colors defined in `config/colors.ts` for easy customization. Indented content with left border, Reset buttons always visible. Texture sub-sliders have second-level indentation with vertical border line. Hint text on Vertical/Radial Smoothing sections clarifying they affect ripples only, not textures
+- **Sidebar UI** — Sections organized into 5 color-coded groups: Shape & Structure (blue `#7BA3CF`), Surface (amber `#C9A84C`), Smoothing (green `#7BAF7B`), Twist (purple `#A78BBA`), Settings (gray `#9B9B9B`). Group headers and section titles share the same color. Utility elements (preset dropdown, Load/Save buttons, shape dropdowns) use muted gray (`#9B9B9B`). All colors defined in `config/colors.ts` for easy customization. Indented content with left border, Reset buttons always visible. Texture sub-sliders have second-level indentation with vertical border line. Hint text on Vertical/Radial Smoothing sections clarifying they fade surface effect intensity
 - **Tooltips** — Native browser tooltips (`title` attribute) on all sliders, toggles, and section headers. Provides brief descriptions of each parameter's effect without cluttering the UI
 - **Help panel** — Right-side push-layout panel toggled by "?" button. 5 sections: Quick Start, Shapes (with SuperFormula guide), Profile/Twist/Sway, Textures, 3D Printing Tips. Pure data in `content/help-content.ts`, rendered by `HelpPanel.tsx`. Slide-in animation, viewport auto-resizes
 
@@ -234,11 +231,11 @@ if (texturesEnabled && params.textures.myTexture?.enabled) {
 }
 ```
 
-**d) Add to the radius sum** (inside `computeRadius()` return statement, multiply by `szf`):
+**d) Add to the radius sum** (inside `computeRadius()` return statement, multiply by smoothing factors):
 ```typescript
 return shapeValue * row.shapeRadius
   + /* ... existing terms ... */
-  + myTextureVal * szf;
+  + myTextureVal * row.vSmooth * rSmooth * szf;
 ```
 
 **Key details for the algorithm:**

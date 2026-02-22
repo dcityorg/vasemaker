@@ -5,7 +5,7 @@ import { useVaseStore } from '@/store/vase-store';
 import type { ShapeType } from '@/engine/types';
 import {
   SHAPE_OPTIONS, SHAPE_PARAM_CONFIG,
-  DIMENSIONS, SHELL, SMOOTH_ZONES, APPEARANCE, RESOLUTION, TEXTURES, RADIAL_RIPPLE, VERTICAL_RIPPLE, BEZIER_TWIST,
+  DIMENSIONS, SHELL, SMOOTH_ZONES, APPEARANCE, RESOLUTION, TEXTURES, BEZIER_TWIST,
   SINE_TWIST, VERTICAL_SMOOTHING, RADIAL_SMOOTHING, BEZIER_OFFSET,
 } from '@/config/shape-params';
 import type { BezierPoint } from '@/engine/types';
@@ -298,7 +298,7 @@ export function DimensionControls() {
   const {
     setRadius, setHeight, setProfileEnabled, setProfilePoint, addProfilePoint, removeProfilePoint,
     setBottomShape, setTopShape, setMorphEnabled,
-    setRadialRipple, setVerticalRipple, setBezierTwist, setBezierTwistPoint,
+    setBezierTwist, setBezierTwistPoint,
     addBezierTwistPoint, removeBezierTwistPoint, setSineTwist,
     setVerticalSmoothing, setRadialSmoothing,
     setBezierOffset, setBezierOffsetPointX, setBezierOffsetPointY,
@@ -307,6 +307,7 @@ export function DimensionControls() {
     setWallThickness, setBottomThickness, setRimShape, setSmoothInner, setMinWallThickness,
     setColor, setShowRulers, setResolution, setFlatShading,
     setTexturesEnabled, setFluting, setBasketWeave, setVoronoi, setSimplex, setWoodGrain, setSvgPattern, setSquareFlute, setWaves, setRods,
+    setVerticalFluting, setVerticalSquareFlute, setVerticalWaves, setVerticalRods,
   } = useVaseStore();
 
   // Reset helpers — patch specific param groups back to defaults
@@ -325,8 +326,6 @@ export function DimensionControls() {
       },
     }));
   };
-  const resetRadialRipple = () => setRadialRipple({ count: DEFAULT_PARAMETERS.radialRipple.count, depth: DEFAULT_PARAMETERS.radialRipple.depth });
-  const resetVerticalRipple = () => setVerticalRipple({ count: DEFAULT_PARAMETERS.verticalRipple.count, depth: DEFAULT_PARAMETERS.verticalRipple.depth });
   const resetBezierTwist = () => setBezierTwist({ points: [...DEFAULT_PARAMETERS.bezierTwist.points] });
   const resetSineTwist = () => setSineTwist({ cycles: DEFAULT_PARAMETERS.sineTwist.cycles, maxDegrees: DEFAULT_PARAMETERS.sineTwist.maxDegrees });
   const resetBezierOffset = () => setBezierOffset({
@@ -337,7 +336,7 @@ export function DimensionControls() {
   const resetVerticalSmoothing = () => setVerticalSmoothing({ cycles: DEFAULT_PARAMETERS.verticalSmoothing.cycles, startPercent: DEFAULT_PARAMETERS.verticalSmoothing.startPercent });
   const resetRadialSmoothing = () => setRadialSmoothing({ cycles: DEFAULT_PARAMETERS.radialSmoothing.cycles, offsetAngle: DEFAULT_PARAMETERS.radialSmoothing.offsetAngle });
   const resetSmoothZones = () => setSmoothZones({ basePercent: DEFAULT_PARAMETERS.smoothZones.basePercent, rimPercent: DEFAULT_PARAMETERS.smoothZones.rimPercent, baseFade: DEFAULT_PARAMETERS.smoothZones.baseFade, rimFade: DEFAULT_PARAMETERS.smoothZones.rimFade });
-  const resetFluting = () => setFluting({ count: DEFAULT_PARAMETERS.textures.fluting.count, depth: DEFAULT_PARAMETERS.textures.fluting.depth });
+  const resetFluting = () => setFluting({ count: DEFAULT_PARAMETERS.textures.fluting.count, depth: DEFAULT_PARAMETERS.textures.fluting.depth, duty: DEFAULT_PARAMETERS.textures.fluting.duty });
   const resetBasketWeave = () => setBasketWeave({ bands: DEFAULT_PARAMETERS.textures.basketWeave.bands, waves: DEFAULT_PARAMETERS.textures.basketWeave.waves, depth: DEFAULT_PARAMETERS.textures.basketWeave.depth });
   const resetVoronoi = () => setVoronoi({ scale: DEFAULT_PARAMETERS.textures.voronoi.scale, depth: DEFAULT_PARAMETERS.textures.voronoi.depth, edgeWidth: DEFAULT_PARAMETERS.textures.voronoi.edgeWidth, seed: DEFAULT_PARAMETERS.textures.voronoi.seed, cutout: false });
   const resetSimplex = () => setSimplex({ scale: DEFAULT_PARAMETERS.textures.simplex.scale, depth: DEFAULT_PARAMETERS.textures.simplex.depth, octaves: DEFAULT_PARAMETERS.textures.simplex.octaves, persistence: DEFAULT_PARAMETERS.textures.simplex.persistence, lacunarity: DEFAULT_PARAMETERS.textures.simplex.lacunarity, seed: DEFAULT_PARAMETERS.textures.simplex.seed });
@@ -346,6 +345,10 @@ export function DimensionControls() {
   const resetSquareFlute = () => setSquareFlute({ count: DEFAULT_PARAMETERS.textures.squareFlute.count, depth: DEFAULT_PARAMETERS.textures.squareFlute.depth, duty: DEFAULT_PARAMETERS.textures.squareFlute.duty, sharpness: DEFAULT_PARAMETERS.textures.squareFlute.sharpness });
   const resetWaves = () => setWaves({ count: DEFAULT_PARAMETERS.textures.waves.count, depth: DEFAULT_PARAMETERS.textures.waves.depth, duty: DEFAULT_PARAMETERS.textures.waves.duty });
   const resetRods = () => setRods({ count: DEFAULT_PARAMETERS.textures.rods.count, depth: DEFAULT_PARAMETERS.textures.rods.depth, duty: DEFAULT_PARAMETERS.textures.rods.duty });
+  const resetVerticalFluting = () => setVerticalFluting({ count: DEFAULT_PARAMETERS.textures.verticalFluting.count, depth: DEFAULT_PARAMETERS.textures.verticalFluting.depth, duty: DEFAULT_PARAMETERS.textures.verticalFluting.duty });
+  const resetVerticalSquareFlute = () => setVerticalSquareFlute({ count: DEFAULT_PARAMETERS.textures.verticalSquareFlute.count, depth: DEFAULT_PARAMETERS.textures.verticalSquareFlute.depth, duty: DEFAULT_PARAMETERS.textures.verticalSquareFlute.duty, sharpness: DEFAULT_PARAMETERS.textures.verticalSquareFlute.sharpness });
+  const resetVerticalWaves = () => setVerticalWaves({ count: DEFAULT_PARAMETERS.textures.verticalWaves.count, depth: DEFAULT_PARAMETERS.textures.verticalWaves.depth, duty: DEFAULT_PARAMETERS.textures.verticalWaves.duty });
+  const resetVerticalRods = () => setVerticalRods({ count: DEFAULT_PARAMETERS.textures.verticalRods.count, depth: DEFAULT_PARAMETERS.textures.verticalRods.depth, duty: DEFAULT_PARAMETERS.textures.verticalRods.duty });
 
   const [svgDialogOpen, setSvgDialogOpen] = useState(false);
 
@@ -524,6 +527,7 @@ export function DimensionControls() {
           <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
             <SliderRow label="Count" value={params.textures.fluting.count} {...TEXTURES.fluting.count} onChange={(v) => setFluting({ count: v })} tooltip="Number of flutes around circumference" />
             <SliderRow label="Depth" value={params.textures.fluting.depth} {...TEXTURES.fluting.depth} onChange={(v) => setFluting({ depth: v })} tooltip="Groove depth in mm" />
+            <SliderRow label="Duty" value={params.textures.fluting.duty ?? 0} {...TEXTURES.fluting.duty} onChange={(v) => setFluting({ duty: v })} tooltip="Groove width ratio — 0 = narrow grooves, 0.9 = wide grooves" />
           </div>
         )}
         <Toggle label="Square Flute" checked={params.textures.squareFlute?.enabled ?? false} onChange={(v) => setSquareFlute({ enabled: v })} onReset={resetSquareFlute} tooltip="Flat-topped pillars with rectangular channels" />
@@ -549,6 +553,39 @@ export function DimensionControls() {
             <SliderRow label="Count" value={params.textures.rods.count} {...TEXTURES.rods.count} onChange={(v) => setRods({ count: v })} tooltip="Number of rods around circumference" />
             <SliderRow label="Depth" value={params.textures.rods.depth} {...TEXTURES.rods.depth} onChange={(v) => setRods({ depth: v })} tooltip="Rod height outward in mm" />
             <SliderRow label="Duty" value={params.textures.rods.duty} {...TEXTURES.rods.duty} onChange={(v) => setRods({ duty: v })} tooltip="Gap between rods (0 = touching, 0.9 = narrow rods with wide gaps)" />
+          </div>
+        )}
+        <Toggle label="Vertical Fluting" checked={params.textures.verticalFluting?.enabled ?? false} onChange={(v) => setVerticalFluting({ enabled: v })} onReset={resetVerticalFluting} tooltip="Sine-wave grooves running horizontally (bands up the height)" />
+        {params.textures.verticalFluting?.enabled && (
+          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
+            <SliderRow label="Count" value={params.textures.verticalFluting.count} {...TEXTURES.verticalFluting.count} onChange={(v) => setVerticalFluting({ count: v })} tooltip="Number of flute bands up the height" />
+            <SliderRow label="Depth" value={params.textures.verticalFluting.depth} {...TEXTURES.verticalFluting.depth} onChange={(v) => setVerticalFluting({ depth: v })} tooltip="Groove depth in mm" />
+            <SliderRow label="Duty" value={params.textures.verticalFluting.duty ?? 0} {...TEXTURES.verticalFluting.duty} onChange={(v) => setVerticalFluting({ duty: v })} tooltip="Groove width ratio — 0 = narrow grooves, 0.9 = wide grooves" />
+          </div>
+        )}
+        <Toggle label="Vertical Square Flute" checked={params.textures.verticalSquareFlute?.enabled ?? false} onChange={(v) => setVerticalSquareFlute({ enabled: v })} onReset={resetVerticalSquareFlute} tooltip="Flat-topped horizontal bands with rectangular channels" />
+        {params.textures.verticalSquareFlute?.enabled && (
+          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
+            <SliderRow label="Count" value={params.textures.verticalSquareFlute.count} {...TEXTURES.verticalSquareFlute.count} onChange={(v) => setVerticalSquareFlute({ count: v })} tooltip="Number of horizontal bands" />
+            <SliderRow label="Depth" value={params.textures.verticalSquareFlute.depth} {...TEXTURES.verticalSquareFlute.depth} onChange={(v) => setVerticalSquareFlute({ depth: v })} tooltip="Channel depth in mm" />
+            <SliderRow label="Duty" value={params.textures.verticalSquareFlute.duty} {...TEXTURES.verticalSquareFlute.duty} onChange={(v) => setVerticalSquareFlute({ duty: v })} tooltip="Band-to-groove ratio (high = wide bands, narrow channels)" />
+            <SliderRow label="Sharpness" value={params.textures.verticalSquareFlute.sharpness} {...TEXTURES.verticalSquareFlute.sharpness} onChange={(v) => setVerticalSquareFlute({ sharpness: v })} tooltip="Edge transition (1 = sharp square, 0 = rounded)" />
+          </div>
+        )}
+        <Toggle label="Vertical Waves" checked={params.textures.verticalWaves?.enabled ?? false} onChange={(v) => setVerticalWaves({ enabled: v })} onReset={resetVerticalWaves} tooltip="Smooth horizontal wave bands going outward" />
+        {params.textures.verticalWaves?.enabled && (
+          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
+            <SliderRow label="Count" value={params.textures.verticalWaves.count} {...TEXTURES.verticalWaves.count} onChange={(v) => setVerticalWaves({ count: v })} tooltip="Number of wave bands up the height" />
+            <SliderRow label="Depth" value={params.textures.verticalWaves.depth} {...TEXTURES.verticalWaves.depth} onChange={(v) => setVerticalWaves({ depth: v })} tooltip="Wave height outward in mm" />
+            <SliderRow label="Duty" value={params.textures.verticalWaves.duty} {...TEXTURES.verticalWaves.duty} onChange={(v) => setVerticalWaves({ duty: v })} tooltip="Gap between waves (0 = touching, 0.9 = narrow lobes with wide gaps)" />
+          </div>
+        )}
+        <Toggle label="Vertical Rods" checked={params.textures.verticalRods?.enabled ?? false} onChange={(v) => setVerticalRods({ enabled: v })} onReset={resetVerticalRods} tooltip="Semicircular horizontal bands going outward" />
+        {params.textures.verticalRods?.enabled && (
+          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
+            <SliderRow label="Count" value={params.textures.verticalRods.count} {...TEXTURES.verticalRods.count} onChange={(v) => setVerticalRods({ count: v })} tooltip="Number of rod bands up the height" />
+            <SliderRow label="Depth" value={params.textures.verticalRods.depth} {...TEXTURES.verticalRods.depth} onChange={(v) => setVerticalRods({ depth: v })} tooltip="Rod height outward in mm" />
+            <SliderRow label="Duty" value={params.textures.verticalRods.duty} {...TEXTURES.verticalRods.duty} onChange={(v) => setVerticalRods({ duty: v })} tooltip="Gap between rods (0 = touching, 0.9 = narrow rods with wide gaps)" />
           </div>
         )}
         <Toggle label="Basket Weave" checked={params.textures.basketWeave.enabled} onChange={(v) => setBasketWeave({ enabled: v })} onReset={resetBasketWeave} tooltip="Alternating horizontal band weave pattern" />
@@ -635,22 +672,6 @@ export function DimensionControls() {
         )}
       </Section>
 
-      <Section title="Radial Ripples" defaultOpen={false} checked={params.radialRipple.enabled} onToggle={(v) => setRadialRipple({ enabled: v })} tooltip="Sine-wave bumps around the circumference" titleColor={GROUP_COLORS.surface}>
-        <div className="flex justify-end mb-1">
-          <button onClick={resetRadialRipple} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
-        </div>
-        <SliderRow label="Count" value={params.radialRipple.count} {...RADIAL_RIPPLE.count} onChange={(v) => setRadialRipple({ count: v })} tooltip="Number of ripple peaks around circumference" />
-        <SliderRow label="Depth" value={params.radialRipple.depth} {...RADIAL_RIPPLE.depth} onChange={(v) => setRadialRipple({ depth: v })} tooltip="Ripple amplitude in mm" />
-      </Section>
-
-      <Section title="Vertical Ripples" defaultOpen={false} checked={params.verticalRipple.enabled} onToggle={(v) => setVerticalRipple({ enabled: v })} tooltip="Horizontal ring-shaped ripples up the height" titleColor={GROUP_COLORS.surface}>
-        <div className="flex justify-end mb-1">
-          <button onClick={resetVerticalRipple} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
-        </div>
-        <SliderRow label="Count" value={params.verticalRipple.count} {...VERTICAL_RIPPLE.count} onChange={(v) => setVerticalRipple({ count: v })} tooltip="Number of ripple rings up the height" />
-        <SliderRow label="Depth" value={params.verticalRipple.depth} {...VERTICAL_RIPPLE.depth} onChange={(v) => setVerticalRipple({ depth: v })} tooltip="Ripple amplitude in mm" />
-      </Section>
-
       <GroupHeader label="Smoothing" color={GROUP_COLORS.smoothing} />
 
       <Section title="Smooth Zones" defaultOpen={false} checked={params.smoothZones?.enabled ?? false} onToggle={(v) => setSmoothZones({ enabled: v })} tooltip="Suppress ripples and textures near the base or rim" titleColor={GROUP_COLORS.smoothing}>
@@ -674,7 +695,7 @@ export function DimensionControls() {
           <SliderRow label="Rim Fade" value={params.smoothZones?.rimFade ?? 0} {...SMOOTH_ZONES.rimFade} tooltip="How much of the rim zone fades gradually (0% = hard cutoff, 100% = full blend)" onChange={(v) => setSmoothZones({ rimFade: v })} />
         )}
         <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
-          Suppresses ripples and textures near base/rim. Does not affect profile or twist.
+          Suppresses textures near base/rim. Does not affect profile or twist.
         </div>
       </Section>
 
@@ -685,7 +706,7 @@ export function DimensionControls() {
         <SliderRow label="Cycles" value={params.radialSmoothing.cycles} {...RADIAL_SMOOTHING.cycles} onChange={(v) => setRadialSmoothing({ cycles: v })} tooltip="Number of smoothing lobes around circumference" />
         <SliderRow label="Offset" value={params.radialSmoothing.offsetAngle} {...RADIAL_SMOOTHING.offsetAngle} onChange={(v) => setRadialSmoothing({ offsetAngle: v })} tooltip="Angular offset of smoothing pattern in degrees" />
         <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
-          Fades ripple intensity by angle. Does not affect textures.
+          Fades surface effect intensity by angle.
         </div>
       </Section>
 
@@ -696,7 +717,7 @@ export function DimensionControls() {
         <SliderRow label="Cycles" value={params.verticalSmoothing.cycles} {...VERTICAL_SMOOTHING.cycles} onChange={(v) => setVerticalSmoothing({ cycles: v })} tooltip="Number of smoothing bands up the height" />
         <SliderRow label="Start %" value={params.verticalSmoothing.startPercent} {...VERTICAL_SMOOTHING.startPercent} onChange={(v) => setVerticalSmoothing({ startPercent: v })} tooltip="Height % where smoothing begins" />
         <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
-          Fades ripple intensity by height. Does not affect textures.
+          Fades surface effect intensity by height.
         </div>
       </Section>
 

@@ -30,7 +30,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         'Adjust Dimensions (radius, height) to set the overall size',
         'Choose a cross-section shape (Circle, Star, Heart, etc.)',
         'Edit the profile curve to sculpt the vase outline',
-        'Add ripples, twist, or textures for surface detail',
+        'Add textures or twist for surface detail',
         'Set wall thickness for a printable hollow vase',
         'Export STL when you\'re happy with the design',
       ] },
@@ -130,14 +130,14 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Cycles', value: 'How many back-and-forth oscillations over the height' },
         { key: 'Max Degrees', value: 'How far it twists in degrees' },
       ] },
-      { type: 'tip', text: 'Wave Twist + Radial Ripple creates beautiful swirling patterns.' },
+      { type: 'tip', text: 'Wave Twist + Fluting creates beautiful swirling patterns.' },
 
       { type: 'heading', text: 'XY Sway' },
       { type: 'paragraph', text: 'XY Sway offsets the entire cross-section left/right (X) or forward/back (Y) at different heights. Each axis has its own Bezier curve editor plus a Scale slider.' },
       { type: 'paragraph', text: 'Use X Sway to make the vase lean. Combine both axes to create S-curves or spiraling offsets.' },
 
       { type: 'heading', text: 'Smoothing' },
-      { type: 'paragraph', text: 'Vertical and Radial Smoothing modulate the intensity of ripples. They fade ripples in/out along the height or around the circumference, preventing a uniform "stamped" look.' },
+      { type: 'paragraph', text: 'Vertical and Radial Smoothing modulate the intensity of surface effects (textures). They fade effects in/out along the height or around the circumference, preventing a uniform "stamped" look.' },
       { type: 'keyvalue', items: [
         { key: 'Vertical Cycles', value: 'Number of fade-in/fade-out bands up the height' },
         { key: 'Start Percent', value: 'Where the smoothing begins (0 = bottom)' },
@@ -189,6 +189,17 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Depth', value: 'Rod height outward (mm) \u2014 also the rod radius' },
         { key: 'Duty', value: 'Gap between rods. 0 = rods touching, 0.9 = narrow rods with wide flat gaps' },
       ] },
+
+      { type: 'heading', text: 'Vertical Textures' },
+      { type: 'paragraph', text: 'Vertical Fluting, Vertical Square Flute, Vertical Waves, and Vertical Rods are horizontal-band versions of their circumferential counterparts. Instead of running up the vase, these textures wrap around it as horizontal rings or bands.' },
+      { type: 'list', items: [
+        'Vertical Fluting \u2014 horizontal cosine grooves (bands up the height)',
+        'Vertical Square Flute \u2014 horizontal flat-topped bands with rectangular channels',
+        'Vertical Waves \u2014 horizontal cosine\u00b2 lobes going outward',
+        'Vertical Rods \u2014 horizontal semicircular bands going outward',
+      ] },
+      { type: 'paragraph', text: 'Each has the same Count, Depth, and Duty sliders as its circumferential counterpart. Count starts at 1 (useful for a single decorative band). Combine a circumferential texture with a vertical one for cross-hatch effects.' },
+      { type: 'tip', text: 'Try Fluting + Vertical Fluting together for a woven grid, or Rods + Vertical Rods for a bumpy lattice.' },
 
       { type: 'heading', text: 'Basket Weave' },
       { type: 'paragraph', text: 'Interlocking horizontal and vertical bands that alternate in/out, mimicking woven material.' },
@@ -254,14 +265,14 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'tip', text: 'For round or organic hole shapes with SVG cutout, use 150+ vertical and 200+ radial resolution. The hole boundaries follow the mesh grid, so more polygons = smoother curves.' },
 
       { type: 'heading', text: 'Smooth Zones' },
-      { type: 'paragraph', text: 'Smooth Zones suppress all surface effects (ripples, textures, and cutout holes) near the base and/or rim. This creates clean, solid bands at the top and bottom while keeping the textured middle.' },
+      { type: 'paragraph', text: 'Smooth Zones suppress all surface effects (textures and cutout holes) near the base and/or rim. This creates clean, solid bands at the top and bottom while keeping the textured middle.' },
       { type: 'keyvalue', items: [
         { key: 'Base %', value: 'Height percentage from the bottom that is kept smooth (0\u2013100%)' },
         { key: 'Rim %', value: 'Height percentage from the top that is kept smooth (0\u2013100%)' },
         { key: 'Base Fade', value: '0% = hard cutoff at base zone edge. 100% = gradual smoothstep blend across full base zone' },
         { key: 'Rim Fade', value: '0% = hard cutoff at rim zone edge. 100% = gradual smoothstep blend across full rim zone' },
       ] },
-      { type: 'paragraph', text: 'Base and Rim percentages automatically adjust so they never exceed 100% combined. Smooth Zones do not affect the profile curve, shape, or twist \u2014 only ripples and textures.' },
+      { type: 'paragraph', text: 'Base and Rim percentages automatically adjust so they never exceed 100% combined. Smooth Zones do not affect the profile curve, shape, or twist \u2014 only textures.' },
       { type: 'tip', text: 'Use 5\u201310% base and rim with 50\u2013100% fade for a polished look. Essential for cutout designs to keep the vase structurally sound at top and bottom.' },
     ],
   },

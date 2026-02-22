@@ -20,8 +20,6 @@ import { evaluateBezier, evaluateBezierScalar } from './bezier';
 import { getShapeFunction } from './shapes';
 import {
   sineTwist,
-  radialRipple,
-  verticalRipple,
   verticalSmoothing,
   radialSmoothing,
 } from './modifiers';
@@ -462,8 +460,6 @@ export function generateMesh(params: VaseParameters): VaseMesh {
       ? radialSmoothing(t, params.radialSmoothing.cycles, params.radialSmoothing.offsetAngle)
       : 1;
 
-    let radRipple = 0;
-    let vertRipple = 0;
     let fluting = 0;
     let wavesVal = 0;
     let rodsVal = 0;
@@ -472,21 +468,25 @@ export function generateMesh(params: VaseParameters): VaseMesh {
     let simplex = 0;
     let woodGrainVal = 0;
     let svgPatternVal = 0;
+    let vFluting = 0;
+    let vSquareFlute = 0;
+    let vWavesVal = 0;
+    let vRodsVal = 0;
 
     const szf = row.smoothZoneFactor;
 
     if (!skipEffects) {
-      radRipple = params.radialRipple.enabled
-        ? radialRipple(row.v, t, params.radialRipple.depth, params.radialRipple.count, 0)
-        : 0;
-
-      vertRipple = params.verticalRipple.enabled
-        ? verticalRipple(row.v, params.verticalRipple.depth, params.verticalRipple.count)
-        : 0;
-
-      fluting = texturesEnabled && params.textures.fluting.enabled
-        ? -params.textures.fluting.depth * Math.abs(sinD(params.textures.fluting.count * t))
-        : 0;
+      if (texturesEnabled && params.textures.fluting.enabled) {
+        const fl = params.textures.fluting;
+        const duty = fl.duty ?? 0;
+        const phase = ((t / 360) * fl.count) % 1;
+        const pillarWidth = 1 - duty;
+        const halfPillar = pillarWidth * 0.5;
+        const dist = Math.abs(phase - 0.5) / halfPillar;
+        if (dist < 1) {
+          fluting = -fl.depth * (1 + Math.cos(dist * Math.PI)) * 0.5;
+        }
+      }
 
       basketWeaveVal = texturesEnabled && params.textures.basketWeave.enabled
         ? params.textures.basketWeave.depth * sinD(
@@ -580,19 +580,73 @@ export function generateMesh(params: VaseParameters): VaseMesh {
         const brightness = sampleSvgPattern(tileU, tileV);
         svgPatternVal = -sp.depth * (sp.invert ? brightness : 1 - brightness);
       }
+
+      // Vertical Fluting — cosine grooves running horizontally (bands up the height)
+      // Uses cosine profile (deepest at center, zero at edges) instead of sine
+      // to avoid sampling artifacts from non-integer rows-per-period
+      if (texturesEnabled && params.textures.verticalFluting?.enabled) {
+        const vf = params.textures.verticalFluting;
+        const duty = vf.duty ?? 0;
+        const phase = (row.m * vf.count) % 1;
+        const pillarWidth = 1 - duty;
+        const halfPillar = pillarWidth * 0.5;
+        const dist = Math.abs(phase - 0.5) / halfPillar;
+        if (dist < 1) {
+          vFluting = -vf.depth * (1 + Math.cos(dist * Math.PI)) * 0.5;
+        }
+      }
+
+      // Vertical Square Flute — flat-topped horizontal bands with rectangular channels
+      if (texturesEnabled && params.textures.verticalSquareFlute?.enabled) {
+        const vsf = params.textures.verticalSquareFlute;
+        const phase = (row.m * vsf.count) % 1;
+        const halfDuty = vsf.duty * 0.5;
+        const dist = Math.abs(phase - 0.5) - halfDuty;
+        const edge = 0.005 + (1 - vsf.sharpness) * 0.15;
+        const tNorm = Math.max(0, Math.min(1, dist / edge));
+        const groove = tNorm * tNorm * (3 - 2 * tNorm);
+        vSquareFlute = -vsf.depth * groove;
+      }
+
+      // Vertical Waves — smooth cosine-squared lobes running horizontally
+      if (texturesEnabled && params.textures.verticalWaves?.enabled) {
+        const vw = params.textures.verticalWaves;
+        const phase = (row.m * vw.count) % 1;
+        const pillarWidth = 1 - vw.duty;
+        const halfPillar = pillarWidth * 0.5;
+        const dist = Math.abs(phase - 0.5) / halfPillar;
+        if (dist < 1) {
+          const cosVal = Math.cos(dist * Math.PI * 0.5);
+          vWavesVal = vw.depth * cosVal * cosVal;
+        }
+      }
+
+      // Vertical Rods — semicircular horizontal bands
+      if (texturesEnabled && params.textures.verticalRods?.enabled) {
+        const vr = params.textures.verticalRods;
+        const phase = (row.m * vr.count) % 1;
+        const pillarWidth = 1 - vr.duty;
+        const halfPillar = pillarWidth * 0.5;
+        const dist = Math.abs(phase - 0.5) / halfPillar;
+        if (dist < 1) {
+          vRodsVal = vr.depth * Math.sqrt(1 - dist * dist);
+        }
+      }
     }
 
     return shapeValue * row.shapeRadius
-      + radRipple * row.vSmooth * rSmooth * szf
-      + vertRipple * row.vSmooth * rSmooth * szf
-      + fluting * szf
-      + wavesVal * szf
-      + rodsVal * szf
-      + basketWeaveVal * szf
-      + voronoi * szf
-      + simplex * szf
-      + woodGrainVal * szf
-      + svgPatternVal * szf;
+      + fluting * row.vSmooth * rSmooth * szf
+      + wavesVal * row.vSmooth * rSmooth * szf
+      + rodsVal * row.vSmooth * rSmooth * szf
+      + basketWeaveVal * row.vSmooth * rSmooth * szf
+      + voronoi * row.vSmooth * rSmooth * szf
+      + simplex * row.vSmooth * rSmooth * szf
+      + woodGrainVal * row.vSmooth * rSmooth * szf
+      + svgPatternVal * row.vSmooth * rSmooth * szf
+      + vFluting * row.vSmooth * rSmooth * szf
+      + vSquareFlute * row.vSmooth * rSmooth * szf
+      + vWavesVal * row.vSmooth * rSmooth * szf
+      + vRodsVal * row.vSmooth * rSmooth * szf;
   }
 
   /**

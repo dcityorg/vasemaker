@@ -89,9 +89,6 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
   bottomShapeParams: defaultShapeParams(),
   topShapeParams: defaultTopShapeParams(),
 
-  radialRipple: { enabled: false, count: 6, depth: 4 },
-  verticalRipple: { enabled: false, count: 20, depth: 1 },
-
   bezierTwist: { enabled: false, points: [0, 0, 0, 0, 0] },
   sineTwist: { enabled: false, cycles: 2, maxDegrees: 50 },
 
@@ -108,7 +105,7 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
 
   textures: {
     enabled: false,
-    fluting: { enabled: false, count: 12, depth: 2 },
+    fluting: { enabled: false, count: 12, depth: 2, duty: 0 },
     basketWeave: { enabled: false, bands: 8, waves: 12, depth: 1.5 },
     voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0, cutout: false },
     simplex: { enabled: false, scale: 10, depth: 1.0, octaves: 3, persistence: 0.5, lacunarity: 2.0, seed: 0 },
@@ -117,6 +114,10 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
     squareFlute: { enabled: false, count: 20, depth: 2, duty: 0.5, sharpness: 0.9 },
     waves: { enabled: false, count: 20, depth: 2, duty: 0.3 },
     rods: { enabled: false, count: 20, depth: 2, duty: 0.3 },
+    verticalFluting: { enabled: false, count: 12, depth: 2, duty: 0 },
+    verticalSquareFlute: { enabled: false, count: 12, depth: 2, duty: 0.5, sharpness: 0.9 },
+    verticalWaves: { enabled: false, count: 12, depth: 2, duty: 0.3 },
+    verticalRods: { enabled: false, count: 12, depth: 2, duty: 0.3 },
   },
 
   resolution: { ...RESOLUTION.defaults },

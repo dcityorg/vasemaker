@@ -81,20 +81,6 @@ export interface VaseParameters {
   bottomShapeParams: Record<ShapeType, ShapeParams>;
   topShapeParams: Record<ShapeType, ShapeParams>;
 
-  // Radial ripples
-  radialRipple: {
-    enabled: boolean;
-    count: number;
-    depth: number;
-  };
-
-  // Vertical ripples
-  verticalRipple: {
-    enabled: boolean;
-    count: number;
-    depth: number;
-  };
-
   // Bezier twist
   bezierTwist: {
     enabled: boolean;
@@ -150,6 +136,7 @@ export interface VaseParameters {
       enabled: boolean;
       count: number;    // number of flutes around circumference
       depth: number;    // groove depth in mm
+      duty: number;     // groove width ratio (0=narrow grooves, 0.9=wide grooves)
     };
     basketWeave: {
       enabled: boolean;
@@ -209,6 +196,31 @@ export interface VaseParameters {
       count: number;        // number of semicircular rods around circumference
       depth: number;        // rod height outward in mm
       duty: number;         // gap ratio (0=touching, 0.9=narrow rods with wide gaps)
+    };
+    verticalFluting: {
+      enabled: boolean;
+      count: number;        // number of horizontal flute bands up the height
+      depth: number;        // groove depth in mm
+      duty: number;         // groove width ratio (0=narrow grooves, 0.9=wide grooves)
+    };
+    verticalSquareFlute: {
+      enabled: boolean;
+      count: number;        // number of horizontal square-flute bands
+      depth: number;        // channel depth in mm
+      duty: number;         // pillar-to-groove ratio (0.1–0.9)
+      sharpness: number;    // edge transition (0=rounded, 1=perfectly square)
+    };
+    verticalWaves: {
+      enabled: boolean;
+      count: number;        // number of wave bands up the height
+      depth: number;        // wave height outward in mm
+      duty: number;         // wave width ratio (0=touching, 0.9=narrow lobes)
+    };
+    verticalRods: {
+      enabled: boolean;
+      count: number;        // number of rod bands up the height
+      depth: number;        // rod height outward in mm
+      duty: number;         // gap ratio (0=touching, 0.9=narrow rods)
     };
   };
 

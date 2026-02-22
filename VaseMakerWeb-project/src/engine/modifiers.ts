@@ -22,36 +22,6 @@ export function sineTwist(
 }
 
 /**
- * Radial ripple — sine wave modulation around the circumference.
- * Returns offset in mm at vertical position v and angle t.
- *
- * OpenSCAD: function radialRipple(v, t) = radialRippleDepth * sin((t + twist(v)) * radialRippleCount)
- */
-export function radialRipple(
-  v: number,
-  t: number,
-  depth: number,
-  count: number,
-  twistValue: number
-): number {
-  return depth * sinD((t + twistValue) * count);
-}
-
-/**
- * Vertical ripple — sine wave modulation along the height.
- * Returns offset in mm at vertical position v.
- *
- * OpenSCAD: function verticalRipple(v, t) = verticalRippleDepth * cos(v * 360 * verticalRippleCount)
- */
-export function verticalRipple(
-  v: number,
-  depth: number,
-  count: number
-): number {
-  return depth * cosD(v * 360 * count);
-}
-
-/**
  * Vertical smoothing — cosine fade of ripple depth over height.
  * Returns a factor 0–1 (0 = ripples suppressed, 1 = full depth).
  *

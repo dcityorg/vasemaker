@@ -35,12 +35,6 @@ interface VaseStore {
   setBottomShapeParam: (shape: ShapeType, key: keyof ShapeParams, value: number) => void;
   setTopShapeParam: (shape: ShapeType, key: keyof ShapeParams, value: number) => void;
 
-  // Actions — radial ripple
-  setRadialRipple: (update: Partial<VaseParameters['radialRipple']>) => void;
-
-  // Actions — vertical ripple
-  setVerticalRipple: (update: Partial<VaseParameters['verticalRipple']>) => void;
-
   // Actions — bezier twist
   setBezierTwist: (update: Partial<VaseParameters['bezierTwist']>) => void;
   setBezierTwistPoint: (index: number, value: number) => void;
@@ -73,6 +67,10 @@ interface VaseStore {
   setSquareFlute: (update: Partial<VaseParameters['textures']['squareFlute']>) => void;
   setWaves: (update: Partial<VaseParameters['textures']['waves']>) => void;
   setRods: (update: Partial<VaseParameters['textures']['rods']>) => void;
+  setVerticalFluting: (update: Partial<VaseParameters['textures']['verticalFluting']>) => void;
+  setVerticalSquareFlute: (update: Partial<VaseParameters['textures']['verticalSquareFlute']>) => void;
+  setVerticalWaves: (update: Partial<VaseParameters['textures']['verticalWaves']>) => void;
+  setVerticalRods: (update: Partial<VaseParameters['textures']['verticalRods']>) => void;
 
   // Actions — smooth zones
   setSmoothZones: (update: Partial<VaseParameters['smoothZones']>) => void;
@@ -172,18 +170,6 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
           [shape]: { ...state.params.topShapeParams[shape], [key]: value },
         },
       },
-    })),
-
-  // Radial ripple
-  setRadialRipple: (update) =>
-    set((state) => ({
-      params: { ...state.params, radialRipple: { ...state.params.radialRipple, ...update } },
-    })),
-
-  // Vertical ripple
-  setVerticalRipple: (update) =>
-    set((state) => ({
-      params: { ...state.params, verticalRipple: { ...state.params.verticalRipple, ...update } },
     })),
 
   // Bezier twist
@@ -375,6 +361,46 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
         textures: {
           ...state.params.textures,
           rods: { ...state.params.textures.rods, ...update },
+        },
+      },
+    })),
+  setVerticalFluting: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: {
+          ...state.params.textures,
+          verticalFluting: { ...state.params.textures.verticalFluting, ...update },
+        },
+      },
+    })),
+  setVerticalSquareFlute: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: {
+          ...state.params.textures,
+          verticalSquareFlute: { ...state.params.textures.verticalSquareFlute, ...update },
+        },
+      },
+    })),
+  setVerticalWaves: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: {
+          ...state.params.textures,
+          verticalWaves: { ...state.params.textures.verticalWaves, ...update },
+        },
+      },
+    })),
+  setVerticalRods: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: {
+          ...state.params.textures,
+          verticalRods: { ...state.params.textures.verticalRods, ...update },
         },
       },
     })),

@@ -139,18 +139,6 @@ export const DIMENSIONS = {
   height: { min: 10, max: 300, step: 1 } as SliderRange,
 } as const;
 
-/** Radial ripple slider ranges */
-export const RADIAL_RIPPLE = {
-  count: { min: 1, max: 60, step: 1 } as SliderRange,
-  depth: { min: 0, max: 20, step: 0.1 } as SliderRange,
-} as const;
-
-/** Vertical ripple slider ranges */
-export const VERTICAL_RIPPLE = {
-  count: { min: 1, max: 60, step: 0.2 } as SliderRange,
-  depth: { min: 0, max: 20, step: 0.1 } as SliderRange,
-} as const;
-
 /** Bezier twist slider ranges */
 export const BEZIER_TWIST = {
   point: { min: -180, max: 180, step: 1 } as SliderRange,
@@ -179,6 +167,7 @@ export const TEXTURES = {
   fluting: {
     count: { min: 3, max: 60, step: 1 } as SliderRange,
     depth: { min: 0.1, max: 10, step: 0.1 } as SliderRange,
+    duty:  { min: 0, max: 0.9, step: 0.05 } as SliderRange,
   },
   basketWeave: {
     bands: { min: 3, max: 30, step: 1 } as SliderRange,
@@ -224,6 +213,27 @@ export const TEXTURES = {
   },
   rods: {
     count: { min: 3, max: 60, step: 1 } as SliderRange,
+    depth: { min: 0.1, max: 10, step: 0.1 } as SliderRange,
+    duty:  { min: 0, max: 0.9, step: 0.05 } as SliderRange,
+  },
+  verticalFluting: {
+    count: { min: 1, max: 60, step: 1 } as SliderRange,
+    depth: { min: 0.1, max: 10, step: 0.1 } as SliderRange,
+    duty:  { min: 0, max: 0.9, step: 0.05 } as SliderRange,
+  },
+  verticalSquareFlute: {
+    count:     { min: 1, max: 80, step: 1 } as SliderRange,
+    depth:     { min: 0.1, max: 10, step: 0.1 } as SliderRange,
+    duty:      { min: 0.1, max: 0.9, step: 0.05 } as SliderRange,
+    sharpness: { min: 0, max: 1, step: 0.05 } as SliderRange,
+  },
+  verticalWaves: {
+    count: { min: 1, max: 60, step: 1 } as SliderRange,
+    depth: { min: 0.1, max: 10, step: 0.1 } as SliderRange,
+    duty:  { min: 0, max: 0.9, step: 0.05 } as SliderRange,
+  },
+  verticalRods: {
+    count: { min: 1, max: 60, step: 1 } as SliderRange,
     depth: { min: 0.1, max: 10, step: 0.1 } as SliderRange,
     duty:  { min: 0, max: 0.9, step: 0.05 } as SliderRange,
   },
