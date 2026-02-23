@@ -19,7 +19,7 @@ export function Editor() {
 
   // Capture state — ephemeral UI state, not saved with design
   const [captureActive, setCaptureActive] = useState(false);
-  const [captureSizeIndex, setCaptureSizeIndex] = useState(1); // default 1280×960
+  const [captureSizeIndex, setCaptureSizeIndex] = useState(1); // default 960×1280
   const [customWidth, setCustomWidth] = useState(800);
   const [customHeight, setCustomHeight] = useState(600);
   const [captureFormat, setCaptureFormat] = useState<CaptureFormat>('png');

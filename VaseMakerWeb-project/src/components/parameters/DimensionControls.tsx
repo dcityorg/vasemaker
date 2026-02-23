@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useVaseStore } from '@/store/vase-store';
 import type { ShapeType } from '@/engine/types';
 import {
@@ -56,8 +56,19 @@ function Section({ title, children, defaultOpen = true, active, checked, onToggl
   title: string; children: React.ReactNode; defaultOpen?: boolean;
   active?: boolean; checked?: boolean; onToggle?: (v: boolean) => void; tooltip?: string; titleColor?: string;
 }) {
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+
+  const handleToggle = useCallback(() => {
+    const el = detailsRef.current;
+    if (!el || !el.open) return;
+    // Small delay so the browser lays out the expanded content first
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }, []);
+
   return (
-    <details open={defaultOpen} className="mb-4">
+    <details ref={detailsRef} open={defaultOpen} className="mb-4" onToggle={handleToggle}>
       <summary className="cursor-pointer text-sm font-medium py-2 px-3 bg-[var(--bg-secondary)] rounded select-none hover:bg-[var(--border-color)] transition-colors flex items-center gap-2" style={titleColor ? { color: titleColor } : { color: 'var(--text-primary)' }} title={tooltip}>
         <span className="flex-1">{title}</span>
         {onToggle ? (
