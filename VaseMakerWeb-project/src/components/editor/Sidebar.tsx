@@ -9,13 +9,39 @@ import { BUILT_IN_PRESETS, applyPreset } from '@/presets';
 import { downloadSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
 import { UI_MUTED } from '@/config/colors';
+import { CAPTURE_SIZE_PRESETS, CUSTOM_SIZE_INDEX } from '@/config/capture';
+import type { CaptureFormat } from '@/config/capture';
 
-export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggleHelp: () => void }) {
+interface SidebarProps {
+  helpOpen: boolean;
+  onToggleHelp: () => void;
+  designName: string | null;
+  onDesignNameChange: (name: string | null) => void;
+  captureActive: boolean;
+  captureSizeIndex: number;
+  customWidth: number;
+  customHeight: number;
+  captureFormat: CaptureFormat;
+  onCaptureSizeIndexChange: (i: number) => void;
+  onCustomWidthChange: (w: number) => void;
+  onCustomHeightChange: (h: number) => void;
+  onCaptureFormatChange: (f: CaptureFormat) => void;
+  onStartCapture: () => void;
+  onSaveCapture: () => void;
+  onCancelCapture: () => void;
+}
+
+export function Sidebar({
+  helpOpen, onToggleHelp,
+  designName, onDesignNameChange,
+  captureActive, captureSizeIndex, customWidth, customHeight, captureFormat,
+  onCaptureSizeIndexChange, onCustomWidthChange, onCustomHeightChange, onCaptureFormatChange,
+  onStartCapture, onSaveCapture, onCancelCapture,
+}: SidebarProps) {
   const { loadPreset, getParams, isDirty, markClean, undo: doUndo, redo: doRedo } = useVaseStore();
   const { canUndo, canRedo } = useHistoryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [designName, setDesignName] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
 
   const handleToggleAll = useCallback(() => {
@@ -69,7 +95,7 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
     a.download = `${saveName}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setDesignName(saveName);
+    onDesignNameChange(saveName);
     markClean();
   };
 
@@ -91,7 +117,7 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
         skipNextDirtyMark();
         useHistoryStore.getState().clear();
         useVaseStore.setState({ params, isDirty: false });
-        setDesignName(baseName);
+        onDesignNameChange(baseName);
       } catch {
         alert('Invalid design file.');
       }
@@ -100,6 +126,8 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
     // Reset so the same file can be loaded again
     e.target.value = '';
   };
+
+  const isCustomSize = captureSizeIndex === CUSTOM_SIZE_INDEX;
 
   return (
     <div className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
@@ -138,18 +166,19 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.77</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.78</p>
       </div>
 
-      {/* Toolbar */}
+      {/* Toolbar — all file operations grouped together */}
       <div className="px-3 py-2 border-b border-[var(--border-color)] flex flex-col gap-2">
+        {/* Presets */}
         <select
           onChange={(e) => {
             const preset = BUILT_IN_PRESETS[parseInt(e.target.value)];
             if (preset) {
               guardDirty(() => {
                 loadPreset(preset);
-                setDesignName(null);
+                onDesignNameChange(null);
               });
             }
             e.target.value = '';
@@ -163,7 +192,9 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
             <option key={i} value={i}>{p.name}</option>
           ))}
         </select>
-        <div className="flex gap-2">
+
+        {/* ── Design files ── */}
+        <div className="border-t-[3px] border-[#555] pt-2 flex gap-2">
           <button
             onClick={handleLoadDesign}
             className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
@@ -188,21 +219,121 @@ export function Sidebar({ helpOpen, onToggleHelp }: { helpOpen: boolean; onToggl
             className="hidden"
           />
         </div>
+
+        {/* ── Image capture ── */}
+        <div className="border-t-[3px] border-[#555] pt-2 flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <select
+              value={captureSizeIndex}
+              onChange={(e) => onCaptureSizeIndexChange(parseInt(e.target.value))}
+              className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs"
+              style={{ color: UI_MUTED }}
+              title="Image size preset"
+            >
+              {CAPTURE_SIZE_PRESETS.map((s, i) => (
+                <option key={i} value={i}>{s.label}</option>
+              ))}
+              <option value={CUSTOM_SIZE_INDEX}>Custom</option>
+            </select>
+            <div className="flex items-center gap-1.5">
+              <label className="flex items-center gap-1 text-xs text-[var(--text-secondary)] cursor-pointer" title="PNG format (lossless)">
+                <input
+                  type="radio"
+                  name="captureFormat"
+                  checked={captureFormat === 'png'}
+                  onChange={() => onCaptureFormatChange('png')}
+                  className="accent-[var(--accent)]"
+                />
+                PNG
+              </label>
+              <label className="flex items-center gap-1 text-xs text-[var(--text-secondary)] cursor-pointer" title="JPG format (smaller file)">
+                <input
+                  type="radio"
+                  name="captureFormat"
+                  checked={captureFormat === 'jpg'}
+                  onChange={() => onCaptureFormatChange('jpg')}
+                  className="accent-[var(--accent)]"
+                />
+                JPG
+              </label>
+            </div>
+          </div>
+
+          {/* Custom size inputs */}
+          {isCustomSize && (
+            <div className="flex items-center gap-2 ml-2 pl-3 border-l-2 border-[var(--border-color)]">
+              <label className="text-xs text-[var(--text-secondary)]">W</label>
+              <input
+                type="number"
+                value={customWidth}
+                min={100}
+                max={4096}
+                onChange={(e) => onCustomWidthChange(Math.max(100, Math.min(4096, parseInt(e.target.value) || 100)))}
+                className="w-16 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-xs text-[var(--text-primary)] tabular-nums"
+              />
+              <label className="text-xs text-[var(--text-secondary)]">H</label>
+              <input
+                type="number"
+                value={customHeight}
+                min={100}
+                max={4096}
+                onChange={(e) => onCustomHeightChange(Math.max(100, Math.min(4096, parseInt(e.target.value) || 100)))}
+                className="w-16 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-xs text-[var(--text-primary)] tabular-nums"
+              />
+            </div>
+          )}
+
+          {/* Capture / Save / Cancel buttons */}
+          {!captureActive ? (
+            <button
+              onClick={onStartCapture}
+              className="w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
+              style={{ color: UI_MUTED }}
+              title="Show capture frame on viewport, then save image"
+            >
+              Capture Image
+            </button>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <button
+                  onClick={onSaveCapture}
+                  className="flex-1 py-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-medium rounded transition-colors"
+                  title="Save the current view as an image"
+                >
+                  Save Image
+                </button>
+                <button
+                  onClick={onCancelCapture}
+                  className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
+                  title="Exit capture mode"
+                >
+                  Cancel
+                </button>
+              </div>
+              <p className="text-[10px] text-[var(--text-secondary)] opacity-60">
+                Orbit/zoom to compose your shot. Drag corners to resize frame.
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* ── Export STL ── */}
+        <div className="border-t-[3px] border-[#555] pt-2">
+          <button
+            onClick={handleExportSTL}
+            className="w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
+            style={{ color: UI_MUTED }}
+            title="Export 3D model as STL file for printing"
+          >
+            Export STL
+          </button>
+        </div>
       </div>
 
       {/* Parameter controls — scrollable */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto sidebar-scroll px-3 py-3">
         <DimensionControls />
-      </div>
-
-      {/* Export button — fixed at bottom */}
-      <div className="px-3 py-3 border-t border-[var(--border-color)]">
-        <button
-          onClick={handleExportSTL}
-          className="w-full py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium rounded transition-colors"
-        >
-          Export STL
-        </button>
       </div>
 
       {/* Unsaved changes confirmation dialog */}

@@ -59,13 +59,16 @@ VaseMakerWeb-project/src/
 │   ├── parameters/DimensionControls.tsx  # ALL parameter UI (sliders, toggles, shape dropdowns)
 │   ├── parameters/BezierCurveEditor.tsx # Reusable SVG curve editor (drag points, double-click add, right-click remove)
 │   └── viewport/
-│       ├── Viewport.tsx     # R3F Canvas, lighting, camera, controls
-│       ├── VaseMesh.tsx     # Renders BufferGeometry from mesh data
-│       └── SceneHelpers.tsx # Ground grid, axis rulers, origin indicator
+│       ├── Viewport.tsx        # R3F Canvas, lighting, camera, controls
+│       ├── VaseMesh.tsx        # Renders BufferGeometry from mesh data
+│       ├── SceneHelpers.tsx    # Ground grid, axis rulers, origin indicator
+│       ├── CaptureOverlay.tsx  # Frame overlay with corner resize handles
+│       └── CaptureRenderer.tsx # Screenshot + crop capture (inside Canvas)
 ├── config/
 │   ├── shape-params.ts  # All slider ranges (dimensions, shapes, ripples, twists, smoothing, textures)
 │   ├── viewport.ts      # Camera, lighting, grid, axis colors/sizes
 │   ├── colors.ts        # UI color palette — sidebar group colors + utility muted color
+│   ├── capture.ts       # Image capture size presets and types
 │   └── presets.ts       # Built-in preset definitions (data only)
 ├── store/
 │   ├── vase-store.ts    # Zustand store — single source of truth for all params
@@ -78,6 +81,7 @@ VaseMakerWeb-project/src/
 │   └── use-debounce.ts  # Debounce utility (defined but not wired in yet)
 └── lib/
     ├── math-utils.ts    # sinD, cosD, tanD, rad, deg, clamp, lerp
+    ├── image-capture.ts # canvasToBlob + downloadImage for image export
     └── constants.ts     # Default resolution/dimension values
 ```
 
@@ -136,6 +140,8 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Sidebar UI** — Sections organized into 5 color-coded groups: Shape & Structure (blue `#7BA3CF`), Surface (amber `#C9A84C`), Smoothing (green `#7BAF7B`), Twist (purple `#A78BBA`), Settings (gray `#9B9B9B`). Group headers and section titles share the same color. Utility elements (preset dropdown, Load/Save buttons, shape dropdowns) use muted gray (`#9B9B9B`). All colors defined in `config/colors.ts` for easy customization. Indented content with left border, Reset buttons always visible. Texture sub-sliders have second-level indentation with vertical border line. Hint text on Vertical/Radial Smoothing sections clarifying they fade surface effect intensity
 - **Tooltips** — Native browser tooltips (`title` attribute) on all sliders, toggles, and section headers. Provides brief descriptions of each parameter's effect without cluttering the UI
 - **Help panel** — Right-side push-layout panel toggled by "?" button. 5 sections: Quick Start, Shapes (with SuperFormula guide), Profile/Twist/Sway, Textures, 3D Printing Tips. Pure data in `content/help-content.ts`, rendered by `HelpPanel.tsx`. Slide-in animation, viewport auto-resizes
+- **Image Capture** — Save viewport screenshots as PNG or JPG. Capture mode shows a resizable frame overlay on the viewport; user composes the shot by orbiting/zooming (controls pass through the frame via `pointer-events: none`), then saves the framed region at a chosen resolution. 7 size presets (640×480 to 2048×2048) plus custom dimensions. Architecture: `CaptureOverlay.tsx` (HTML layer with box-shadow dimming, corner drag handles for aspect-locked resizing), `CaptureRenderer.tsx` (inside Canvas, uses `preserveDrawingBuffer` + `drawImage` crop from main canvas for pixel-perfect color match). Rulers auto-hidden in captures. State is ephemeral (React useState in Editor, not Zustand). Canvas uses `alpha: false` to prevent premultiplied-alpha grey veil on export. Config in `src/config/capture.ts`, download utility in `src/lib/image-capture.ts`
+- **Sidebar toolbar reorganization** — All file operations grouped in the toolbar area: Presets | Design Load/Save | Image Capture | Export STL, separated by 3px `#555` divider lines. Export STL and Capture Image use consistent muted grey button style
 
 ## What's NOT Implemented Yet
 
