@@ -14,6 +14,54 @@ import { sinD, cosD, tanD } from '@/lib/math-utils';
 export type ShapeFunction = (t: number, params: ShapeParams) => number;
 
 /**
+ * Polar distance to a rounded rectangle boundary.
+ * ax, ay = |cos(t)|, |sin(t)| (first-quadrant direction)
+ * hw, hh = half-width, half-height of the rectangle
+ * cr = corner radius (0 to min(hw,hh))
+ *
+ * Three regions per quadrant:
+ * 1. Flat top/bottom edge: angle steep enough that ray hits y=hh before x=(hw-cr)
+ * 2. Flat left/right edge: angle shallow enough that ray hits x=hw before y=(hh-cr)
+ * 3. Corner arc: angle between the two tangent points, ray hits the circle
+ */
+function roundedRectPolar(ax: number, ay: number, hw: number, hh: number, cr: number): number {
+  // Tangent angles: the corner arc spans where the flat edges end
+  // Top edge tangent point: (hw-cr, hh) → angle = atan2(hh, hw-cr)
+  // Right edge tangent point: (hw, hh-cr) → angle = atan2(hh-cr, hw)
+  // In the corner region, both ax*(hh-cr) < ay*hw AND ay*(hw-cr) < ax*hh
+  // Equivalently: ax/ay < hw/(hh-cr) AND ay/ax < hh/(hw-cr)
+
+  const ix = hw - cr; // inset x
+  const iy = hh - cr; // inset y
+
+  // Check if ray hits the right flat edge (y < hh-cr at x=hw)
+  // At x=hw: r = hw/ax, y = r*ay = hw*ay/ax. Flat if y <= iy
+  if (ax > 1e-9 && hw * ay <= iy * ax) {
+    return hw / ax;
+  }
+  // Check if ray hits the top flat edge (x < hw-cr at y=hh)
+  // At y=hh: r = hh/ay, x = r*ax = hh*ax/ay. Flat if x <= ix
+  if (ay > 1e-9 && hh * ax <= ix * ay) {
+    return hh / ay;
+  }
+  // Corner arc region: ray-circle intersection
+  // Circle center at (ix, iy), radius cr
+  // Ray: P = r*(ax, ay), solve |P - C|² = cr²
+  // r² - 2r*(ax*ix + ay*iy) + (ix² + iy² - cr²) = 0
+  const dot = ax * ix + ay * iy;
+  const c2 = ix * ix + iy * iy - cr * cr;
+  const disc = dot * dot - c2;
+  if (disc >= 0) {
+    return dot + Math.sqrt(disc);
+  }
+  // Fallback (shouldn't happen with valid params)
+  return Math.min(
+    ax > 1e-9 ? hw / ax : 1e9,
+    ay > 1e-9 ? hh / ay : 1e9
+  );
+}
+
+/**
  * Registry of all shape functions, keyed by ShapeType.
  * Replaces the massive ternary chain in the OpenSCAD code.
  */
@@ -102,12 +150,21 @@ export const shapeRegistry: Record<ShapeType, ShapeFunction> = {
       cosD(t - (360 / n) * Math.floor((n * t + 180) / 360));
   },
 
-  // Rectangle — axis-aligned rectangle
+  // Rectangle — axis-aligned rectangle with optional rounded corners
   // http://stackoverflow.com/questions/4788892/draw-square-with-polar-coordinates
   Rectangle1: (t, p) => {
     const sx = p.scaleX ?? 1;
     const sy = p.scaleY ?? 1.5;
-    return p.scaleFactor * Math.min(sx / Math.abs(cosD(t)), sy / Math.abs(sinD(t)));
+    const rnd = p.rounding ?? 0;
+    const ax = Math.abs(cosD(t));
+    const ay = Math.abs(sinD(t));
+    if (rnd <= 0) {
+      return p.scaleFactor * Math.min(
+        ax > 1e-9 ? sx / ax : 1e9,
+        ay > 1e-9 ? sy / ay : 1e9
+      );
+    }
+    return p.scaleFactor * roundedRectPolar(ax, ay, sx, sy, rnd * Math.min(sx, sy));
   },
 
   // Rose — rhodonea with adjustable center
@@ -118,9 +175,19 @@ export const shapeRegistry: Record<ShapeType, ShapeFunction> = {
     return p.scaleFactor * (center + cosD(petals * t)) / (1 + center);
   },
 
-  // Square — special case of Rectangle with equal sides
-  Square1: (t, p) =>
-    p.scaleFactor * Math.min(1 / Math.abs(cosD(t)), 1 / Math.abs(sinD(t))),
+  // Square — special case of Rectangle with equal sides, optional rounding
+  Square1: (t, p) => {
+    const rnd = p.rounding ?? 0;
+    const ax = Math.abs(cosD(t));
+    const ay = Math.abs(sinD(t));
+    if (rnd <= 0) {
+      return p.scaleFactor * Math.min(
+        ax > 1e-9 ? 1 / ax : 1e9,
+        ay > 1e-9 ? 1 / ay : 1e9
+      );
+    }
+    return p.scaleFactor * roundedRectPolar(ax, ay, 1, 1, rnd * 1);
+  },
 
   // Astroid — pinched four-pointed star with concave sides
   // https://en.wikipedia.org/wiki/Astroid

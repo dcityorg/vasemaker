@@ -112,6 +112,8 @@ All defined in `shapes.ts` as `(angleDegrees, ShapeParams) => radius`:
 
 **4 shapes (v0.85):** Cassini1 (pinched peanut oval, eccentricity param), Cycloid1 (epicycloid↔hypocycloid continuous blend, cusps + epi/hypo slider), Teardrop1 (asymmetric piriform, pointiness param), Nephroid1 (kidney/bean, indent param)
 
+**Shape enhancements (v0.86):** Square1 and Rectangle1 now have a `rounding` parameter (0–1) for rounded corners. Uses `roundedRectPolar()` helper — ray-circle intersection at corner arcs with proper tangent-point region detection for clean flat-edge-to-arc transitions. At rounding=1, Square becomes a circle and Rectangle becomes an ellipse-like shape.
+
 Note: OpenSCAD spells it "Cardiod" (typo) but the TS port uses "Cardioid".
 
 ## Modulation Pipeline (in mesh-generator.ts)

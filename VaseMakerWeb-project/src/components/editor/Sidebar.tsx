@@ -165,7 +165,7 @@ export function Sidebar({
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.85</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.86</p>
         {editingName ? (
           <input
             ref={nameInputRef}

@@ -61,6 +61,7 @@ export interface ShapeParams {
   teeth?: number;         // Gear1
   depth?: number;         // Gear1
   steepness?: number;     // Gear1
+  rounding?: number;      // Square1, Rectangle1
   eccentricity?: number;  // Cassini1
   cusps?: number;         // Cycloid1
   mode?: number;          // Cycloid1 (0=epicycloid, 1=hypocycloid)

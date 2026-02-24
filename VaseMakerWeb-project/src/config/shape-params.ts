@@ -80,10 +80,14 @@ export const SHAPE_PARAM_CONFIG: Partial<Record<ShapeType, ParamSpec[]>> = {
   Rectangle1: [
     { key: 'scaleX', label: 'Scale X', min: 0.1, max: 3, step: 0.1 },
     { key: 'scaleY', label: 'Scale Y', min: 0.1, max: 3, step: 0.1 },
+    { key: 'rounding', label: 'Rounding', min: 0, max: 1, step: 0.05 },
   ],
   Rose1: [
     { key: 'centerSize', label: 'Center', min: 0, max: 3, step: 0.1 },
     { key: 'petalNumber', label: 'Petals', min: 2, max: 12, step: 1 },
+  ],
+  Square1: [
+    { key: 'rounding', label: 'Rounding', min: 0, max: 1, step: 0.05 },
   ],
   SuperEllipse1: [
     { key: 'n', label: 'Exponent', min: 0.5, max: 5, step: 0.1 },
