@@ -9,6 +9,7 @@ import { BUILT_IN_PRESETS, applyPreset } from '@/presets';
 import { downloadSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
 import { UI_MUTED } from '@/config/colors';
+import { saveDesignFile } from '@/lib/image-capture';
 import { CAPTURE_SIZE_PRESETS, CUSTOM_SIZE_INDEX } from '@/config/capture';
 import type { CaptureFormat } from '@/config/capture';
 
@@ -42,7 +43,9 @@ export function Sidebar({
   const { canUndo, canRedo } = useHistoryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [editingName, setEditingName] = useState(false);
 
   const handleToggleAll = useCallback(() => {
     const container = scrollRef.current;
@@ -84,19 +87,15 @@ export function Sidebar({
     downloadSTL(mesh, stlName);
   };
 
-  const handleSaveDesign = () => {
+  const handleSaveDesign = async () => {
     const params = getParams();
     const json = JSON.stringify(params, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const saveName = designName || 'vase-design';
-    a.download = `${saveName}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    onDesignNameChange(saveName);
-    markClean();
+    const suggestedName = designName || 'vase-design';
+    const chosenName = await saveDesignFile(json, suggestedName);
+    if (chosenName !== null) {
+      onDesignNameChange(chosenName);
+      markClean();
+    }
   };
 
   const handleLoadDesign = () => {
@@ -166,8 +165,49 @@ export function Sidebar({
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.79</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.84</p>
+        {editingName ? (
+          <input
+            ref={nameInputRef}
+            type="text"
+            defaultValue={designName || ''}
+            placeholder="Untitled"
+            className="text-xs text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1 py-0.5 w-full outline-none focus:border-[var(--accent)]"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const val = e.currentTarget.value.trim();
+                onDesignNameChange(val || null);
+                setEditingName(false);
+              } else if (e.key === 'Escape') {
+                setEditingName(false);
+              }
+            }}
+            onBlur={(e) => {
+              const val = e.currentTarget.value.trim();
+              onDesignNameChange(val || null);
+              setEditingName(false);
+            }}
+          />
+        ) : (
+          <p
+            className="text-xs text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] transition-colors"
+            title="Click to rename design"
+            onClick={() => {
+              setEditingName(true);
+              requestAnimationFrame(() => {
+                nameInputRef.current?.focus();
+                nameInputRef.current?.select();
+              });
+            }}
+          >
+            {isDirty && <span className="text-[var(--accent)]">* </span>}
+            {designName || 'Untitled'}
+          </p>
+        )}
       </div>
+
+      {/* Scrollable area — toolbar + parameter controls */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto sidebar-scroll">
 
       {/* Toolbar — all file operations grouped together */}
       <div className="px-3 py-2 border-b border-[var(--border-color)] flex flex-col gap-2">
@@ -178,7 +218,7 @@ export function Sidebar({
             if (preset) {
               guardDirty(() => {
                 loadPreset(preset);
-                onDesignNameChange(null);
+                onDesignNameChange(preset.name);
               });
             }
             e.target.value = '';
@@ -331,10 +371,12 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Parameter controls — scrollable */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto sidebar-scroll px-3 py-3">
+      {/* Parameter controls */}
+      <div className="px-3 py-3">
         <DimensionControls />
       </div>
+
+      </div>{/* end scrollable area */}
 
       {/* Unsaved changes confirmation dialog */}
       {confirmAction && (

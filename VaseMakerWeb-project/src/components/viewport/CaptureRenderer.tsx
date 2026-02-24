@@ -97,7 +97,7 @@ export function CaptureRenderer({
       try {
         const blob = await canvasToBlob(cropCanvas, format);
         const ext = format === 'jpg' ? 'jpg' : 'png';
-        downloadImage(blob, `${filename}.${ext}`);
+        await downloadImage(blob, `${filename}.${ext}`);
       } catch (err) {
         console.error('Image capture failed:', err);
       }
