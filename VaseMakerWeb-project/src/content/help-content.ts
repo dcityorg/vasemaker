@@ -75,17 +75,25 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: 'shapes',
     title: 'Shapes',
     blocks: [
-      { type: 'paragraph', text: 'The cross-section shape determines the vase\'s horizontal profile \u2014 what it looks like when viewed from above. VaseMaker includes 25 polar shapes.' },
+      { type: 'paragraph', text: 'The cross-section shape determines the vase\'s horizontal profile \u2014 what it looks like when viewed from above. VaseMaker includes 29 polar shapes.' },
       { type: 'heading', text: 'Shape Categories' },
       { type: 'keyvalue', items: [
         { key: 'Simple', value: 'Circle, Ellipse, Square, Rectangle, Diamond, Polygon' },
-        { key: 'Organic', value: 'Heart, Egg (2 variants), Butterfly, Cardioid (3 variants)' },
-        { key: 'Mathematical', value: 'Rose, SuperEllipse, SuperFormula, Infinity, Limacon, Folium, Astroid, Lissajous, RationalRose' },
-        { key: 'Mechanical', value: 'Gear (up to 60 teeth), Spirograph, Misc' },
+        { key: 'Organic', value: 'Heart, Egg (2 variants), Butterfly, Cardioid (3 variants), Teardrop' },
+        { key: 'Mathematical', value: 'Rose, SuperEllipse, SuperFormula, Infinity, Limacon, Folium, Astroid, Lissajous, RationalRose, Cassini Oval, Nephroid' },
+        { key: 'Mechanical', value: 'Gear (up to 60 teeth), Spirograph, Cycloid, Misc' },
       ] },
       { type: 'heading', text: 'Shape Morphing' },
       { type: 'paragraph', text: 'Bottom Shape is always active. Open the Top Shape section and toggle it on to enable morphing \u2014 the vase will smoothly blend from the bottom shape at the base to the top shape at the rim. Each shape has its own independent parameters.' },
       { type: 'tip', text: 'Try morphing Circle \u2192 Star or Square \u2192 Heart for dramatic effects.' },
+
+      { type: 'heading', text: 'New Shapes' },
+      { type: 'keyvalue', items: [
+        { key: 'Cassini Oval', value: 'Smooth pinched oval / peanut shape. The Pinch slider controls how narrow the waist is (higher = more circular, lower = deeper pinch).' },
+        { key: 'Cycloid', value: 'Rolling-circle curves. Epi/Hypo slider blends from epicycloid (0, rounded outward bumps) to hypocycloid (1, inward-cusped stars), with unique hybrid shapes in between. Cusps sets the number of lobes (2=kidney, 3=deltoid, 4=astroid, 5+=stars).' },
+        { key: 'Teardrop', value: 'Asymmetric raindrop/pear shape \u2014 round on one side, narrowing on the other. Pointiness controls how sharp the narrow end is.' },
+        { key: 'Nephroid', value: 'Kidney/bean shape with a single smooth indentation. Indent controls depth from circle (0) to deep kidney (1).' },
+      ] },
 
       { type: 'heading', text: 'SuperFormula Guide' },
       { type: 'paragraph', text: 'The SuperFormula (Gielis formula) is the most versatile shape. It can produce circles, stars, polygons, petals, and many organic forms \u2014 all from 6 parameters.' },
@@ -256,7 +264,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
 
       { type: 'heading', text: 'SVG Pattern' },
-      { type: 'paragraph', text: 'Use any SVG image as a displacement map. Dark areas become grooves, white areas stay flush.' },
+      { type: 'paragraph', text: 'Use any SVG image as a displacement map. The image is converted to grayscale and used as a depth map: black = full depth groove, white = no displacement, gray = proportional depth in between. This means grayscale SVGs produce multi-depth relief effects \u2014 useful for subtle, layered textures.' },
       { type: 'keyvalue', items: [
         { key: 'Paste SVG', value: 'Open a dialog to paste SVG code or CSS code from pattern sites (Hero Patterns, Pattern Monster, etc.)' },
         { key: 'Load SVG', value: 'Open an .svg file from your computer' },
@@ -267,13 +275,13 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Invert', value: 'Swap which areas are grooves vs. ridges' },
         { key: 'Cutout', value: 'Punch holes through the wall at dark areas (see Cutout Mode below)' },
       ] },
-      { type: 'tip', text: 'Use high-contrast black and white SVGs for the clearest patterns. Increase Resolution for fine detail.' },
+      { type: 'tip', text: 'Use high-contrast black and white SVGs for the clearest patterns. Grayscale SVGs work too \u2014 they produce shallower relief for lighter areas. Increase Resolution for fine detail.' },
 
       { type: 'heading', text: 'Cutout Mode' },
       { type: 'paragraph', text: 'Voronoi and SVG Pattern have a Cutout toggle that punches holes through the vase wall, creating lattice or perforated designs. Instead of displacing the surface, cutout removes triangles entirely and seals the hole edges with connecting walls.' },
       { type: 'list', items: [
         'Voronoi Cutout: cell centers become holes, edges remain as a lattice framework',
-        'SVG Pattern Cutout: dark areas become holes, white areas stay solid. Use high-contrast black/white SVGs for clean cutouts',
+        'SVG Pattern Cutout: dark areas become holes, white areas stay solid. Use high-contrast black/white SVGs for clean cutouts. Grayscale areas fall in the threshold transition zone and produce ragged, unpredictable hole edges',
         'The Edge Width slider (Voronoi) controls how thick the lattice bars are',
         'Cutout holes are automatically suppressed in Smooth Zones to keep the base and rim solid',
         'Higher Resolution produces smoother, rounder hole edges. At low resolution, holes will look blocky',
@@ -353,13 +361,36 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'tip', text: 'Print a small test piece first. Lattice vases with thin bars may need supports or slower print speed.' },
 
+      { type: 'heading', text: 'Shape Printability' },
+      { type: 'paragraph', text: 'Some cross-section shapes can produce geometry that looks great on screen but may not print well or at all. Shapes with thin lobes, sharp cusps, or self-crossing outlines can result in paper-thin walls that no printer can reproduce.' },
+      { type: 'keyvalue', items: [
+        { key: 'Spirograph', value: 'Thin lobes that taper to near-zero width. Higher petal count = thinner petals. Print as decorative display piece only.' },
+        { key: 'SuperFormula', value: 'Extreme m/n values can produce very thin spikes or deeply concave indentations. Start with mild values and check the preview.' },
+        { key: 'Astroid, Folium', value: 'Sharp cusps where the curve pinches to a point. The cusp areas will be extremely thin.' },
+        { key: 'Rose, RationalRose', value: 'Many petals with deep valleys between them can create thin sections near the center.' },
+        { key: 'Cycloid (Hypo)', value: 'Hypocycloid mode creates sharp inward cusps. Low cusp counts (2\u20133) have extreme thin points.' },
+      ] },
+      { type: 'tip', text: 'If you love a shape but it has thin areas, try increasing the radius, reducing the shape-specific parameters, or using it as a Top Shape morphed from a simpler Bottom Shape so only the rim has the complex outline.' },
+
+      { type: 'heading', text: 'Self-Intersection' },
+      { type: 'paragraph', text: 'Self-intersection happens when the vase surface folds through itself, creating overlapping geometry. The 3D preview may look odd (inside-out patches, dark flickering faces), and slicers may produce errors or failed prints.' },
+      { type: 'paragraph', text: 'Common causes:' },
+      { type: 'list', items: [
+        'Deep textures on a small radius \u2014 if texture depth exceeds the vase radius, the surface pushes past the center and folds back on itself',
+        'Large profile multiplier + deep textures \u2014 a wide flare (3\u20135\u00d7) at one height combined with deep grooves can overlap at narrow sections',
+        'Aggressive XY Sway \u2014 large offsets can push one side of the vase through the opposite side',
+        'Complex cross-section shapes (SuperFormula, Spirograph) with high parameter values \u2014 the shape itself may loop or cross over',
+        'Thin wall thickness + deep inward textures \u2014 inner wall pushes past outer wall. Use Smooth Inner or increase Min Wall to prevent this',
+      ] },
+      { type: 'paragraph', text: 'Fixes: reduce texture depth, increase radius, lower the profile multiplier at problem heights, simplify the cross-section shape, or enable Smooth Inner for the inner wall. VaseMaker does not detect or prevent self-intersection \u2014 you are free to create any geometry, but the STL may not slice correctly for printing.' },
+
       { type: 'heading', text: 'Troubleshooting' },
       { type: 'list', items: [
         'Slicer shows holes or non-manifold: increase wall thickness or resolution',
         'Print is too fragile: increase wall thickness and base thickness',
         'Surface detail not visible: reduce wall thickness or increase texture depth',
         'File too large: lower resolution (especially radial)',
-        'Complex shapes self-intersect: simplify the cross-section or reduce ripple amplitude',
+        'Complex shapes self-intersect: see Self-Intersection section above',
         'Textures not showing: make sure the master Textures toggle is on',
       ] },
     ],

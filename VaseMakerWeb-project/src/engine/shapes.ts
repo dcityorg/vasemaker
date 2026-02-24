@@ -217,6 +217,74 @@ export const shapeRegistry: Record<ShapeType, ShapeFunction> = {
       -1 / n1
     );
   },
+
+  // Cassini Oval — pinched peanut / smooth waist shape
+  // https://en.wikipedia.org/wiki/Cassini_oval
+  // r² = cos(2θ) ± sqrt(e⁴ - sin²(2θ)), e > 1 guarantees single loop
+  Cassini1: (t, p) => {
+    const e = p.eccentricity ?? 1.5;
+    const e4 = e * e * e * e;
+    const c2 = cosD(2 * t);
+    const s2 = sinD(2 * t);
+    const disc = e4 - s2 * s2;
+    // e > 1 guarantees disc >= 0, but clamp for safety
+    const r2 = c2 + Math.sqrt(Math.max(0, disc));
+    // Normalize so max radius ≈ 1 (at θ=0, r² = 1 + e², so r = sqrt(1+e²))
+    const norm = Math.sqrt(1 + e * e);
+    return p.scaleFactor * Math.sqrt(Math.max(0, r2)) / norm;
+  },
+
+  // Cycloid — epicycloid (outward bumps) or hypocycloid (inward cusps)
+  // https://en.wikipedia.org/wiki/Epicycloid
+  // https://en.wikipedia.org/wiki/Hypocycloid
+  Cycloid1: (t, p) => {
+    const cusps = Math.round(p.cusps ?? 4);
+    const blend = Math.max(0, Math.min(1, p.mode ?? 0)); // 0=epi, 1=hypo
+    const R = cusps;
+    const r = 1;
+    // Epicycloid: point on circle rolling outside
+    const exEpi = (R + r) * cosD(t) - r * cosD((R + r) * t);
+    const eyEpi = (R + r) * sinD(t) - r * sinD((R + r) * t);
+    const maxEpi = R + 2 * r;
+    const rEpi = Math.sqrt(exEpi * exEpi + eyEpi * eyEpi) / maxEpi;
+    // Hypocycloid: point on circle rolling inside
+    const exHypo = (R - r) * cosD(t) + r * cosD((R - r) * t);
+    const eyHypo = (R - r) * sinD(t) - r * sinD((R - r) * t);
+    const maxHypo = R;
+    const rHypo = Math.sqrt(exHypo * exHypo + eyHypo * eyHypo) / maxHypo;
+    // Blend between the two
+    return p.scaleFactor * (rEpi * (1 - blend) + rHypo * blend);
+  },
+
+  // Teardrop — asymmetric pear/raindrop shape (piriform curve)
+  // Uses r = 1 - d*cos(t) base with sin-power modulation for pointed end
+  // At pointiness=0 → circle, higher values → sharper narrow end
+  Teardrop1: (t, p) => {
+    const n = p.pointiness ?? 2;
+    // Cardioid-like base: (1 + cos(t)) is 2 at t=0 (wide end), 0 at t=180 (pointed end)
+    // Raise to power n to control how sharp the pointed end is
+    // Then add a floor to keep minimum radius > 0
+    const rad = t * Math.PI / 180;
+    const base = (1 + Math.cos(rad)) / 2; // 0 to 1, peaks at t=0
+    const shaped = Math.pow(base, n);      // sharper point at higher n
+    // Blend: at n=0 this is circular, at higher n the t=180 side gets very narrow
+    // Floor keeps it from going to zero (avoid degenerate geometry)
+    const floor = 0.15;
+    const r = floor + (1 - floor) * shaped;
+    return p.scaleFactor * r;
+  },
+
+  // Nephroid — kidney/bean shape (2-cusped epicycloid)
+  // https://en.wikipedia.org/wiki/Nephroid
+  // r = sqrt(10 - 6·cos(2θ)) normalized, with tunable indentation depth
+  Nephroid1: (t, p) => {
+    const indent = p.indent ?? 0.6;
+    // indent=0 → circle, indent=1 → full nephroid (deep kidney shape)
+    const r = Math.sqrt(4 + 6 * indent - 6 * indent * cosD(2 * t));
+    // At indent=0: r = 2 (circle). At indent=1: r = sqrt(10 - 6*cos(2t)), max=4, min=2
+    const maxR = 2 + 2 * indent; // normalize to ~1 at maximum
+    return p.scaleFactor * r / maxR;
+  },
 };
 
 /**

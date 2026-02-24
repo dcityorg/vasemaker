@@ -165,7 +165,7 @@ export function Sidebar({
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.84</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.85</p>
         {editingName ? (
           <input
             ref={nameInputRef}
@@ -373,7 +373,7 @@ export function Sidebar({
 
       {/* Parameter controls */}
       <div className="px-3 py-3">
-        <DimensionControls />
+        <DimensionControls designName={designName} />
       </div>
 
       </div>{/* end scrollable area */}

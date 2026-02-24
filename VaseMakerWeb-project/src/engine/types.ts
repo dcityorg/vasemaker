@@ -24,7 +24,11 @@ export type ShapeType =
   | 'RationalRose1'
   | 'Spirograph1'
   | 'SuperEllipse1'
-  | 'SuperFormula1';
+  | 'SuperFormula1'
+  | 'Cassini1'
+  | 'Cycloid1'
+  | 'Teardrop1'
+  | 'Nephroid1';
 
 /** Parameters specific to each shape */
 export interface ShapeParams {
@@ -57,6 +61,11 @@ export interface ShapeParams {
   teeth?: number;         // Gear1
   depth?: number;         // Gear1
   steepness?: number;     // Gear1
+  eccentricity?: number;  // Cassini1
+  cusps?: number;         // Cycloid1
+  mode?: number;          // Cycloid1 (0=epicycloid, 1=hypocycloid)
+  pointiness?: number;    // Teardrop1
+  indent?: number;        // Nephroid1
 }
 
 /** A Bezier control point: [value, heightFraction] */

@@ -21,7 +21,9 @@ export const SHAPE_OPTIONS: { value: ShapeType; label: string }[] = [
   { value: 'Cardioid1', label: 'Cardioid (sharp)' },
   { value: 'Cardioid2', label: 'Cardioid (smooth)' },
   { value: 'Cardioid3', label: 'Cardioid (offset)' },
+  { value: 'Cassini1', label: 'Cassini Oval' },
   { value: 'Circle1', label: 'Circle' },
+  { value: 'Cycloid1', label: 'Cycloid' },
   { value: 'Diamond1', label: 'Diamond' },
   { value: 'Egg1', label: 'Egg 1' },
   { value: 'Egg2', label: 'Egg 2' },
@@ -33,6 +35,7 @@ export const SHAPE_OPTIONS: { value: ShapeType; label: string }[] = [
   { value: 'Limacon1', label: 'Limacon' },
   { value: 'Lissajous1', label: 'Lissajous' },
   { value: 'Misc1', label: 'Misc' },
+  { value: 'Nephroid1', label: 'Nephroid' },
   { value: 'Polygon1', label: 'Polygon' },
   { value: 'RationalRose1', label: 'Rational Rose' },
   { value: 'Rectangle1', label: 'Rectangle' },
@@ -41,6 +44,7 @@ export const SHAPE_OPTIONS: { value: ShapeType; label: string }[] = [
   { value: 'Square1', label: 'Square' },
   { value: 'SuperEllipse1', label: 'SuperEllipse' },
   { value: 'SuperFormula1', label: 'SuperFormula' },
+  { value: 'Teardrop1', label: 'Teardrop' },
 ];
 
 /**
@@ -120,6 +124,19 @@ export const SHAPE_PARAM_CONFIG: Partial<Record<ShapeType, ParamSpec[]>> = {
     { key: 'bigR', label: 'Big R', min: 1, max: 8, step: 0.5 },
     { key: 'smallR', label: 'Small R', min: 0.5, max: 5, step: 0.5 },
     { key: 'd', label: 'Pen Dist', min: 0.1, max: 2, step: 0.1 },
+  ],
+  Cassini1: [
+    { key: 'eccentricity', label: 'Pinch', min: 1.05, max: 3, step: 0.05 },
+  ],
+  Cycloid1: [
+    { key: 'cusps', label: 'Cusps', min: 2, max: 8, step: 1 },
+    { key: 'mode', label: 'Epi/Hypo', min: 0, max: 1, step: 0.05 },
+  ],
+  Teardrop1: [
+    { key: 'pointiness', label: 'Pointiness', min: 0.5, max: 5, step: 0.1 },
+  ],
+  Nephroid1: [
+    { key: 'indent', label: 'Indent', min: 0, max: 1, step: 0.05 },
   ],
 };
 

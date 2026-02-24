@@ -44,7 +44,7 @@ When the user says "Save Code", perform these steps in order:
 VaseMakerWeb-project/src/
 ├── engine/              # Pure math — NO UI dependencies
 │   ├── types.ts         # VaseParameters, ShapeType, VaseMesh interfaces
-│   ├── shapes.ts        # 25 polar shape functions (shapeRegistry)
+│   ├── shapes.ts        # 29 polar shape functions (shapeRegistry)
 │   ├── bezier.ts        # De Casteljau Bezier evaluation
 │   ├── modifiers.ts     # Twist, smoothing functions
 │   ├── mesh-generator.ts # Main generateMesh() — vertex grid + triangle indices
@@ -56,7 +56,13 @@ VaseMakerWeb-project/src/
 │   ├── editor/Editor.tsx    # Main layout (sidebar + viewport + optional help panel)
 │   ├── editor/Sidebar.tsx   # Preset selector, save/load, undo/redo, STL export, help toggle
 │   ├── editor/HelpPanel.tsx # Right-side help panel (accordion sections, slide-in animation)
-│   ├── parameters/DimensionControls.tsx  # ALL parameter UI (sliders, toggles, shape dropdowns)
+│   ├── parameters/DimensionControls.tsx  # Thin wrapper composing all parameter sections
+│   ├── parameters/ui.tsx                # Shared UI primitives (SliderRow, Section, GroupHeader, Toggle)
+│   ├── parameters/ShapeControls.tsx     # Dimensions, Shell, Shape selection, Profile, XY Sway
+│   ├── parameters/TextureControls.tsx   # All 13 textures + SVG dialog
+│   ├── parameters/SmoothingControls.tsx # Smooth Zones, Radial/Vertical Smoothing
+│   ├── parameters/TwistControls.tsx     # Custom Twist, Wave Twist
+│   ├── parameters/SettingsControls.tsx  # Appearance, Resolution
 │   ├── parameters/BezierCurveEditor.tsx # Reusable SVG curve editor (drag points, double-click add, right-click remove)
 │   └── viewport/
 │       ├── Viewport.tsx        # R3F Canvas, lighting, camera, controls
@@ -97,12 +103,14 @@ VaseMesh.tsx updates BufferGeometry → Three.js renders
 - Vase bottom sits at Z=0 on the XY plane
 - Camera positioned at [80, 80, 120] looking at [0, 0, 50]
 
-## The 25 Polar Shapes
+## The 29 Polar Shapes
 All defined in `shapes.ts` as `(angleDegrees, ShapeParams) => radius`:
 
 **Original 18 (from OpenSCAD):** Butterfly1, Cardioid1/2/3, Circle1, Diamond1, Egg1/2, Ellipse1, Heart1, Infinity1, Misc1, Polygon1, Rectangle1, Rose1, Square1, SuperEllipse1, SuperFormula1
 
-**7 new shapes:** Astroid1, Folium1, Gear1, Limacon1, Lissajous1, RationalRose1, Spirograph1
+**7 shapes (added early):** Astroid1, Folium1, Gear1, Limacon1, Lissajous1, RationalRose1, Spirograph1
+
+**4 shapes (v0.85):** Cassini1 (pinched peanut oval, eccentricity param), Cycloid1 (epicycloid↔hypocycloid continuous blend, cusps + epi/hypo slider), Teardrop1 (asymmetric piriform, pointiness param), Nephroid1 (kidney/bean, indent param)
 
 Note: OpenSCAD spells it "Cardiod" (typo) but the TS port uses "Cardioid".
 
@@ -118,7 +126,7 @@ For each vertex at height v (0-1) and angle t (0-360):
 When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface (reversed winding), bottom cap (outer disc at z=0 + inner disc at inner start height), rim (flat or rounded), and cutout wall quads (if cutout enabled). Per-row data is precomputed into `RowContext` structs (includes `smoothZoneFactor`). Cutout skips triangles where `cutoutGrid` is true and adds manifold wall quads at hole boundaries.
 
 ## Implemented Features
-- **25 cross-section shapes** with shape-specific parameter sliders, alphabetized in dropdown
+- **29 cross-section shapes** with shape-specific parameter sliders, alphabetized in dropdown
 - **Bezier profile curve editor** — interactive SVG, drag/add/remove control points (max 8)
 - **Shape morphing** — Bottom Shape (always on) + Top Shape (header toggle controls morphing)
 - **Custom Twist** — BezierCurveEditor for twist degrees at each height
@@ -162,7 +170,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 ### UI & UX
 - More presets, preset thumbnails/descriptions
 - Export filename picker
-- DimensionControls.tsx component split
+- ~~DimensionControls.tsx component split~~ (done — split into ShapeControls, TextureControls, SmoothingControls, TwistControls, SettingsControls)
 - Fixed-position XYZ gizmo
 
 ### Technical
@@ -264,7 +272,7 @@ return shapeValue * row.shapeRadius
 - Use `?.` optional chaining on `params.textures.myTexture` for backward compat with old save files that don't have the field
 - Existing reusable functions: `hash2D(ix, iy, seed)` returns `[0,1)` pair, `simplex3D(x,y,z,perm)` returns `[-1,1]`, `fbm3D(x,y,z,octaves,persistence,lacunarity,perm)` returns `[-1,1]`
 
-### 6. `src/components/parameters/DimensionControls.tsx` — UI controls
+### 6. `src/components/parameters/TextureControls.tsx` — UI controls
 Three edits:
 
 **a) Destructure the setter:**

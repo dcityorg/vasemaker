@@ -34,6 +34,10 @@ function defaultShapeParams(): Record<ShapeType, ShapeParams> {
     Spirograph1:   { scaleFactor: 1,    offsetX: 0,   offsetY: 0, bigR: 3, smallR: 1, d: 0.5 },
     SuperEllipse1: { scaleFactor: 1,    offsetX: 0,   offsetY: 0, n: 2.8, scaleX: 0.6, scaleY: 1 },
     SuperFormula1: { scaleFactor: 1,    offsetX: 0,   offsetY: 0, a: 1, b: 1, m: 2, n1: 0.4, n2: 1, n3: 2 },
+    Cassini1:      { scaleFactor: 1,    offsetX: 0,   offsetY: 0, eccentricity: 1.5 },
+    Cycloid1:      { scaleFactor: 1,    offsetX: 0,   offsetY: 0, cusps: 4, mode: 0 },
+    Teardrop1:     { scaleFactor: 1,    offsetX: 0,   offsetY: 0, pointiness: 2 },
+    Nephroid1:     { scaleFactor: 1,    offsetX: 0,   offsetY: 0, indent: 0.6 },
   };
 }
 
@@ -65,6 +69,10 @@ function defaultTopShapeParams(): Record<ShapeType, ShapeParams> {
     Spirograph1:   { scaleFactor: 1,    offsetX: 0, offsetY: 0, bigR: 3, smallR: 1, d: 0.5 },
     SuperEllipse1: { scaleFactor: 1,    offsetX: 0, offsetY: 0, n: 2.8, scaleX: 0.6, scaleY: 1 },
     SuperFormula1: { scaleFactor: 1,    offsetX: 0, offsetY: 0, a: 1, b: 1, m: 2, n1: 0.4, n2: 1, n3: 2 },
+    Cassini1:      { scaleFactor: 1,    offsetX: 0, offsetY: 0, eccentricity: 1.5 },
+    Cycloid1:      { scaleFactor: 1,    offsetX: 0, offsetY: 0, cusps: 4, mode: 0 },
+    Teardrop1:     { scaleFactor: 1,    offsetX: 0, offsetY: 0, pointiness: 2 },
+    Nephroid1:     { scaleFactor: 1,    offsetX: 0, offsetY: 0, indent: 0.6 },
   };
 }
 

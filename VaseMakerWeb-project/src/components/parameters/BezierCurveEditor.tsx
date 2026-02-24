@@ -22,7 +22,7 @@ interface BezierCurveEditorProps {
 }
 
 // Layout constants
-const PADDING = { top: 8, right: 12, bottom: 24, left: 32 };
+const PADDING = { top: 8, right: 12, bottom: 29, left: 32 };
 const CURVE_SAMPLES = 60;
 const POINT_RADIUS = 6;
 const POINT_HIT_RADIUS = 12;
@@ -179,7 +179,7 @@ export function BezierCurveEditor({
   const xTicks = useMemo(() => {
     const ticks: number[] = [];
     const range = xRange[1] - xRange[0];
-    const step = range <= 3 ? 0.5 : range <= 10 ? 1 : 5;
+    const step = range <= 3 ? 0.5 : range <= 10 ? 1 : range <= 50 ? 5 : range <= 200 ? 25 : range <= 1000 ? 100 : 500;
     for (let v = xRange[0]; v <= xRange[1] + 0.001; v += step) {
       ticks.push(Math.round(v * 10) / 10);
     }
