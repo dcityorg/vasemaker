@@ -44,6 +44,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'keyvalue', items: [
         { key: '\u2318Z', value: 'Undo' },
         { key: '\u2318\u21e7Z', value: 'Redo' },
+        { key: '\u2190 \u2192', value: 'Click a slider, then use arrow keys to nudge the value one step at a time for precise control' },
       ] },
       { type: 'heading', text: 'Design Name' },
       { type: 'paragraph', text: 'The design name appears below the version line in the sidebar header. Click it to rename your design. The name is used for Save Design, Save Image, and Export STL filenames. An asterisk (*) appears when you have unsaved changes.' },
@@ -53,6 +54,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'paragraph', text: 'Save Design exports your parameters as a JSON file. Load Design imports a previously saved file. Your design is fully described by the parameters \u2014 no mesh data is stored, so files are tiny.' },
       { type: 'paragraph', text: 'If you have unsaved changes and try to load a design or select a preset, you\'ll see a confirmation dialog with options to Save & Continue, Don\'t Save, or Cancel. This prevents accidentally losing your work.' },
       { type: 'tip', text: 'Save frequently! There\'s no auto-save. If you refresh the page, unsaved changes are lost.' },
+      { type: 'tip', text: 'Chrome and Edge provide the best file management experience \u2014 save dialogs remember the last folder you used, and filenames carry over between Load, Save, and Export. Other browsers (Brave, Firefox, Safari) may not remember directories or read back renamed filenames.' },
       { type: 'heading', text: 'Image Capture' },
       { type: 'paragraph', text: 'Capture Image saves a screenshot of your vase design as a PNG or JPG file. A resizable frame appears on the viewport showing exactly what will be captured.' },
       { type: 'list', items: [
@@ -81,7 +83,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Simple', value: 'Circle, Ellipse, Square (with rounding), Rectangle (with rounding), Diamond, Polygon' },
         { key: 'Organic', value: 'Heart, Egg (2 variants), Butterfly, Cardioid (3 variants), Teardrop' },
         { key: 'Mathematical', value: 'Rose, SuperEllipse, SuperFormula, Infinity, Limacon, Folium, Astroid, Lissajous, RationalRose, Cassini Oval, Nephroid' },
-        { key: 'Mechanical', value: 'Gear (up to 60 teeth), Spirograph, Cycloid, Misc' },
+        { key: 'Mechanical', value: 'Gear (up to 60 teeth), Spirograph, Cycloid, Piriform' },
       ] },
       { type: 'heading', text: 'Shape Morphing' },
       { type: 'paragraph', text: 'Bottom Shape is always active. Open the Top Shape section and toggle it on to enable morphing \u2014 the vase will smoothly blend from the bottom shape at the base to the top shape at the rim. Each shape has its own independent parameters.' },

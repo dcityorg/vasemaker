@@ -3,7 +3,6 @@
  */
 
 import type { VaseMesh } from './types';
-import { downloadBlob } from '@/lib/image-capture';
 
 /**
  * Generate a binary STL file from mesh data.
@@ -81,11 +80,3 @@ export function generateSTL(mesh: VaseMesh): ArrayBuffer {
   return buffer;
 }
 
-/**
- * Trigger a download of the STL file in the browser.
- */
-export function downloadSTL(mesh: VaseMesh, filename = 'vase.stl'): void {
-  const buffer = generateSTL(mesh);
-  const blob = new Blob([buffer], { type: 'application/octet-stream' });
-  downloadBlob(blob, filename);
-}

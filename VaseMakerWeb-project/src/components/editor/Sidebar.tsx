@@ -6,10 +6,10 @@ import { useVaseStore } from '@/store/vase-store';
 import { useHistoryStore, skipNextHistoryRecord } from '@/store/history';
 import { skipNextDirtyMark } from '@/store/vase-store';
 import { BUILT_IN_PRESETS, applyPreset } from '@/presets';
-import { downloadSTL } from '@/engine/stl-export';
+import { generateSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
 import { UI_MUTED } from '@/config/colors';
-import { saveDesignFile } from '@/lib/image-capture';
+import { saveDesignFile, openDesignFile, saveSTLFile } from '@/lib/image-capture';
 import { CAPTURE_SIZE_PRESETS, CUSTOM_SIZE_INDEX } from '@/config/capture';
 import type { CaptureFormat } from '@/config/capture';
 
@@ -80,11 +80,13 @@ export function Sidebar({
     }
   };
 
-  const handleExportSTL = () => {
+  const handleExportSTL = async () => {
     const params = getParams();
     const mesh = generateMesh(params);
     const stlName = designName ? `${designName}.stl` : 'vasemaker-export.stl';
-    downloadSTL(mesh, stlName);
+    const buffer = generateSTL(mesh);
+    const blob = new Blob([buffer], { type: 'application/octet-stream' });
+    await saveSTLFile(blob, stlName);
   };
 
   const handleSaveDesign = async () => {
@@ -99,7 +101,26 @@ export function Sidebar({
   };
 
   const handleLoadDesign = () => {
-    guardDirty(() => fileInputRef.current?.click());
+    guardDirty(async () => {
+      // Try File System Access API first (remembers directory)
+      const result = await openDesignFile();
+      if (result) {
+        try {
+          const loaded = JSON.parse(result.text);
+          const params = applyPreset({ parameters: loaded });
+          skipNextHistoryRecord();
+          skipNextDirtyMark();
+          useHistoryStore.getState().clear();
+          useVaseStore.setState({ params, isDirty: false });
+          onDesignNameChange(result.name);
+        } catch {
+          alert('Invalid design file.');
+        }
+        return;
+      }
+      // Fallback: file input (Firefox / API not available)
+      fileInputRef.current?.click();
+    });
   };
 
   const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,7 +186,7 @@ export function Sidebar({
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.86</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.87</p>
         {editingName ? (
           <input
             ref={nameInputRef}

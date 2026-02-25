@@ -34,8 +34,8 @@ export const SHAPE_OPTIONS: { value: ShapeType; label: string }[] = [
   { value: 'Infinity1', label: 'Infinity' },
   { value: 'Limacon1', label: 'Limacon' },
   { value: 'Lissajous1', label: 'Lissajous' },
-  { value: 'Misc1', label: 'Misc' },
   { value: 'Nephroid1', label: 'Nephroid' },
+  { value: 'Piriform1', label: 'Piriform' },
   { value: 'Polygon1', label: 'Polygon' },
   { value: 'RationalRose1', label: 'Rational Rose' },
   { value: 'Rectangle1', label: 'Rectangle' },
@@ -70,7 +70,7 @@ export const SHAPE_PARAM_CONFIG: Partial<Record<ShapeType, ParamSpec[]>> = {
   Infinity1: [
     { key: 'parameter1', label: 'Parameter', min: 1, max: 2, step: 0.01 },
   ],
-  Misc1: [
+  Piriform1: [
     { key: 'a', label: 'a', min: 0.1, max: 5, step: 0.1 },
     { key: 'b', label: 'b', min: 0.1, max: 5, step: 0.1 },
   ],
@@ -156,8 +156,8 @@ export type SliderRange = { min: number; max: number; step: number };
 
 /** Vase dimensions */
 export const DIMENSIONS = {
-  radius: { min: 10, max: 100, step: 1 } as SliderRange,
-  height: { min: 10, max: 300, step: 1 } as SliderRange,
+  diameter: { min: 20, max: 300, step: 1 } as SliderRange,
+  height: { min: 10, max: 500, step: 1 } as SliderRange,
 } as const;
 
 /** Bezier twist slider ranges */
@@ -277,9 +277,9 @@ export const SMOOTH_ZONES = {
 
 /** Shell / wall thickness slider ranges */
 export const SHELL = {
-  wallThickness:    { min: 0, max: 5, step: 0.1 } as SliderRange,
-  bottomThickness:  { min: 0, max: 5, step: 0.1 } as SliderRange,
-  minWallThickness: { min: 0.1, max: 5, step: 0.1 } as SliderRange,
+  wallThickness:    { min: 0, max: 10, step: 0.1 } as SliderRange,
+  bottomThickness:  { min: 0, max: 10, step: 0.1 } as SliderRange,
+  minWallThickness: { min: 0.1, max: 10, step: 0.1 } as SliderRange,
 } as const;
 
 /** Default vase appearance */

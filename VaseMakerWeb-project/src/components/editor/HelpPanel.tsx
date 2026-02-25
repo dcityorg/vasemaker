@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { HELP_SECTIONS, type HelpBlock } from '@/content/help-content';
 
 function renderBlock(block: HelpBlock, index: number) {
@@ -64,9 +65,58 @@ function renderBlock(block: HelpBlock, index: number) {
   }
 }
 
+const MIN_WIDTH = 240;
+const MAX_WIDTH = 600;
+const DEFAULT_WIDTH = 320;
+
 export function HelpPanel({ onClose }: { onClose: () => void }) {
+  const [width, setWidth] = useState(DEFAULT_WIDTH);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const startWidth = useRef(0);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragging.current = true;
+    startX.current = e.clientX;
+    startWidth.current = width;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [width]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragging.current) return;
+      // Dragging left edge: moving mouse left = wider panel
+      const delta = startX.current - e.clientX;
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta));
+      setWidth(newWidth);
+    };
+    const handleMouseUp = () => {
+      if (!dragging.current) return;
+      dragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
   return (
-    <div className="w-80 h-full bg-[var(--bg-panel)] border-l border-[var(--border-color)] flex flex-col help-panel-enter shrink-0">
+    <div
+      className="h-full bg-[var(--bg-panel)] border-l border-[var(--border-color)] flex flex-col help-panel-enter shrink-0 relative"
+      style={{ width }}
+    >
+      {/* Resize handle */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-[var(--accent)]/30 active:bg-[var(--accent)]/50 transition-colors z-10"
+        onMouseDown={handleMouseDown}
+        title="Drag to resize"
+      />
       {/* Header */}
       <div className="px-4 py-3 border-b border-[var(--border-color)] flex items-center">
         <h2 className="text-lg font-semibold text-[var(--text-primary)] flex-1">Help</h2>

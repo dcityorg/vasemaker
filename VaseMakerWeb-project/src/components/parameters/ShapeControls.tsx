@@ -76,11 +76,11 @@ export function ShapeControls() {
     <>
       <GroupHeader label="Shape & Structure" color={GROUP_COLORS.structure} />
 
-      <Section title="Dimensions" tooltip="Overall size of the vase" titleColor={GROUP_COLORS.structure}>
+      <Section title="Dimensions (mm)" tooltip="Overall size of the vase in millimeters" titleColor={GROUP_COLORS.structure}>
         <div className="flex justify-end mb-1">
           <button onClick={() => { setRadius(DEFAULT_PARAMETERS.radius); setHeight(DEFAULT_PARAMETERS.height); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Radius" value={params.radius} {...DIMENSIONS.radius} onChange={setRadius} tooltip="Outer radius of the vase in mm" />
+        <SliderRow label="Diameter" value={params.radius * 2} {...DIMENSIONS.diameter} onChange={(v) => setRadius(v / 2)} tooltip="Outer diameter of the vase in mm" />
         <SliderRow label="Height" value={params.height} {...DIMENSIONS.height} onChange={setHeight} tooltip="Total height of the vase in mm" />
       </Section>
 
@@ -89,10 +89,10 @@ export function ShapeControls() {
           <button onClick={() => { setWallThickness(DEFAULT_PARAMETERS.wallThickness); setBottomThickness(DEFAULT_PARAMETERS.bottomThickness); setRimShape(DEFAULT_PARAMETERS.rimShape); setSmoothInner(DEFAULT_PARAMETERS.smoothInner); setMinWallThickness(DEFAULT_PARAMETERS.minWallThickness); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
         <SliderRow label="Base" value={params.bottomThickness} {...SHELL.bottomThickness} onChange={setBottomThickness} tooltip="Base thickness in mm (0 = no base)" />
-        <SliderRow label="Wall" value={params.wallThickness} {...SHELL.wallThickness} onChange={setWallThickness} tooltip="Wall thickness in mm (0 = thin surface)" />
+        <SliderRow label="Wall" value={params.wallThickness} {...SHELL.wallThickness} onChange={(v) => { setWallThickness(v); if ((params.minWallThickness ?? DEFAULT_PARAMETERS.minWallThickness) > v) setMinWallThickness(v); }} tooltip="Wall thickness in mm (0 = thin surface)" />
         {params.wallThickness > 0 && (
           <>
-            <SliderRow label="Min Wall" value={params.minWallThickness ?? DEFAULT_PARAMETERS.minWallThickness} {...SHELL.minWallThickness} max={params.wallThickness} onChange={(v) => setMinWallThickness(Math.min(v, params.wallThickness))} tooltip="Minimum wall thickness when Smooth Inner is on" />
+            <SliderRow label="Min Wall" value={params.minWallThickness ?? DEFAULT_PARAMETERS.minWallThickness} {...SHELL.minWallThickness} onChange={(v) => setMinWallThickness(Math.min(v, params.wallThickness))} tooltip="Minimum wall thickness when Smooth Inner is on" />
             <div className="flex items-center gap-3 mb-2">
               <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Shape of the top edge where outer meets inner wall">Rim</label>
               <div className="flex gap-3">

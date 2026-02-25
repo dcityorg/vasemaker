@@ -5,6 +5,15 @@
 
 import type { CaptureFormat } from '@/config/capture';
 
+// Remember last file handle from any open/save operation so subsequent
+// save dialogs open in the same directory (File System Access API only).
+let lastFileHandle: FileSystemFileHandle | null = null;
+
+/** Store a file handle so future save dialogs start in its directory. */
+export function setLastFileHandle(handle: FileSystemFileHandle): void {
+  lastFileHandle = handle;
+}
+
 /**
  * Convert a canvas element to a Blob in the specified format.
  */
@@ -51,9 +60,10 @@ function anchorDownload(blob: Blob, filename: string): void {
   a.click();
 }
 
-// Type for showSaveFilePicker
-type SavePickerWindow = Window & {
+// Types for File System Access API
+type PickerWindow = Window & {
   showSaveFilePicker: (opts: unknown) => Promise<FileSystemFileHandle>;
+  showOpenFilePicker: (opts: unknown) => Promise<FileSystemFileHandle[]>;
 };
 
 /**
@@ -73,13 +83,15 @@ export async function downloadImage(blob: Blob, filename: string): Promise<void>
     try {
       const ext = filename.split('.').pop() || 'png';
       const mimeType = ext === 'jpg' ? 'image/jpeg' : 'image/png';
-      const handle = await (window as unknown as SavePickerWindow).showSaveFilePicker({
+      const handle = await (window as unknown as PickerWindow).showSaveFilePicker({
         suggestedName: filename,
+        startIn: lastFileHandle ?? undefined,
         types: [{
           description: ext === 'jpg' ? 'JPEG Image' : 'PNG Image',
           accept: { [mimeType]: [`.${ext}`] },
         }],
       });
+      lastFileHandle = handle;
       const writable = await handle.createWritable();
       await writable.write(blob);
       await writable.close();
@@ -105,13 +117,15 @@ export async function saveDesignFile(json: string, suggestedName: string): Promi
   if ('showSaveFilePicker' in window) {
     try {
       console.log('[SaveDesign] Using showSaveFilePicker');
-      const handle = await (window as unknown as SavePickerWindow).showSaveFilePicker({
+      const handle = await (window as unknown as PickerWindow).showSaveFilePicker({
         suggestedName: filename,
+        startIn: lastFileHandle ?? undefined,
         types: [{
           description: 'JSON Design File',
           accept: { 'application/json': ['.json'] },
         }],
       });
+      lastFileHandle = handle;
       const writable = await handle.createWritable();
       await writable.write(blob);
       await writable.close();
@@ -132,4 +146,58 @@ export async function saveDesignFile(json: string, suggestedName: string): Promi
   // Fallback: anchor click — name stays as suggested
   anchorDownload(blob, filename);
   return suggestedName;
+}
+
+/**
+ * Open a design JSON file using the File System Access API.
+ * Returns { name, text } on success, null if cancelled or API not available.
+ * Remembers the directory for subsequent save dialogs.
+ */
+export async function openDesignFile(): Promise<{ name: string; text: string } | null> {
+  if (!('showOpenFilePicker' in window)) return null;
+  try {
+    const [handle] = await (window as unknown as PickerWindow).showOpenFilePicker({
+      startIn: lastFileHandle ?? undefined,
+      types: [{
+        description: 'JSON Design File',
+        accept: { 'application/json': ['.json'] },
+      }],
+    });
+    lastFileHandle = handle;
+    const file = await handle.getFile();
+    const text = await file.text();
+    return { name: file.name.replace(/\.json$/i, ''), text };
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') return null;
+    console.warn('[LoadDesign] showOpenFilePicker failed:', err);
+    return null;
+  }
+}
+
+/**
+ * Save an STL blob using the File System Access API with directory memory.
+ * Falls back to anchor download if API not available or user cancels.
+ */
+export async function saveSTLFile(blob: Blob, filename: string): Promise<void> {
+  if ('showSaveFilePicker' in window) {
+    try {
+      const handle = await (window as unknown as PickerWindow).showSaveFilePicker({
+        suggestedName: filename,
+        startIn: lastFileHandle ?? undefined,
+        types: [{
+          description: 'STL 3D Model',
+          accept: { 'application/octet-stream': ['.stl'] },
+        }],
+      });
+      lastFileHandle = handle;
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      console.warn('[ExportSTL] showSaveFilePicker failed, falling back to anchor:', err);
+    }
+  }
+  anchorDownload(blob, filename);
 }

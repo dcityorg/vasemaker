@@ -133,8 +133,9 @@ export const shapeRegistry: Record<ShapeType, ShapeFunction> = {
     return 0.7 * p.scaleFactor * Math.sqrt(Math.max(0, val));
   },
 
-  // Misc1 — unusual asymmetric shape
-  Misc1: (t, p) => {
+  // Piriform1 — generalized piriform (pear-shaped) curve with offset
+  // https://mathworld.wolfram.com/PiriformCurve.html
+  Piriform1: (t, p) => {
     const a = p.a ?? 3;
     const b = p.b ?? 1;
     const x = 2 * Math.pow(Math.abs(sinD(t)), a) * cosD(t);

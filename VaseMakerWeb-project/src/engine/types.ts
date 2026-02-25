@@ -11,7 +11,7 @@ export type ShapeType =
   | 'Ellipse1'
   | 'Heart1'
   | 'Infinity1'
-  | 'Misc1'
+  | 'Piriform1'
   | 'Polygon1'
   | 'Rectangle1'
   | 'Rose1'
