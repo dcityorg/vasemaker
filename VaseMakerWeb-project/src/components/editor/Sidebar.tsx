@@ -186,7 +186,7 @@ export function Sidebar({
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.87</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.88</p>
         {editingName ? (
           <input
             ref={nameInputRef}
@@ -244,11 +244,11 @@ export function Sidebar({
             }
             e.target.value = '';
           }}
-          value=""
+          value=''
           className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs"
           style={{ color: UI_MUTED }}
         >
-          <option value="" disabled>Select a starting vase</option>
+          <option value='' disabled>Select a starting vase</option>
           {BUILT_IN_PRESETS.map((p, i) => (
             <option key={i} value={i}>{p.name}</option>
           ))}
@@ -415,7 +415,7 @@ export function Sidebar({
                 }}
                 className="flex-1 px-3 py-1.5 text-xs bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded transition-colors"
               >
-                Save &amp; Continue
+                Save & Continue
               </button>
               <button
                 onClick={() => {
@@ -424,7 +424,7 @@ export function Sidebar({
                 }}
                 className="flex-1 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
               >
-                Don&apos;t Save
+                Don't Save
               </button>
               <button
                 onClick={() => setConfirmAction(null)}
