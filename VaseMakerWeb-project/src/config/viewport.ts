@@ -7,14 +7,14 @@ export const CAMERA = {
   position: [80, 80, 120] as [number, number, number],
   fov: 50,
   near: 0.1,
-  far: 2000,
+  far: 3000,
   target: [0, 0, 50] as [number, number, number],
 } as const;
 
 export const ORBIT_CONTROLS = {
   dampingFactor: 0.1,
   minDistance: 30,
-  maxDistance: 500,
+  maxDistance: 1200,
 } as const;
 
 export const LIGHTING = {

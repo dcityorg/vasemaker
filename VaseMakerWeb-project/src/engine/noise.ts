@@ -67,10 +67,16 @@ export function voronoiCell(
 
   // Edge detection: difference between second-nearest and nearest
   const diff = Math.sqrt(d2) - Math.sqrt(d1);
-  // Smoothstep with edgeWidth controlling transition width
-  const edge = 0.05 + (1 - edgeWidth) * 0.45; // range 0.05 (sharp) to 0.5 (smooth)
+  // Wide transition zone so the mesh can resolve the edge without aliasing,
+  // combined with power-curve shaping to make it visually sharp.
+  // edgeWidth controls steepness: 0 = gentle/smooth, 1 = steep/sharp.
+  const edge = 0.15 + (1 - edgeWidth) * 0.35; // range 0.15 to 0.5
   const t = Math.min(diff / edge, 1);
-  return t * t * (3 - 2 * t); // smoothstep
+  // Power-curve reshaping: pulls t toward 1 faster, making the groove narrow
+  // while keeping enough samples across the transition to avoid aliasing
+  const k = 1 + edgeWidth * 4; // steepness 1–5
+  const shaped = Math.pow(t, 1 / k);
+  return shaped * shaped * (3 - 2 * shaped); // smoothstep
 }
 
 // ============================================================

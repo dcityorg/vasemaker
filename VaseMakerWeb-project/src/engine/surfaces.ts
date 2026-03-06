@@ -39,6 +39,8 @@ export interface RowContext {
   twistAngle: number;
   vSmooth: number;
   smoothZoneFactor: number; // 0 = suppressed (in zone), 1 = normal
+  anglesForSteps: Float32Array; // angle (degrees) for each tStep, uniform in arc-length
+  perimeter: number;            // total perimeter in world units for this row
 }
 
 /**
@@ -47,7 +49,8 @@ export interface RowContext {
  */
 export function computeRowContexts(
   params: VaseParameters,
-  vRes: number
+  vRes: number,
+  rRes: number
 ): RowContext[] {
   const rowContexts: RowContext[] = [];
 
@@ -134,7 +137,62 @@ export function computeRowContexts(
       }
     }
 
-    rowContexts.push({ m, shapeRadius, height, v, centerX, centerY, twistAngle, vSmooth, smoothZoneFactor });
+    // Precompute arc-length parameterization for this row.
+    // 1. Build forward table: cumulative arc length at each uniform angle step
+    // 2. Invert to get anglesForSteps: angle for each uniform arc-length step
+    // This redistributes vertices to be evenly spaced on the surface.
+    const arcFwd = new Float32Array(rRes + 1); // forward table: angle-step → cumulative arc
+    arcFwd[0] = 0;
+    let prevR = params.morphEnabled
+      ? (bottomShapeFn(0, bottomParams) * (1 - v) + topShapeFn(0, topParams) * v)
+      : bottomShapeFn(0, bottomParams);
+    prevR *= shapeRadius;
+    let prevX = prevR; // cos(0) = 1
+    let prevY = 0;     // sin(0) = 0
+
+    for (let k = 1; k <= rRes; k++) {
+      const tDeg = k * 360 / rRes;
+      let r = params.morphEnabled
+        ? (bottomShapeFn(tDeg, bottomParams) * (1 - v) + topShapeFn(tDeg, topParams) * v)
+        : bottomShapeFn(tDeg, bottomParams);
+      r *= shapeRadius;
+      const x = r * cosD(tDeg);
+      const y = r * sinD(tDeg);
+      const dx = x - prevX;
+      const dy = y - prevY;
+      arcFwd[k] = arcFwd[k - 1] + Math.sqrt(dx * dx + dy * dy);
+      prevX = x;
+      prevY = y;
+    }
+
+    const perimeter = arcFwd[rRes];
+    // Normalize forward table to 0..1
+    if (perimeter > 0) {
+      for (let k = 1; k <= rRes; k++) {
+        arcFwd[k] /= perimeter;
+      }
+    }
+
+    // Invert: for each tStep, find the angle where arc fraction = tStep/rRes
+    const anglesForSteps = new Float32Array(rRes);
+    anglesForSteps[0] = 0; // always starts at 0°
+    for (let tStep = 1; tStep < rRes; tStep++) {
+      const targetArc = tStep / rRes;
+      // Binary search in the forward table
+      let lo = 0, hi = rRes;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (arcFwd[mid] <= targetArc) lo = mid;
+        else hi = mid;
+      }
+      // Linear interpolation between bracket entries
+      const arcLo = arcFwd[lo];
+      const arcHi = arcFwd[hi];
+      const frac = (arcHi > arcLo) ? (targetArc - arcLo) / (arcHi - arcLo) : 0;
+      anglesForSteps[tStep] = (lo + frac) * 360 / rRes;
+    }
+
+    rowContexts.push({ m, shapeRadius, height, v, centerX, centerY, twistAngle, vSmooth, smoothZoneFactor, anglesForSteps, perimeter });
   }
 
   return rowContexts;
@@ -155,7 +213,7 @@ export function computeRadius(
   simplexPerm: Uint8Array | null,
   woodGrainPerm: Uint8Array | null
 ): number {
-  const t = tStep * 360 / rRes;
+  const t = row.anglesForSteps[tStep];
 
   // Get shape functions
   const bottomShapeFn = getShapeFunction(params.bottomShape);
@@ -177,9 +235,12 @@ export function computeRadius(
     ? radialSmoothing(t, params.radialSmoothing.cycles, params.radialSmoothing.offsetAngle)
     : 1;
 
-  // Build texture context
+  // Build texture context — arcU is trivially tStep/rRes since vertices
+  // are now uniformly distributed in arc-length space
   const textureCtx: TextureContext = {
     t,
+    arcU: tStep / rRes,
+    perimeter: row.perimeter,
     v: row.v,
     rowM: row.m,
     vSmooth: row.vSmooth,
@@ -223,7 +284,7 @@ export function computeVertex(
   simplexPerm: Uint8Array | null,
   woodGrainPerm: Uint8Array | null
 ): [number, number, number] {
-  const t = tStep * 360 / rRes;
+  const t = row.anglesForSteps[tStep];
   let radius = Math.max(
     computeRadius(row, tStep, false, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm) + radiusOffset,
     MIN_INNER_RADIUS
@@ -260,7 +321,7 @@ export function computeInnerVertex(
   simplexPerm: Uint8Array | null,
   woodGrainPerm: Uint8Array | null
 ): [number, number, number] {
-  const t = tStep * 360 / rRes;
+  const t = row.anglesForSteps[tStep];
   const wt = params.wallThickness;
   const smoothInner = params.smoothInner ?? false;
   const outerRadius = computeRadius(row, tStep, false, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm);
@@ -327,7 +388,7 @@ export function computeCutoutFactor(
   if (!texturesEnabled) return 0;
   // No cutout in smooth zones — keeps solid base/rim intact.
   if (row.smoothZoneFactor < 1) return 0;
-  const t = tStep * 360 / rRes;
+  const arcU = tStep / rRes;
   let factor = 0;
 
   // Voronoi cutout: voronoiCell returns 0 at edges, 1 at cell centers.
@@ -335,9 +396,8 @@ export function computeCutoutFactor(
   if (params.textures.voronoi?.enabled && params.textures.voronoi?.cutout) {
     const vor = params.textures.voronoi;
     const cellsU = vor.scale;
-    const circumference = 2 * Math.PI * params.radius;
-    const cellsW = Math.max(1, Math.round(cellsU * params.height / circumference));
-    const u = (t / 360) * cellsU;
+    const cellsW = Math.max(1, Math.round(cellsU * params.height / row.perimeter));
+    const u = arcU * cellsU;
     const w = row.v * cellsW;
     const raw = voronoiCell(u, w, cellsU, vor.seed, vor.edgeWidth);
     // Sharp transition: remap 0.3–0.7 → 0–1 with smoothstep
@@ -351,7 +411,7 @@ export function computeCutoutFactor(
   const svgPatternData = getSvgPatternData();
   if (svgPatternData && params.textures.svgPattern?.enabled && params.textures.svgPattern?.cutout && params.textures.svgPattern.svgText) {
     const sp = params.textures.svgPattern;
-    const tileU = ((t / 360) * sp.repeatX) % 1;
+    const tileU = (arcU * sp.repeatX) % 1;
     const tileV = (row.v * sp.repeatY) % 1;
     const brightness = sampleSvgPattern(tileU, tileV);
     const raw = sp.invert ? brightness : 1 - brightness;

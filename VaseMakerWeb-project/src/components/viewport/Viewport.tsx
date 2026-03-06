@@ -36,6 +36,8 @@ export function Viewport({
   onCaptureComplete,
 }: ViewportProps) {
   const showRulers = useVaseStore((s) => s.params.showRulers ?? false);
+  const radius = useVaseStore((s) => s.params.radius);
+  const height = useVaseStore((s) => s.params.height);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Frame rect reported by CaptureOverlay — used by CaptureRenderer for cropping
@@ -75,13 +77,13 @@ export function Viewport({
         <directionalLight position={LIGHTING.back.position} intensity={LIGHTING.back.intensity} />
 
         {/* Ground grid on XY plane at Z=0 */}
-        <GroundGrid />
+        <GroundGrid radius={radius} height={height} />
 
         {/* Axis rulers with tick marks */}
-        {showRulers && <group name="__capture_rulers"><AxisRulers /></group>}
+        {showRulers && <group name="__capture_rulers"><AxisRulers radius={radius} height={height} /></group>}
 
         {/* Colored numeric labels on each axis */}
-        {showRulers && <group name="__capture_labels"><AxisLabels /></group>}
+        {showRulers && <group name="__capture_labels"><AxisLabels radius={radius} height={height} /></group>}
 
         {/* The vase */}
         <VaseMeshComponent />

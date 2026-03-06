@@ -117,7 +117,7 @@ All defined in `shapes.ts` as `(angleDegrees, ShapeParams) => radius`:
 Note: OpenSCAD spells it "Cardiod" (typo) but the TS port uses "Cardioid".
 
 ## Modulation Pipeline (in mesh-generator.ts)
-For each vertex at height v (0-1) and angle t (0-360):
+For each vertex at height v (0-1) and angle t (from `anglesForSteps` — arc-length-uniform):
 1. Evaluate bottom shape (and top shape if morphing)
 2. Blend shapes by height ratio if morphing enabled
 3. Multiply by Bezier profile radius at this height
@@ -125,7 +125,16 @@ For each vertex at height v (0-1) and angle t (0-360):
 5. Apply radial offset (−wallThickness for inner surface, clamped to MIN_INNER_RADIUS). When `smoothInner` is enabled, inner surface uses `computeRadius(skipEffects=true)` and enforces `minWallThickness` gap relative to textured outer surface
 6. Convert polar → cartesian, add XY offset, apply twist rotation (bezier + wave twist)
 
-When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface (reversed winding), bottom cap (outer disc at z=0 + inner disc at inner start height), rim (flat or rounded), and cutout wall quads (if cutout enabled). Per-row data is precomputed into `RowContext` structs (includes `smoothZoneFactor`). Cutout skips triangles where `cutoutGrid` is true and adds manifold wall quads at hole boundaries.
+When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface (reversed winding), bottom cap (outer disc at z=0 + inner disc at inner start height), rim (flat or rounded), and cutout wall quads (if cutout enabled). Per-row data is precomputed into `RowContext` structs (includes `smoothZoneFactor`, `anglesForSteps`, `perimeter`). Cutout skips triangles where `cutoutGrid` is true and adds manifold wall quads at hole boundaries.
+
+## Arc-Length Parameterization (v0.89)
+Vertices and textures use arc-length-uniform distribution instead of angle-uniform. This prevents texture stretching/distortion on non-circular shapes (Rectangle, Ellipse, Heart, etc.).
+
+**How it works:** In `computeRowContexts()`, for each row: (1) compute cumulative chord lengths around the shape perimeter at uniform angle steps, (2) invert via binary search to get `anglesForSteps[tStep]` — the angle that places each vertex at equal surface distance. All vertex/radius functions use `row.anglesForSteps[tStep]` instead of `tStep * 360 / rRes`. Texture U coordinate is trivially `tStep / rRes`. Aspect-ratio correction uses actual `row.perimeter` instead of `2π * radius`.
+
+**Key fields in RowContext:** `anglesForSteps: Float32Array` (per-tStep angle in degrees), `perimeter: number` (total perimeter in mm). **TextureContext:** `arcU: number` (= tStep/rRes), `perimeter: number`.
+
+**Voronoi edge quality:** `voronoiCell()` in `noise.ts` uses wide transition zone (0.15–0.5 cell units) with power-curve shaping `t^(1/k)` (k=1+edgeWidth*4) for visually sharp edges without mesh aliasing. Old approach shrank the zone to 0.05 → sawtooth artifacts.
 
 ## Implemented Features
 - **29 cross-section shapes** with shape-specific parameter sliders, alphabetized in dropdown
@@ -146,7 +155,7 @@ When wallThickness > 0, `generateMesh()` produces: outer surface, inner surface 
 - **Header toggles** — On/off switch in section headers, independent of accordion open/close. Content always renders when expanded. Off-state toggle uses `#888`
 - **Reset buttons** — All sections have reset to neutral defaults (independent of loaded preset). Profile resets to flat cylinder
 - **Vase color picker** — Appearance section with native picker, default `#6d9fff`
-- **Show Rulers** — Toggle in Appearance section to show/hide axis lines, tick marks, numeric dimension labels, and XYZ gizmo. Off by default for a clean view. Stored as `showRulers` in VaseParameters, read by Viewport.tsx to conditionally render SceneHelpers (AxisRulers, AxisLabels, AxisGizmo). GroundGrid always visible
+- **Show Rulers** — Toggle in Appearance section to show/hide axis lines, tick marks, numeric dimension labels, and XYZ gizmo. Off by default for a clean view. Stored as `showRulers` in VaseParameters, read by Viewport.tsx to conditionally render SceneHelpers (AxisRulers, AxisLabels, AxisGizmo). **Dynamic scaling:** tick spacing, label spacing, ruler length, and grid size all adapt to vase dimensions via `niceSpacing()` helper (picks round intervals from [1,2,5]×10^n). Components receive `radius` and `height` from Viewport. GroundGrid always visible
 - **Resolution** — Vertical (8–500) and Radial (8–720) sliders + Show Facets toggle. Defaults: 200 vertical, 360 radial. High resolution needed for dense textures (Square Flute 40+ count, fine Voronoi, SVG patterns). Info note in UI about file size vs. resolution trade-off
 - **Sidebar UI** — Sections organized into 5 color-coded groups: Shape & Structure (blue `#7BA3CF`), Surface (amber `#C9A84C`), Smoothing (green `#7BAF7B`), Twist (purple `#A78BBA`), Settings (gray `#9B9B9B`). Group headers and section titles share the same color. Utility elements (preset dropdown, Load/Save buttons, shape dropdowns) use muted gray (`#9B9B9B`). All colors defined in `config/colors.ts` for easy customization. Indented content with left border, Reset buttons always visible. Texture sub-sliders have second-level indentation with vertical border line. Hint text on Vertical/Radial Smoothing sections clarifying they fade surface effect intensity
 - **Tooltips** — Native browser tooltips (`title` attribute) on all sliders, toggles, and section headers. Provides brief descriptions of each parameter's effect without cluttering the UI

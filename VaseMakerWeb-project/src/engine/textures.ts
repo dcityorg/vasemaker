@@ -42,6 +42,8 @@ import { sinD } from '@/lib/math-utils';
  */
 export interface TextureContext {
   t: number;         // angle in degrees (0-360)
+  arcU: number;      // normalized arc length (0-1) — equal surface distance
+  perimeter: number; // actual perimeter in world units for this row
   v: number;         // normalized height (0-1)
   rowM: number;      // parametric height (0-1)
   vSmooth: number;   // vertical smoothing factor
@@ -76,7 +78,7 @@ const flutingEvaluator: TextureEvaluator = (ctx, params, texturesEnabled) => {
   if (!texturesEnabled || !params.textures.fluting?.enabled) return 0;
   const fl = params.textures.fluting;
   const duty = fl.duty ?? 0;
-  const phase = ((ctx.t / 360) * fl.count) % 1;
+  const phase = (ctx.arcU * fl.count) % 1;
   const pillarWidth = 1 - duty;
   const halfPillar = pillarWidth * 0.5;
   const dist = Math.abs(phase - 0.5) / halfPillar;
@@ -111,7 +113,7 @@ const verticalFlutingEvaluator: TextureEvaluator = (ctx, params, texturesEnabled
 const squareFluteEvaluator: TextureEvaluator = (ctx, params, texturesEnabled) => {
   if (!texturesEnabled || !params.textures.squareFlute?.enabled) return 0;
   const sf = params.textures.squareFlute;
-  const phase = ((ctx.t / 360) * sf.count) % 1;
+  const phase = (ctx.arcU * sf.count) % 1;
   const halfDuty = sf.duty * 0.5;
   const dist = Math.abs(phase - 0.5) - halfDuty;
   const edge = 0.005 + (1 - sf.sharpness) * 0.15;
@@ -143,7 +145,7 @@ const verticalSquareFluteEvaluator: TextureEvaluator = (ctx, params, texturesEna
 const wavesEvaluator: TextureEvaluator = (ctx, params, texturesEnabled) => {
   if (!texturesEnabled || !params.textures.waves?.enabled) return 0;
   const wv = params.textures.waves;
-  const phase = ((ctx.t / 360) * wv.count) % 1;
+  const phase = (ctx.arcU * wv.count) % 1;
   const pillarWidth = 1 - wv.duty;
   const halfPillar = pillarWidth * 0.5;
   const dist = Math.abs(phase - 0.5) / halfPillar;
@@ -178,7 +180,7 @@ const verticalWavesEvaluator: TextureEvaluator = (ctx, params, texturesEnabled) 
 const rodsEvaluator: TextureEvaluator = (ctx, params, texturesEnabled) => {
   if (!texturesEnabled || !params.textures.rods?.enabled) return 0;
   const rd = params.textures.rods;
-  const phase = ((ctx.t / 360) * rd.count) % 1;
+  const phase = (ctx.arcU * rd.count) % 1;
   const pillarWidth = 1 - rd.duty;
   const halfPillar = pillarWidth * 0.5;
   const dist = Math.abs(phase - 0.5) / halfPillar;
@@ -211,7 +213,7 @@ const basketWeaveEvaluator: TextureEvaluator = (ctx, params, texturesEnabled) =>
   if (!texturesEnabled || !params.textures.basketWeave?.enabled) return 0;
   const bw = params.textures.basketWeave;
   return bw.depth * sinD(
-    bw.waves * ctx.t
+    bw.waves * ctx.arcU * 360
     + 180 * Math.floor(ctx.v * bw.bands)
   ) * ctx.vSmooth * ctx.rSmooth * ctx.szf;
 };
@@ -223,9 +225,8 @@ const voronoiEvaluator: TextureEvaluator = (ctx, params, texturesEnabled) => {
   if (!texturesEnabled || !params.textures.voronoi?.enabled) return 0;
   const vor = params.textures.voronoi;
   const cellsU = vor.scale;
-  const circumference = 2 * Math.PI * params.radius;
-  const cellsW = Math.max(1, Math.round(cellsU * params.height / circumference));
-  const u = (ctx.t / 360) * cellsU;
+  const cellsW = Math.max(1, Math.round(cellsU * params.height / ctx.perimeter));
+  const u = ctx.arcU * cellsU;
   const w = ctx.v * cellsW;
   return vor.depth * voronoiCell(u, w, cellsU, vor.seed, vor.edgeWidth) * ctx.vSmooth * ctx.rSmooth * ctx.szf;
 };
@@ -236,11 +237,11 @@ const voronoiEvaluator: TextureEvaluator = (ctx, params, texturesEnabled) => {
 const simplexEvaluator: TextureEvaluator = (ctx, params, texturesEnabled, simplexPerm) => {
   if (!texturesEnabled || !simplexPerm || !params.textures.simplex?.enabled) return 0;
   const sx = params.textures.simplex;
-  const angle = ctx.t * Math.PI / 180;
+  // Map arc-length U to a circle for seamless wrapping
+  const angle = ctx.arcU * 2 * Math.PI;
   const nx = Math.cos(angle) * sx.scale;
   const ny = Math.sin(angle) * sx.scale;
-  const circumference = 2 * Math.PI * params.radius;
-  const scaleV = sx.scale * params.height / circumference;
+  const scaleV = sx.scale * params.height / ctx.perimeter;
   const nz = ctx.v * scaleV;
   return sx.depth * fbm3D(nx, ny, nz, sx.octaves, sx.persistence, sx.lacunarity, simplexPerm) * ctx.vSmooth * ctx.rSmooth * ctx.szf;
 };
@@ -251,9 +252,8 @@ const simplexEvaluator: TextureEvaluator = (ctx, params, texturesEnabled, simple
 const woodGrainEvaluator: TextureEvaluator = (ctx, params, texturesEnabled, _simplexPerm, woodGrainPerm) => {
   if (!texturesEnabled || !woodGrainPerm || !params.textures.woodGrain?.enabled) return 0;
   const wg = params.textures.woodGrain;
-  const wgU = (ctx.t / 360) * wg.count;
-  const circumference = 2 * Math.PI * params.radius;
-  const vScaled = ctx.v * (params.height / circumference) * wg.count;
+  const wgU = ctx.arcU * wg.count;
+  const vScaled = ctx.v * (params.height / ctx.perimeter) * wg.count;
   return wg.depth * woodGrain(wgU, vScaled, wg.count, wg.wobble, wg.sharpness, woodGrainPerm) * ctx.vSmooth * ctx.rSmooth * ctx.szf;
 };
 
@@ -263,7 +263,7 @@ const woodGrainEvaluator: TextureEvaluator = (ctx, params, texturesEnabled, _sim
 const svgPatternEvaluator: TextureEvaluator = (ctx, params, texturesEnabled, _simplexPerm, _woodGrainPerm, svgData) => {
   if (!texturesEnabled || !svgData || !params.textures.svgPattern?.enabled || !params.textures.svgPattern.svgText) return 0;
   const sp = params.textures.svgPattern;
-  const tileU = ((ctx.t / 360) * sp.repeatX) % 1;
+  const tileU = (ctx.arcU * sp.repeatX) % 1;
   const tileV = (ctx.v * sp.repeatY) % 1;
   const brightness = sampleSvgPattern(tileU, tileV);
   return -sp.depth * (sp.invert ? brightness : 1 - brightness) * ctx.vSmooth * ctx.rSmooth * ctx.szf;

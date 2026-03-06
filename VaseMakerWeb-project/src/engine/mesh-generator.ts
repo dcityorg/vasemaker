@@ -59,8 +59,8 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   // Precompute texture permutation tables
   const { simplexPerm, woodGrainPerm } = precomputeTextureTables(params, texturesEnabled);
 
-  // Precompute per-row context
-  const rowContexts = computeRowContexts(params, vRes);
+  // Precompute per-row context (includes arc-length tables for texture mapping)
+  const rowContexts = computeRowContexts(params, vRes, rRes);
 
   // ============================================================
   // Thin wall mode (wallThickness === 0)
