@@ -265,7 +265,7 @@ const svgPatternEvaluator: TextureEvaluator = (ctx, params, texturesEnabled, _si
   const sp = params.textures.svgPattern;
   const tileU = (ctx.arcU * sp.repeatX) % 1;
   const tileV = (ctx.v * sp.repeatY) % 1;
-  const brightness = sampleSvgPattern(tileU, tileV);
+  const brightness = sampleSvgPattern(tileU, tileV, sp.rotation, sp.flipX, sp.flipY);
   return -sp.depth * (sp.invert ? brightness : 1 - brightness) * ctx.vSmooth * ctx.rSmooth * ctx.szf;
 };
 

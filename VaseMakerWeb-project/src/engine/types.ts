@@ -187,6 +187,9 @@ export interface VaseParameters {
       depth: number;        // displacement in mm (0.1–5)
       invert: boolean;      // swap grooves/ridges
       cutout?: boolean;     // when true, punch holes through wall at dark areas
+      rotation?: number;    // 0, 90, 180, or 270 degrees clockwise
+      flipX?: boolean;      // flip horizontally
+      flipY?: boolean;      // flip vertically
     };
     squareFlute: {
       enabled: boolean;

@@ -122,10 +122,9 @@ function SvgLoadDialog({ onClose, onApply, initialSvg }: {
   );
 }
 
-/** Small inline SVG preview thumbnail */
-function SvgPreviewThumb({ svgText }: { svgText: string }) {
+/** Small inline SVG preview thumbnail — shows single tile with transforms applied */
+function SvgPreviewThumb({ svgText, rotation, flipX, flipY }: { svgText: string; rotation?: number; flipX?: boolean; flipY?: boolean }) {
   const [url, setUrl] = useState<string | null>(null);
-  const [aspect, setAspect] = useState(1);
 
   useEffect(() => {
     if (!svgText) { setUrl(null); return; }
@@ -136,7 +135,6 @@ function SvgPreviewThumb({ svgText }: { svgText: string }) {
       const blobUrl = URL.createObjectURL(blob);
       revoke = blobUrl;
       setUrl(blobUrl);
-      setAspect(getSvgAspect(markup));
     } catch {
       setUrl(null);
     }
@@ -144,17 +142,18 @@ function SvgPreviewThumb({ svgText }: { svgText: string }) {
   }, [svgText]);
 
   if (!url) return null;
-  const tileW = 24;
-  const tileH = Math.max(2, Math.round(tileW / aspect));
+  const rot = rotation ?? 0;
+  const scaleX = flipX ? -1 : 1;
+  const scaleY = flipY ? -1 : 1;
   return (
-    <div
-      className="w-12 h-12 border border-[var(--border-color)] rounded shrink-0 bg-white"
-      style={{
-        backgroundImage: `url(${url})`,
-        backgroundSize: `${tileW}px ${tileH}px`,
-        backgroundRepeat: 'repeat',
-      }}
-    />
+    <div className="w-12 h-12 border border-[var(--border-color)] rounded shrink-0 bg-white overflow-hidden flex items-center justify-center">
+      <img
+        src={url}
+        alt="SVG pattern"
+        className="max-w-full max-h-full"
+        style={{ transform: `rotate(${rot}deg) scaleX(${scaleX}) scaleY(${scaleY})` }}
+      />
+    </div>
   );
 }
 
@@ -170,7 +169,7 @@ export function TextureControls({ designName }: { designName?: string | null }) 
   const resetVoronoi = () => setVoronoi({ scale: DEFAULT_PARAMETERS.textures.voronoi.scale, depth: DEFAULT_PARAMETERS.textures.voronoi.depth, edgeWidth: DEFAULT_PARAMETERS.textures.voronoi.edgeWidth, seed: DEFAULT_PARAMETERS.textures.voronoi.seed, cutout: false });
   const resetSimplex = () => setSimplex({ scale: DEFAULT_PARAMETERS.textures.simplex.scale, depth: DEFAULT_PARAMETERS.textures.simplex.depth, octaves: DEFAULT_PARAMETERS.textures.simplex.octaves, persistence: DEFAULT_PARAMETERS.textures.simplex.persistence, lacunarity: DEFAULT_PARAMETERS.textures.simplex.lacunarity, seed: DEFAULT_PARAMETERS.textures.simplex.seed });
   const resetWoodGrain = () => setWoodGrain({ count: DEFAULT_PARAMETERS.textures.woodGrain.count, depth: DEFAULT_PARAMETERS.textures.woodGrain.depth, wobble: DEFAULT_PARAMETERS.textures.woodGrain.wobble, sharpness: DEFAULT_PARAMETERS.textures.woodGrain.sharpness, seed: DEFAULT_PARAMETERS.textures.woodGrain.seed });
-  const resetSvgPattern = () => setSvgPattern({ repeatX: DEFAULT_PARAMETERS.textures.svgPattern.repeatX, repeatY: DEFAULT_PARAMETERS.textures.svgPattern.repeatY, depth: DEFAULT_PARAMETERS.textures.svgPattern.depth, invert: DEFAULT_PARAMETERS.textures.svgPattern.invert, cutout: false });
+  const resetSvgPattern = () => setSvgPattern({ repeatX: DEFAULT_PARAMETERS.textures.svgPattern.repeatX, repeatY: DEFAULT_PARAMETERS.textures.svgPattern.repeatY, depth: DEFAULT_PARAMETERS.textures.svgPattern.depth, invert: DEFAULT_PARAMETERS.textures.svgPattern.invert, cutout: false, rotation: 0, flipX: false, flipY: false });
   const resetSquareFlute = () => setSquareFlute({ count: DEFAULT_PARAMETERS.textures.squareFlute.count, depth: DEFAULT_PARAMETERS.textures.squareFlute.depth, duty: DEFAULT_PARAMETERS.textures.squareFlute.duty, sharpness: DEFAULT_PARAMETERS.textures.squareFlute.sharpness });
   const resetWaves = () => setWaves({ count: DEFAULT_PARAMETERS.textures.waves.count, depth: DEFAULT_PARAMETERS.textures.waves.depth, duty: DEFAULT_PARAMETERS.textures.waves.duty });
   const resetRods = () => setRods({ count: DEFAULT_PARAMETERS.textures.rods.count, depth: DEFAULT_PARAMETERS.textures.rods.depth, duty: DEFAULT_PARAMETERS.textures.rods.duty });
@@ -323,15 +322,40 @@ export function TextureControls({ designName }: { designName?: string | null }) 
           <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
             <div className="flex items-center gap-2 mb-1">
               {params.textures.svgPattern.svgText && (
-                <SvgPreviewThumb svgText={params.textures.svgPattern.svgText} />
+                <SvgPreviewThumb svgText={params.textures.svgPattern.svgText} rotation={params.textures.svgPattern.rotation} flipX={params.textures.svgPattern.flipX} flipY={params.textures.svgPattern.flipY} />
+              )}
+              {params.textures.svgPattern.svgText && (
+                <div className="flex flex-col gap-0.5">
+                  <button
+                    onClick={() => setSvgPattern({ rotation: ((params.textures.svgPattern.rotation ?? 0) + 90) % 360 })}
+                    className="w-6 h-6 flex items-center justify-center rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)] transition-colors"
+                    title="Rotate 90° clockwise"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10 2.5A5 5 0 1 0 11.5 7" /><path d="M10 0.5L12 2.5L10 4.5" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setSvgPattern({ flipX: !(params.textures.svgPattern.flipX ?? false) })}
+                    className="w-6 h-6 flex items-center justify-center rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)] transition-colors"
+                    title="Flip horizontal"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1.5 7H4L2 5M2 9L4 7" /><path d="M12.5 7H10L12 5M12 9L10 7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setSvgPattern({ flipY: !(params.textures.svgPattern.flipY ?? false) })}
+                    className="w-6 h-6 flex items-center justify-center rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)] transition-colors"
+                    title="Flip vertical"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7 1.5V4L5 2M9 2L7 4" /><path d="M7 12.5V10L5 12M9 12L7 10" />
+                    </svg>
+                  </button>
+                </div>
               )}
               <div className="flex flex-wrap gap-1">
-                <button
-                  onClick={() => setSvgDialogOpen(true)}
-                  className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
-                >
-                  Paste SVG
-                </button>
                 <button
                   onClick={() => svgFileRef.current?.click()}
                   className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
@@ -345,6 +369,12 @@ export function TextureControls({ designName }: { designName?: string | null }) 
                 >
                   Save SVG
                 </button>
+                <button
+                  onClick={() => setSvgDialogOpen(true)}
+                  className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
+                >
+                  Paste SVG
+                </button>
               </div>
               <input ref={svgFileRef} type="file" accept=".svg" onChange={handleSvgFileSelected} className="hidden" />
             </div>
@@ -353,8 +383,8 @@ export function TextureControls({ designName }: { designName?: string | null }) 
             </div>
             {params.textures.svgPattern.svgText && (
               <>
-                <SliderRow label="Repeat X" value={params.textures.svgPattern.repeatX} {...TEXTURES.svgPattern.repeatX} onChange={(v) => setSvgPattern({ repeatX: v })} tooltip="Number of tile repeats around circumference" />
-                <SliderRow label="Repeat Y" value={params.textures.svgPattern.repeatY} {...TEXTURES.svgPattern.repeatY} onChange={(v) => setSvgPattern({ repeatY: v })} tooltip="Number of tile repeats up the height" />
+                <SliderRow label="Tiles Around" value={params.textures.svgPattern.repeatX} {...TEXTURES.svgPattern.repeatX} onChange={(v) => setSvgPattern({ repeatX: v })} tooltip="Number of tile repeats around circumference" />
+                <SliderRow label="Tiles Up" value={params.textures.svgPattern.repeatY} {...TEXTURES.svgPattern.repeatY} onChange={(v) => setSvgPattern({ repeatY: v })} tooltip="Number of tile repeats up the height" />
                 <SliderRow label="Depth" value={params.textures.svgPattern.depth} {...TEXTURES.svgPattern.depth} onChange={(v) => setSvgPattern({ depth: v })} tooltip="Displacement depth in mm" />
                 <Toggle label="Invert" checked={params.textures.svgPattern.invert ?? false} onChange={(v) => setSvgPattern({ invert: v })} tooltip="Swap grooves and ridges" />
                 <Toggle label="Cutout" checked={params.textures.svgPattern.cutout ?? false} onChange={(v) => setSvgPattern({ cutout: v })} tooltip="Punch holes through the wall at dark areas" />

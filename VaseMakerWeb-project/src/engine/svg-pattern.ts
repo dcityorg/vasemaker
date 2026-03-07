@@ -22,11 +22,22 @@ export function getSvgPatternData(): { pixels: Uint8Array; width: number; height
  * Sample the SVG pattern with bilinear interpolation.
  * @param u - horizontal tile coordinate (0–1 within one tile)
  * @param v - vertical tile coordinate (0–1 within one tile)
+ * @param rotation - 0, 90, 180, or 270 degrees clockwise
+ * @param flipX - flip horizontally
+ * @param flipY - flip vertically
  * @returns brightness 0–1 (0 = black, 1 = white)
  */
-export function sampleSvgPattern(u: number, v: number): number {
+export function sampleSvgPattern(u: number, v: number, rotation?: number, flipX?: boolean, flipY?: boolean): number {
   if (!svgPatternData) return 0;
   const { pixels, width, height } = svgPatternData;
+
+  // Apply transforms: flip first, then rotate
+  if (flipX) u = 1 - u;
+  if (flipY) v = 1 - v;
+  const rot = (rotation ?? 0) % 360;
+  if (rot === 90) { const tmp = u; u = 1 - v; v = tmp; }
+  else if (rot === 180) { u = 1 - u; v = 1 - v; }
+  else if (rot === 270) { const tmp = u; u = v; v = 1 - tmp; }
 
   // Map to pixel coordinates (tile wraps via modulo already applied by caller)
   const px = u * (width - 1);
