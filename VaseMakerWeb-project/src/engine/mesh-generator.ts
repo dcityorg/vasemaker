@@ -209,6 +209,8 @@ function generateShellMesh(
   // Bottom cap: outer disc at z=0, inner disc at z=innerStartStep height
   const bottomOuterDiscVerts = hasBase ? 1 + rRes : 0;
   const bottomInnerDiscVerts = hasBase ? 1 + rRes : 0;
+  // Bottom ring (no base): annulus at z=0 connecting outer to inner wall
+  const hasBottomRing = !hasBase;
 
   const totalVertices = outerVerts + innerVerts + rimVerts
     + bottomOuterDiscVerts + bottomInnerDiscVerts
@@ -298,7 +300,7 @@ function generateShellMesh(
     }
   }
 
-  // ---- 5. Bottom cap vertices ----
+  // ---- 5. Bottom cap vertices (solid base) ----
   if (hasBase) {
     const bottomRow = rowContexts[0];
     const [cx, cy] = computeCenter(bottomRow);
@@ -376,6 +378,8 @@ function generateShellMesh(
   const flatRimQuads = params.rimShape === 'flat' ? rRes : 0;
   const bottomOuterDiscTris = hasBase ? rRes : 0;
   const bottomInnerDiscTris = hasBase ? rRes : 0;
+  // Bottom ring (no base): annulus at z=0 connecting outer wall to inner wall
+  const bottomRingQuads = hasBottomRing ? rRes : 0;
 
   // Estimate cutout wall quads
   const maxCutoutWallQuads = hasCutout ? outerQuads * 4 : 0;
@@ -387,7 +391,8 @@ function generateShellMesh(
     rimQuads * 2 +
     flatRimQuads * 2 +
     bottomOuterDiscTris +
-    bottomInnerDiscTris;
+    bottomInnerDiscTris +
+    bottomRingQuads * 2;
 
   const indices = new Uint32Array(maxTriangles * 3);
   let idxOffset = 0;
@@ -549,7 +554,7 @@ function generateShellMesh(
     }
   }
 
-  // ---- Bottom cap ----
+  // ---- Bottom cap (solid base) ----
   if (hasBase) {
     // Outer disc (z=0) — triangle fan, normals pointing down
     const outerCenter = bottomOuterDiscOffset;
@@ -571,6 +576,26 @@ function generateShellMesh(
       indices[idxOffset++] = innerCenter;
       indices[idxOffset++] = a;
       indices[idxOffset++] = b;
+    }
+  }
+
+  // ---- Bottom ring (no base — annulus at z=0 connecting outer to inner wall) ----
+  if (hasBottomRing) {
+    for (let tStep = 0; tStep < rRes; tStep++) {
+      const tNext = (tStep + 1) % rRes;
+      // Outer wall row 0 vertices
+      const oA = outerOffset + tStep;
+      const oB = outerOffset + tNext;
+      // Inner wall row 0 vertices (innerStartStep=0 when bt=0)
+      const iA = innerOffset + tStep;
+      const iB = innerOffset + tNext;
+      // Normals pointing down
+      indices[idxOffset++] = oA;
+      indices[idxOffset++] = iB;
+      indices[idxOffset++] = iA;
+      indices[idxOffset++] = oA;
+      indices[idxOffset++] = oB;
+      indices[idxOffset++] = iB;
     }
   }
 

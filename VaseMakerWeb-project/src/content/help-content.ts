@@ -339,7 +339,7 @@ export const HELP_SECTIONS: HelpSection[] = [
 
       { type: 'heading', text: 'Base & Rim' },
       { type: 'keyvalue', items: [
-        { key: 'Base Thickness', value: 'Minimum 1\u20132mm for stability. Measured vertically.' },
+        { key: 'Base Thickness', value: 'Minimum 1\u20132mm for stability. Measured vertically. Set to 0 for an open bottom (e.g. to fit over an LED candle).' },
         { key: 'Rim', value: 'Flat (default) or Rounded. Rounded rims look nicer but add a slight overhang.' },
       ] },
 
