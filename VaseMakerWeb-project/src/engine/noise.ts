@@ -38,15 +38,15 @@ export function voronoiCell(
   let d1 = 1e10; // nearest seed distance
   let d2 = 1e10; // second nearest
 
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
+  // 5×5 search: catches seeds near cell corners that a 3×3 window can miss,
+  // eliminating rare dimpled/non-cutout cells caused by incorrect F2-F1 values.
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
       let nx = cellX + dx;
       const ny = cellY + dy;
 
       // Wrap horizontally for seamless 0/360
-      let wrappedNx = nx;
-      if (wrappedNx < 0) wrappedNx += cellsU;
-      else if (wrappedNx >= cellsU) wrappedNx -= cellsU;
+      let wrappedNx = ((nx % cellsU) + cellsU) % cellsU;
 
       const [jx, jy] = hash2D(wrappedNx, ny, seed);
       const seedU = nx + jx;
@@ -65,18 +65,19 @@ export function voronoiCell(
     }
   }
 
-  // Edge detection: difference between second-nearest and nearest
-  const diff = Math.sqrt(d2) - Math.sqrt(d1);
-  // Wide transition zone so the mesh can resolve the edge without aliasing,
-  // combined with power-curve shaping to make it visually sharp.
-  // edgeWidth controls steepness: 0 = gentle/smooth, 1 = steep/sharp.
-  const edge = 0.15 + (1 - edgeWidth) * 0.35; // range 0.15 to 0.5
+  // Edge detection: normalized difference — dividing by dist2 ensures all
+  // cell centers reach 1.0 regardless of cell size, eliminating dimples
+  // in thin sliver cells where two seeds are close together.
+  const dist1 = Math.sqrt(d1);
+  const dist2 = Math.sqrt(d2);
+  const diff = dist2 > 0 ? (dist2 - dist1) / dist2 : 0;
+  // Double smoothstep: always two passes so groove floors have zero 1st AND
+  // 2nd derivative — eliminates diagonal grid aliasing bumps completely.
+  // edgeWidth controls only the transition zone width (groove sharpness).
+  const edge = 0.30 + (1 - edgeWidth) * 0.50; // range 0.30 to 0.80
   const t = Math.min(diff / edge, 1);
-  // Power-curve reshaping: pulls t toward 1 faster, making the groove narrow
-  // while keeping enough samples across the transition to avoid aliasing
-  const k = 1 + edgeWidth * 4; // steepness 1–5
-  const shaped = Math.pow(t, 1 / k);
-  return shaped * shaped * (3 - 2 * shaped); // smoothstep
+  const s = t * t * (3 - 2 * t);
+  return s * s * (3 - 2 * s);
 }
 
 // ============================================================
