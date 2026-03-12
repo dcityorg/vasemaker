@@ -270,10 +270,12 @@ function gaussianBlur(src: Uint8Array, w: number, h: number, radius: number): Ui
  */
 function setSvgSize(svg: string, w: number, h: number): string {
   return svg.replace(/<svg\b([^>]*)>/, (_match, attrs: string) => {
-    // Remove existing width/height
+    // Remove existing width/height (including units like "px", "em", "%")
     let cleaned = attrs
-      .replace(/\bwidth\s*=\s*['"]?[\d.]+['"]?/g, '')
-      .replace(/\bheight\s*=\s*['"]?[\d.]+['"]?/g, '');
+      .replace(/\bwidth\s*=\s*['"][^'"]*['"]/g, '')
+      .replace(/\bheight\s*=\s*['"][^'"]*['"]/g, '')
+      .replace(/\bwidth\s*=\s*\S+/g, '')
+      .replace(/\bheight\s*=\s*\S+/g, '');
     return `<svg${cleaned} width="${w}" height="${h}">`;
   });
 }

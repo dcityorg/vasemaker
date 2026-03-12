@@ -222,7 +222,7 @@ export const TEXTURES = {
     depth: { min: 0.1, max: 5, step: 0.1 } as SliderRange,
     sizeAround: { min: 10, max: 250, step: 1 } as SliderRange,
     sizeUp: { min: 10, max: 250, step: 1 } as SliderRange,
-    shiftUp: { min: 0, max: 100, step: 1 } as SliderRange,
+    shiftUp: { min: -50, max: 100, step: 1 } as SliderRange,
     spaceUp: { min: 5, max: 100, step: 1 } as SliderRange,
     stagger: { min: 0, max: 100, step: 1 } as SliderRange,
     tileRotation: { min: 0, max: 360, step: 1 } as SliderRange,

@@ -253,26 +253,93 @@ function generateShellMesh(
     }
   }
 
+  // ---- 2b. Clamp top row so it doesn't flare out past the row below ----
+  // Prevents rim overhang when textures (especially SVG) have less displacement
+  // at the very top of the vase (e.g. grass pattern with white sky at top of tile).
+  if (vRes >= 2) {
+    const topCX = rowContexts[vRes].centerX;
+    const topCY = rowContexts[vRes].centerY;
+    const belowCX = rowContexts[vRes - 1].centerX;
+    const belowCY = rowContexts[vRes - 1].centerY;
+
+    // Clamp outer wall top row
+    for (let tStep = 0; tStep < rRes; tStep++) {
+      const topIdx = (outerOffset + vRes * rRes + tStep) * 3;
+      const belowIdx = (outerOffset + (vRes - 1) * rRes + tStep) * 3;
+
+      const topDx = positions[topIdx] - topCX;
+      const topDy = positions[topIdx + 1] - topCY;
+      const belowDx = positions[belowIdx] - belowCX;
+      const belowDy = positions[belowIdx + 1] - belowCY;
+
+      const topR2 = topDx * topDx + topDy * topDy;
+      const belowR2 = belowDx * belowDx + belowDy * belowDy;
+
+      if (topR2 > belowR2 && belowR2 > 0) {
+        const scale = Math.sqrt(belowR2 / topR2);
+        positions[topIdx] = topCX + topDx * scale;
+        positions[topIdx + 1] = topCY + topDy * scale;
+      }
+    }
+
+    // Clamp inner wall top row
+    const innerTopRow = vRes - innerStartStep;
+    if (innerTopRow >= 2) {
+      const innerBelowStep = vRes - 1;
+      const innerBelowRow = innerBelowStep - innerStartStep;
+      const iTopCX = rowContexts[vRes].centerX;
+      const iTopCY = rowContexts[vRes].centerY;
+      const iBelowCX = rowContexts[innerBelowStep].centerX;
+      const iBelowCY = rowContexts[innerBelowStep].centerY;
+
+      for (let tStep = 0; tStep < rRes; tStep++) {
+        const topIdx = (innerOffset + innerTopRow * rRes + tStep) * 3;
+        const belowIdx = (innerOffset + innerBelowRow * rRes + tStep) * 3;
+
+        const topDx = positions[topIdx] - iTopCX;
+        const topDy = positions[topIdx + 1] - iTopCY;
+        const belowDx = positions[belowIdx] - iBelowCX;
+        const belowDy = positions[belowIdx + 1] - iBelowCY;
+
+        const topR2 = topDx * topDx + topDy * topDy;
+        const belowR2 = belowDx * belowDx + belowDy * belowDy;
+
+        if (topR2 > belowR2 && belowR2 > 0) {
+          const scale = Math.sqrt(belowR2 / topR2);
+          positions[topIdx] = iTopCX + topDx * scale;
+          positions[topIdx + 1] = iTopCY + topDy * scale;
+        }
+      }
+    }
+  }
+
   // ---- 3. Rounded rim vertices ----
+  // Read outer/inner positions from the (clamped) wall buffer for consistency
   if (params.rimShape === 'rounded' && rimSteps > 0) {
-    const topRow = rowContexts[vRes];
     for (let rStep = 0; rStep <= rimSteps; rStep++) {
       const arcAngle = (rStep / rimSteps) * Math.PI;
       const arcCos = Math.cos(arcAngle);
       const arcSin = Math.sin(arcAngle);
 
       for (let tStep = 0; tStep < rRes; tStep++) {
-        const [ox, oy, oz] = computeVertex(topRow, tStep, 0, undefined, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm);
-        const [ix, iy, ] = computeInnerVertex(topRow, tStep, undefined, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm);
+        const outerIdx = (outerOffset + vRes * rRes + tStep) * 3;
+        const ox = positions[outerIdx], oy = positions[outerIdx + 1], oz = positions[outerIdx + 2];
+
+        const innerTopRowIdx = vRes - innerStartStep;
+        const innerIdx = (innerOffset + innerTopRowIdx * rRes + tStep) * 3;
+        const ix = positions[innerIdx], iy = positions[innerIdx + 1];
 
         const mx = (ox + ix) / 2;
         const my = (oy + iy) / 2;
         const dx = (ox - ix) / 2;
         const dy = (oy - iy) / 2;
 
+        // Compute actual rim half-width from the clamped positions
+        const rimHalfWidth = Math.sqrt(dx * dx + dy * dy);
+
         const x = mx + dx * arcCos;
         const y = my + dy * arcCos;
-        const z = oz + (wt / 2) * arcSin;
+        const z = oz + rimHalfWidth * arcSin;
 
         const idx = (rimOffset + rStep * rRes + tStep) * 3;
         positions[idx] = x;
@@ -283,20 +350,21 @@ function generateShellMesh(
   }
 
   // ---- 4. Flat rim vertices ----
+  // Read from the (clamped) wall buffer instead of recomputing
   if (params.rimShape === 'flat') {
-    const topRow = rowContexts[vRes];
+    const innerTopRowIdx = vRes - innerStartStep;
     for (let tStep = 0; tStep < rRes; tStep++) {
-      const [ox, oy, oz] = computeVertex(topRow, tStep, 0, undefined, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm);
+      const outerIdx = (outerOffset + vRes * rRes + tStep) * 3;
       const idx0 = (flatRimOffset + tStep) * 3;
-      positions[idx0] = ox;
-      positions[idx0 + 1] = oy;
-      positions[idx0 + 2] = oz;
+      positions[idx0] = positions[outerIdx];
+      positions[idx0 + 1] = positions[outerIdx + 1];
+      positions[idx0 + 2] = positions[outerIdx + 2];
 
-      const [ix, iy, iz] = computeInnerVertex(topRow, tStep, undefined, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm);
+      const innerIdx = (innerOffset + innerTopRowIdx * rRes + tStep) * 3;
       const idx1 = (flatRimOffset + rRes + tStep) * 3;
-      positions[idx1] = ix;
-      positions[idx1 + 1] = iy;
-      positions[idx1 + 2] = iz;
+      positions[idx1] = positions[innerIdx];
+      positions[idx1 + 1] = positions[innerIdx + 1];
+      positions[idx1 + 2] = positions[innerIdx + 2];
     }
   }
 

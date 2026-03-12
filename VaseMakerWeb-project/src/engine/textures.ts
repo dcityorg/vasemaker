@@ -259,13 +259,15 @@ const woodGrainEvaluator: TextureEvaluator = (ctx, params, texturesEnabled, _sim
 
 /**
  * Compute SVG tile coordinates with all transforms applied.
- * Returns [tileU, tileV] in 0–1 range, or null if point is outside motif area.
+ * Returns [tileU, tileV, fadeFactor] where fadeFactor is 1.0 inside the motif
+ * and smoothly transitions to 0.0 at the motif edges (preventing hard-cutoff lips).
+ * Returns null if point is completely outside the motif area.
  * Shared by displacement evaluator and cutout evaluator.
  */
 export function computeSvgTileCoords(
   arcU: number, v: number,
   sp: VaseParameters['textures']['svgPattern']
-): [number, number] | null {
+): [number, number, number] | null {
   // Base cell height from repeatY (determines motif size)
   const baseCellHeight = 1 / sp.repeatY;
   // Stride between row centers: spaceUp=0 means auto (same as baseCellHeight)
@@ -277,17 +279,32 @@ export function computeSvgTileCoords(
   const shiftUp = (sp.shiftUp ?? 0) / 100;
   const shiftedV = v - shiftUp;
 
-  // Find which row this point belongs to (by stride)
-  const cellIdxY = Math.floor(shiftedV / stride);
+  // Size scaling: motif occupies sizeAround% x sizeUp% of cell, centered
+  // (computed early so sizeV can extend the cell bounds and localV bounds)
+  const sizeU = (sp.sizeAround ?? 100) / 100;
+  const sizeV = (sp.sizeUp ?? 100) / 100;
 
-  // Clip vertically: only render rows 0..repeatY-1 (no wrapping)
-  if (cellIdxY < 0 || cellIdxY >= sp.repeatY) return null;
+  // Find which row this point belongs to (by stride)
+  let cellIdxY = Math.floor(shiftedV / stride);
+
+  // Clip vertically: only render rows 0..repeatY-1 (no wrapping).
+  // When sizeV > 1, the motif extends beyond the cell — allow points in
+  // adjacent virtual cells to be attributed to the nearest real cell.
+  if (cellIdxY < 0) {
+    if (sizeV <= 1) return null;
+    cellIdxY = 0; // snap to first cell, localV will be < 0
+  } else if (cellIdxY >= sp.repeatY) {
+    if (sizeV <= 1) return null;
+    cellIdxY = Math.floor(sp.repeatY) - 1; // snap to last cell
+    if (cellIdxY < 0) return null;
+  }
 
   // Local position within cell: distance from row center, normalized to baseCellHeight
   const rowCenterV = (cellIdxY + 0.5) * stride;
   const localV = (shiftedV - rowCenterV) / baseCellHeight + 0.5;
-  // Outside the base cell area — no displacement
-  if (localV < 0 || localV > 1) return null;
+  // Outside the cell area — allow extension when sizeV > 1 (motif exceeds cell)
+  const localVExtent = Math.max(0, (sizeV - 1) / 2);
+  if (localV < -localVExtent || localV > 1 + localVExtent) return null;
 
   // Horizontal tiling
   const rawCellU = arcU * sp.repeatX;
@@ -302,20 +319,45 @@ export function computeSvgTileCoords(
   let tileU = staggeredU - cellIdxX;
   let tileV = localV;
 
-  // Size scaling: motif occupies sizeAround% x sizeUp% of cell, centered
-  const sizeU = (sp.sizeAround ?? 100) / 100;
-  const sizeV = (sp.sizeUp ?? 100) / 100;
-
-  // Check if point falls within the motif area
+  // Check if point falls within or near the motif area.
+  // Use a smooth fade zone at motif edges to prevent hard-cutoff lips
+  // when the motif boundary aligns with a mesh row.
   const marginU = (1 - sizeU) / 2;
   const marginV = (1 - sizeV) / 2;
-  if (tileU < marginU || tileU > 1 - marginU || tileV < marginV || tileV > 1 - marginV) {
-    return null; // In padding zone
+  // Fade zone width: 5% of cell size, enough to span 1-3 mesh rows
+  const fadeU = Math.max(0.01, sizeU * 0.05);
+  const fadeV = Math.max(0.01, sizeV * 0.05);
+
+  // Hard reject if completely outside the fade zone
+  if (tileU < marginU - fadeU || tileU > 1 - marginU + fadeU ||
+      tileV < marginV - fadeV || tileV > 1 - marginV + fadeV) {
+    return null;
   }
 
-  // Remap to 0–1 within the motif area
-  tileU = (tileU - marginU) / sizeU;
-  tileV = (tileV - marginV) / sizeV;
+  // Compute edge fade factor (1.0 inside, smoothstep to 0.0 at edge)
+  let fadeFactor = 1.0;
+  if (marginU > 0) {
+    const distFromLeftEdge = (tileU - marginU) / fadeU;
+    const distFromRightEdge = (1 - marginU - tileU) / fadeU;
+    const edgeFadeU = Math.min(
+      Math.max(0, Math.min(1, distFromLeftEdge)),
+      Math.max(0, Math.min(1, distFromRightEdge))
+    );
+    fadeFactor *= edgeFadeU * edgeFadeU * (3 - 2 * edgeFadeU); // smoothstep
+  }
+  if (marginV > 0) {
+    const distFromTopEdge = (tileV - marginV) / fadeV;
+    const distFromBottomEdge = (1 - marginV - tileV) / fadeV;
+    const edgeFadeV = Math.min(
+      Math.max(0, Math.min(1, distFromTopEdge)),
+      Math.max(0, Math.min(1, distFromBottomEdge))
+    );
+    fadeFactor *= edgeFadeV * edgeFadeV * (3 - 2 * edgeFadeV); // smoothstep
+  }
+
+  // Remap to 0–1 within the motif area (clamp for points in the fade zone)
+  tileU = Math.max(0, Math.min(1, (tileU - marginU) / sizeU));
+  tileV = Math.max(0, Math.min(1, (tileV - marginV) / sizeV));
 
   // Mirror alternate: flip every other tile horizontally
   if (sp.mirrorAlternate && (cellIdxX + cellIdxY) % 2 === 1) {
@@ -361,7 +403,7 @@ export function computeSvgTileCoords(
     tileV = cv;
   }
 
-  return [tileU, tileV];
+  return [tileU, tileV, fadeFactor];
 }
 
 /**
@@ -376,7 +418,7 @@ const svgPatternEvaluator: TextureEvaluator = (ctx, params, texturesEnabled, _si
   if (!coords) return 0;
 
   const brightness = sampleSvgPattern(coords[0], coords[1], sp.rotation, sp.flipX, sp.flipY);
-  return -sp.depth * (sp.invert ? brightness : 1 - brightness) * ctx.vSmooth * ctx.rSmooth * ctx.szf;
+  return -sp.depth * (sp.invert ? brightness : 1 - brightness) * coords[2] * ctx.vSmooth * ctx.rSmooth * ctx.szf;
 };
 
 // ============================================================
