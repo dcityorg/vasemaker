@@ -190,6 +190,17 @@ export interface VaseParameters {
       rotation?: number;    // 0, 90, 180, or 270 degrees clockwise
       flipX?: boolean;      // flip horizontally
       flipY?: boolean;      // flip vertically
+      sizeAround?: number;  // motif width as % of tile cell (10–100)
+      sizeUp?: number;      // motif height as % of tile cell (10–100)
+      shiftUp?: number;     // vertical offset as % of vase height (0–100)
+      spaceUp?: number;     // distance between row centers as % of vase height (0=auto, 5–100)
+      stagger?: number;     // shift alternate rows by % of cell width (0–100)
+      tileRotation?: number;   // uniform rotation for all tiles in degrees (0–360)
+      randomRotation?: number; // max random rotation per tile in degrees (0–360)
+      randomScale?: number;    // max random size variation per tile (0–50%)
+      randomRotateSeed?: number; // seed for random rotation (change to re-randomize)
+      randomScaleSeed?: number;  // seed for random scale (change to re-randomize)
+      mirrorAlternate?: boolean; // flip every other tile horizontally
     };
     squareFlute: {
       enabled: boolean;

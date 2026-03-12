@@ -19,7 +19,7 @@ import {
 import { sinD, cosD } from '@/lib/math-utils';
 import { buildPermTable } from './noise';
 import { getSvgPatternData, sampleSvgPattern } from './svg-pattern';
-import { computeTextureContributions, TextureContext } from './textures';
+import { computeTextureContributions, TextureContext, computeSvgTileCoords } from './textures';
 import { voronoiCell } from './noise';
 
 /** Minimum inner radius to prevent self-intersection */
@@ -411,13 +411,15 @@ export function computeCutoutFactor(
   const svgPatternData = getSvgPatternData();
   if (svgPatternData && params.textures.svgPattern?.enabled && params.textures.svgPattern?.cutout && params.textures.svgPattern.svgText) {
     const sp = params.textures.svgPattern;
-    const tileU = (arcU * sp.repeatX) % 1;
-    const tileV = (row.v * sp.repeatY) % 1;
-    const brightness = sampleSvgPattern(tileU, tileV);
-    const raw = sp.invert ? brightness : 1 - brightness;
-    const lo = 0.3, hi = 0.7;
-    const clamped = Math.max(0, Math.min(1, (raw - lo) / (hi - lo)));
-    factor = Math.max(factor, clamped * clamped * (3 - 2 * clamped));
+    const coords = computeSvgTileCoords(arcU, row.v, sp);
+    if (coords) {
+      const brightness = sampleSvgPattern(coords[0], coords[1], sp.rotation, sp.flipX, sp.flipY);
+      const raw = sp.invert ? brightness : 1 - brightness;
+      const lo = 0.3, hi = 0.7;
+      const clamped = Math.max(0, Math.min(1, (raw - lo) / (hi - lo)));
+      factor = Math.max(factor, clamped * clamped * (3 - 2 * clamped));
+    }
+    // coords === null means padding zone — no cutout there
   }
 
   return factor;

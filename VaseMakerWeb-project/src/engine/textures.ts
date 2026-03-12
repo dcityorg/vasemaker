@@ -32,7 +32,7 @@
  */
 
 import type { VaseParameters } from './types';
-import { voronoiCell, simplex3D, fbm3D, woodGrain } from './noise';
+import { voronoiCell, simplex3D, fbm3D, woodGrain, hash2D } from './noise';
 import { sampleSvgPattern } from './svg-pattern';
 import { sinD } from '@/lib/math-utils';
 
@@ -258,14 +258,124 @@ const woodGrainEvaluator: TextureEvaluator = (ctx, params, texturesEnabled, _sim
 };
 
 /**
+ * Compute SVG tile coordinates with all transforms applied.
+ * Returns [tileU, tileV] in 0–1 range, or null if point is outside motif area.
+ * Shared by displacement evaluator and cutout evaluator.
+ */
+export function computeSvgTileCoords(
+  arcU: number, v: number,
+  sp: VaseParameters['textures']['svgPattern']
+): [number, number] | null {
+  // Base cell height from repeatY (determines motif size)
+  const baseCellHeight = 1 / sp.repeatY;
+  // Stride between row centers: spaceUp=0 means auto (same as baseCellHeight)
+  const stride = (sp.spaceUp ?? 0) > 0
+    ? (sp.spaceUp as number) / 100
+    : baseCellHeight;
+
+  // Apply vertical shift (shiftUp as % of vase height)
+  const shiftUp = (sp.shiftUp ?? 0) / 100;
+  const shiftedV = v - shiftUp;
+
+  // Find which row this point belongs to (by stride)
+  const cellIdxY = Math.floor(shiftedV / stride);
+
+  // Clip vertically: only render rows 0..repeatY-1 (no wrapping)
+  if (cellIdxY < 0 || cellIdxY >= sp.repeatY) return null;
+
+  // Local position within cell: distance from row center, normalized to baseCellHeight
+  const rowCenterV = (cellIdxY + 0.5) * stride;
+  const localV = (shiftedV - rowCenterV) / baseCellHeight + 0.5;
+  // Outside the base cell area — no displacement
+  if (localV < 0 || localV > 1) return null;
+
+  // Horizontal tiling
+  const rawCellU = arcU * sp.repeatX;
+
+  // Stagger: shift alternate rows horizontally by % of cell width
+  const stagger = (sp.stagger ?? 0) / 100;
+  const staggeredU = rawCellU + (cellIdxY % 2 === 1 ? stagger : 0);
+
+  const cellIdxX = Math.floor(staggeredU);
+
+  // Local tile coordinate (0–1 within cell)
+  let tileU = staggeredU - cellIdxX;
+  let tileV = localV;
+
+  // Size scaling: motif occupies sizeAround% x sizeUp% of cell, centered
+  const sizeU = (sp.sizeAround ?? 100) / 100;
+  const sizeV = (sp.sizeUp ?? 100) / 100;
+
+  // Check if point falls within the motif area
+  const marginU = (1 - sizeU) / 2;
+  const marginV = (1 - sizeV) / 2;
+  if (tileU < marginU || tileU > 1 - marginU || tileV < marginV || tileV > 1 - marginV) {
+    return null; // In padding zone
+  }
+
+  // Remap to 0–1 within the motif area
+  tileU = (tileU - marginU) / sizeU;
+  tileV = (tileV - marginV) / sizeV;
+
+  // Mirror alternate: flip every other tile horizontally
+  if (sp.mirrorAlternate && (cellIdxX + cellIdxY) % 2 === 1) {
+    tileU = 1 - tileU;
+  }
+
+  // Uniform tile rotation (applied to all tiles equally)
+  const tileRot = sp.tileRotation ?? 0;
+  if (tileRot > 0) {
+    const angle = tileRot * (Math.PI / 180);
+    const cu = tileU - 0.5;
+    const cv = tileV - 0.5;
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+    tileU = cu * cosA - cv * sinA + 0.5;
+    tileV = cu * sinA + cv * cosA + 0.5;
+    if (tileU < 0 || tileU > 1 || tileV < 0 || tileV > 1) return null;
+  }
+
+  // Per-tile random rotation
+  const maxRot = sp.randomRotation ?? 0;
+  if (maxRot > 0) {
+    const [rHash] = hash2D(cellIdxX, cellIdxY, 7919 + (sp.randomRotateSeed ?? 0));
+    const angle = (rHash - 0.5) * 2 * maxRot * (Math.PI / 180);
+    const cu = tileU - 0.5;
+    const cv = tileV - 0.5;
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+    tileU = cu * cosA - cv * sinA + 0.5;
+    tileV = cu * sinA + cv * cosA + 0.5;
+    if (tileU < 0 || tileU > 1 || tileV < 0 || tileV > 1) return null;
+  }
+
+  // Per-tile random scale
+  const maxScaleVar = (sp.randomScale ?? 0) / 100;
+  if (maxScaleVar > 0) {
+    const [sHash] = hash2D(cellIdxX, cellIdxY, 6271 + (sp.randomScaleSeed ?? 0));
+    const scaleFactor = 1 - sHash * maxScaleVar;
+    const cu = (tileU - 0.5) / scaleFactor + 0.5;
+    const cv = (tileV - 0.5) / scaleFactor + 0.5;
+    if (cu < 0 || cu > 1 || cv < 0 || cv > 1) return null;
+    tileU = cu;
+    tileV = cv;
+  }
+
+  return [tileU, tileV];
+}
+
+/**
  * SVG pattern — user-supplied SVG as displacement map.
+ * Supports: size scaling, vertical shift, row stagger, random rotation/scale, mirror alternate.
  */
 const svgPatternEvaluator: TextureEvaluator = (ctx, params, texturesEnabled, _simplexPerm, _woodGrainPerm, svgData) => {
   if (!texturesEnabled || !svgData || !params.textures.svgPattern?.enabled || !params.textures.svgPattern.svgText) return 0;
   const sp = params.textures.svgPattern;
-  const tileU = (ctx.arcU * sp.repeatX) % 1;
-  const tileV = (ctx.v * sp.repeatY) % 1;
-  const brightness = sampleSvgPattern(tileU, tileV, sp.rotation, sp.flipX, sp.flipY);
+
+  const coords = computeSvgTileCoords(ctx.arcU, ctx.v, sp);
+  if (!coords) return 0;
+
+  const brightness = sampleSvgPattern(coords[0], coords[1], sp.rotation, sp.flipX, sp.flipY);
   return -sp.depth * (sp.invert ? brightness : 1 - brightness) * ctx.vSmooth * ctx.rSmooth * ctx.szf;
 };
 

@@ -169,7 +169,7 @@ export function TextureControls({ designName }: { designName?: string | null }) 
   const resetVoronoi = () => setVoronoi({ scale: DEFAULT_PARAMETERS.textures.voronoi.scale, depth: DEFAULT_PARAMETERS.textures.voronoi.depth, edgeWidth: DEFAULT_PARAMETERS.textures.voronoi.edgeWidth, seed: DEFAULT_PARAMETERS.textures.voronoi.seed, cutout: false });
   const resetSimplex = () => setSimplex({ scale: DEFAULT_PARAMETERS.textures.simplex.scale, depth: DEFAULT_PARAMETERS.textures.simplex.depth, octaves: DEFAULT_PARAMETERS.textures.simplex.octaves, persistence: DEFAULT_PARAMETERS.textures.simplex.persistence, lacunarity: DEFAULT_PARAMETERS.textures.simplex.lacunarity, seed: DEFAULT_PARAMETERS.textures.simplex.seed });
   const resetWoodGrain = () => setWoodGrain({ count: DEFAULT_PARAMETERS.textures.woodGrain.count, depth: DEFAULT_PARAMETERS.textures.woodGrain.depth, wobble: DEFAULT_PARAMETERS.textures.woodGrain.wobble, sharpness: DEFAULT_PARAMETERS.textures.woodGrain.sharpness, seed: DEFAULT_PARAMETERS.textures.woodGrain.seed });
-  const resetSvgPattern = () => setSvgPattern({ repeatX: DEFAULT_PARAMETERS.textures.svgPattern.repeatX, repeatY: DEFAULT_PARAMETERS.textures.svgPattern.repeatY, depth: DEFAULT_PARAMETERS.textures.svgPattern.depth, invert: DEFAULT_PARAMETERS.textures.svgPattern.invert, cutout: false, rotation: 0, flipX: false, flipY: false });
+  const resetSvgPattern = () => setSvgPattern({ repeatX: DEFAULT_PARAMETERS.textures.svgPattern.repeatX, repeatY: DEFAULT_PARAMETERS.textures.svgPattern.repeatY, depth: DEFAULT_PARAMETERS.textures.svgPattern.depth, invert: DEFAULT_PARAMETERS.textures.svgPattern.invert, cutout: false, rotation: 0, flipX: false, flipY: false, sizeAround: 100, sizeUp: 100, shiftUp: 0, spaceUp: 0, stagger: 0, tileRotation: 0, randomRotation: 0, randomScale: 0, randomRotateSeed: 0, randomScaleSeed: 0, mirrorAlternate: false });
   const resetSquareFlute = () => setSquareFlute({ count: DEFAULT_PARAMETERS.textures.squareFlute.count, depth: DEFAULT_PARAMETERS.textures.squareFlute.depth, duty: DEFAULT_PARAMETERS.textures.squareFlute.duty, sharpness: DEFAULT_PARAMETERS.textures.squareFlute.sharpness });
   const resetWaves = () => setWaves({ count: DEFAULT_PARAMETERS.textures.waves.count, depth: DEFAULT_PARAMETERS.textures.waves.depth, duty: DEFAULT_PARAMETERS.textures.waves.duty });
   const resetRods = () => setRods({ count: DEFAULT_PARAMETERS.textures.rods.count, depth: DEFAULT_PARAMETERS.textures.rods.depth, duty: DEFAULT_PARAMETERS.textures.rods.duty });
@@ -383,10 +383,33 @@ export function TextureControls({ designName }: { designName?: string | null }) 
             </div>
             {params.textures.svgPattern.svgText && (
               <>
-                <SliderRow label="Tiles Around" value={params.textures.svgPattern.repeatX} {...TEXTURES.svgPattern.repeatX} onChange={(v) => setSvgPattern({ repeatX: v })} tooltip="Number of tile repeats around circumference" />
-                <SliderRow label="Tiles Up" value={params.textures.svgPattern.repeatY} {...TEXTURES.svgPattern.repeatY} onChange={(v) => setSvgPattern({ repeatY: v })} tooltip="Number of tile repeats up the height" />
+                <SliderRow label="# Tiles Around" value={params.textures.svgPattern.repeatX} {...TEXTURES.svgPattern.repeatX} onChange={(v) => setSvgPattern({ repeatX: v })} tooltip="Number of tile repeats around circumference" />
+                <SliderRow label="# Tiles Vert" value={params.textures.svgPattern.repeatY} {...TEXTURES.svgPattern.repeatY} onChange={(v) => setSvgPattern({ repeatY: v })} tooltip="Number of tile repeats up the height" />
+                <SliderRow label="SVG Size X" value={params.textures.svgPattern.sizeAround ?? 100} {...TEXTURES.svgPattern.sizeAround} onChange={(v) => setSvgPattern({ sizeAround: v })} tooltip="Motif width as % of tile cell (smaller = more gap between motifs)" suffix="%" />
+                <div className="flex items-center gap-2 ml-4 -mt-1 mb-1">
+                  <span className="text-xs text-[var(--text-secondary)] opacity-60">↕ 100% for tiling</span>
+                  <button className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]" onClick={() => setSvgPattern({ sizeAround: 100, sizeUp: 100 })}>Reset</button>
+                </div>
+                <SliderRow label="SVG Size Y" value={params.textures.svgPattern.sizeUp ?? 100} {...TEXTURES.svgPattern.sizeUp} onChange={(v) => setSvgPattern({ sizeUp: v })} tooltip="Motif height as % of tile cell (smaller = more gap between motifs)" suffix="%" />
+                <SliderRow label="Rotate" value={params.textures.svgPattern.tileRotation ?? 0} {...TEXTURES.svgPattern.tileRotation} onChange={(v) => setSvgPattern({ tileRotation: v })} tooltip="Uniform rotation for all tiles in degrees" suffix="°" />
+                <div className="flex items-center gap-1 mb-2">
+                  <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Max random tilt per tile in degrees">Rand. Rotate</label>
+                  <input type="range" min={0} max={360} step={1} value={params.textures.svgPattern.randomRotation ?? 0} onChange={(e) => setSvgPattern({ randomRotation: parseFloat(e.target.value) })} className="flex-1 min-w-0 h-1.5 accent-[var(--accent)]" />
+                  <span className="text-xs text-[var(--text-secondary)] w-12 shrink-0 text-right tabular-nums">{params.textures.svgPattern.randomRotation ?? 0}°</span>
+                  <button className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--border-color)] shrink-0" title="Re-randomize rotation" onClick={() => setSvgPattern({ randomRotateSeed: ((params.textures.svgPattern.randomRotateSeed ?? 0) + 1) % 100 })}>↻</button>
+                </div>
+                <div className="flex items-center gap-1 mb-2">
+                  <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Max random size variation per tile (%)">Rand. Size</label>
+                  <input type="range" min={0} max={50} step={1} value={params.textures.svgPattern.randomScale ?? 0} onChange={(e) => setSvgPattern({ randomScale: parseFloat(e.target.value) })} className="flex-1 min-w-0 h-1.5 accent-[var(--accent)]" />
+                  <span className="text-xs text-[var(--text-secondary)] w-12 shrink-0 text-right tabular-nums">{params.textures.svgPattern.randomScale ?? 0}%</span>
+                  <button className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--border-color)] shrink-0" title="Re-randomize scale" onClick={() => setSvgPattern({ randomScaleSeed: ((params.textures.svgPattern.randomScaleSeed ?? 0) + 1) % 100 })}>↻</button>
+                </div>
+                <Toggle label="Mirror Alt." checked={params.textures.svgPattern.mirrorAlternate ?? false} onChange={(v) => setSvgPattern({ mirrorAlternate: v })} tooltip="Flip every other tile horizontally" />
+                <SliderRow label="Vert Spacing" value={params.textures.svgPattern.spaceUp ?? 0} min={0} max={100} step={1} onChange={(v) => setSvgPattern({ spaceUp: v })} tooltip="Distance between row centers (% of vase height). 0 = auto (evenly divided)" />
+                <SliderRow label="Vert Move" value={params.textures.svgPattern.shiftUp ?? 0} {...TEXTURES.svgPattern.shiftUp} onChange={(v) => setSvgPattern({ shiftUp: v })} tooltip="Shift pattern up the vase (% of vase height)" suffix="%" />
+                <SliderRow label="Stagger Rows" value={params.textures.svgPattern.stagger ?? 0} {...TEXTURES.svgPattern.stagger} onChange={(v) => setSvgPattern({ stagger: v })} tooltip="Shift alternate rows horizontally (% of cell width)" />
+                <Toggle label="Invert SVG" checked={params.textures.svgPattern.invert ?? false} onChange={(v) => setSvgPattern({ invert: v })} tooltip="Swap grooves and ridges" />
                 <SliderRow label="Depth" value={params.textures.svgPattern.depth} {...TEXTURES.svgPattern.depth} onChange={(v) => setSvgPattern({ depth: v })} tooltip="Displacement depth in mm" />
-                <Toggle label="Invert" checked={params.textures.svgPattern.invert ?? false} onChange={(v) => setSvgPattern({ invert: v })} tooltip="Swap grooves and ridges" />
                 <Toggle label="Cutout" checked={params.textures.svgPattern.cutout ?? false} onChange={(v) => setSvgPattern({ cutout: v })} tooltip="Punch holes through the wall at dark areas" />
                 <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
                   Increase Resolution for finer detail

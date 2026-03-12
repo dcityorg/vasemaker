@@ -11,6 +11,7 @@ export function SliderRow({
   step,
   onChange,
   tooltip,
+  suffix,
 }: {
   label: string;
   value: number;
@@ -19,10 +20,11 @@ export function SliderRow({
   step: number;
   onChange: (v: number) => void;
   tooltip?: string;
+  suffix?: string;
 }) {
   return (
     <div className="flex items-center gap-2 mb-2">
-      <label className="text-sm text-[var(--text-secondary)] w-20 shrink-0" title={tooltip}>{label}</label>
+      <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title={tooltip}>{label}</label>
       <input
         type="range"
         min={min}
@@ -32,8 +34,8 @@ export function SliderRow({
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="flex-1 min-w-0 h-1.5 accent-[var(--accent)]"
       />
-      <span className="text-xs text-[var(--text-secondary)] w-10 shrink-0 text-right tabular-nums">
-        {value}
+      <span className="text-xs text-[var(--text-secondary)] w-12 shrink-0 text-right tabular-nums">
+        {value}{suffix}
       </span>
     </div>
   );
