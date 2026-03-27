@@ -25,9 +25,11 @@ export function parseSvgInput(input: string): string {
   const trimmed = input.trim();
   let svg: string;
 
-  // Format 1: raw SVG
-  if (trimmed.startsWith('<svg') || trimmed.startsWith('<?xml')) {
-    svg = trimmed;
+  // Format 1: raw SVG (may have <!DOCTYPE>, <?xml>, or comments before <svg>)
+  if (trimmed.startsWith('<svg') || trimmed.startsWith('<?xml') || trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<!--')) {
+    // Strip everything before the <svg tag (DOCTYPE, XML declarations, comments)
+    const svgStart = trimmed.indexOf('<svg');
+    svg = svgStart >= 0 ? trimmed.substring(svgStart) : trimmed;
   } else {
     // Format 3: CSS background-image line — extract the data URL
     // Hero Patterns uses: url("data:image/svg+xml,%3Csvg...") — percent-encoded
