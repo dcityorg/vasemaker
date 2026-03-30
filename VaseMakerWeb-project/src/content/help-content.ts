@@ -88,6 +88,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'heading', text: 'Shape Morphing' },
       { type: 'paragraph', text: 'Bottom Shape is always active. Open the Top Shape section and toggle it on to enable morphing \u2014 the vase will smoothly blend from the bottom shape at the base to the top shape at the rim. Each shape has its own independent parameters.' },
       { type: 'tip', text: 'Try morphing Circle \u2192 Star or Square \u2192 Heart for dramatic effects.' },
+      { type: 'tip', text: 'Shapes with deep concavities (Butterfly, Spirograph, Rose) may not slice properly at thin wall thicknesses. If your slicer drops sections of the vase, try increasing wall thickness to 2\u20133mm. The narrow pinch points need thicker walls for the slicer to generate toolpaths.' },
 
       { type: 'heading', text: 'New Shapes' },
       { type: 'keyvalue', items: [
@@ -255,8 +256,8 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'tip', text: 'Suggested starting point: Scale 10, Depth 1.5, Octaves 3, Persistence 0.5, Lacunarity 2.0.' },
 
-      { type: 'heading', text: 'Carved Wood' },
-      { type: 'paragraph', text: 'Vertical grain lines that meander organically, like flat-sawn wood. Uses simplex noise to wobble the stripe positions for a natural carved appearance.' },
+      { type: 'heading', text: 'Stipple' },
+      { type: 'paragraph', text: 'A bumpy, irregular surface texture. Uses simplex noise to perturb groove positions, creating an organic stippled appearance.' },
       { type: 'keyvalue', items: [
         { key: 'Count', value: 'Number of grain lines around the circumference' },
         { key: 'Depth', value: 'Groove depth (mm)' },
@@ -326,7 +327,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: '0.4mm nozzle', value: '0.8\u20131.2mm wall thickness (2\u20133 perimeters)' },
         { key: '0.6mm nozzle', value: '1.2\u20131.8mm wall thickness' },
       ] },
-      { type: 'tip', text: 'Too thin = fragile and may not slice properly. Too thick = wastes filament and hides surface detail.' },
+      { type: 'tip', text: 'Too thin = fragile and may not slice properly. Too thick = wastes filament and hides surface detail. If your slicer is dropping sections of the vase in preview, try increasing wall thickness \u2014 complex shapes with concavities need thicker walls (2\u20133mm) for the slicer to generate toolpaths in narrow areas.' },
 
       { type: 'heading', text: 'Smooth Inner Wall' },
       { type: 'paragraph', text: 'When Smooth Inner is enabled (Shell section), the inner wall ignores all ripples and textures, keeping it perfectly smooth. This prevents textures from creating paper-thin spots on the inside.' },
@@ -334,7 +335,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Smooth Inner', value: 'Toggle on for a smooth inner surface with textured outer' },
         { key: 'Min Wall', value: 'Minimum wall thickness (mm) \u2014 prevents textures from pushing through' },
       ] },
-      { type: 'tip', text: 'Enable Smooth Inner when using deep textures (Voronoi, Simplex, or Carved Wood with high depth) to prevent thin walls that won\'t print well.' },
+      { type: 'tip', text: 'Enable Smooth Inner when using deep textures (Voronoi, Simplex, or Stipple with high depth) to prevent thin walls that won\'t print well.' },
 
       { type: 'heading', text: 'Vase Mode (Spiral)' },
       { type: 'paragraph', text: 'For decorative vases, you can use your slicer\'s "vase mode" (spiral outer contour). Set wall thickness to 0 in VaseMaker \u2014 this exports a single surface. Your slicer will print it as one continuous spiral.' },
@@ -382,6 +383,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Cycloid (Hypo)', value: 'Hypocycloid mode creates sharp inward cusps. Low cusp counts (2\u20133) have extreme thin points.' },
       ] },
       { type: 'tip', text: 'If you love a shape but it has thin areas, try increasing the radius, reducing the shape-specific parameters, or using it as a Top Shape morphed from a simpler Bottom Shape so only the rim has the complex outline.' },
+      { type: 'tip', text: 'If the slicer preview shows missing sections on complex shapes (even though the Prepare view looks fine), increase wall thickness. Shapes like Butterfly and Spirograph have pinch points where the effective wall thickness is much less than the slider value \u2014 the slicer can\'t fit extrusion lines in those narrow gaps.' },
 
       { type: 'heading', text: 'Self-Intersection' },
       { type: 'paragraph', text: 'Self-intersection happens when the vase surface folds through itself, creating overlapping geometry. The 3D preview may look odd (inside-out patches, dark flickering faces), and slicers may produce errors or failed prints.' },
@@ -397,6 +399,7 @@ export const HELP_SECTIONS: HelpSection[] = [
 
       { type: 'heading', text: 'Troubleshooting' },
       { type: 'list', items: [
+        'Slicer drops sections of the vase: increase wall thickness (try 2\u20133mm). Complex shapes have narrow pinch points where thin walls can\'t be sliced',
         'Slicer shows holes or non-manifold: increase wall thickness or resolution',
         'Print is too fragile: increase wall thickness and base thickness',
         'Surface detail not visible: reduce wall thickness or increase texture depth',

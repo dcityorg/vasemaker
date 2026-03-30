@@ -307,7 +307,7 @@ export function TextureControls({ designName }: { designName?: string | null }) 
             <SliderRow label="Seed" value={params.textures.simplex.seed} {...TEXTURES.simplex.seed} onChange={(v) => setSimplex({ seed: v })} tooltip="Pattern variation — change for a different random pattern" />
           </div>
         )}
-        <Toggle label="Carved Wood" checked={params.textures.woodGrain?.enabled ?? false} onChange={(v) => setWoodGrain({ enabled: v })} onReset={resetWoodGrain} tooltip="Vertical grooves with organic wobble (like carved wood)" />
+        <Toggle label="Stipple" checked={params.textures.woodGrain?.enabled ?? false} onChange={(v) => setWoodGrain({ enabled: v })} onReset={resetWoodGrain} tooltip="Bumpy, irregular surface texture using noise-perturbed grooves" />
         {params.textures.woodGrain?.enabled && (
           <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
             <SliderRow label="Count" value={params.textures.woodGrain.count} {...TEXTURES.woodGrain.count} onChange={(v) => setWoodGrain({ count: v })} tooltip="Number of grain lines around circumference" />
