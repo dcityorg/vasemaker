@@ -31,6 +31,12 @@ Thumbs.db
 *.swp
 *.swo
 
+# local docs (not published to GitHub)
+local-docs/
+
+# Claude Code context (personal paths, dev workflows)
+CLAUDE.md
+
 # vercel
 .vercel
 

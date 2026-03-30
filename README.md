@@ -1,8 +1,36 @@
 # VaseMaker
 
-A browser-based parametric 3D vase designer. Create beautiful vases with 25 cross-section shapes, Bezier profile curves, 13 surface textures, twist, morphing, and more — then export STL files for 3D printing.
+A browser-based parametric 3D vase designer. Create beautiful vases with 29 cross-section shapes, Bezier profile curves, 13 surface textures, twist, morphing, and more — then export STL files for 3D printing.
 
-**[Try it live](https://vasemaker.vercel.app)**
+**[Use it now at vasemaker.dcity.org](https://vasemaker.dcity.org)** — no download or install required.
+
+Create SVG texture patterns with our companion app **[PatternMaker](https://patternmaker.dcity.org)** — design a pattern there, then apply it as a surface texture on your vase.
+
+<p align="center">
+<img src="docs/images/vasemaker-ui.png" width="600" alt="VaseMaker interface">
+</p>
+
+<p align="center">
+<video src="docs/images/vasemaker-adjustments.mp4" width="600" autoplay loop muted playsinline></video><br>
+<em>Real-time parameter adjustments</em>
+</p>
+
+## 3D Printed Examples
+
+<table>
+<tr>
+<td align="center"><img src="docs/images/classic-vase.jpg" width="200"><br><b>Classic Vase</b><br>Fluted texture with smooth zones</td>
+<td align="center"><img src="docs/images/butterfly-vase.jpg" width="200"><br><b>Butterfly Vase</b><br>Butterfly shape with twist</td>
+<td align="center"><img src="docs/images/heart-twins.jpg" width="200"><br><b>Heart Twins</b><br>Heart shape morphing with sway</td>
+<td align="center"><img src="docs/images/teardrop-lantern.jpg" width="200"><br><b>Teardrop Lantern</b><br>Teardrop shape with cutout</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/keyed-polygon.jpg" width="200"><br><b>Keyed Polygon</b><br>Polygon with SVG pattern cutout</td>
+<td align="center"><img src="docs/images/stone-box.jpg" width="200"><br><b>Stone Box</b><br>Square shape with Voronoi texture</td>
+<td align="center"><img src="docs/images/wood-logs.jpg" width="200"><br><b>Wood Logs</b><br>Stipple texture pen holder</td>
+<td align="center"><img src="docs/images/fluted-tray.jpg" width="200"><br><b>Fluted Tray</b><br>Rectangle shape, low profile</td>
+</tr>
+</table>
 
 ## Features
 
