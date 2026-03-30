@@ -46,6 +46,8 @@ export function Sidebar({
   const nameInputRef = useRef<HTMLInputElement>(null);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
   const [editingName, setEditingName] = useState(false);
+  const [presetDropdownOpen, setPresetDropdownOpen] = useState(false);
+  const presetDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleToggleAll = useCallback(() => {
     const container = scrollRef.current;
@@ -54,6 +56,18 @@ export function Sidebar({
     const allOpen = Array.from(details).every(d => d.open);
     details.forEach(d => d.open = !allOpen);
   }, []);
+
+  // Close preset dropdown on click outside
+  useEffect(() => {
+    if (!presetDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (presetDropdownRef.current && !presetDropdownRef.current.contains(e.target as Node)) {
+        setPresetDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [presetDropdownOpen]);
 
   // Keyboard shortcuts: Cmd+Z / Cmd+Shift+Z
   useEffect(() => {
@@ -186,7 +200,7 @@ export function Sidebar({
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.905</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v0.906</p>
         {editingName ? (
           <input
             ref={nameInputRef}
@@ -232,27 +246,46 @@ export function Sidebar({
 
       {/* Toolbar — all file operations grouped together */}
       <div className="px-3 py-2 border-b border-[var(--border-color)] flex flex-col gap-2">
-        {/* Presets */}
-        <select
-          onChange={(e) => {
-            const preset = BUILT_IN_PRESETS[parseInt(e.target.value)];
-            if (preset) {
-              guardDirty(() => {
-                loadPreset(preset);
-                onDesignNameChange(preset.name);
-              });
-            }
-            e.target.value = '';
-          }}
-          value=''
-          className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs"
-          style={{ color: UI_MUTED }}
-        >
-          <option value='' disabled>Select a starting vase</option>
-          {BUILT_IN_PRESETS.map((p, i) => (
-            <option key={i} value={i}>{p.name}</option>
-          ))}
-        </select>
+        {/* Presets — custom dropdown with thumbnails */}
+        <div className="relative" ref={presetDropdownRef}>
+          <button
+            onClick={() => setPresetDropdownOpen(!presetDropdownOpen)}
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs text-left flex items-center justify-between"
+            style={{ color: UI_MUTED }}
+          >
+            <span>Select a starting vase</span>
+            <span className="text-[10px] ml-1">{presetDropdownOpen ? '\u25B2' : '\u25BC'}</span>
+          </button>
+          {presetDropdownOpen && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-[var(--bg-panel)] border border-[var(--border-color)] rounded shadow-xl z-50 max-h-[70vh] overflow-y-auto sidebar-scroll">
+              {BUILT_IN_PRESETS.map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setPresetDropdownOpen(false);
+                    guardDirty(() => {
+                      loadPreset(p);
+                      onDesignNameChange(p.name);
+                    });
+                  }}
+                  className="w-full flex items-center gap-3 px-2 py-1.5 hover:bg-[var(--border-color)] transition-colors text-left"
+                >
+                  {p.thumbnail && (
+                    <img
+                      src={p.thumbnail}
+                      alt={p.name}
+                      className="w-10 h-14 object-cover rounded shrink-0"
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <div className="text-xs text-[var(--text-primary)] font-medium">{p.name}</div>
+                    <div className="text-[10px] text-[var(--text-secondary)] truncate">{p.description}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* ── Design files ── */}
         <div className="border-t-[3px] border-[#555] pt-2 flex gap-2">

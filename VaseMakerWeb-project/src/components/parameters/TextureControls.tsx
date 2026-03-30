@@ -286,16 +286,7 @@ export function TextureControls({ designName }: { designName?: string | null }) 
             <SliderRow label="Depth" value={params.textures.basketWeave.depth} {...TEXTURES.basketWeave.depth} onChange={(v) => setBasketWeave({ depth: v })} tooltip="Weave depth in mm" />
           </div>
         )}
-        <Toggle label="Voronoi" checked={params.textures.voronoi?.enabled ?? false} onChange={(v) => setVoronoi({ enabled: v })} onReset={resetVoronoi} tooltip="Organic cellular pattern (like cracked mud or giraffe skin)" />
-        {params.textures.voronoi?.enabled && (
-          <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
-            <SliderRow label="Scale" value={params.textures.voronoi.scale} {...TEXTURES.voronoi.scale} onChange={(v) => setVoronoi({ scale: v })} tooltip="Number of cells around circumference" />
-            <SliderRow label="Depth" value={params.textures.voronoi.depth} {...TEXTURES.voronoi.depth} onChange={(v) => setVoronoi({ depth: v })} tooltip="Cell emboss height in mm" />
-            <SliderRow label="Edge" value={params.textures.voronoi.edgeWidth} {...TEXTURES.voronoi.edgeWidth} onChange={(v) => setVoronoi({ edgeWidth: v })} tooltip="Edge sharpness (0 = smooth, 1 = sharp)" />
-            <SliderRow label="Seed" value={params.textures.voronoi.seed} {...TEXTURES.voronoi.seed} onChange={(v) => setVoronoi({ seed: v })} tooltip="Pattern variation — change for a different random layout" />
-            <Toggle label="Cutout" checked={params.textures.voronoi.cutout ?? false} onChange={(v) => setVoronoi({ cutout: v })} tooltip="Punch holes through the wall at cell centers" />
-          </div>
-        )}
+        {/* Voronoi UI hidden for now — engine code preserved for future improvements */}
         <Toggle label="Simplex" checked={params.textures.simplex?.enabled ?? false} onChange={(v) => setSimplex({ enabled: v })} onReset={resetSimplex} tooltip="Organic noise displacement (rocky, craggy surface)" />
         {params.textures.simplex?.enabled && (
           <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">

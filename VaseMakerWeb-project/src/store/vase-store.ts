@@ -8,6 +8,7 @@ import type { VaseParameters, ShapeType, ShapeParams, BezierPoint } from '@/engi
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import type { Preset } from '@/presets';
 import { applyPreset } from '@/presets';
+import { BUILT_IN_PRESETS } from '@/config/presets';
 import { recordChange, skipNextHistoryRecord, undo, redo, useHistoryStore } from './history';
 
 interface VaseStore {
@@ -103,7 +104,7 @@ interface VaseStore {
 }
 
 export const useVaseStore = create<VaseStore>((set, get) => ({
-  params: { ...DEFAULT_PARAMETERS },
+  params: { ...applyPreset(BUILT_IN_PRESETS[0]), color: '#0000ff' },
   isDirty: false,
   markClean: () => set({ isDirty: false }),
 

@@ -8,6 +8,7 @@ import type { VaseParameters } from '@/engine/types';
 export interface Preset {
   name: string;
   description: string;
+  thumbnail?: string;
   parameters: Partial<VaseParameters>;
 }
 
@@ -17,17 +18,15 @@ const KEYED_POLYGON_SVG = `<?xml version="1.0" encoding="UTF-8"?>
   <path d="M 12.50,25.00 L 37.50,25.00 L 37.50,75.00 L 12.50,75.00 Z" fill="#000000" stroke="none"></path><path d="M 25.00,62.50 L 75.00,62.50 L 75.00,87.50 L 25.00,87.50 Z" fill="#000000" stroke="none"></path><path d="M 62.50,25.00 L 87.50,25.00 L 87.50,75.00 L 62.50,75.00 Z" fill="#000000" stroke="none"></path><path d="M 75.00,12.50 L 125.00,12.50 L 125.00,37.50 L 75.00,37.50 Z" fill="#000000" stroke="none"></path><path d="M 125.00,12.50 L 175.00,12.50 L 175.00,37.50 L 125.00,37.50 Z" fill="#000000" stroke="none"></path><path d="M 162.50,25.00 L 187.50,25.00 L 187.50,75.00 L 162.50,75.00 Z" fill="#000000" stroke="none"></path><path d="M 125.00,62.50 L 175.00,62.50 L 175.00,87.50 L 125.00,87.50 Z" fill="#000000" stroke="none"></path><path d="M 112.50,75.00 L 137.50,75.00 L 137.50,125.00 L 112.50,125.00 Z" fill="#000000" stroke="none"></path><path d="M 125.00,112.50 L 175.00,112.50 L 175.00,137.50 L 125.00,137.50 Z" fill="#000000" stroke="none"></path><path d="M 162.50,125.00 L 187.50,125.00 L 187.50,175.00 L 162.50,175.00 Z" fill="#000000" stroke="none"></path><path d="M 125.00,162.50 L 175.00,162.50 L 175.00,187.50 L 125.00,187.50 Z" fill="#000000" stroke="none"></path><path d="M 75.00,162.50 L 125.00,162.50 L 125.00,187.50 L 75.00,187.50 Z" fill="#000000" stroke="none"></path><path d="M 62.50,125.00 L 87.50,125.00 L 87.50,175.00 L 62.50,175.00 Z" fill="#000000" stroke="none"></path><path d="M 25.00,112.50 L 75.00,112.50 L 75.00,137.50 L 25.00,137.50 Z" fill="#000000" stroke="none"></path><path d="M 12.50,125.00 L 37.50,125.00 L 37.50,175.00 L 12.50,175.00 Z" fill="#000000" stroke="none"></path><path d="M 12.50,175.00 L 37.50,175.00 L 37.50,225.00 L 12.50,225.00 Z" fill="#000000" stroke="none"></path><path d="M 25.00,212.50 L 75.00,212.50 L 75.00,237.50 L 25.00,237.50 Z" fill="#000000" stroke="none"></path><path d="M 62.50,225.00 L 87.50,225.00 L 87.50,275.00 L 62.50,275.00 Z" fill="#000000" stroke="none"></path><path d="M 25.00,262.50 L 75.00,262.50 L 75.00,287.50 L 25.00,287.50 Z" fill="#000000" stroke="none"></path><path d="M 12.50,275.00 L 37.50,275.00 L 37.50,325.00 L 12.50,325.00 Z" fill="#000000" stroke="none"></path><path d="M 12.50,325.00 L 37.50,325.00 L 37.50,375.00 L 12.50,375.00 Z" fill="#000000" stroke="none"></path><path d="M 25.00,362.50 L 75.00,362.50 L 75.00,387.50 L 25.00,387.50 Z" fill="#000000" stroke="none"></path><path d="M 62.50,325.00 L 87.50,325.00 L 87.50,375.00 L 62.50,375.00 Z" fill="#000000" stroke="none"></path><path d="M 75.00,312.50 L 125.00,312.50 L 125.00,337.50 L 75.00,337.50 Z" fill="#000000" stroke="none"></path><path d="M 112.50,325.00 L 137.50,325.00 L 137.50,375.00 L 112.50,375.00 Z" fill="#000000" stroke="none"></path><path d="M 125.00,362.50 L 175.00,362.50 L 175.00,387.50 L 125.00,387.50 Z" fill="#000000" stroke="none"></path><path d="M 162.50,325.00 L 187.50,325.00 L 187.50,375.00 L 162.50,375.00 Z" fill="#000000" stroke="none"></path><path d="M 162.50,275.00 L 187.50,275.00 L 187.50,325.00 L 162.50,325.00 Z" fill="#000000" stroke="none"></path><path d="M 125.00,262.50 L 175.00,262.50 L 175.00,287.50 L 125.00,287.50 Z" fill="#000000" stroke="none"></path><path d="M 112.50,225.00 L 137.50,225.00 L 137.50,275.00 L 112.50,275.00 Z" fill="#000000" stroke="none"></path><path d="M 125.00,212.50 L 175.00,212.50 L 175.00,237.50 L 125.00,237.50 Z" fill="#000000" stroke="none"></path><path d="M 175.00,212.50 L 225.00,212.50 L 225.00,237.50 L 175.00,237.50 Z" fill="#000000" stroke="none"></path><path d="M 225.00,212.50 L 275.00,212.50 L 275.00,237.50 L 225.00,237.50 Z" fill="#000000" stroke="none"></path><path d="M 262.50,225.00 L 287.50,225.00 L 287.50,275.00 L 262.50,275.00 Z" fill="#000000" stroke="none"></path><path d="M 225.00,262.50 L 275.00,262.50 L 275.00,287.50 L 225.00,287.50 Z" fill="#000000" stroke="none"></path><path d="M 212.50,275.00 L 237.50,275.00 L 237.50,325.00 L 212.50,325.00 Z" fill="#000000" stroke="none"></path><path d="M 212.50,325.00 L 237.50,325.00 L 237.50,375.00 L 212.50,375.00 Z" fill="#000000" stroke="none"></path><path d="M 225.00,362.50 L 275.00,362.50 L 275.00,387.50 L 225.00,387.50 Z" fill="#000000" stroke="none"></path><path d="M 262.50,325.00 L 287.50,325.00 L 287.50,375.00 L 262.50,375.00 Z" fill="#000000" stroke="none"></path><path d="M 275.00,312.50 L 325.00,312.50 L 325.00,337.50 L 275.00,337.50 Z" fill="#000000" stroke="none"></path><path d="M 312.50,325.00 L 337.50,325.00 L 337.50,375.00 L 312.50,375.00 Z" fill="#000000" stroke="none"></path><path d="M 325.00,362.50 L 375.00,362.50 L 375.00,387.50 L 325.00,387.50 Z" fill="#000000" stroke="none"></path><path d="M 362.50,325.00 L 387.50,325.00 L 387.50,375.00 L 362.50,375.00 Z" fill="#000000" stroke="none"></path><path d="M 362.50,275.00 L 387.50,275.00 L 387.50,325.00 L 362.50,325.00 Z" fill="#000000" stroke="none"></path><path d="M 325.00,262.50 L 375.00,262.50 L 375.00,287.50 L 325.00,287.50 Z" fill="#000000" stroke="none"></path><path d="M 312.50,225.00 L 337.50,225.00 L 337.50,275.00 L 312.50,275.00 Z" fill="#000000" stroke="none"></path><path d="M 325.00,212.50 L 375.00,212.50 L 375.00,237.50 L 325.00,237.50 Z" fill="#000000" stroke="none"></path><path d="M 362.50,175.00 L 387.50,175.00 L 387.50,225.00 L 362.50,225.00 Z" fill="#000000" stroke="none"></path><path d="M 362.50,125.00 L 387.50,125.00 L 387.50,175.00 L 362.50,175.00 Z" fill="#000000" stroke="none"></path><path d="M 325.00,112.50 L 375.00,112.50 L 375.00,137.50 L 325.00,137.50 Z" fill="#000000" stroke="none"></path><path d="M 312.50,125.00 L 337.50,125.00 L 337.50,175.00 L 312.50,175.00 Z" fill="#000000" stroke="none"></path><path d="M 275.00,162.50 L 325.00,162.50 L 325.00,187.50 L 275.00,187.50 Z" fill="#000000" stroke="none"></path><path d="M 225.00,162.50 L 275.00,162.50 L 275.00,187.50 L 225.00,187.50 Z" fill="#000000" stroke="none"></path><path d="M 212.50,125.00 L 237.50,125.00 L 237.50,175.00 L 212.50,175.00 Z" fill="#000000" stroke="none"></path><path d="M 225.00,112.50 L 275.00,112.50 L 275.00,137.50 L 225.00,137.50 Z" fill="#000000" stroke="none"></path><path d="M 262.50,75.00 L 287.50,75.00 L 287.50,125.00 L 262.50,125.00 Z" fill="#000000" stroke="none"></path><path d="M 225.00,62.50 L 275.00,62.50 L 275.00,87.50 L 225.00,87.50 Z" fill="#000000" stroke="none"></path><path d="M 212.50,25.00 L 237.50,25.00 L 237.50,75.00 L 212.50,75.00 Z" fill="#000000" stroke="none"></path><path d="M 225.00,12.50 L 275.00,12.50 L 275.00,37.50 L 225.00,37.50 Z" fill="#000000" stroke="none"></path><path d="M 275.00,12.50 L 325.00,12.50 L 325.00,37.50 L 275.00,37.50 Z" fill="#000000" stroke="none"></path><path d="M 312.50,25.00 L 337.50,25.00 L 337.50,75.00 L 312.50,75.00 Z" fill="#000000" stroke="none"></path><path d="M 325.00,62.50 L 375.00,62.50 L 375.00,87.50 L 325.00,87.50 Z" fill="#000000" stroke="none"></path><path d="M 362.50,25.00 L 387.50,25.00 L 387.50,75.00 L 362.50,75.00 Z" fill="#000000" stroke="none"></path><path d="M 18.75,12.50 L 31.25,12.50 Q 37.50,12.50 37.50,18.75 L 37.50,31.25 Q 37.50,37.50 31.25,37.50 L 18.75,37.50 Q 12.50,37.50 12.50,31.25 L 12.50,18.75 Q 12.50,12.50 18.75,12.50 Z" fill="#000000" stroke="none"></path><path d="M 18.75,62.50 L 31.25,62.50 Q 37.50,62.50 37.50,68.75 L 37.50,81.25 Q 37.50,87.50 31.25,87.50 L 18.75,87.50 Q 12.50,87.50 12.50,81.25 L 12.50,68.75 Q 12.50,62.50 18.75,62.50 Z" fill="#000000" stroke="none"></path><path d="M 68.75,62.50 L 81.25,62.50 Q 87.50,62.50 87.50,68.75 L 87.50,81.25 Q 87.50,87.50 81.25,87.50 L 68.75,87.50 Q 62.50,87.50 62.50,81.25 L 62.50,68.75 Q 62.50,62.50 68.75,62.50 Z" fill="#000000" stroke="none"></path><path d="M 68.75,12.50 L 81.25,12.50 Q 87.50,12.50 87.50,18.75 L 87.50,31.25 Q 87.50,37.50 81.25,37.50 L 68.75,37.50 Q 62.50,37.50 62.50,31.25 L 62.50,18.75 Q 62.50,12.50 68.75,12.50 Z" fill="#000000" stroke="none"></path><path d="M 118.75,12.50 L 131.25,12.50 Q 137.50,12.50 137.50,18.75 L 137.50,31.25 Q 137.50,37.50 131.25,37.50 L 118.75,37.50 Q 112.50,37.50 112.50,31.25 L 112.50,18.75 Q 112.50,12.50 118.75,12.50 Z" fill="#000000" stroke="none"></path><path d="M 168.75,12.50 L 181.25,12.50 Q 187.50,12.50 187.50,18.75 L 187.50,31.25 Q 187.50,37.50 181.25,37.50 L 168.75,37.50 Q 162.50,37.50 162.50,31.25 L 162.50,18.75 Q 162.50,12.50 168.75,12.50 Z" fill="#000000" stroke="none"></path><path d="M 168.75,62.50 L 181.25,62.50 Q 187.50,62.50 187.50,68.75 L 187.50,81.25 Q 187.50,87.50 181.25,87.50 L 168.75,87.50 Q 162.50,87.50 162.50,81.25 L 162.50,68.75 Q 162.50,62.50 168.75,62.50 Z" fill="#000000" stroke="none"></path><path d="M 118.75,62.50 L 131.25,62.50 Q 137.50,62.50 137.50,68.75 L 137.50,81.25 Q 137.50,87.50 131.25,87.50 L 118.75,87.50 Q 112.50,87.50 112.50,81.25 L 112.50,68.75 Q 112.50,62.50 118.75,62.50 Z" fill="#000000" stroke="none"></path><path d="M 118.75,112.50 L 131.25,112.50 Q 137.50,112.50 137.50,118.75 L 137.50,131.25 Q 137.50,137.50 131.25,137.50 L 118.75,137.50 Q 112.50,137.50 112.50,131.25 L 112.50,118.75 Q 112.50,112.50 118.75,112.50 Z" fill="#000000" stroke="none"></path><path d="M 168.75,112.50 L 181.25,112.50 Q 187.50,112.50 187.50,118.75 L 187.50,131.25 Q 187.50,137.50 181.25,137.50 L 168.75,137.50 Q 162.50,137.50 162.50,131.25 L 162.50,118.75 Q 162.50,112.50 168.75,112.50 Z" fill="#000000" stroke="none"></path><path d="M 168.75,162.50 L 181.25,162.50 Q 187.50,162.50 187.50,168.75 L 187.50,181.25 Q 187.50,187.50 181.25,187.50 L 168.75,187.50 Q 162.50,187.50 162.50,181.25 L 162.50,168.75 Q 162.50,162.50 168.75,162.50 Z" fill="#000000" stroke="none"></path><path d="M 118.75,162.50 L 131.25,162.50 Q 137.50,162.50 137.50,168.75 L 137.50,181.25 Q 137.50,187.50 131.25,187.50 L 118.75,187.50 Q 112.50,187.50 112.50,181.25 L 112.50,168.75 Q 112.50,162.50 118.75,162.50 Z" fill="#000000" stroke="none"></path><path d="M 68.75,162.50 L 81.25,162.50 Q 87.50,162.50 87.50,168.75 L 87.50,181.25 Q 87.50,187.50 81.25,187.50 L 68.75,187.50 Q 62.50,187.50 62.50,181.25 L 62.50,168.75 Q 62.50,162.50 68.75,162.50 Z" fill="#000000" stroke="none"></path><path d="M 68.75,112.50 L 81.25,112.50 Q 87.50,112.50 87.50,118.75 L 87.50,131.25 Q 87.50,137.50 81.25,137.50 L 68.75,137.50 Q 62.50,137.50 62.50,131.25 L 62.50,118.75 Q 62.50,112.50 68.75,112.50 Z" fill="#000000" stroke="none"></path><path d="M 18.75,112.50 L 31.25,112.50 Q 37.50,112.50 37.50,118.75 L 37.50,131.25 Q 37.50,137.50 31.25,137.50 L 18.75,137.50 Q 12.50,137.50 12.50,131.25 L 12.50,118.75 Q 12.50,112.50 18.75,112.50 Z" fill="#000000" stroke="none"></path><path d="M 18.75,162.50 L 31.25,162.50 Q 37.50,162.50 37.50,168.75 L 37.50,181.25 Q 37.50,187.50 31.25,187.50 L 18.75,187.50 Q 12.50,187.50 12.50,181.25 L 12.50,168.75 Q 12.50,162.50 18.75,162.50 Z" fill="#000000" stroke="none"></path><path d="M 18.75,212.50 L 31.25,212.50 Q 37.50,212.50 37.50,218.75 L 37.50,231.25 Q 37.50,237.50 31.25,237.50 L 18.75,237.50 Q 12.50,237.50 12.50,231.25 L 12.50,218.75 Q 12.50,212.50 18.75,212.50 Z" fill="#000000" stroke="none"></path><path d="M 68.75,212.50 L 81.25,212.50 Q 87.50,212.50 87.50,218.75 L 87.50,231.25 Q 87.50,237.50 81.25,237.50 L 68.75,237.50 Q 62.50,237.50 62.50,231.25 L 62.50,218.75 Q 62.50,212.50 68.75,212.50 Z" fill="#000000" stroke="none"></path><path d="M 68.75,262.50 L 81.25,262.50 Q 87.50,262.50 87.50,268.75 L 87.50,281.25 Q 87.50,287.50 81.25,287.50 L 68.75,287.50 Q 62.50,287.50 62.50,281.25 L 62.50,268.75 Q 62.50,262.50 68.75,262.50 Z" fill="#000000" stroke="none"></path><path d="M 18.75,262.50 L 31.25,262.50 Q 37.50,262.50 37.50,268.75 L 37.50,281.25 Q 37.50,287.50 31.25,287.50 L 18.75,287.50 Q 12.50,287.50 12.50,281.25 L 12.50,268.75 Q 12.50,262.50 18.75,262.50 Z" fill="#000000" stroke="none"></path><path d="M 18.75,312.50 L 31.25,312.50 Q 37.50,312.50 37.50,318.75 L 37.50,331.25 Q 37.50,337.50 31.25,337.50 L 18.75,337.50 Q 12.50,337.50 12.50,331.25 L 12.50,318.75 Q 12.50,312.50 18.75,312.50 Z" fill="#000000" stroke="none"></path><path d="M 18.75,362.50 L 31.25,362.50 Q 37.50,362.50 37.50,368.75 L 37.50,381.25 Q 37.50,387.50 31.25,387.50 L 18.75,387.50 Q 12.50,387.50 12.50,381.25 L 12.50,368.75 Q 12.50,362.50 18.75,362.50 Z" fill="#000000" stroke="none"></path><path d="M 68.75,362.50 L 81.25,362.50 Q 87.50,362.50 87.50,368.75 L 87.50,381.25 Q 87.50,387.50 81.25,387.50 L 68.75,387.50 Q 62.50,387.50 62.50,381.25 L 62.50,368.75 Q 62.50,362.50 68.75,362.50 Z" fill="#000000" stroke="none"></path><path d="M 68.75,312.50 L 81.25,312.50 Q 87.50,312.50 87.50,318.75 L 87.50,331.25 Q 87.50,337.50 81.25,337.50 L 68.75,337.50 Q 62.50,337.50 62.50,331.25 L 62.50,318.75 Q 62.50,312.50 68.75,312.50 Z" fill="#000000" stroke="none"></path><path d="M 118.75,312.50 L 131.25,312.50 Q 137.50,312.50 137.50,318.75 L 137.50,331.25 Q 137.50,337.50 131.25,337.50 L 118.75,337.50 Q 112.50,337.50 112.50,331.25 L 112.50,318.75 Q 112.50,312.50 118.75,312.50 Z" fill="#000000" stroke="none"></path><path d="M 118.75,362.50 L 131.25,362.50 Q 137.50,362.50 137.50,368.75 L 137.50,381.25 Q 137.50,387.50 131.25,387.50 L 118.75,387.50 Q 112.50,387.50 112.50,381.25 L 112.50,368.75 Q 112.50,362.50 118.75,362.50 Z" fill="#000000" stroke="none"></path><path d="M 168.75,362.50 L 181.25,362.50 Q 187.50,362.50 187.50,368.75 L 187.50,381.25 Q 187.50,387.50 181.25,387.50 L 168.75,387.50 Q 162.50,387.50 162.50,381.25 L 162.50,368.75 Q 162.50,362.50 168.75,362.50 Z" fill="#000000" stroke="none"></path><path d="M 168.75,312.50 L 181.25,312.50 Q 187.50,312.50 187.50,318.75 L 187.50,331.25 Q 187.50,337.50 181.25,337.50 L 168.75,337.50 Q 162.50,337.50 162.50,331.25 L 162.50,318.75 Q 162.50,312.50 168.75,312.50 Z" fill="#000000" stroke="none"></path><path d="M 168.75,262.50 L 181.25,262.50 Q 187.50,262.50 187.50,268.75 L 187.50,281.25 Q 187.50,287.50 181.25,287.50 L 168.75,287.50 Q 162.50,287.50 162.50,281.25 L 162.50,268.75 Q 162.50,262.50 168.75,262.50 Z" fill="#000000" stroke="none"></path><path d="M 118.75,262.50 L 131.25,262.50 Q 137.50,262.50 137.50,268.75 L 137.50,281.25 Q 137.50,287.50 131.25,287.50 L 118.75,287.50 Q 112.50,287.50 112.50,281.25 L 112.50,268.75 Q 112.50,262.50 118.75,262.50 Z" fill="#000000" stroke="none"></path><path d="M 118.75,212.50 L 131.25,212.50 Q 137.50,212.50 137.50,218.75 L 137.50,231.25 Q 137.50,237.50 131.25,237.50 L 118.75,237.50 Q 112.50,237.50 112.50,231.25 L 112.50,218.75 Q 112.50,212.50 118.75,212.50 Z" fill="#000000" stroke="none"></path><path d="M 168.75,212.50 L 181.25,212.50 Q 187.50,212.50 187.50,218.75 L 187.50,231.25 Q 187.50,237.50 181.25,237.50 L 168.75,237.50 Q 162.50,237.50 162.50,231.25 L 162.50,218.75 Q 162.50,212.50 168.75,212.50 Z" fill="#000000" stroke="none"></path><path d="M 218.75,212.50 L 231.25,212.50 Q 237.50,212.50 237.50,218.75 L 237.50,231.25 Q 237.50,237.50 231.25,237.50 L 218.75,237.50 Q 212.50,237.50 212.50,231.25 L 212.50,218.75 Q 212.50,212.50 218.75,212.50 Z" fill="#000000" stroke="none"></path><path d="M 268.75,212.50 L 281.25,212.50 Q 287.50,212.50 287.50,218.75 L 287.50,231.25 Q 287.50,237.50 281.25,237.50 L 268.75,237.50 Q 262.50,237.50 262.50,231.25 L 262.50,218.75 Q 262.50,212.50 268.75,212.50 Z" fill="#000000" stroke="none"></path><path d="M 268.75,262.50 L 281.25,262.50 Q 287.50,262.50 287.50,268.75 L 287.50,281.25 Q 287.50,287.50 281.25,287.50 L 268.75,287.50 Q 262.50,287.50 262.50,281.25 L 262.50,268.75 Q 262.50,262.50 268.75,262.50 Z" fill="#000000" stroke="none"></path><path d="M 218.75,262.50 L 231.25,262.50 Q 237.50,262.50 237.50,268.75 L 237.50,281.25 Q 237.50,287.50 231.25,287.50 L 218.75,287.50 Q 212.50,287.50 212.50,281.25 L 212.50,268.75 Q 212.50,262.50 218.75,262.50 Z" fill="#000000" stroke="none"></path><path d="M 218.75,312.50 L 231.25,312.50 Q 237.50,312.50 237.50,318.75 L 237.50,331.25 Q 237.50,337.50 231.25,337.50 L 218.75,337.50 Q 212.50,337.50 212.50,331.25 L 212.50,318.75 Q 212.50,312.50 218.75,312.50 Z" fill="#000000" stroke="none"></path><path d="M 218.75,362.50 L 231.25,362.50 Q 237.50,362.50 237.50,368.75 L 237.50,381.25 Q 237.50,387.50 231.25,387.50 L 218.75,387.50 Q 212.50,387.50 212.50,381.25 L 212.50,368.75 Q 212.50,362.50 218.75,362.50 Z" fill="#000000" stroke="none"></path><path d="M 268.75,362.50 L 281.25,362.50 Q 287.50,362.50 287.50,368.75 L 287.50,381.25 Q 287.50,387.50 281.25,387.50 L 268.75,387.50 Q 262.50,387.50 262.50,381.25 L 262.50,368.75 Q 262.50,362.50 268.75,362.50 Z" fill="#000000" stroke="none"></path><path d="M 268.75,312.50 L 281.25,312.50 Q 287.50,312.50 287.50,318.75 L 287.50,331.25 Q 287.50,337.50 281.25,337.50 L 268.75,337.50 Q 262.50,337.50 262.50,331.25 L 262.50,318.75 Q 262.50,312.50 268.75,312.50 Z" fill="#000000" stroke="none"></path><path d="M 318.75,312.50 L 331.25,312.50 Q 337.50,312.50 337.50,318.75 L 337.50,331.25 Q 337.50,337.50 331.25,337.50 L 318.75,337.50 Q 312.50,337.50 312.50,331.25 L 312.50,318.75 Q 312.50,312.50 318.75,312.50 Z" fill="#000000" stroke="none"></path><path d="M 318.75,362.50 L 331.25,362.50 Q 337.50,362.50 337.50,368.75 L 337.50,381.25 Q 337.50,387.50 331.25,387.50 L 318.75,387.50 Q 312.50,387.50 312.50,381.25 L 312.50,368.75 Q 312.50,362.50 318.75,362.50 Z" fill="#000000" stroke="none"></path><path d="M 368.75,362.50 L 381.25,362.50 Q 387.50,362.50 387.50,368.75 L 387.50,381.25 Q 387.50,387.50 381.25,387.50 L 368.75,387.50 Q 362.50,387.50 362.50,381.25 L 362.50,368.75 Q 362.50,362.50 368.75,362.50 Z" fill="#000000" stroke="none"></path><path d="M 368.75,312.50 L 381.25,312.50 Q 387.50,312.50 387.50,318.75 L 387.50,331.25 Q 387.50,337.50 381.25,337.50 L 368.75,337.50 Q 362.50,337.50 362.50,331.25 L 362.50,318.75 Q 362.50,312.50 368.75,312.50 Z" fill="#000000" stroke="none"></path><path d="M 368.75,262.50 L 381.25,262.50 Q 387.50,262.50 387.50,268.75 L 387.50,281.25 Q 387.50,287.50 381.25,287.50 L 368.75,287.50 Q 362.50,287.50 362.50,281.25 L 362.50,268.75 Q 362.50,262.50 368.75,262.50 Z" fill="#000000" stroke="none"></path><path d="M 318.75,262.50 L 331.25,262.50 Q 337.50,262.50 337.50,268.75 L 337.50,281.25 Q 337.50,287.50 331.25,287.50 L 318.75,287.50 Q 312.50,287.50 312.50,281.25 L 312.50,268.75 Q 312.50,262.50 318.75,262.50 Z" fill="#000000" stroke="none"></path><path d="M 318.75,212.50 L 331.25,212.50 Q 337.50,212.50 337.50,218.75 L 337.50,231.25 Q 337.50,237.50 331.25,237.50 L 318.75,237.50 Q 312.50,237.50 312.50,231.25 L 312.50,218.75 Q 312.50,212.50 318.75,212.50 Z" fill="#000000" stroke="none"></path><path d="M 368.75,212.50 L 381.25,212.50 Q 387.50,212.50 387.50,218.75 L 387.50,231.25 Q 387.50,237.50 381.25,237.50 L 368.75,237.50 Q 362.50,237.50 362.50,231.25 L 362.50,218.75 Q 362.50,212.50 368.75,212.50 Z" fill="#000000" stroke="none"></path><path d="M 368.75,162.50 L 381.25,162.50 Q 387.50,162.50 387.50,168.75 L 387.50,181.25 Q 387.50,187.50 381.25,187.50 L 368.75,187.50 Q 362.50,187.50 362.50,181.25 L 362.50,168.75 Q 362.50,162.50 368.75,162.50 Z" fill="#000000" stroke="none"></path><path d="M 368.75,112.50 L 381.25,112.50 Q 387.50,112.50 387.50,118.75 L 387.50,131.25 Q 387.50,137.50 381.25,137.50 L 368.75,137.50 Q 362.50,137.50 362.50,131.25 L 362.50,118.75 Q 362.50,112.50 368.75,112.50 Z" fill="#000000" stroke="none"></path><path d="M 318.75,112.50 L 331.25,112.50 Q 337.50,112.50 337.50,118.75 L 337.50,131.25 Q 337.50,137.50 331.25,137.50 L 318.75,137.50 Q 312.50,137.50 312.50,131.25 L 312.50,118.75 Q 312.50,112.50 318.75,112.50 Z" fill="#000000" stroke="none"></path><path d="M 318.75,162.50 L 331.25,162.50 Q 337.50,162.50 337.50,168.75 L 337.50,181.25 Q 337.50,187.50 331.25,187.50 L 318.75,187.50 Q 312.50,187.50 312.50,181.25 L 312.50,168.75 Q 312.50,162.50 318.75,162.50 Z" fill="#000000" stroke="none"></path><path d="M 268.75,162.50 L 281.25,162.50 Q 287.50,162.50 287.50,168.75 L 287.50,181.25 Q 287.50,187.50 281.25,187.50 L 268.75,187.50 Q 262.50,187.50 262.50,181.25 L 262.50,168.75 Q 262.50,162.50 268.75,162.50 Z" fill="#000000" stroke="none"></path><path d="M 218.75,162.50 L 231.25,162.50 Q 237.50,162.50 237.50,168.75 L 237.50,181.25 Q 237.50,187.50 231.25,187.50 L 218.75,187.50 Q 212.50,187.50 212.50,181.25 L 212.50,168.75 Q 212.50,162.50 218.75,162.50 Z" fill="#000000" stroke="none"></path><path d="M 218.75,112.50 L 231.25,112.50 Q 237.50,112.50 237.50,118.75 L 237.50,131.25 Q 237.50,137.50 231.25,137.50 L 218.75,137.50 Q 212.50,137.50 212.50,131.25 L 212.50,118.75 Q 212.50,112.50 218.75,112.50 Z" fill="#000000" stroke="none"></path><path d="M 268.75,112.50 L 281.25,112.50 Q 287.50,112.50 287.50,118.75 L 287.50,131.25 Q 287.50,137.50 281.25,137.50 L 268.75,137.50 Q 262.50,137.50 262.50,131.25 L 262.50,118.75 Q 262.50,112.50 268.75,112.50 Z" fill="#000000" stroke="none"></path><path d="M 268.75,62.50 L 281.25,62.50 Q 287.50,62.50 287.50,68.75 L 287.50,81.25 Q 287.50,87.50 281.25,87.50 L 268.75,87.50 Q 262.50,87.50 262.50,81.25 L 262.50,68.75 Q 262.50,62.50 268.75,62.50 Z" fill="#000000" stroke="none"></path><path d="M 218.75,62.50 L 231.25,62.50 Q 237.50,62.50 237.50,68.75 L 237.50,81.25 Q 237.50,87.50 231.25,87.50 L 218.75,87.50 Q 212.50,87.50 212.50,81.25 L 212.50,68.75 Q 212.50,62.50 218.75,62.50 Z" fill="#000000" stroke="none"></path><path d="M 218.75,12.50 L 231.25,12.50 Q 237.50,12.50 237.50,18.75 L 237.50,31.25 Q 237.50,37.50 231.25,37.50 L 218.75,37.50 Q 212.50,37.50 212.50,31.25 L 212.50,18.75 Q 212.50,12.50 218.75,12.50 Z" fill="#000000" stroke="none"></path><path d="M 268.75,12.50 L 281.25,12.50 Q 287.50,12.50 287.50,18.75 L 287.50,31.25 Q 287.50,37.50 281.25,37.50 L 268.75,37.50 Q 262.50,37.50 262.50,31.25 L 262.50,18.75 Q 262.50,12.50 268.75,12.50 Z" fill="#000000" stroke="none"></path><path d="M 318.75,12.50 L 331.25,12.50 Q 337.50,12.50 337.50,18.75 L 337.50,31.25 Q 337.50,37.50 331.25,37.50 L 318.75,37.50 Q 312.50,37.50 312.50,31.25 L 312.50,18.75 Q 312.50,12.50 318.75,12.50 Z" fill="#000000" stroke="none"></path><path d="M 318.75,62.50 L 331.25,62.50 Q 337.50,62.50 337.50,68.75 L 337.50,81.25 Q 337.50,87.50 331.25,87.50 L 318.75,87.50 Q 312.50,87.50 312.50,81.25 L 312.50,68.75 Q 312.50,62.50 318.75,62.50 Z" fill="#000000" stroke="none"></path><path d="M 368.75,62.50 L 381.25,62.50 Q 387.50,62.50 387.50,68.75 L 387.50,81.25 Q 387.50,87.50 381.25,87.50 L 368.75,87.50 Q 362.50,87.50 362.50,81.25 L 362.50,68.75 Q 362.50,62.50 368.75,62.50 Z" fill="#000000" stroke="none"></path><path d="M 368.75,12.50 L 381.25,12.50 Q 387.50,12.50 387.50,18.75 L 387.50,31.25 Q 387.50,37.50 381.25,37.50 L 368.75,37.50 Q 362.50,37.50 362.50,31.25 L 362.50,18.75 Q 362.50,12.50 368.75,12.50 Z" fill="#000000" stroke="none"></path><path d="M 37.50,62.50 L 43.75,62.50 A 6.25,6.25 0 0 1 37.50,56.25 Z" fill="#000000" stroke="none"></path><path d="M 62.50,62.50 L 56.25,62.50 A 6.25,6.25 0 0 0 62.50,56.25 Z" fill="#000000" stroke="none"></path><path d="M 87.50,37.50 L 93.75,37.50 A 6.25,6.25 0 0 0 87.50,43.75 Z" fill="#000000" stroke="none"></path><path d="M 162.50,37.50 L 156.25,37.50 A 6.25,6.25 0 0 1 162.50,43.75 Z" fill="#000000" stroke="none"></path><path d="M 162.50,62.50 L 156.25,62.50 A 6.25,6.25 0 0 0 162.50,56.25 Z" fill="#000000" stroke="none"></path><path d="M 137.50,87.50 L 143.75,87.50 A 6.25,6.25 0 0 0 137.50,93.75 Z" fill="#000000" stroke="none"></path><path d="M 137.50,112.50 L 143.75,112.50 A 6.25,6.25 0 0 1 137.50,106.25 Z" fill="#000000" stroke="none"></path><path d="M 162.50,137.50 L 156.25,137.50 A 6.25,6.25 0 0 1 162.50,143.75 Z" fill="#000000" stroke="none"></path><path d="M 162.50,162.50 L 156.25,162.50 A 6.25,6.25 0 0 0 162.50,156.25 Z" fill="#000000" stroke="none"></path><path d="M 87.50,162.50 L 93.75,162.50 A 6.25,6.25 0 0 1 87.50,156.25 Z" fill="#000000" stroke="none"></path><path d="M 62.50,137.50 L 56.25,137.50 A 6.25,6.25 0 0 1 62.50,143.75 Z" fill="#000000" stroke="none"></path><path d="M 37.50,137.50 L 43.75,137.50 A 6.25,6.25 0 0 0 37.50,143.75 Z" fill="#000000" stroke="none"></path><path d="M 37.50,212.50 L 43.75,212.50 A 6.25,6.25 0 0 1 37.50,206.25 Z" fill="#000000" stroke="none"></path><path d="M 62.50,237.50 L 56.25,237.50 A 6.25,6.25 0 0 1 62.50,243.75 Z" fill="#000000" stroke="none"></path><path d="M 62.50,262.50 L 56.25,262.50 A 6.25,6.25 0 0 0 62.50,256.25 Z" fill="#000000" stroke="none"></path><path d="M 37.50,287.50 L 43.75,287.50 A 6.25,6.25 0 0 0 37.50,293.75 Z" fill="#000000" stroke="none"></path><path d="M 37.50,362.50 L 43.75,362.50 A 6.25,6.25 0 0 1 37.50,356.25 Z" fill="#000000" stroke="none"></path><path d="M 62.50,362.50 L 56.25,362.50 A 6.25,6.25 0 0 0 62.50,356.25 Z" fill="#000000" stroke="none"></path><path d="M 87.50,337.50 L 93.75,337.50 A 6.25,6.25 0 0 0 87.50,343.75 Z" fill="#000000" stroke="none"></path><path d="M 112.50,337.50 L 106.25,337.50 A 6.25,6.25 0 0 1 112.50,343.75 Z" fill="#000000" stroke="none"></path><path d="M 137.50,362.50 L 143.75,362.50 A 6.25,6.25 0 0 1 137.50,356.25 Z" fill="#000000" stroke="none"></path><path d="M 162.50,362.50 L 156.25,362.50 A 6.25,6.25 0 0 0 162.50,356.25 Z" fill="#000000" stroke="none"></path><path d="M 162.50,287.50 L 156.25,287.50 A 6.25,6.25 0 0 1 162.50,293.75 Z" fill="#000000" stroke="none"></path><path d="M 137.50,262.50 L 143.75,262.50 A 6.25,6.25 0 0 1 137.50,256.25 Z" fill="#000000" stroke="none"></path><path d="M 137.50,237.50 L 143.75,237.50 A 6.25,6.25 0 0 0 137.50,243.75 Z" fill="#000000" stroke="none"></path><path d="M 262.50,237.50 L 256.25,237.50 A 6.25,6.25 0 0 1 262.50,243.75 Z" fill="#000000" stroke="none"></path><path d="M 262.50,262.50 L 256.25,262.50 A 6.25,6.25 0 0 0 262.50,256.25 Z" fill="#000000" stroke="none"></path><path d="M 237.50,287.50 L 243.75,287.50 A 6.25,6.25 0 0 0 237.50,293.75 Z" fill="#000000" stroke="none"></path><path d="M 237.50,362.50 L 243.75,362.50 A 6.25,6.25 0 0 1 237.50,356.25 Z" fill="#000000" stroke="none"></path><path d="M 262.50,362.50 L 256.25,362.50 A 6.25,6.25 0 0 0 262.50,356.25 Z" fill="#000000" stroke="none"></path><path d="M 287.50,337.50 L 293.75,337.50 A 6.25,6.25 0 0 0 287.50,343.75 Z" fill="#000000" stroke="none"></path><path d="M 312.50,337.50 L 306.25,337.50 A 6.25,6.25 0 0 1 312.50,343.75 Z" fill="#000000" stroke="none"></path><path d="M 337.50,362.50 L 343.75,362.50 A 6.25,6.25 0 0 1 337.50,356.25 Z" fill="#000000" stroke="none"></path><path d="M 362.50,362.50 L 356.25,362.50 A 6.25,6.25 0 0 0 362.50,356.25 Z" fill="#000000" stroke="none"></path><path d="M 362.50,287.50 L 356.25,287.50 A 6.25,6.25 0 0 1 362.50,293.75 Z" fill="#000000" stroke="none"></path><path d="M 337.50,262.50 L 343.75,262.50 A 6.25,6.25 0 0 1 337.50,256.25 Z" fill="#000000" stroke="none"></path><path d="M 337.50,237.50 L 343.75,237.50 A 6.25,6.25 0 0 0 337.50,243.75 Z" fill="#000000" stroke="none"></path><path d="M 362.50,212.50 L 356.25,212.50 A 6.25,6.25 0 0 0 362.50,206.25 Z" fill="#000000" stroke="none"></path><path d="M 362.50,137.50 L 356.25,137.50 A 6.25,6.25 0 0 1 362.50,143.75 Z" fill="#000000" stroke="none"></path><path d="M 337.50,137.50 L 343.75,137.50 A 6.25,6.25 0 0 0 337.50,143.75 Z" fill="#000000" stroke="none"></path><path d="M 312.50,162.50 L 306.25,162.50 A 6.25,6.25 0 0 0 312.50,156.25 Z" fill="#000000" stroke="none"></path><path d="M 237.50,162.50 L 243.75,162.50 A 6.25,6.25 0 0 1 237.50,156.25 Z" fill="#000000" stroke="none"></path><path d="M 237.50,137.50 L 243.75,137.50 A 6.25,6.25 0 0 0 237.50,143.75 Z" fill="#000000" stroke="none"></path><path d="M 262.50,112.50 L 256.25,112.50 A 6.25,6.25 0 0 0 262.50,106.25 Z" fill="#000000" stroke="none"></path><path d="M 262.50,87.50 L 256.25,87.50 A 6.25,6.25 0 0 1 262.50,93.75 Z" fill="#000000" stroke="none"></path><path d="M 237.50,62.50 L 243.75,62.50 A 6.25,6.25 0 0 1 237.50,56.25 Z" fill="#000000" stroke="none"></path><path d="M 237.50,37.50 L 243.75,37.50 A 6.25,6.25 0 0 0 237.50,43.75 Z" fill="#000000" stroke="none"></path><path d="M 312.50,37.50 L 306.25,37.50 A 6.25,6.25 0 0 1 312.50,43.75 Z" fill="#000000" stroke="none"></path><path d="M 337.50,62.50 L 343.75,62.50 A 6.25,6.25 0 0 1 337.50,56.25 Z" fill="#000000" stroke="none"></path><path d="M 362.50,62.50 L 356.25,62.50 A 6.25,6.25 0 0 0 362.50,56.25 Z" fill="#000000" stroke="none"></path>
 </svg>`;
 
-// Leaf branch SVG for Leaf Cutout preset
-const LEAF_CUTOUT_SVG = `<?xml version="1.0" encoding="utf-8"?>
-<svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-	 width="800px" height="800px" viewBox="0 0 116 256" enable-background="new 0 0 116 256" xml:space="preserve">
-<path d="M50.364,254c-30.937-2.154-54.825-30.154-46.21-63.832C30.196,199.958,51.538,214.839,50.364,254 M56.238,78.951
-	C28.825,64.657,18.056,29.413,39.007,2C58.979,21.385,72.881,43.315,56.238,78.951 M65.636,177.832
-	c30.937-2.35,54.825-30.154,46.21-63.832C85.804,123.79,64.462,138.671,65.636,177.832 M65.636,238.336
-	c30.937-2.35,54.825-30.154,46.21-63.832C85.804,184.294,64.462,199.175,65.636,238.336 M65.636,117.329
-	c30.937-2.154,54.825-30.154,46.21-63.832C85.804,63.287,64.462,78.168,65.636,117.329 M50.364,193.692
-	c-30.937-2.35-54.825-30.35-46.21-63.832C30.196,139.65,51.538,154.531,50.364,193.692 M50.364,133.189
-	c-30.937-2.35-54.825-30.154-46.21-63.832C30.196,79.147,51.538,94.028,50.364,133.189"/>
+// Teardrop shape SVG for Teardrop Lantern preset
+const TEARDROP_LANTERN_SVG = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 650 820" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g transform="matrix(1,0,0,1,-75.390826,10)">
+        <g transform="matrix(2.724211,0,0,2.724211,0,0)">
+            <path d="M146.831,0C146.831,0 30.611,107.715 30.611,181.074C30.611,249.467 82.654,293.663 146.831,293.663C211.023,293.663 263.051,249.467 263.051,181.074C263.051,107.715 146.831,0 146.831,0Z" style="fill-rule:nonzero;"/>
+        </g>
+    </g>
 </svg>`;
 
 // Voronoi stone pattern SVG for Stone Box preset
@@ -39,36 +38,19 @@ const STONE_BOX_SVG = `<?xml version="1.0" encoding="UTF-8"?>
 
 export const BUILT_IN_PRESETS: Preset[] = [
   {
-    name: 'Simple Vase',
-    description: 'A classic circle-based vase with gentle curves',
-    parameters: {},
-  },
-  {
-    name: 'Vase Twins 1',
-    description: 'Cardioid-to-Infinity morph with Bezier twist (from OpenSCAD)',
+    name: 'Classic Vase',
+    thumbnail: '/presets/classic-vase.png',
+    description: 'Elegant fluted vase with gentle twist and smooth rim',
     parameters: {
-      bottomShape: 'Cardioid2',
-      topShape: 'Infinity1',
-      morphEnabled: true,
+      radius: 25,
+      height: 100,
       profilePoints: [
-        [1.0, 0],
-        [1.6, 0.2],
-        [1.1, 0.4],
-        [1.0, 0.6],
-        [0.6, 0.8],
-        [0.6, 1.0],
+        [1.0, 0], [1.55, 0.2], [1.75, 0.375], [1.0, 0.6], [1.0, 0.8], [1.1, 1.0],
       ],
-      bezierTwist: { enabled: true, points: [0, 0, 167, 0, 0] },
-    },
-  },
-  {
-    name: 'Rippled Star',
-    description: 'Rose shape with fluting texture and vertical smoothing',
-    parameters: {
-      bottomShape: 'Rose1',
+      bezierTwist: { enabled: true, points: [0, 7, 6, 14, 37] },
       textures: {
         enabled: true,
-        fluting: { enabled: true, count: 6, depth: 4, duty: 0 },
+        fluting: { enabled: false, count: 4, depth: 2, duty: 0 },
         basketWeave: { enabled: false, bands: 8, waves: 12, depth: 1.5 },
         voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0, cutout: false },
         simplex: { enabled: false, scale: 10, depth: 1.0, octaves: 3, persistence: 0.5, lacunarity: 2.0, seed: 0 },
@@ -76,62 +58,48 @@ export const BUILT_IN_PRESETS: Preset[] = [
         svgPattern: { enabled: false, svgText: '', repeatX: 4, repeatY: 6, depth: 1.0, invert: false, cutout: false },
         squareFlute: { enabled: false, count: 20, depth: 2, duty: 0.5, sharpness: 0.9 },
         waves: { enabled: false, count: 20, depth: 2, duty: 0.3 },
-        rods: { enabled: false, count: 20, depth: 2, duty: 0.3 },
+        rods: { enabled: true, count: 45, depth: 2.4, duty: 0.05 },
         verticalFluting: { enabled: false, count: 12, depth: 2, duty: 0 },
         verticalSquareFlute: { enabled: false, count: 12, depth: 2, duty: 0.5, sharpness: 0.9 },
         verticalWaves: { enabled: false, count: 12, depth: 2, duty: 0.3 },
         verticalRods: { enabled: false, count: 12, depth: 2, duty: 0.3 },
       },
-      verticalSmoothing: { enabled: true, cycles: 3, startPercent: 0 },
-    },
-  },
-  {
-    name: 'Twisted Pentagon',
-    description: 'Pentagon base with gentle twist',
-    parameters: {
-      bottomShape: 'Polygon1',
-      bezierTwist: { enabled: true, points: [0, 30, 60, 90, 120] },
-    },
-  },
-  {
-    name: 'SuperFormula Exotic',
-    description: 'Explore the Gielis superformula',
-    parameters: {
-      bottomShape: 'SuperFormula1',
-    },
-  },
-  {
-    name: 'Wood Plank',
-    description: 'Rough-hewn wood plank look using rods + simplex noise',
-    parameters: {
-      height: 120,
-      profilePoints: [
-        [1.0, 0], [1.0, 0.2], [1.0, 0.4], [1.0, 0.6], [1.0, 0.8], [1.0, 1.0],
-      ],
-      textures: {
-        enabled: true,
-        fluting: { enabled: false, count: 4, depth: 2, duty: 0 },
-        basketWeave: { enabled: false, bands: 8, waves: 12, depth: 1.5 },
-        voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0, cutout: false },
-        simplex: { enabled: true, scale: 6, depth: 1.45, octaves: 3, persistence: 0.5, lacunarity: 2.0, seed: 0 },
-        woodGrain: { enabled: false, count: 30, depth: 0.8, wobble: 0.5, sharpness: 0.6, seed: 0 },
-        svgPattern: { enabled: false, svgText: '', repeatX: 4, repeatY: 6, depth: 1.0, invert: false, cutout: false },
-        squareFlute: { enabled: false, count: 20, depth: 2, duty: 0.5, sharpness: 0.9 },
-        waves: { enabled: false, count: 20, depth: 2, duty: 0.3 },
-        rods: { enabled: true, count: 8, depth: 6.5, duty: 0 },
-        verticalFluting: { enabled: false, count: 12, depth: 2, duty: 0 },
-        verticalSquareFlute: { enabled: false, count: 12, depth: 2, duty: 0.5, sharpness: 0.9 },
-        verticalWaves: { enabled: false, count: 12, depth: 2, duty: 0.3 },
-        verticalRods: { enabled: false, count: 12, depth: 2, duty: 0.3 },
-      },
-      wallThickness: 2,
+      wallThickness: 1.6,
       bottomThickness: 2,
       rimShape: 'rounded' as const,
-      color: '#6e4e4e',
+      smoothInner: true,
+      minWallThickness: 0.4,
+      smoothZones: { enabled: true, basePercent: 0, rimPercent: 86, baseFade: 100, rimFade: 100 },
+      color: '#ffffff',
+    },
+  },
+  {
+    name: 'Heart Twins',
+    thumbnail: '/presets/heart-twins.png',
+    description: 'Cardioid-to-Infinity morph with twist — heart shape at the rim',
+    parameters: {
+      bottomShape: 'Cardioid2',
+      bottomShapeParams: ({
+        Cardioid2: { scaleFactor: 0.211, offsetX: 12, offsetY: 0 },
+      }) as unknown as VaseParameters['bottomShapeParams'],
+      topShape: 'Infinity1',
+      topShapeParams: ({
+        Infinity1: { scaleFactor: 1, offsetX: 0, offsetY: 0, parameter1: 1.11 },
+      }) as unknown as VaseParameters['bottomShapeParams'],
+      morphEnabled: true,
+      profilePoints: [
+        [1.0, 0], [1.6, 0.2], [1.1, 0.4], [1.0, 0.6], [0.7, 0.8], [0.75, 1.0],
+      ],
+      bezierTwist: { enabled: true, points: [0, 0, 161, 0, 0] },
+      wallThickness: 0.8,
+      bottomThickness: 2,
+      rimShape: 'rounded' as const,
+      color: '#ff0000',
     },
   },
   {
     name: 'Stone Box',
+    thumbnail: '/presets/stone-box.png',
     description: 'Rounded rectangle with voronoi stone texture via SVG pattern',
     parameters: {
       radius: 20,
@@ -172,15 +140,64 @@ export const BUILT_IN_PRESETS: Preset[] = [
     },
   },
   {
-    name: 'Leaf Cutout',
-    description: 'Teardrop vase with leaf branch cutout and twist',
+    name: 'Butterfly Vase',
+    thumbnail: '/presets/butterfly-vase.png',
+    description: 'Organic butterfly shape with flared profile',
+    parameters: {
+      bottomShape: 'Butterfly1',
+      profilePoints: [
+        [1.0, 0], [1.8, 0.15], [1.0, 0.4], [1.0, 0.6], [0.2, 0.725], [0.85, 1.0],
+      ],
+      wallThickness: 3,
+      bottomThickness: 2,
+      rimShape: 'rounded' as const,
+      minWallThickness: 0.2,
+      color: '#ff0000',
+    },
+  },
+  {
+    name: 'Wood Logs',
+    thumbnail: '/presets/wood-logs.png',
+    description: 'Rough-hewn wood log look using rods + simplex noise',
+    parameters: {
+      height: 120,
+      profilePoints: [
+        [1.0, 0], [1.0, 0.2], [1.0, 0.4], [1.0, 0.6], [1.0, 0.8], [1.0, 1.0],
+      ],
+      textures: {
+        enabled: true,
+        fluting: { enabled: false, count: 4, depth: 2, duty: 0 },
+        basketWeave: { enabled: false, bands: 8, waves: 12, depth: 1.5 },
+        voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0, cutout: false },
+        simplex: { enabled: true, scale: 6, depth: 1.45, octaves: 3, persistence: 0.5, lacunarity: 2.0, seed: 0 },
+        woodGrain: { enabled: false, count: 30, depth: 0.8, wobble: 0.5, sharpness: 0.6, seed: 0 },
+        svgPattern: { enabled: false, svgText: '', repeatX: 4, repeatY: 6, depth: 1.0, invert: false, cutout: false },
+        squareFlute: { enabled: false, count: 20, depth: 2, duty: 0.5, sharpness: 0.9 },
+        waves: { enabled: false, count: 20, depth: 2, duty: 0.3 },
+        rods: { enabled: true, count: 8, depth: 6.5, duty: 0 },
+        verticalFluting: { enabled: false, count: 12, depth: 2, duty: 0 },
+        verticalSquareFlute: { enabled: false, count: 12, depth: 2, duty: 0.5, sharpness: 0.9 },
+        verticalWaves: { enabled: false, count: 12, depth: 2, duty: 0.3 },
+        verticalRods: { enabled: false, count: 12, depth: 2, duty: 0.3 },
+      },
+      wallThickness: 1.6,
+      bottomThickness: 2,
+      rimShape: 'rounded' as const,
+      smoothInner: true,
+      minWallThickness: 0.4,
+      color: '#6e4e4e',
+    },
+  },
+  {
+    name: 'Teardrop Lantern',
+    thumbnail: '/presets/teardrop-lantern.png',
+    description: 'Teardrop profile with cutout window into hollow interior',
     parameters: {
       radius: 20,
-      height: 100,
+      height: 110,
       profilePoints: [
-        [0.75, 0], [2.1, 0.35], [0.85, 0.725], [1.15, 0.35], [0.2, 0.775], [0.2, 1.0],
+        [1.0, 0], [2.25, 0.2], [1.05, 0.575], [0.25, 0.575], [0.05, 1.0],
       ],
-      bezierTwist: { enabled: true, points: [0, 72, 0, -34, -62] },
       textures: {
         enabled: true,
         fluting: { enabled: false, count: 4, depth: 2, duty: 0 },
@@ -189,8 +206,8 @@ export const BUILT_IN_PRESETS: Preset[] = [
         simplex: { enabled: false, scale: 10, depth: 1.0, octaves: 3, persistence: 0.5, lacunarity: 2.0, seed: 0 },
         woodGrain: { enabled: false, count: 30, depth: 0.8, wobble: 0.5, sharpness: 0.6, seed: 0 },
         svgPattern: {
-          enabled: true, svgText: LEAF_CUTOUT_SVG, repeatX: 1, repeatY: 1, depth: 1.9, invert: false, cutout: true,
-          rotation: 180, flipX: false, flipY: false, sizeAround: 28, sizeUp: 95, shiftUp: 0, spaceUp: 0, stagger: 0,
+          enabled: true, svgText: TEARDROP_LANTERN_SVG, repeatX: 1, repeatY: 1, depth: 1, invert: false, cutout: true,
+          rotation: 180, flipX: false, flipY: false, sizeAround: 27, sizeUp: 53, shiftUp: 0, spaceUp: 0, stagger: 0,
           tileRotation: 0, randomRotation: 0, randomScale: 0, randomRotateSeed: 0, randomScaleSeed: 0, mirrorAlternate: false,
         },
         squareFlute: { enabled: false, count: 20, depth: 2, duty: 0.5, sharpness: 0.9 },
@@ -201,54 +218,17 @@ export const BUILT_IN_PRESETS: Preset[] = [
         verticalWaves: { enabled: false, count: 12, depth: 2, duty: 0.3 },
         verticalRods: { enabled: false, count: 12, depth: 2, duty: 0.3 },
       },
-      wallThickness: 2,
+      wallThickness: 1.2,
       bottomThickness: 2,
       rimShape: 'rounded' as const,
       smoothInner: true,
       minWallThickness: 0.4,
-      smoothZones: { enabled: true, basePercent: 2, rimPercent: 0, baseFade: 100, rimFade: 0 },
-    },
-  },
-  {
-    name: 'Fluted Tray',
-    description: 'Shallow rectangular tray with square flute texture',
-    parameters: {
-      radius: 30,
-      height: 40,
-      bottomShape: 'Rectangle1',
-      bottomShapeParams: ({
-        Rectangle1: { scaleFactor: 1, offsetX: 0, offsetY: 0, scaleX: 1, scaleY: 1.5, rounding: 0 },
-      }) as unknown as VaseParameters['bottomShapeParams'],
-      profilePoints: [
-        [0.8, 0], [1.2, 0.2], [1.5, 0.5], [1.35, 0.675], [1.4, 0.875], [1.6, 1.0],
-      ],
-      textures: {
-        enabled: true,
-        fluting: { enabled: false, count: 4, depth: 2, duty: 0 },
-        basketWeave: { enabled: false, bands: 8, waves: 12, depth: 1.5 },
-        voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0, cutout: false },
-        simplex: { enabled: false, scale: 10, depth: 1.0, octaves: 3, persistence: 0.5, lacunarity: 2.0, seed: 0 },
-        woodGrain: { enabled: false, count: 30, depth: 0.8, wobble: 0.5, sharpness: 0.6, seed: 0 },
-        svgPattern: { enabled: false, svgText: '', repeatX: 4, repeatY: 6, depth: 1.0, invert: false, cutout: false },
-        squareFlute: { enabled: true, count: 41, depth: 1, duty: 0.9, sharpness: 1 },
-        waves: { enabled: false, count: 20, depth: 2, duty: 0.3 },
-        rods: { enabled: false, count: 20, depth: 2, duty: 0.3 },
-        verticalFluting: { enabled: false, count: 12, depth: 2, duty: 0 },
-        verticalSquareFlute: { enabled: false, count: 12, depth: 2, duty: 0.5, sharpness: 0.9 },
-        verticalWaves: { enabled: false, count: 12, depth: 2, duty: 0.3 },
-        verticalRods: { enabled: false, count: 12, depth: 2, duty: 0.3 },
-      },
-      wallThickness: 2,
-      bottomThickness: 2,
-      rimShape: 'rounded' as const,
-      smoothInner: true,
-      minWallThickness: 0.8,
-      smoothZones: { enabled: true, basePercent: 73, rimPercent: 10, baseFade: 28, rimFade: 68 },
-      color: '#ff0000',
+      color: '#ff00ff',
     },
   },
   {
     name: 'Keyed Polygon',
+    thumbnail: '/presets/keyed-polygon.png',
     description: 'Hexagonal polygon vase with Greek key fretwork pattern',
     parameters: {
       bottomShape: 'Polygon1',
@@ -288,17 +268,41 @@ export const BUILT_IN_PRESETS: Preset[] = [
     },
   },
   {
-    name: 'Butterfly Vase',
-    description: 'Organic butterfly shape with flared profile',
+    name: 'Fluted Tray',
+    thumbnail: '/presets/fluted-tray.png',
+    description: 'Shallow rectangular tray with square flute texture',
     parameters: {
-      bottomShape: 'Butterfly1',
+      radius: 30,
+      height: 40,
+      bottomShape: 'Rectangle1',
+      bottomShapeParams: ({
+        Rectangle1: { scaleFactor: 1, offsetX: 0, offsetY: 0, scaleX: 1, scaleY: 1.5, rounding: 0 },
+      }) as unknown as VaseParameters['bottomShapeParams'],
       profilePoints: [
-        [1.0, 0], [1.8, 0.15], [1.0, 0.4], [1.0, 0.6], [0.2, 0.725], [0.85, 1.0],
+        [0.8, 0], [1.2, 0.2], [1.5, 0.5], [1.35, 0.675], [1.4, 0.875], [1.6, 1.0],
       ],
-      wallThickness: 3,
+      textures: {
+        enabled: true,
+        fluting: { enabled: false, count: 4, depth: 2, duty: 0 },
+        basketWeave: { enabled: false, bands: 8, waves: 12, depth: 1.5 },
+        voronoi: { enabled: false, scale: 20, depth: 0.5, edgeWidth: 0.5, seed: 0, cutout: false },
+        simplex: { enabled: false, scale: 10, depth: 1.0, octaves: 3, persistence: 0.5, lacunarity: 2.0, seed: 0 },
+        woodGrain: { enabled: false, count: 30, depth: 0.8, wobble: 0.5, sharpness: 0.6, seed: 0 },
+        svgPattern: { enabled: false, svgText: '', repeatX: 4, repeatY: 6, depth: 1.0, invert: false, cutout: false },
+        squareFlute: { enabled: true, count: 41, depth: 1, duty: 0.9, sharpness: 1 },
+        waves: { enabled: false, count: 20, depth: 2, duty: 0.3 },
+        rods: { enabled: false, count: 20, depth: 2, duty: 0.3 },
+        verticalFluting: { enabled: false, count: 12, depth: 2, duty: 0 },
+        verticalSquareFlute: { enabled: false, count: 12, depth: 2, duty: 0.5, sharpness: 0.9 },
+        verticalWaves: { enabled: false, count: 12, depth: 2, duty: 0.3 },
+        verticalRods: { enabled: false, count: 12, depth: 2, duty: 0.3 },
+      },
+      wallThickness: 2,
       bottomThickness: 2,
       rimShape: 'rounded' as const,
-      minWallThickness: 0.2,
+      smoothInner: true,
+      minWallThickness: 0.8,
+      smoothZones: { enabled: true, basePercent: 73, rimPercent: 10, baseFade: 28, rimFade: 68 },
       color: '#ff0000',
     },
   },

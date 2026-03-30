@@ -180,7 +180,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'paragraph', text: 'Textures add surface detail by displacing vertices inward or outward. Multiple textures can be combined for complex effects.' },
       { type: 'heading', text: 'Master Switch' },
       { type: 'paragraph', text: 'The toggle next to the Textures header is a master switch. It starts off. You can set up individual textures first (their toggles remember their state), then flip the master on to see the result. Turning the master off hides all textures without changing individual settings \u2014 like a power strip.' },
-      { type: 'tip', text: 'Textures stack additively. You can combine multiple textures for complex effects \u2014 e.g. Fluting + Voronoi for fluted panels with organic cells.' },
+      { type: 'tip', text: 'Textures stack additively. You can combine multiple textures for complex effects \u2014 e.g. Fluting + Simplex for fluted panels with organic texture.' },
 
       { type: 'heading', text: 'Fluting' },
       { type: 'paragraph', text: 'Smooth sine-wave grooves running up the vase, like a fluted column. Clean, architectural look.' },
@@ -234,16 +234,6 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Depth', value: 'Amplitude of the weave (mm)' },
       ] },
 
-      { type: 'heading', text: 'Voronoi' },
-      { type: 'paragraph', text: 'Organic cell pattern based on Worley noise. Creates a natural, cracked-earth or honeycomb-like texture.' },
-      { type: 'keyvalue', items: [
-        { key: 'Scale', value: 'Number of cells around the circumference' },
-        { key: 'Depth', value: 'How much the cells raise outward (mm)' },
-        { key: 'Edge Width', value: 'Sharpness of ridges between cells (0=smooth, 1=sharp)' },
-        { key: 'Seed', value: 'Random seed \u2014 change for different cell layouts' },
-        { key: 'Cutout', value: 'Punch holes through the wall at cell centers (see Cutout Mode below)' },
-      ] },
-
       { type: 'heading', text: 'Simplex Noise' },
       { type: 'paragraph', text: 'Smooth, organic noise using fBm (fractal Brownian motion). Creates terrain-like, cloudy, or coral-like surfaces depending on settings.' },
       { type: 'keyvalue', items: [
@@ -288,13 +278,14 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Cutout', value: 'Punch holes through the wall at dark areas (see Cutout Mode below)' },
       ] },
       { type: 'tip', text: 'For individual motifs (e.g. a leaf): set # Tiles to your desired count, reduce SVG Size X/Y below 100% for spacing, use Vert Spacing + Vert Move to position rows. Use high-contrast black/white SVGs for clearest patterns. Increase Resolution for fine detail.' },
+      { type: 'heading', text: 'Where to Get SVG Patterns' },
+      { type: 'paragraph', text: 'Pattern Maker (patternmaker.dcity.org) is a free companion app that generates seamless tile patterns as SVG. It offers 12+ pattern types including Voronoi, Truchet, Circle Packing, Masonry, Reaction-Diffusion, Rorschach, and more. Generate a pattern, export the SVG, then paste it into VaseMaker using the Paste SVG button.' },
+      { type: 'paragraph', text: 'You can also use SVGs from other sources: Hero Patterns (heropatterns.com), Pattern Monster, SVG Repo, or any SVG editor like Inkscape or Illustrator. Just paste the SVG code or load the .svg file.' },
 
       { type: 'heading', text: 'Cutout Mode' },
-      { type: 'paragraph', text: 'Voronoi and SVG Pattern have a Cutout toggle that punches holes through the vase wall, creating lattice or perforated designs. Instead of displacing the surface, cutout removes triangles entirely and seals the hole edges with connecting walls.' },
+      { type: 'paragraph', text: 'SVG Pattern has a Cutout toggle that punches holes through the vase wall, creating lattice or perforated designs. Instead of displacing the surface, cutout removes triangles entirely and seals the hole edges with connecting walls.' },
       { type: 'list', items: [
-        'Voronoi Cutout: cell centers become holes, edges remain as a lattice framework',
         'SVG Pattern Cutout: dark areas become holes, white areas stay solid. Use high-contrast black/white SVGs for clean cutouts. Grayscale areas fall in the threshold transition zone and produce ragged, unpredictable hole edges',
-        'The Edge Width slider (Voronoi) controls how thick the lattice bars are',
         'Cutout holes are automatically suppressed in Smooth Zones to keep the base and rim solid',
         'Higher Resolution produces smoother, rounder hole edges. At low resolution, holes will look blocky',
         'Wall Thickness must be > 0 (shell mode) for cutout to work',
@@ -335,7 +326,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Smooth Inner', value: 'Toggle on for a smooth inner surface with textured outer' },
         { key: 'Min Wall', value: 'Minimum wall thickness (mm) \u2014 prevents textures from pushing through' },
       ] },
-      { type: 'tip', text: 'Enable Smooth Inner when using deep textures (Voronoi, Simplex, or Stipple with high depth) to prevent thin walls that won\'t print well.' },
+      { type: 'tip', text: 'Enable Smooth Inner when using deep textures (Simplex or Stipple with high depth) to prevent thin walls that won\'t print well.' },
 
       { type: 'heading', text: 'Vase Mode (Spiral)' },
       { type: 'paragraph', text: 'For decorative vases, you can use your slicer\'s "vase mode" (spiral outer contour). Set wall thickness to 0 in VaseMaker \u2014 this exports a single surface. Your slicer will print it as one continuous spiral.' },
@@ -366,7 +357,6 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'list', items: [
         'Use 1.0\u20132.0mm wall thickness for structural lattice bars',
         'Use Smooth Zones (5\u201310% base and rim) to keep the top and bottom solid',
-        'Voronoi: lower Edge Width = thicker lattice bars, more printable',
         'SVG Pattern: use high-contrast black/white images. Grayscale areas may produce unpredictable partial holes',
         'High resolution (150+ vertical, 200+ radial) gives smoother hole edges and better slicer results',
         'Preview with Show Facets on to see the actual polygon edges the slicer will receive',
