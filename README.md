@@ -10,11 +10,6 @@ Create SVG texture patterns with our companion app **[PatternMaker](https://patt
 <img src="docs/images/vasemaker-ui.png" width="600" alt="VaseMaker interface">
 </p>
 
-<p align="center">
-<video src="docs/images/vasemaker-adjustments.mp4" width="600" autoplay loop muted playsinline></video><br>
-<em>Real-time parameter adjustments</em>
-</p>
-
 ## 3D Printed Examples
 
 <table>
