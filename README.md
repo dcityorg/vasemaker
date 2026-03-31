@@ -34,10 +34,10 @@ Create SVG texture patterns with our companion app **[PatternMaker](https://patt
 
 ## Features
 
-- **25 polar cross-section shapes** — Circle, Heart, Star, SuperFormula, Gear, and more
+- **29 polar cross-section shapes** — Circle, Heart, SuperFormula, Gear, Cassini, and more
 - **Bezier profile curve** — sculpt the vase outline with an interactive curve editor
 - **Shape morphing** — smoothly blend between two shapes from bottom to top
-- **13 surface textures** — Fluting, Voronoi, Simplex noise, Basket Weave, Carved Wood, SVG patterns, and more
+- **13 surface textures** — Fluting, Voronoi, Simplex noise, Basket Weave, Stipple, SVG patterns, and more
 - **Texture cutout** — punch holes through the wall for lattice/perforated designs
 - **Twist & Sway** — custom Bezier twist, wave twist, and XY offset curves
 - **Smooth zones** — suppress textures near base/rim for clean edges
@@ -51,7 +51,7 @@ Create SVG texture patterns with our companion app **[PatternMaker](https://patt
 ## Getting Started
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/vasemaker.git
+git clone https://github.com/dcityorg/vasemaker.git
 cd vasemaker
 npm install
 npm run dev
@@ -93,14 +93,6 @@ VaseMesh.tsx updates BufferGeometry → Three.js renders
 ```
 
 The engine uses polar cross-section shapes swept along a Bezier vertical profile. Each vertex is computed from: shape function × profile radius + texture offsets, then converted from polar to cartesian coordinates with twist rotation applied.
-
-## Adding a New Texture
-
-See the detailed recipe in [CLAUDE.md](./CLAUDE.md#how-to-add-a-new-texture-recipe) — it walks through all 6 files that need changes with code examples.
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 ## License
 

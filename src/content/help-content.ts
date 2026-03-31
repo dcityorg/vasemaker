@@ -397,6 +397,12 @@ export const HELP_SECTIONS: HelpSection[] = [
         'Complex shapes self-intersect: see Self-Intersection section above',
         'Textures not showing: make sure the master Textures toggle is on',
       ] },
+
+      { type: 'heading', text: 'Links' },
+      { type: 'list', items: [
+        'Source code & bug reports: github.com/dcityorg/vasemaker',
+        'SVG pattern companion app: patternmaker.dcity.org',
+      ] },
     ],
   },
 ];
