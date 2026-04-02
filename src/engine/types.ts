@@ -186,6 +186,7 @@ export interface VaseParameters {
       repeatY: number;      // tiles up height (1–30)
       depth: number;        // displacement in mm (0.1–5)
       invert: boolean;      // swap grooves/ridges
+      raised?: boolean;     // when true, displacement goes outward instead of inward
       cutout?: boolean;     // when true, punch holes through wall at dark areas
       rotation?: number;    // 0, 90, 180, or 270 degrees clockwise
       flipX?: boolean;      // flip horizontally
@@ -193,6 +194,7 @@ export interface VaseParameters {
       sizeAround?: number;  // motif width as % of tile cell (10–100)
       sizeUp?: number;      // motif height as % of tile cell (10–100)
       shiftUp?: number;     // vertical offset as % of vase height (0–100)
+      shiftAround?: number; // horizontal offset as % of cell width (-50–100)
       spaceUp?: number;     // distance between row centers as % of vase height (0=auto, 5–100)
       stagger?: number;     // shift alternate rows by % of cell width (0–100)
       tileRotation?: number;   // uniform rotation for all tiles in degrees (0–360)

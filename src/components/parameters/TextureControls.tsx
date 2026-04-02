@@ -398,9 +398,11 @@ export function TextureControls({ designName }: { designName?: string | null }) 
                 <Toggle label="Mirror Alt." checked={params.textures.svgPattern.mirrorAlternate ?? false} onChange={(v) => setSvgPattern({ mirrorAlternate: v })} tooltip="Flip every other tile horizontally" />
                 <SliderRow label="Vert Spacing" value={params.textures.svgPattern.spaceUp ?? 0} min={0} max={100} step={1} onChange={(v) => setSvgPattern({ spaceUp: v })} tooltip="Distance between row centers (% of vase height). 0 = auto (evenly divided)" />
                 <SliderRow label="Vert Move" value={params.textures.svgPattern.shiftUp ?? 0} {...TEXTURES.svgPattern.shiftUp} onChange={(v) => setSvgPattern({ shiftUp: v })} tooltip="Shift pattern up the vase (% of vase height)" suffix="%" />
+                <SliderRow label="Around Move" value={params.textures.svgPattern.shiftAround ?? 0} {...TEXTURES.svgPattern.shiftAround} onChange={(v) => setSvgPattern({ shiftAround: v })} tooltip="Shift pattern around the vase (% of cell width)" suffix="%" />
                 <SliderRow label="Stagger Rows" value={params.textures.svgPattern.stagger ?? 0} {...TEXTURES.svgPattern.stagger} onChange={(v) => setSvgPattern({ stagger: v })} tooltip="Shift alternate rows horizontally (% of cell width)" />
                 <Toggle label="Invert SVG" checked={params.textures.svgPattern.invert ?? false} onChange={(v) => setSvgPattern({ invert: v })} tooltip="Swap grooves and ridges" />
-                <SliderRow label="Depth" value={params.textures.svgPattern.depth} {...TEXTURES.svgPattern.depth} onChange={(v) => setSvgPattern({ depth: v })} tooltip="Displacement depth in mm" />
+                <Toggle label="Raised" checked={params.textures.svgPattern.raised ?? false} onChange={(v) => setSvgPattern({ raised: v })} tooltip="Pattern protrudes outward instead of indenting inward" />
+                <SliderRow label={params.textures.svgPattern.raised ? "Height" : "Depth"} value={params.textures.svgPattern.depth} {...TEXTURES.svgPattern.depth} onChange={(v) => setSvgPattern({ depth: v })} tooltip={params.textures.svgPattern.raised ? "How far the pattern protrudes outward in mm" : "Displacement depth in mm"} />
                 <Toggle label="Cutout" checked={params.textures.svgPattern.cutout ?? false} onChange={(v) => setSvgPattern({ cutout: v })} tooltip="Punch holes through the wall at dark areas" />
                 <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
                   Increase Resolution for finer detail

@@ -308,10 +308,11 @@ export function computeSvgTileCoords(
 
   // Horizontal tiling
   const rawCellU = arcU * sp.repeatX;
+  const shiftAround = (sp.shiftAround ?? 0) / 100;
 
   // Stagger: shift alternate rows horizontally by % of cell width
   const stagger = (sp.stagger ?? 0) / 100;
-  const staggeredU = rawCellU + (cellIdxY % 2 === 1 ? stagger : 0);
+  const staggeredU = rawCellU + shiftAround + (cellIdxY % 2 === 1 ? stagger : 0);
 
   const cellIdxX = Math.floor(staggeredU);
 
@@ -418,7 +419,8 @@ const svgPatternEvaluator: TextureEvaluator = (ctx, params, texturesEnabled, _si
   if (!coords) return 0;
 
   const brightness = sampleSvgPattern(coords[0], coords[1], sp.rotation, sp.flipX, sp.flipY);
-  return -sp.depth * (sp.invert ? brightness : 1 - brightness) * coords[2] * ctx.vSmooth * ctx.rSmooth * ctx.szf;
+  const sign = sp.raised ? 1 : -1;
+  return sign * sp.depth * (sp.invert ? brightness : 1 - brightness) * coords[2] * ctx.vSmooth * ctx.rSmooth * ctx.szf;
 };
 
 // ============================================================
