@@ -320,41 +320,16 @@ export function computeSvgTileCoords(
   let tileU = staggeredU - cellIdxX;
   let tileV = localV;
 
-  // Check if point falls within or near the motif area.
-  // Use a smooth fade zone at motif edges to prevent hard-cutoff lips
-  // when the motif boundary aligns with a mesh row.
+  // Hard-reject anything outside the motif area: displacement is exactly 0 in
+  // the margin, so the surface returns cleanly to baseline radius. No fade —
+  // SVGs that need a soft falloff should bake whitespace into their viewBox.
   const marginU = (1 - sizeU) / 2;
   const marginV = (1 - sizeV) / 2;
-  // Fade zone width: 5% of cell size, enough to span 1-3 mesh rows
-  const fadeU = Math.max(0.01, sizeU * 0.05);
-  const fadeV = Math.max(0.01, sizeV * 0.05);
-
-  // Hard reject if completely outside the fade zone
-  if (tileU < marginU - fadeU || tileU > 1 - marginU + fadeU ||
-      tileV < marginV - fadeV || tileV > 1 - marginV + fadeV) {
+  if (tileU < marginU || tileU > 1 - marginU ||
+      tileV < marginV || tileV > 1 - marginV) {
     return null;
   }
-
-  // Compute edge fade factor (1.0 inside, smoothstep to 0.0 at edge)
-  let fadeFactor = 1.0;
-  if (marginU > 0) {
-    const distFromLeftEdge = (tileU - marginU) / fadeU;
-    const distFromRightEdge = (1 - marginU - tileU) / fadeU;
-    const edgeFadeU = Math.min(
-      Math.max(0, Math.min(1, distFromLeftEdge)),
-      Math.max(0, Math.min(1, distFromRightEdge))
-    );
-    fadeFactor *= edgeFadeU * edgeFadeU * (3 - 2 * edgeFadeU); // smoothstep
-  }
-  if (marginV > 0) {
-    const distFromTopEdge = (tileV - marginV) / fadeV;
-    const distFromBottomEdge = (1 - marginV - tileV) / fadeV;
-    const edgeFadeV = Math.min(
-      Math.max(0, Math.min(1, distFromTopEdge)),
-      Math.max(0, Math.min(1, distFromBottomEdge))
-    );
-    fadeFactor *= edgeFadeV * edgeFadeV * (3 - 2 * edgeFadeV); // smoothstep
-  }
+  const fadeFactor = 1.0;
 
   // Remap to 0–1 within the motif area (clamp for points in the fade zone)
   tileU = Math.max(0, Math.min(1, (tileU - marginU) / sizeU));
