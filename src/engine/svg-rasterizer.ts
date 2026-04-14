@@ -154,7 +154,8 @@ function getSvgDimensions(svgMarkup: string): [number, number] | null {
  */
 export async function rasterizeSvg(
   svgMarkup: string,
-  maxDim = 512
+  maxDim = 512,
+  padPixels = 0
 ): Promise<SvgPixelData> {
   // Determine rasterization size from SVG's native aspect ratio
   const dims = getSvgDimensions(svgMarkup);
@@ -170,28 +171,39 @@ export async function rasterizeSvg(
     height = maxDim;
   }
 
-  // Override the SVG's width/height to match our target canvas dimensions.
-  // This ensures the browser rasterizes the SVG paths at full resolution
-  // rather than rendering at the SVG's native size and then scaling.
-  const scaledMarkup = setSvgSize(svgMarkup, width, height);
+  // Canvas padding — draws the SVG into an inner region of the bitmap with a
+  // white border (in pixels) around it. The Gaussian blur below then produces
+  // natural falloff gradients where the SVG content meets the white margin, so
+  // content that touches the SVG's viewBox edge no longer creates cliffs on
+  // the vase. Pixels-based so the amount of padding needed is uniform
+  // regardless of the motif's physical size — the cliff is a blur-pixel
+  // artifact, not a motif-size artifact.
+  const pad = Math.max(0, Math.min(Math.floor(Math.min(width, height) / 2) - 1, Math.round(padPixels)));
+  const innerW = Math.max(1, width - 2 * pad);
+  const innerH = Math.max(1, height - 2 * pad);
+
+  // Override the SVG's width/height to match the INNER target dimensions so the
+  // browser rasterizes at full drawn resolution without extra scaling.
+  const scaledMarkup = setSvgSize(svgMarkup, innerW, innerH);
 
   const blob = new Blob([scaledMarkup], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
 
   try {
-    const img = await loadImage(url, width, height);
+    const img = await loadImage(url, innerW, innerH);
 
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d')!;
 
-    // Draw white background (so transparent SVG areas = white = flush)
+    // Draw white background (so transparent SVG areas = white = flush, and so
+    // the padding region is solid white)
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
-    // Draw the SVG
-    ctx.drawImage(img, 0, 0, width, height);
+    // Draw the SVG into the inner region, leaving a white margin
+    ctx.drawImage(img, pad, pad, innerW, innerH);
 
     // Extract grayscale
     const imageData = ctx.getImageData(0, 0, width, height);

@@ -17,9 +17,10 @@ export function useVaseMesh(): VaseMesh {
   const params = useVaseStore((state) => state.params);
   const [svgVersion, setSvgVersion] = useState(0);
 
-  // Async rasterize SVG when svgText changes
+  // Async rasterize SVG when svgText or padding changes
   const svgText = params.textures.svgPattern?.svgText ?? '';
   const svgEnabled = params.textures.svgPattern?.enabled ?? false;
+  const svgPadding = params.textures.svgPattern?.padding ?? 0;
 
   useEffect(() => {
     if (!svgText || !svgEnabled) {
@@ -32,7 +33,7 @@ export function useVaseMesh(): VaseMesh {
     (async () => {
       try {
         const markup = parseSvgInput(svgText);
-        const data = await rasterizeSvg(markup);
+        const data = await rasterizeSvg(markup, 512, svgPadding);
         if (!cancelled) {
           setSvgPatternData(data);
           setSvgVersion((v) => v + 1);
@@ -47,7 +48,7 @@ export function useVaseMesh(): VaseMesh {
     })();
 
     return () => { cancelled = true; };
-  }, [svgText, svgEnabled]);
+  }, [svgText, svgEnabled, svgPadding]);
 
   const mesh = useMemo(() => {
     // svgVersion is included to trigger rebuild after async rasterization

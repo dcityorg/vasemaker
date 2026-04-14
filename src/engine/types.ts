@@ -203,6 +203,7 @@ export interface VaseParameters {
       randomRotateSeed?: number; // seed for random rotation (change to re-randomize)
       randomScaleSeed?: number;  // seed for random scale (change to re-randomize)
       mirrorAlternate?: boolean; // flip every other tile horizontally
+      padding?: number;     // virtual white canvas padding in rasterization pixels (0–30); adds a white border around the bitmap at rasterization time so content at the SVG's viewBox edge no longer creates cliffs at motif boundaries
     };
     squareFlute: {
       enabled: boolean;

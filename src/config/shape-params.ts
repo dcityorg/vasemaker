@@ -229,6 +229,7 @@ export const TEXTURES = {
     tileRotation: { min: 0, max: 360, step: 1 } as SliderRange,
     randomRotation: { min: 0, max: 360, step: 1 } as SliderRange,
     randomScale: { min: 0, max: 50, step: 1 } as SliderRange,
+    padding: { min: 0, max: 30, step: 1 } as SliderRange,
   },
   squareFlute: {
     count:     { min: 3, max: 80, step: 1 } as SliderRange,

@@ -369,6 +369,9 @@ export function TextureControls({ designName }: { designName?: string | null }) 
               </div>
               <input ref={svgFileRef} type="file" accept=".svg" onChange={handleSvgFileSelected} className="hidden" />
             </div>
+            {params.textures.svgPattern.svgText && (
+              <SliderRow label="SVG Padding" value={params.textures.svgPattern.padding ?? 0} {...TEXTURES.svgPattern.padding} onChange={(v) => setSvgPattern({ padding: v })} tooltip="Add a virtual white canvas around the SVG (in rasterization pixels). Use when the SVG artwork touches its viewBox edge and produces divots/cliffs at motif boundaries. 3–10 px is usually enough. Uniform on all sides, independent of motif size." suffix="px" />
+            )}
             <div className="text-xs text-[var(--text-secondary)] opacity-60 mb-2">
               {params.textures.svgPattern.svgText ? 'SVG loaded' : 'SVG empty'}
             </div>
