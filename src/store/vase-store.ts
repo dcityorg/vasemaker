@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import type { VaseParameters, ShapeType, ShapeParams, BezierPoint } from '@/engine/types';
+import type { VaseParameters, ShapeType, ShapeParams, BezierPoint, CurvePointType } from '@/engine/types';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import type { Preset } from '@/presets';
 import { applyPreset } from '@/presets';
@@ -28,6 +28,7 @@ interface VaseStore {
   setProfilePoint: (index: number, point: BezierPoint) => void;
   addProfilePoint: (point: BezierPoint) => void;
   removeProfilePoint: (index: number) => void;
+  setProfilePointType: (index: number, type: CurvePointType) => void;
 
   // Actions — shapes
   setBottomShape: (shape: ShapeType) => void;
@@ -38,9 +39,10 @@ interface VaseStore {
 
   // Actions — bezier twist
   setBezierTwist: (update: Partial<VaseParameters['bezierTwist']>) => void;
-  setBezierTwistPoint: (index: number, value: number) => void;
-  addBezierTwistPoint: (value: number, afterIndex: number) => void;
+  setBezierTwistPoint: (index: number, point: BezierPoint) => void;
+  addBezierTwistPoint: (point: BezierPoint) => void;
   removeBezierTwistPoint: (index: number) => void;
+  setBezierTwistPointType: (index: number, type: CurvePointType) => void;
 
   // Actions — sine twist
   setSineTwist: (update: Partial<VaseParameters['sineTwist']>) => void;
@@ -52,10 +54,14 @@ interface VaseStore {
   // Actions — offset
   setFixedOffset: (update: Partial<VaseParameters['fixedOffset']>) => void;
   setBezierOffset: (update: Partial<VaseParameters['bezierOffset']>) => void;
-  setBezierOffsetPointX: (index: number, value: number) => void;
-  setBezierOffsetPointY: (index: number, value: number) => void;
-  addBezierOffsetPoint: (afterIndex: number) => void;
-  removeBezierOffsetPoint: (index: number) => void;
+  setBezierOffsetPointX: (index: number, point: BezierPoint) => void;
+  setBezierOffsetPointY: (index: number, point: BezierPoint) => void;
+  addBezierOffsetPointX: (point: BezierPoint) => void;
+  addBezierOffsetPointY: (point: BezierPoint) => void;
+  removeBezierOffsetPointX: (index: number) => void;
+  removeBezierOffsetPointY: (index: number) => void;
+  setBezierOffsetPointTypeX: (index: number, type: CurvePointType) => void;
+  setBezierOffsetPointTypeY: (index: number, type: CurvePointType) => void;
 
   // Actions — textures
   setTexturesEnabled: (enabled: boolean) => void;
@@ -126,23 +132,35 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
   addProfilePoint: (point) =>
     set((state) => {
       const points = [...state.params.profilePoints];
+      const types = [...state.params.profilePointTypes];
       if (points.length >= 8) return state; // max 8 control points
       // Insert sorted by height fraction (index 1)
       const insertIdx = points.findIndex(p => p[1] > point[1]);
       if (insertIdx === -1) {
         points.push(point);
+        types.push('handle');
       } else {
         points.splice(insertIdx, 0, point);
+        types.splice(insertIdx, 0, 'handle');
       }
-      return { params: { ...state.params, profilePoints: points } };
+      return { params: { ...state.params, profilePoints: points, profilePointTypes: types } };
     }),
   removeProfilePoint: (index) =>
     set((state) => {
       const points = [...state.params.profilePoints];
+      const types = [...state.params.profilePointTypes];
       if (points.length <= 2) return state; // min 2 control points
       if (index === 0 || index === points.length - 1) return state; // keep endpoints
       points.splice(index, 1);
-      return { params: { ...state.params, profilePoints: points } };
+      types.splice(index, 1);
+      return { params: { ...state.params, profilePoints: points, profilePointTypes: types } };
+    }),
+  setProfilePointType: (index, type) =>
+    set((state) => {
+      const types = [...state.params.profilePointTypes];
+      if (index <= 0 || index >= types.length - 1) return state; // endpoints stay fixed
+      types[index] = type;
+      return { params: { ...state.params, profilePointTypes: types } };
     }),
 
   // Shapes
@@ -178,31 +196,46 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     set((state) => ({
       params: { ...state.params, bezierTwist: { ...state.params.bezierTwist, ...update } },
     })),
-  setBezierTwistPoint: (index, value) =>
+  setBezierTwistPoint: (index, point) =>
     set((state) => {
-      const points = [...state.params.bezierTwist.points];
-      points[index] = value;
+      const points = state.params.bezierTwist.points.map(p => [...p] as BezierPoint);
+      points[index] = point;
       return {
         params: { ...state.params, bezierTwist: { ...state.params.bezierTwist, points } },
       };
     }),
-  addBezierTwistPoint: (value, afterIndex) =>
+  addBezierTwistPoint: (point) =>
     set((state) => {
-      const points = [...state.params.bezierTwist.points];
+      const points = state.params.bezierTwist.points.map(p => [...p] as BezierPoint);
+      const types = [...state.params.bezierTwist.pointTypes];
       if (points.length >= 8) return state;
-      points.splice(afterIndex + 1, 0, value);
+      const insertIdx = points.findIndex(p => p[1] > point[1]);
+      const idx = insertIdx === -1 ? points.length : insertIdx;
+      points.splice(idx, 0, point);
+      types.splice(idx, 0, 'handle');
       return {
-        params: { ...state.params, bezierTwist: { ...state.params.bezierTwist, points } },
+        params: { ...state.params, bezierTwist: { ...state.params.bezierTwist, points, pointTypes: types } },
       };
     }),
   removeBezierTwistPoint: (index) =>
     set((state) => {
-      const points = [...state.params.bezierTwist.points];
+      const points = state.params.bezierTwist.points.map(p => [...p] as BezierPoint);
+      const types = [...state.params.bezierTwist.pointTypes];
       if (points.length <= 2) return state;
       if (index === 0 || index === points.length - 1) return state;
       points.splice(index, 1);
+      types.splice(index, 1);
       return {
-        params: { ...state.params, bezierTwist: { ...state.params.bezierTwist, points } },
+        params: { ...state.params, bezierTwist: { ...state.params.bezierTwist, points, pointTypes: types } },
+      };
+    }),
+  setBezierTwistPointType: (index, type) =>
+    set((state) => {
+      const types = [...state.params.bezierTwist.pointTypes];
+      if (index <= 0 || index >= types.length - 1) return state;
+      types[index] = type;
+      return {
+        params: { ...state.params, bezierTwist: { ...state.params.bezierTwist, pointTypes: types } },
       };
     }),
 
@@ -231,39 +264,88 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     set((state) => ({
       params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, ...update } },
     })),
-  setBezierOffsetPointX: (index, value) =>
+  setBezierOffsetPointX: (index, point) =>
     set((state) => {
-      const points = state.params.bezierOffset.points.map(p => [...p] as [number, number]);
-      points[index][0] = value;
+      const pointsX = state.params.bezierOffset.pointsX.map(p => [...p] as BezierPoint);
+      pointsX[index] = point;
       return {
-        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, points } },
+        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, pointsX } },
       };
     }),
-  setBezierOffsetPointY: (index, value) =>
+  setBezierOffsetPointY: (index, point) =>
     set((state) => {
-      const points = state.params.bezierOffset.points.map(p => [...p] as [number, number]);
-      points[index][1] = value;
+      const pointsY = state.params.bezierOffset.pointsY.map(p => [...p] as BezierPoint);
+      pointsY[index] = point;
       return {
-        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, points } },
+        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, pointsY } },
       };
     }),
-  addBezierOffsetPoint: (afterIndex) =>
+  addBezierOffsetPointX: (point) =>
     set((state) => {
-      const points = state.params.bezierOffset.points.map(p => [...p] as [number, number]);
-      if (points.length >= 8) return state;
-      points.splice(afterIndex + 1, 0, [0, 0]);
+      const pointsX = state.params.bezierOffset.pointsX.map(p => [...p] as BezierPoint);
+      const typesX = [...state.params.bezierOffset.pointTypesX];
+      if (pointsX.length >= 8) return state;
+      const insertIdx = pointsX.findIndex(p => p[1] > point[1]);
+      const idx = insertIdx === -1 ? pointsX.length : insertIdx;
+      pointsX.splice(idx, 0, point);
+      typesX.splice(idx, 0, 'handle');
       return {
-        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, points } },
+        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, pointsX, pointTypesX: typesX } },
       };
     }),
-  removeBezierOffsetPoint: (index) =>
+  addBezierOffsetPointY: (point) =>
     set((state) => {
-      const points = state.params.bezierOffset.points.map(p => [...p] as [number, number]);
-      if (points.length <= 2) return state;
-      if (index === 0 || index === points.length - 1) return state;
-      points.splice(index, 1);
+      const pointsY = state.params.bezierOffset.pointsY.map(p => [...p] as BezierPoint);
+      const typesY = [...state.params.bezierOffset.pointTypesY];
+      if (pointsY.length >= 8) return state;
+      const insertIdx = pointsY.findIndex(p => p[1] > point[1]);
+      const idx = insertIdx === -1 ? pointsY.length : insertIdx;
+      pointsY.splice(idx, 0, point);
+      typesY.splice(idx, 0, 'handle');
       return {
-        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, points } },
+        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, pointsY, pointTypesY: typesY } },
+      };
+    }),
+  removeBezierOffsetPointX: (index) =>
+    set((state) => {
+      const pointsX = state.params.bezierOffset.pointsX.map(p => [...p] as BezierPoint);
+      const typesX = [...state.params.bezierOffset.pointTypesX];
+      if (pointsX.length <= 2) return state;
+      if (index === 0 || index === pointsX.length - 1) return state;
+      pointsX.splice(index, 1);
+      typesX.splice(index, 1);
+      return {
+        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, pointsX, pointTypesX: typesX } },
+      };
+    }),
+  removeBezierOffsetPointY: (index) =>
+    set((state) => {
+      const pointsY = state.params.bezierOffset.pointsY.map(p => [...p] as BezierPoint);
+      const typesY = [...state.params.bezierOffset.pointTypesY];
+      if (pointsY.length <= 2) return state;
+      if (index === 0 || index === pointsY.length - 1) return state;
+      pointsY.splice(index, 1);
+      typesY.splice(index, 1);
+      return {
+        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, pointsY, pointTypesY: typesY } },
+      };
+    }),
+  setBezierOffsetPointTypeX: (index, type) =>
+    set((state) => {
+      const types = [...state.params.bezierOffset.pointTypesX];
+      if (index <= 0 || index >= types.length - 1) return state;
+      types[index] = type;
+      return {
+        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, pointTypesX: types } },
+      };
+    }),
+  setBezierOffsetPointTypeY: (index, type) =>
+    set((state) => {
+      const types = [...state.params.bezierOffset.pointTypesY];
+      if (index <= 0 || index >= types.length - 1) return state;
+      types[index] = type;
+      return {
+        params: { ...state.params, bezierOffset: { ...state.params.bezierOffset, pointTypesY: types } },
       };
     }),
 

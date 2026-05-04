@@ -142,8 +142,19 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Drag point', value: 'Move a control point' },
         { key: 'Double-click', value: 'Add a new point (max 8 total)' },
         { key: 'Right-click', value: 'Remove a point (min 2 remain)' },
+        { key: 'Shift-click', value: 'Toggle a point between Fixed (□) and Handle (○)' },
       ] },
       { type: 'tip', text: 'The first and last points control the bottom and top of the vase. Points between them shape the curvature.' },
+
+      { type: 'heading', text: 'Fixed vs Handle Points' },
+      { type: 'paragraph', text: 'Each control point is either a Fixed point (drawn as a square) or a Handle (drawn as a circle).' },
+      { type: 'list', items: [
+        'Fixed (□) — the curve passes through this point exactly. Use these when you need the curve to hit a specific location.',
+        'Handle (○) — the curve is pulled toward this point but doesn’t touch it. Drag handles to bend the curve.',
+        'Two adjacent Fixed points with no Handles between them = a straight line segment. Use this for cylindrical sections, sharp shoulders, or flat ramps.',
+        'The first and last points are always Fixed. Shift-click any middle point to toggle.',
+      ] },
+      { type: 'tip', text: 'Want a straight cylindrical bottom transitioning to a curved top? Shift-click the lower middle points to make them Fixed and place them in a vertical line. Leave the upper points as Handles to keep the curve smooth.' },
 
       { type: 'heading', text: 'Custom Twist' },
       { type: 'paragraph', text: 'Custom Twist uses a Bezier curve to define how many degrees the cross-section rotates at each height level. The horizontal axis is degrees of rotation, the vertical axis is height.' },

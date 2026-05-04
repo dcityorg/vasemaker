@@ -47,7 +47,7 @@ export const BUILT_IN_PRESETS: Preset[] = [
       profilePoints: [
         [1.0, 0], [1.55, 0.2], [1.75, 0.375], [1.0, 0.6], [1.0, 0.8], [1.1, 1.0],
       ],
-      bezierTwist: { enabled: true, points: [0, 7, 6, 14, 37] },
+      bezierTwist: { enabled: true, points: [[0, 0], [7, 0.25], [6, 0.5], [14, 0.75], [37, 1]], pointTypes: ['fixed', 'handle', 'handle', 'handle', 'fixed'] },
       textures: {
         enabled: true,
         fluting: { enabled: false, count: 4, depth: 2, duty: 0 },
@@ -90,7 +90,7 @@ export const BUILT_IN_PRESETS: Preset[] = [
       profilePoints: [
         [1.0, 0], [1.6, 0.2], [1.1, 0.4], [1.0, 0.6], [0.7, 0.8], [0.75, 1.0],
       ],
-      bezierTwist: { enabled: true, points: [0, 0, 161, 0, 0] },
+      bezierTwist: { enabled: true, points: [[0, 0], [0, 0.25], [161, 0.5], [0, 0.75], [0, 1]], pointTypes: ['fixed', 'handle', 'handle', 'handle', 'fixed'] },
       wallThickness: 0.8,
       bottomThickness: 2,
       rimShape: 'rounded' as const,

@@ -1,26 +1,23 @@
 'use client';
 
 import { useVaseStore } from '@/store/vase-store';
-import type { BezierPoint } from '@/engine/types';
 import { BEZIER_TWIST, SINE_TWIST } from '@/config/shape-params';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { BezierCurveEditor } from './BezierCurveEditor';
 import { GROUP_COLORS } from '@/config/colors';
 import { SliderRow, Section, GroupHeader } from './ui';
 
-/** Convert scalar array (evenly spaced heights) → BezierPoint[] for curve editor */
-function scalarsToPoints(values: number[]): BezierPoint[] {
-  return values.map((v, i) => [v, values.length > 1 ? i / (values.length - 1) : 0]);
-}
-
 export function TwistControls() {
   const params = useVaseStore((s) => s.params);
   const {
     setBezierTwist, setBezierTwistPoint,
-    addBezierTwistPoint, removeBezierTwistPoint, setSineTwist,
+    addBezierTwistPoint, removeBezierTwistPoint, setBezierTwistPointType, setSineTwist,
   } = useVaseStore();
 
-  const resetBezierTwist = () => setBezierTwist({ points: [...DEFAULT_PARAMETERS.bezierTwist.points] });
+  const resetBezierTwist = () => setBezierTwist({
+    points: DEFAULT_PARAMETERS.bezierTwist.points.map(p => [...p] as [number, number]),
+    pointTypes: [...DEFAULT_PARAMETERS.bezierTwist.pointTypes],
+  });
   const resetSineTwist = () => setSineTwist({ cycles: DEFAULT_PARAMETERS.sineTwist.cycles, maxDegrees: DEFAULT_PARAMETERS.sineTwist.maxDegrees });
 
   return (
@@ -32,28 +29,20 @@ export function TwistControls() {
           <button onClick={resetBezierTwist} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
         <BezierCurveEditor
-          points={scalarsToPoints(params.bezierTwist.points)}
+          points={params.bezierTwist.points}
           onPointChange={(index, point) => {
-            setBezierTwistPoint(index, Math.round(point[0]));
+            setBezierTwistPoint(index, [Math.round(point[0]), point[1]]);
           }}
-          onPointAdd={(point) => {
-            const h = point[1];
-            const pts = params.bezierTwist.points;
-            let afterIdx = pts.length - 1;
-            for (let i = 0; i < pts.length - 1; i++) {
-              const hI = pts.length > 1 ? i / (pts.length - 1) : 0;
-              const hNext = pts.length > 1 ? (i + 1) / (pts.length - 1) : 0;
-              if (h >= hI && h <= hNext) { afterIdx = i; break; }
-            }
-            addBezierTwistPoint(Math.round(point[0]), afterIdx);
-          }}
+          onPointAdd={(point) => addBezierTwistPoint([Math.round(point[0]), point[1]])}
           onPointRemove={removeBezierTwistPoint}
+          pointTypes={params.bezierTwist.pointTypes}
+          onPointTypeToggle={(i) => setBezierTwistPointType(i, params.bezierTwist.pointTypes[i] === 'fixed' ? 'handle' : 'fixed')}
           xRange={[BEZIER_TWIST.point.min, BEZIER_TWIST.point.max]}
           yRange={[0, 1]}
           xLabel="Twist (degrees)"
         />
         <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
-          Drag left/right to set twist. Double-click to add. Right-click to remove.
+          Drag to move. Double-click to add. Right-click to remove. Shift-click to toggle Fixed (□) / Handle (○).
         </div>
       </Section>
 

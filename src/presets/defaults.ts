@@ -89,6 +89,7 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
     [1.1, 0.9],   // wide opening
     [1.0, 1.0],   // top — clean rim
   ],
+  profilePointTypes: ['fixed', 'handle', 'handle', 'handle', 'handle', 'fixed'],
 
   bottomShape: 'Circle1',
   topShape: 'Circle1',
@@ -97,7 +98,11 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
   bottomShapeParams: defaultShapeParams(),
   topShapeParams: defaultTopShapeParams(),
 
-  bezierTwist: { enabled: false, points: [0, 0, 0, 0, 0] },
+  bezierTwist: {
+    enabled: false,
+    points: [[0, 0], [0, 0.25], [0, 0.5], [0, 0.75], [0, 1]],
+    pointTypes: ['fixed', 'handle', 'handle', 'handle', 'fixed'],
+  },
   sineTwist: { enabled: false, cycles: 2, maxDegrees: 50 },
 
   verticalSmoothing: { enabled: false, cycles: 3, startPercent: 0 },
@@ -108,7 +113,10 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
     enabled: false,
     scaleX: 10,
     scaleY: 10,
-    points: [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]],
+    pointsX: [[0, 0], [0, 0.2], [0, 0.4], [0, 0.6], [0, 0.8], [0, 1]],
+    pointsY: [[0, 0], [0, 0.2], [0, 0.4], [0, 0.6], [0, 0.8], [0, 1]],
+    pointTypesX: ['fixed', 'handle', 'handle', 'handle', 'handle', 'fixed'],
+    pointTypesY: ['fixed', 'handle', 'handle', 'handle', 'handle', 'fixed'],
   },
 
   textures: {

@@ -9,7 +9,7 @@
  */
 
 import type { VaseParameters, ShapeParams } from './types';
-import { evaluateBezier, evaluateBezierScalar } from './bezier';
+import { evaluatePiecewiseBezier } from './bezier';
 import { getShapeFunction } from './shapes';
 import {
   sineTwist,
@@ -71,7 +71,7 @@ export function computeRowContexts(
   for (let vStep = 0; vStep <= vRes; vStep++) {
     const m = vStep / vRes;
     const profilePoint = params.profileEnabled
-      ? evaluateBezier(m, params.profilePoints)
+      ? evaluatePiecewiseBezier(m, params.profilePoints, params.profilePointTypes)
       : [1.0, m];
 
     const shapeRadius = profilePoint[0] * params.radius;
@@ -88,16 +88,18 @@ export function computeRowContexts(
       centerY += bottomParams.offsetY;
     }
 
-    if (params.bezierOffset.enabled && params.bezierOffset.points.length >= 2) {
-      const offsetXPoints = params.bezierOffset.points.map(p => p[0]);
-      const offsetYPoints = params.bezierOffset.points.map(p => p[1]);
-      centerX += evaluateBezierScalar(v, offsetXPoints) * params.bezierOffset.scaleX;
-      centerY += evaluateBezierScalar(v, offsetYPoints) * params.bezierOffset.scaleY;
+    if (params.bezierOffset.enabled) {
+      if (params.bezierOffset.pointsX.length >= 2) {
+        centerX += evaluatePiecewiseBezier(v, params.bezierOffset.pointsX, params.bezierOffset.pointTypesX)[0] * params.bezierOffset.scaleX;
+      }
+      if (params.bezierOffset.pointsY.length >= 2) {
+        centerY += evaluatePiecewiseBezier(v, params.bezierOffset.pointsY, params.bezierOffset.pointTypesY)[0] * params.bezierOffset.scaleY;
+      }
     }
 
     let twistAngle = 0;
     if (params.bezierTwist.enabled && params.bezierTwist.points.length >= 2) {
-      twistAngle = evaluateBezierScalar(v, params.bezierTwist.points);
+      twistAngle = evaluatePiecewiseBezier(v, params.bezierTwist.points, params.bezierTwist.pointTypes)[0];
     }
 
     if (params.sineTwist.enabled) {

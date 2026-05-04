@@ -1,14 +1,18 @@
 'use client';
 
 import { useCallback, useRef, useMemo } from 'react';
-import { evaluateBezier } from '@/engine/bezier';
-import type { BezierPoint } from '@/engine/types';
+import { evaluatePiecewiseBezier } from '@/engine/bezier';
+import type { BezierPoint, CurvePointType } from '@/engine/types';
 
 interface BezierCurveEditorProps {
   points: BezierPoint[];
   onPointChange: (index: number, point: BezierPoint) => void;
   onPointAdd?: (point: BezierPoint) => void;
   onPointRemove?: (index: number) => void;
+  /** Per-point types: 'fixed' (curve passes through) or 'handle' (pull-handle). */
+  pointTypes?: CurvePointType[];
+  /** Toggle a point's type. Called with the index. Endpoints (0, length-1) are ignored. */
+  onPointTypeToggle?: (index: number) => void;
   maxPoints?: number;
   minPoints?: number;
   /** Data range for x axis [min, max] */
@@ -37,6 +41,8 @@ export function BezierCurveEditor({
   onPointChange,
   onPointAdd,
   onPointRemove,
+  pointTypes,
+  onPointTypeToggle,
   maxPoints = 8,
   minPoints = 2,
   xRange,
@@ -48,6 +54,7 @@ export function BezierCurveEditor({
 }: BezierCurveEditorProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef<number | null>(null);
+  const pointerDown = useRef<{ index: number; x: number; y: number; shift: boolean } | null>(null);
 
   // Plot area dimensions
   const plotW = width - PADDING.left - PADDING.right;
@@ -73,19 +80,19 @@ export function BezierCurveEditor({
     [yRange, plotH]
   );
 
-  // Sample the Bezier curve for display
+  // Sample the curve for display (piecewise: passes through fixed points, pulled by handles)
   const curvePath = useMemo(() => {
     if (points.length < 2) return '';
     const parts: string[] = [];
     for (let i = 0; i <= CURVE_SAMPLES; i++) {
       const t = i / CURVE_SAMPLES;
-      const [val, hFrac] = evaluateBezier(t, points);
+      const [val, hFrac] = evaluatePiecewiseBezier(t, points, pointTypes);
       const sx = toSvgX(val);
       const sy = toSvgY(hFrac);
       parts.push(`${i === 0 ? 'M' : 'L'}${sx.toFixed(1)},${sy.toFixed(1)}`);
     }
     return parts.join(' ');
-  }, [points, toSvgX, toSvgY]);
+  }, [points, pointTypes, toSvgX, toSvgY]);
 
   // Control polygon path (lines connecting points in order)
   const polygonPath = useMemo(() => {
@@ -94,12 +101,13 @@ export function BezierCurveEditor({
       .join(' ');
   }, [points, toSvgX, toSvgY]);
 
-  // Pointer handlers for dragging
+  // Pointer handlers for dragging + shift-click toggle
   const handlePointerDown = useCallback(
     (e: React.PointerEvent, index: number) => {
       e.preventDefault();
       e.stopPropagation();
       dragging.current = index;
+      pointerDown.current = { index, x: e.clientX, y: e.clientY, shift: e.shiftKey };
       (e.target as SVGElement).setPointerCapture(e.pointerId);
     },
     []
@@ -109,6 +117,12 @@ export function BezierCurveEditor({
     (e: React.PointerEvent) => {
       if (dragging.current === null || !svgRef.current) return;
       const index = dragging.current;
+      // If user drags more than a few pixels, cancel the pending shift-click toggle
+      if (pointerDown.current) {
+        const dx = e.clientX - pointerDown.current.x;
+        const dy = e.clientY - pointerDown.current.y;
+        if (dx * dx + dy * dy > 9) pointerDown.current = null;
+      }
       const rect = svgRef.current.getBoundingClientRect();
       const svgX = e.clientX - rect.left;
       const svgY = e.clientY - rect.top;
@@ -134,8 +148,15 @@ export function BezierCurveEditor({
   );
 
   const handlePointerUp = useCallback(() => {
+    // If shift was held and the cursor didn't move beyond threshold, treat as toggle
+    const pd = pointerDown.current;
+    if (pd && pd.shift && onPointTypeToggle) {
+      const isEndpoint = pd.index === 0 || pd.index === points.length - 1;
+      if (!isEndpoint) onPointTypeToggle(pd.index);
+    }
+    pointerDown.current = null;
     dragging.current = null;
-  }, []);
+  }, [onPointTypeToggle, points.length]);
 
   // Double-click on plot area to add a point
   const handleDoubleClick = useCallback(
@@ -331,6 +352,14 @@ export function BezierCurveEditor({
         const cy = toSvgY(p[1]);
         const isEndpoint = i === 0 || i === points.length - 1;
         const canRemove = onPointRemove && !isEndpoint && points.length > minPoints;
+        const type = pointTypes?.[i] ?? (isEndpoint ? 'fixed' : 'handle');
+        const isFixed = type === 'fixed' || isEndpoint;
+        const r = isEndpoint ? POINT_RADIUS - 1 : POINT_RADIUS;
+        const fill = isEndpoint ? 'var(--text-secondary)' : 'var(--accent)';
+        const tipPrefix = isFixed ? 'Fixed point.' : 'Handle.';
+        const tipSuffix = isEndpoint
+          ? ' Drag to move (locked to this end).'
+          : ' Drag to move. Shift-click to toggle Fixed/Handle.' + (canRemove ? ' Right-click to remove.' : '');
         return (
           <g key={i}>
             {/* Invisible larger hit area */}
@@ -342,17 +371,32 @@ export function BezierCurveEditor({
               cursor={canRemove ? 'grab' : 'ew-resize'}
               onPointerDown={(e) => handlePointerDown(e, i)}
               onContextMenu={canRemove ? (e) => handleContextMenu(e, i) : undefined}
-            />
-            {/* Visible point */}
-            <circle
-              cx={cx}
-              cy={cy}
-              r={isEndpoint ? POINT_RADIUS - 1 : POINT_RADIUS}
-              fill={isEndpoint ? 'var(--text-secondary)' : 'var(--accent)'}
-              stroke="var(--bg-primary)"
-              strokeWidth={1.5}
-              pointerEvents="none"
-            />
+            >
+              <title>{tipPrefix + tipSuffix}</title>
+            </circle>
+            {/* Visible point — square for fixed, circle for handle */}
+            {isFixed ? (
+              <rect
+                x={cx - r}
+                y={cy - r}
+                width={r * 2}
+                height={r * 2}
+                fill={fill}
+                stroke="var(--bg-primary)"
+                strokeWidth={1.5}
+                pointerEvents="none"
+              />
+            ) : (
+              <circle
+                cx={cx}
+                cy={cy}
+                r={r}
+                fill={fill}
+                stroke="var(--bg-primary)"
+                strokeWidth={1.5}
+                pointerEvents="none"
+              />
+            )}
           </g>
         );
       })}

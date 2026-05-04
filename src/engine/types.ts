@@ -72,6 +72,9 @@ export interface ShapeParams {
 /** A Bezier control point: [value, heightFraction] */
 export type BezierPoint = [number, number];
 
+/** Per-point type in a curve. 'fixed' = curve passes through, 'handle' = pull-handle (curve is bent toward but doesn't touch). */
+export type CurvePointType = 'fixed' | 'handle';
+
 /** Complete set of vase parameters */
 export interface VaseParameters {
   // Dimensions
@@ -81,6 +84,7 @@ export interface VaseParameters {
   // Vertical profile — Bezier control points [radiusMultiplier, heightFraction]
   profileEnabled: boolean;
   profilePoints: BezierPoint[];
+  profilePointTypes: CurvePointType[];
 
   // Cross-section shapes
   bottomShape: ShapeType;
@@ -91,10 +95,11 @@ export interface VaseParameters {
   bottomShapeParams: Record<ShapeType, ShapeParams>;
   topShapeParams: Record<ShapeType, ShapeParams>;
 
-  // Bezier twist
+  // Bezier twist — points are [twistDegrees, heightFraction]
   bezierTwist: {
     enabled: boolean;
-    points: number[];
+    points: BezierPoint[];
+    pointTypes: CurvePointType[];
   };
 
   // Sine twist
@@ -124,12 +129,15 @@ export interface VaseParameters {
     y: number;
   };
 
-  // Bezier XY offset
+  // Bezier XY offset — independent X and Y curves, each [offset, heightFraction]
   bezierOffset: {
     enabled: boolean;
     scaleX: number;
     scaleY: number;
-    points: [number, number][];
+    pointsX: BezierPoint[];
+    pointsY: BezierPoint[];
+    pointTypesX: CurvePointType[];
+    pointTypesY: CurvePointType[];
   };
 
   // Resolution

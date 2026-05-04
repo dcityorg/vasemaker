@@ -36,25 +36,27 @@ function ShapeParamControls({ shape, isTop }: { shape: ShapeType; isTop: boolean
   );
 }
 
-/** Extract one axis from offset [x,y][] pairs → BezierPoint[] (evenly spaced heights) */
-function offsetAxisToPoints(points: [number, number][], axis: 0 | 1): BezierPoint[] {
-  return points.map((p, i) => [p[axis], points.length > 1 ? i / (points.length - 1) : 0]);
-}
-
 export function ShapeControls() {
   const params = useVaseStore((s) => s.params);
   const {
     setRadius, setHeight, setProfileEnabled, setProfilePoint, addProfilePoint, removeProfilePoint,
+    setProfilePointType,
     setBottomShape, setTopShape, setMorphEnabled,
     setBezierOffset, setBezierOffsetPointX, setBezierOffsetPointY,
-    addBezierOffsetPoint, removeBezierOffsetPoint,
+    addBezierOffsetPointX, addBezierOffsetPointY,
+    removeBezierOffsetPointX, removeBezierOffsetPointY,
+    setBezierOffsetPointTypeX, setBezierOffsetPointTypeY,
     setWallThickness, setBottomThickness, setRimShape, setSmoothInner, setMinWallThickness,
   } = useVaseStore();
 
   const resetProfile = () => {
     const flat: BezierPoint[] = [[1.0, 0], [1.0, 0.2], [1.0, 0.4], [1.0, 0.6], [1.0, 0.8], [1.0, 1.0]];
     useVaseStore.setState((s) => ({
-      params: { ...s.params, profilePoints: flat },
+      params: {
+        ...s.params,
+        profilePoints: flat,
+        profilePointTypes: ['fixed', 'handle', 'handle', 'handle', 'handle', 'fixed'],
+      },
     }));
   };
   const resetShape = () => {
@@ -69,7 +71,10 @@ export function ShapeControls() {
   const resetBezierOffset = () => setBezierOffset({
     scaleX: DEFAULT_PARAMETERS.bezierOffset.scaleX,
     scaleY: DEFAULT_PARAMETERS.bezierOffset.scaleY,
-    points: DEFAULT_PARAMETERS.bezierOffset.points.map(p => [...p] as [number, number]),
+    pointsX: DEFAULT_PARAMETERS.bezierOffset.pointsX.map(p => [...p] as [number, number]),
+    pointsY: DEFAULT_PARAMETERS.bezierOffset.pointsY.map(p => [...p] as [number, number]),
+    pointTypesX: [...DEFAULT_PARAMETERS.bezierOffset.pointTypesX],
+    pointTypesY: [...DEFAULT_PARAMETERS.bezierOffset.pointTypesY],
   });
 
   return (
@@ -173,12 +178,14 @@ export function ShapeControls() {
           onPointChange={setProfilePoint}
           onPointAdd={addProfilePoint}
           onPointRemove={removeProfilePoint}
+          pointTypes={params.profilePointTypes}
+          onPointTypeToggle={(i) => setProfilePointType(i, params.profilePointTypes[i] === 'fixed' ? 'handle' : 'fixed')}
           xRange={[0, 5]}
           yRange={[0, 1]}
           xLabel="Radius Multiplier"
         />
         <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
-          Double-click to add. Right-click to remove.
+          Double-click to add. Right-click to remove. Shift-click a point to toggle Fixed (□, curve passes through) and Handle (○, pulls curve).
         </div>
       </Section>
 
@@ -191,22 +198,14 @@ export function ShapeControls() {
 
         <div className="text-xs font-medium text-[var(--text-secondary)] mt-2 mb-1 px-1">Offset X</div>
         <BezierCurveEditor
-          points={offsetAxisToPoints(params.bezierOffset.points, 0)}
+          points={params.bezierOffset.pointsX}
           onPointChange={(index, point) => {
-            setBezierOffsetPointX(index, Math.round(point[0] * 20) / 20);
+            setBezierOffsetPointX(index, [Math.round(point[0] * 20) / 20, point[1]]);
           }}
-          onPointAdd={(point) => {
-            const h = point[1];
-            const pts = params.bezierOffset.points;
-            let afterIdx = pts.length - 1;
-            for (let i = 0; i < pts.length - 1; i++) {
-              const hI = pts.length > 1 ? i / (pts.length - 1) : 0;
-              const hNext = pts.length > 1 ? (i + 1) / (pts.length - 1) : 0;
-              if (h >= hI && h <= hNext) { afterIdx = i; break; }
-            }
-            addBezierOffsetPoint(afterIdx);
-          }}
-          onPointRemove={removeBezierOffsetPoint}
+          onPointAdd={(point) => addBezierOffsetPointX([Math.round(point[0] * 20) / 20, point[1]])}
+          onPointRemove={removeBezierOffsetPointX}
+          pointTypes={params.bezierOffset.pointTypesX}
+          onPointTypeToggle={(i) => setBezierOffsetPointTypeX(i, params.bezierOffset.pointTypesX[i] === 'fixed' ? 'handle' : 'fixed')}
           xRange={[-1, 1]}
           yRange={[0, 1]}
           xLabel="X Offset"
@@ -214,28 +213,20 @@ export function ShapeControls() {
 
         <div className="text-xs font-medium text-[var(--text-secondary)] mt-2 mb-1 px-1">Offset Y</div>
         <BezierCurveEditor
-          points={offsetAxisToPoints(params.bezierOffset.points, 1)}
+          points={params.bezierOffset.pointsY}
           onPointChange={(index, point) => {
-            setBezierOffsetPointY(index, Math.round(point[0] * 20) / 20);
+            setBezierOffsetPointY(index, [Math.round(point[0] * 20) / 20, point[1]]);
           }}
-          onPointAdd={(point) => {
-            const h = point[1];
-            const pts = params.bezierOffset.points;
-            let afterIdx = pts.length - 1;
-            for (let i = 0; i < pts.length - 1; i++) {
-              const hI = pts.length > 1 ? i / (pts.length - 1) : 0;
-              const hNext = pts.length > 1 ? (i + 1) / (pts.length - 1) : 0;
-              if (h >= hI && h <= hNext) { afterIdx = i; break; }
-            }
-            addBezierOffsetPoint(afterIdx);
-          }}
-          onPointRemove={removeBezierOffsetPoint}
+          onPointAdd={(point) => addBezierOffsetPointY([Math.round(point[0] * 20) / 20, point[1]])}
+          onPointRemove={removeBezierOffsetPointY}
+          pointTypes={params.bezierOffset.pointTypesY}
+          onPointTypeToggle={(i) => setBezierOffsetPointTypeY(i, params.bezierOffset.pointTypesY[i] === 'fixed' ? 'handle' : 'fixed')}
           xRange={[-1, 1]}
           yRange={[0, 1]}
           xLabel="Y Offset"
         />
         <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
-          Drag left/right to set offset. Scale sliders amplify the effect.
+          Drag to move. Double-click to add. Right-click to remove. Shift-click to toggle Fixed (□) / Handle (○). Scale sliders amplify the effect.
         </div>
       </Section>
     </>
