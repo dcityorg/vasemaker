@@ -31,18 +31,19 @@ export function TwistControls() {
         <BezierCurveEditor
           points={params.bezierTwist.points}
           onPointChange={(index, point) => {
-            setBezierTwistPoint(index, [Math.round(point[0]), point[1]]);
+            setBezierTwistPoint(index, [Math.round(point[0] * 10) / 10, point[1]]);
           }}
-          onPointAdd={(point) => addBezierTwistPoint([Math.round(point[0]), point[1]])}
+          onPointAdd={(point) => addBezierTwistPoint([Math.round(point[0] * 10) / 10, point[1]])}
           onPointRemove={removeBezierTwistPoint}
           pointTypes={params.bezierTwist.pointTypes}
           onPointTypeToggle={(i) => setBezierTwistPointType(i, params.bezierTwist.pointTypes[i] === 'fixed' ? 'handle' : 'fixed')}
           xRange={[BEZIER_TWIST.point.min, BEZIER_TWIST.point.max]}
           yRange={[0, 1]}
+          arrowStepX={1}
           xLabel="Twist (degrees)"
         />
         <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
-          Drag to move. Double-click to add. Right-click to remove. Shift-click to toggle Fixed (□) / Handle (○).
+          Drag/double-click/right-click as above. Shift-click toggles Fixed (□) / Handle (○). Click to select, then arrow keys nudge (Shift = ×5, Alt = fine). Alt-drag = fine; Shift-drag locks to one axis.
         </div>
       </Section>
 

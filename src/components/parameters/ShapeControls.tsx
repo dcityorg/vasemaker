@@ -185,7 +185,7 @@ export function ShapeControls() {
           xLabel="Radius Multiplier"
         />
         <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
-          Double-click to add. Right-click to remove. Shift-click a point to toggle Fixed (□, curve passes through) and Handle (○, pulls curve).
+          Double-click to add. Right-click to remove. Shift-click toggles Fixed (□) / Handle (○). Click to select, then arrow keys nudge (Shift = ×5, Alt = fine). Alt-drag = fine; Shift-drag locks to one axis.
         </div>
       </Section>
 
@@ -200,9 +200,9 @@ export function ShapeControls() {
         <BezierCurveEditor
           points={params.bezierOffset.pointsX}
           onPointChange={(index, point) => {
-            setBezierOffsetPointX(index, [Math.round(point[0] * 20) / 20, point[1]]);
+            setBezierOffsetPointX(index, [Math.round(point[0] * 100) / 100, point[1]]);
           }}
-          onPointAdd={(point) => addBezierOffsetPointX([Math.round(point[0] * 20) / 20, point[1]])}
+          onPointAdd={(point) => addBezierOffsetPointX([Math.round(point[0] * 100) / 100, point[1]])}
           onPointRemove={removeBezierOffsetPointX}
           pointTypes={params.bezierOffset.pointTypesX}
           onPointTypeToggle={(i) => setBezierOffsetPointTypeX(i, params.bezierOffset.pointTypesX[i] === 'fixed' ? 'handle' : 'fixed')}
@@ -215,9 +215,9 @@ export function ShapeControls() {
         <BezierCurveEditor
           points={params.bezierOffset.pointsY}
           onPointChange={(index, point) => {
-            setBezierOffsetPointY(index, [Math.round(point[0] * 20) / 20, point[1]]);
+            setBezierOffsetPointY(index, [Math.round(point[0] * 100) / 100, point[1]]);
           }}
-          onPointAdd={(point) => addBezierOffsetPointY([Math.round(point[0] * 20) / 20, point[1]])}
+          onPointAdd={(point) => addBezierOffsetPointY([Math.round(point[0] * 100) / 100, point[1]])}
           onPointRemove={removeBezierOffsetPointY}
           pointTypes={params.bezierOffset.pointTypesY}
           onPointTypeToggle={(i) => setBezierOffsetPointTypeY(i, params.bezierOffset.pointTypesY[i] === 'fixed' ? 'handle' : 'fixed')}
@@ -226,7 +226,7 @@ export function ShapeControls() {
           xLabel="Y Offset"
         />
         <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
-          Drag to move. Double-click to add. Right-click to remove. Shift-click to toggle Fixed (□) / Handle (○). Scale sliders amplify the effect.
+          Drag/double-click/right-click as above. Click to select, then arrow keys nudge (Shift = ×5, Alt = fine). Alt-drag = fine; Shift-drag locks to one axis. Scale sliders amplify.
         </div>
       </Section>
     </>

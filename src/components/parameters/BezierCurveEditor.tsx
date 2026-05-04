@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useMemo } from 'react';
+import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
 import { evaluatePiecewiseBezier } from '@/engine/bezier';
 import type { BezierPoint, CurvePointType } from '@/engine/types';
 
@@ -19,6 +19,10 @@ interface BezierCurveEditorProps {
   xRange: [number, number];
   /** Data range for y axis [min, max] */
   yRange: [number, number];
+  /** Base arrow-key step on x axis. Defaults to 0.05. Twist passes 1 (one degree). */
+  arrowStepX?: number;
+  /** Base arrow-key step on y axis. Defaults to 0.025. */
+  arrowStepY?: number;
   xLabel?: string;
   yLabel?: string;
   width?: number;
@@ -47,6 +51,8 @@ export function BezierCurveEditor({
   minPoints = 2,
   xRange,
   yRange,
+  arrowStepX = 0.05,
+  arrowStepY = 0.025,
   xLabel,
   yLabel,
   width = 260,
@@ -54,7 +60,24 @@ export function BezierCurveEditor({
 }: BezierCurveEditorProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef<number | null>(null);
-  const pointerDown = useRef<{ index: number; x: number; y: number; shift: boolean } | null>(null);
+  const pointerDown = useRef<{
+    index: number;
+    x: number;          // client x at down (for drag-vs-toggle threshold)
+    y: number;          // client y at down
+    shift: boolean;     // shift held at down (for shift-click toggle intent)
+    startDataX: number; // data-space x at down (for axis-lock)
+    startDataY: number; // data-space y at down
+    axisLock: 'x' | 'y' | null; // axis chosen once drag exceeds threshold with Shift held
+  } | null>(null);
+
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  // Clear selection if it falls out of bounds (e.g. user removed the selected point)
+  useEffect(() => {
+    if (selectedIndex !== null && selectedIndex >= points.length) {
+      setSelectedIndex(null);
+    }
+  }, [points.length, selectedIndex]);
 
   // Plot area dimensions
   const plotW = width - PADDING.left - PADDING.right;
@@ -101,27 +124,49 @@ export function BezierCurveEditor({
       .join(' ');
   }, [points, toSvgX, toSvgY]);
 
-  // Pointer handlers for dragging + shift-click toggle
+  // Pointer handlers for dragging + shift-click toggle + axis-lock
   const handlePointerDown = useCallback(
     (e: React.PointerEvent, index: number) => {
       e.preventDefault();
       e.stopPropagation();
       dragging.current = index;
-      pointerDown.current = { index, x: e.clientX, y: e.clientY, shift: e.shiftKey };
+      const p = points[index];
+      pointerDown.current = {
+        index,
+        x: e.clientX,
+        y: e.clientY,
+        shift: e.shiftKey,
+        startDataX: p ? p[0] : 0,
+        startDataY: p ? p[1] : 0,
+        axisLock: null,
+      };
+      setSelectedIndex(index);
+      svgRef.current?.focus();
       (e.target as SVGElement).setPointerCapture(e.pointerId);
     },
-    []
+    [points]
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (dragging.current === null || !svgRef.current) return;
       const index = dragging.current;
-      // If user drags more than a few pixels, cancel the pending shift-click toggle
-      if (pointerDown.current) {
-        const dx = e.clientX - pointerDown.current.x;
-        const dy = e.clientY - pointerDown.current.y;
-        if (dx * dx + dy * dy > 9) pointerDown.current = null;
+      const pd = pointerDown.current;
+      let movedBeyondThreshold = false;
+      if (pd) {
+        const dx = e.clientX - pd.x;
+        const dy = e.clientY - pd.y;
+        if (dx * dx + dy * dy > 9) {
+          movedBeyondThreshold = true;
+          // Once dragging starts, the shift-click toggle intent is gone
+          pd.shift = false;
+          // Establish axis-lock direction the first time drag exceeds threshold while Shift held
+          if (e.shiftKey && pd.axisLock === null) {
+            pd.axisLock = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+          }
+          // If shift released mid-drag, clear axis-lock
+          if (!e.shiftKey) pd.axisLock = null;
+        }
       }
       const rect = svgRef.current.getBoundingClientRect();
       const svgX = e.clientX - rect.left;
@@ -134,9 +179,20 @@ export function BezierCurveEditor({
       dataX = Math.max(xRange[0], Math.min(xRange[1], dataX));
       dataY = Math.max(yRange[0], Math.min(yRange[1], dataY));
 
-      // Round for cleaner values
-      dataX = Math.round(dataX * 20) / 20; // 0.05 precision
-      dataY = Math.round(dataY * 40) / 40; // 0.025 precision
+      // Modifier-aware rounding: Alt = finer (5×), default = current grid
+      if (e.altKey) {
+        dataX = Math.round(dataX * 100) / 100; // 0.01 precision
+        dataY = Math.round(dataY * 200) / 200; // 0.005 precision
+      } else {
+        dataX = Math.round(dataX * 20) / 20;   // 0.05 precision
+        dataY = Math.round(dataY * 40) / 40;   // 0.025 precision
+      }
+
+      // Axis-lock: pin the off-axis to its starting value
+      if (pd && movedBeyondThreshold && pd.axisLock !== null) {
+        if (pd.axisLock === 'x') dataY = pd.startDataY;
+        else dataX = pd.startDataX;
+      }
 
       // Lock first/last point Y values
       if (index === 0) dataY = yRange[0];
@@ -157,6 +213,67 @@ export function BezierCurveEditor({
     pointerDown.current = null;
     dragging.current = null;
   }, [onPointTypeToggle, points.length]);
+
+  // SVG-level pointer-down: only fires for empty-area clicks (point handlers stopPropagation).
+  // Clears the current selection.
+  const handleSvgPointerDown = useCallback(() => {
+    setSelectedIndex(null);
+  }, []);
+
+  // Keyboard nudging when a point is selected.
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (selectedIndex !== null) {
+          e.preventDefault();
+          setSelectedIndex(null);
+        }
+        return;
+      }
+      if (selectedIndex === null) return;
+      if (
+        e.key !== 'ArrowLeft' &&
+        e.key !== 'ArrowRight' &&
+        e.key !== 'ArrowUp' &&
+        e.key !== 'ArrowDown'
+      ) {
+        return;
+      }
+      e.preventDefault();
+      const idx = selectedIndex;
+      const p = points[idx];
+      if (!p) return;
+      const isEndpoint = idx === 0 || idx === points.length - 1;
+      let stepX = arrowStepX;
+      let stepY = arrowStepY;
+      if (e.altKey) {
+        // Alt wins over Shift if both pressed (precision over speed)
+        stepX = arrowStepX * 0.2;
+        stepY = arrowStepY * 0.2;
+      } else if (e.shiftKey) {
+        stepX = arrowStepX * 5;
+        stepY = arrowStepY * 5;
+      }
+      let nx = p[0];
+      let ny = p[1];
+      if (e.key === 'ArrowLeft') nx -= stepX;
+      else if (e.key === 'ArrowRight') nx += stepX;
+      else if (e.key === 'ArrowUp') {
+        if (isEndpoint) return;
+        ny += stepY;
+      } else if (e.key === 'ArrowDown') {
+        if (isEndpoint) return;
+        ny -= stepY;
+      }
+      nx = Math.max(xRange[0], Math.min(xRange[1], nx));
+      ny = Math.max(yRange[0], Math.min(yRange[1], ny));
+      // Endpoints stay locked to their y
+      if (idx === 0) ny = yRange[0];
+      if (idx === points.length - 1) ny = yRange[1];
+      onPointChange(idx, [nx, ny]);
+    },
+    [selectedIndex, points, xRange, yRange, arrowStepX, arrowStepY, onPointChange]
+  );
 
   // Double-click on plot area to add a point
   const handleDoubleClick = useCallback(
@@ -225,12 +342,15 @@ export function BezierCurveEditor({
       ref={svgRef}
       width={width}
       height={height}
-      className="select-none"
+      tabIndex={0}
+      className="select-none focus:outline-none"
       style={{ touchAction: 'none' }}
+      onPointerDown={handleSvgPointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
       onDoubleClick={handleDoubleClick}
+      onKeyDown={handleKeyDown}
     >
       {/* Background */}
       <rect
@@ -360,8 +480,22 @@ export function BezierCurveEditor({
         const tipSuffix = isEndpoint
           ? ' Drag to move (locked to this end).'
           : ' Drag to move. Shift-click to toggle Fixed/Handle.' + (canRemove ? ' Right-click to remove.' : '');
+        const isSelected = i === selectedIndex;
         return (
           <g key={i}>
+            {/* Selection ring */}
+            {isSelected && (
+              <circle
+                cx={cx}
+                cy={cy}
+                r={POINT_RADIUS + 4}
+                fill="none"
+                stroke="var(--accent)"
+                strokeWidth={1.5}
+                opacity={0.7}
+                pointerEvents="none"
+              />
+            )}
             {/* Invisible larger hit area */}
             <circle
               cx={cx}
