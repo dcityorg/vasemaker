@@ -116,22 +116,30 @@ export function ShapeControls() {
               </div>
             </div>
             <div className="flex items-center gap-3 mb-2">
-              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Radial = inner offset along the radius (fast, but thinner walls at corners of non-circular shapes). Perpendicular = uniform wall thickness everywhere — recommended for Rectangle, Square, Ellipse, Polygon.">Inner Wall</label>
+              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Radial = inner offset along the radius (fast, but thinner walls at corners of non-circular shapes). Parallel = uniform wall thickness everywhere — recommended for Rectangle, Square, Ellipse, Polygon.">Inner Wall</label>
               <div className="flex gap-3">
-                {(['radial', 'perpendicular'] as const).map((mode) => (
-                  <label key={mode} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
+                {([
+                  { value: 'radial',        label: 'Radial' },
+                  { value: 'perpendicular', label: 'Parallel' },
+                ] as const).map(({ value, label }) => (
+                  <label key={value} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
                     <input
                       type="radio"
                       name="innerOffsetMode"
-                      checked={(params.innerOffsetMode ?? 'radial') === mode}
-                      onChange={() => setInnerOffsetMode(mode)}
+                      checked={(params.innerOffsetMode ?? 'radial') === value}
+                      onChange={() => setInnerOffsetMode(value)}
                       className="accent-[var(--accent)]"
                     />
-                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    {label}
                   </label>
                 ))}
               </div>
             </div>
+            {(params.innerOffsetMode ?? 'radial') === 'perpendicular' && (
+              <div className="text-xs text-[var(--text-secondary)] mb-2 opacity-60">
+                Inner stays parallel to the outer — uniform wall thickness on Rectangle, Square, Ellipse, Polygon. Switch back to Radial for strongly concave shapes like Heart or Cardioid.
+              </div>
+            )}
             <Toggle label="Smooth Inner" checked={params.smoothInner ?? false} onChange={setSmoothInner} tooltip="Keep inner wall smooth (no ripples or textures)" />
             {(params.smoothInner ?? false) && (
               <div className="text-xs text-[var(--text-secondary)] mb-2 opacity-60">
