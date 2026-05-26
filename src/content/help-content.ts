@@ -362,6 +362,14 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'tip', text: 'Enable Smooth Inner when using deep textures (Simplex or Stipple with high depth) to prevent thin walls that won\'t print well.' },
 
+      { type: 'heading', text: 'Inner Wall — Radial vs Perpendicular' },
+      { type: 'paragraph', text: 'The Inner Wall control in the Shell section picks how the inner surface is offset from the outer. For circular cross-sections the two modes are identical, but for non-circular shapes (Rectangle, Square, Polygon, Ellipse, SuperEllipse) they behave very differently.' },
+      { type: 'keyvalue', items: [
+        { key: 'Radial', value: 'Inner offset along the radius from the central axis. Fast and stable, but the perpendicular wall thickness shrinks near corners — a 1×2 Rectangle with 2mm wall has only ~1mm of wall at its corners.' },
+        { key: 'Perpendicular', value: 'Inner offset perpendicular to the outer wall surface. Produces a true parallel curve so the wall is uniformly thick everywhere. Recommended for Rectangle, Square, Polygon, Ellipse.' },
+      ] },
+      { type: 'tip', text: 'Default is Radial to preserve behavior of existing designs. Switch to Perpendicular whenever you\'re printing a non-circular box or tray and want consistent wall thickness all the way around. Strongly concave shapes (Cardioid, Heart, Butterfly) may show overlapping inner geometry at large wall thickness in Perpendicular mode — stick with Radial there.' },
+
       { type: 'heading', text: 'Vase Mode (Spiral)' },
       { type: 'paragraph', text: 'For decorative vases, you can use your slicer\'s "vase mode" (spiral outer contour). Set wall thickness to 0 in VaseMaker \u2014 this exports a single surface. Your slicer will print it as one continuous spiral.' },
       { type: 'list', items: [

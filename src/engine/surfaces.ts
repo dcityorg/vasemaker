@@ -41,6 +41,10 @@ export interface RowContext {
   smoothZoneFactor: number; // 0 = suppressed (in zone), 1 = normal
   anglesForSteps: Float32Array; // angle (degrees) for each tStep, uniform in arc-length
   perimeter: number;            // total perimeter in world units for this row
+  // Perpendicular inner polyline (local frame, no center offset, no twist).
+  // Only populated when innerOffsetMode === 'perpendicular' and wallThickness > 0.
+  // Layout: [x0, y0, x1, y1, ...] of length 2 * rRes.
+  innerXY?: Float32Array;
 }
 
 /**
@@ -309,9 +313,126 @@ export function computeVertex(
 }
 
 /**
+ * Precompute perpendicular-offset inner polylines for all rows.
+ *
+ * For each row, samples the outer (x,y) curve in the local frame (no center offset,
+ * no twist) at every tStep angle, computes the inward unit normal via central
+ * differences across the closed loop, and offsets each point inward by wallThickness.
+ * The resulting per-tStep (x, y) pairs are stored on the row as `innerXY`.
+ *
+ * This produces a true parallel curve to the outer wall, so the perpendicular wall
+ * thickness is uniform — unlike the radial-offset path which can collapse the
+ * wall to a fraction of `wallThickness` at corners of non-circular cross-sections
+ * (rectangles, polygons, ellipses, etc.).
+ *
+ * When `smoothInner` is on, the outer curve sampled here is the smooth (textureless)
+ * one; the textured outer is then checked at each tStep and the inner is pushed
+ * radially inward if the resulting wall would be thinner than `minWallThickness`.
+ *
+ * No-op unless `innerOffsetMode === 'perpendicular'` and `wallThickness > 0`.
+ *
+ * Concave shapes (cardioid, butterfly, heart, etc.) can produce self-intersecting
+ * offset curves; this implementation does not clip those, so very deep concavities
+ * may render with overlapping inner geometry. Convex shapes (rectangle, square,
+ * polygon, ellipse, superellipse, circle) work cleanly.
+ */
+export function computeInnerPolylines(
+  rowContexts: RowContext[],
+  params: VaseParameters,
+  rRes: number,
+  texturesEnabled: boolean,
+  simplexPerm: Uint8Array | null,
+  woodGrainPerm: Uint8Array | null
+): void {
+  if (params.innerOffsetMode !== 'perpendicular') return;
+  const wt = params.wallThickness;
+  if (wt <= 0) return;
+  const smoothInner = params.smoothInner ?? false;
+  const minWall = params.minWallThickness ?? 0.4;
+
+  const outerX = new Float32Array(rRes);
+  const outerY = new Float32Array(rRes);
+
+  for (const row of rowContexts) {
+    // 1. Sample outer (x, y) in local frame using the smooth-or-textured radius
+    //    depending on smoothInner mode.
+    for (let i = 0; i < rRes; i++) {
+      const t = row.anglesForSteps[i];
+      const r = computeRadius(row, i, smoothInner, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm);
+      outerX[i] = r * cosD(t);
+      outerY[i] = r * sinD(t);
+    }
+
+    // 2. Offset each point inward along the local normal (computed via central differences
+    //    across the closed loop). Vertices are listed counterclockwise (t goes 0° → 360°),
+    //    so the inward normal is the tangent rotated 90° counterclockwise.
+    const inner = new Float32Array(rRes * 2);
+    for (let i = 0; i < rRes; i++) {
+      const prev = (i - 1 + rRes) % rRes;
+      const next = (i + 1) % rRes;
+      const tx = outerX[next] - outerX[prev];
+      const ty = outerY[next] - outerY[prev];
+      // Inward normal for CCW polyline: (-ty, tx) normalized
+      let nx = -ty;
+      let ny = tx;
+      const len = Math.sqrt(nx * nx + ny * ny);
+      if (len > 1e-9) {
+        nx /= len;
+        ny /= len;
+      }
+      inner[i * 2]     = outerX[i] + wt * nx;
+      inner[i * 2 + 1] = outerY[i] + wt * ny;
+    }
+
+    // 3. Enforce minWallThickness when smoothInner+textures are active.
+    //    The inner was computed from the smooth outer, so a deep texture inset on
+    //    the textured outer could leave the perpendicular wall too thin. Check the
+    //    radial gap to the textured outer; if it's below minWall, push inner inward.
+    if (smoothInner && texturesEnabled) {
+      for (let i = 0; i < rRes; i++) {
+        const xi = inner[i * 2];
+        const yi = inner[i * 2 + 1];
+        const ri = Math.sqrt(xi * xi + yi * yi);
+        if (ri < 1e-6) continue;
+        const rTex = computeRadius(row, i, false, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm);
+        if (rTex - ri < minWall) {
+          const targetR = Math.max(MIN_INNER_RADIUS, rTex - minWall);
+          const scale = targetR / ri;
+          inner[i * 2]     = xi * scale;
+          inner[i * 2 + 1] = yi * scale;
+        }
+      }
+    }
+
+    // 4. Guard against the inner crossing the origin (would invert winding).
+    for (let i = 0; i < rRes; i++) {
+      const xi = inner[i * 2];
+      const yi = inner[i * 2 + 1];
+      const ri = Math.sqrt(xi * xi + yi * yi);
+      if (ri < MIN_INNER_RADIUS) {
+        if (ri < 1e-6) {
+          inner[i * 2]     = MIN_INNER_RADIUS;
+          inner[i * 2 + 1] = 0;
+        } else {
+          const scale = MIN_INNER_RADIUS / ri;
+          inner[i * 2]     *= scale;
+          inner[i * 2 + 1] *= scale;
+        }
+      }
+    }
+
+    row.innerXY = inner;
+  }
+}
+
+/**
  * Compute inner surface vertex with smooth inner logic.
  * When smoothInner is enabled, the inner surface ignores textures and
  * enforces a minimum wall thickness relative to the textured outer surface.
+ *
+ * When the row has a precomputed `innerXY` polyline (perpendicular-offset mode),
+ * this reads from that polyline directly instead of subtracting `wallThickness`
+ * from the outer radius along the radial direction.
  */
 export function computeInnerVertex(
   row: RowContext,
@@ -323,28 +444,37 @@ export function computeInnerVertex(
   simplexPerm: Uint8Array | null,
   woodGrainPerm: Uint8Array | null
 ): [number, number, number] {
-  const t = row.anglesForSteps[tStep];
   const wt = params.wallThickness;
   const smoothInner = params.smoothInner ?? false;
-  const outerRadius = computeRadius(row, tStep, false, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm);
-  let innerRadius: number;
+  let x: number;
+  let y: number;
 
-  if (smoothInner) {
-    const smoothRadius = computeRadius(row, tStep, true, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm);
-    innerRadius = smoothRadius - wt;
-    // Enforce minimum wall thickness
-    const minWall = params.minWallThickness ?? 0.4;
-    if (outerRadius - innerRadius < minWall) {
-      innerRadius = outerRadius - minWall;
-    }
+  if (row.innerXY) {
+    // Perpendicular-offset mode: read precomputed local-frame (x, y) directly.
+    x = row.innerXY[tStep * 2]     + row.centerX;
+    y = row.innerXY[tStep * 2 + 1] + row.centerY;
   } else {
-    innerRadius = outerRadius - wt;
+    // Radial-offset mode (default): subtract wallThickness from the outer radius
+    // along the radial direction. Fast and stable but produces non-uniform
+    // perpendicular wall thickness on non-circular cross-sections.
+    const t = row.anglesForSteps[tStep];
+    const outerRadius = computeRadius(row, tStep, false, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm);
+    let innerRadius: number;
+    if (smoothInner) {
+      const smoothRadius = computeRadius(row, tStep, true, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm);
+      innerRadius = smoothRadius - wt;
+      const minWall = params.minWallThickness ?? 0.4;
+      if (outerRadius - innerRadius < minWall) {
+        innerRadius = outerRadius - minWall;
+      }
+    } else {
+      innerRadius = outerRadius - wt;
+    }
+    innerRadius = Math.max(innerRadius, MIN_INNER_RADIUS);
+    x = innerRadius * cosD(t) + row.centerX;
+    y = innerRadius * sinD(t) + row.centerY;
   }
 
-  innerRadius = Math.max(innerRadius, MIN_INNER_RADIUS);
-
-  let x = innerRadius * cosD(t) + row.centerX;
-  let y = innerRadius * sinD(t) + row.centerY;
   const z = zOverride !== undefined ? zOverride : row.height;
 
   if (row.twistAngle !== 0) {

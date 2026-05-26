@@ -26,6 +26,7 @@
 import type { VaseParameters, VaseMesh } from './types';
 import {
   computeRowContexts,
+  computeInnerPolylines,
   computeVertex,
   computeInnerVertex,
   computeCenter,
@@ -68,6 +69,10 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   if (!hasShell) {
     return generateThinWallMesh(params, rowContexts, vRes, rRes, hasBase, texturesEnabled, simplexPerm, woodGrainPerm);
   }
+
+  // Precompute perpendicular-offset inner polylines for shell mode when enabled.
+  // No-op when innerOffsetMode is 'radial' (the default), so existing designs are unaffected.
+  computeInnerPolylines(rowContexts, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm);
 
   // ============================================================
   // Shell mode (wallThickness > 0)

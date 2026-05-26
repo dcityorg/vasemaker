@@ -34,6 +34,9 @@ Thumbs.db
 # local docs (not published to GitHub)
 local-docs/
 
+# OpenSCAD source files and their JSON conversions (personal archive)
+openscad-conversions/
+
 # Claude Code (local context and settings)
 CLAUDE.md
 .claude/

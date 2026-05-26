@@ -144,6 +144,7 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
   rimShape: 'rounded',
   smoothInner: false,
   minWallThickness: 0.4,
+  innerOffsetMode: 'radial',
 
   smoothZones: { enabled: false, basePercent: 0, rimPercent: 0, baseFade: 0, rimFade: 0 },
 

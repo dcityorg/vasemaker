@@ -265,6 +265,7 @@ export interface VaseParameters {
   rimShape: 'flat' | 'rounded'; // only used when wallThickness > 0
   smoothInner: boolean;         // when true, inner wall ignores textures
   minWallThickness: number;     // mm, minimum wall thickness when smoothInner is on
+  innerOffsetMode: 'radial' | 'perpendicular'; // how inner surface is offset from outer
 
   // Smooth zones — suppress ripples & textures near base/rim
   smoothZones: {

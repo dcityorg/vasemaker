@@ -46,7 +46,7 @@ export function ShapeControls() {
     addBezierOffsetPointX, addBezierOffsetPointY,
     removeBezierOffsetPointX, removeBezierOffsetPointY,
     setBezierOffsetPointTypeX, setBezierOffsetPointTypeY,
-    setWallThickness, setBottomThickness, setRimShape, setSmoothInner, setMinWallThickness,
+    setWallThickness, setBottomThickness, setRimShape, setSmoothInner, setMinWallThickness, setInnerOffsetMode,
   } = useVaseStore();
 
   const resetProfile = () => {
@@ -91,7 +91,7 @@ export function ShapeControls() {
 
       <Section title="Shell" tooltip="Wall thickness, base, and rim for a printable hollow vase" titleColor={GROUP_COLORS.structure}>
         <div className="flex justify-end mb-1">
-          <button onClick={() => { setWallThickness(DEFAULT_PARAMETERS.wallThickness); setBottomThickness(DEFAULT_PARAMETERS.bottomThickness); setRimShape(DEFAULT_PARAMETERS.rimShape); setSmoothInner(DEFAULT_PARAMETERS.smoothInner); setMinWallThickness(DEFAULT_PARAMETERS.minWallThickness); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+          <button onClick={() => { setWallThickness(DEFAULT_PARAMETERS.wallThickness); setBottomThickness(DEFAULT_PARAMETERS.bottomThickness); setRimShape(DEFAULT_PARAMETERS.rimShape); setSmoothInner(DEFAULT_PARAMETERS.smoothInner); setMinWallThickness(DEFAULT_PARAMETERS.minWallThickness); setInnerOffsetMode(DEFAULT_PARAMETERS.innerOffsetMode); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
         <SliderRow label="Base" value={params.bottomThickness} {...SHELL.bottomThickness} onChange={setBottomThickness} tooltip="Base thickness in mm (0 = no base)" />
         <SliderRow label="Wall" value={params.wallThickness} {...SHELL.wallThickness} onChange={(v) => { setWallThickness(v); if ((params.minWallThickness ?? DEFAULT_PARAMETERS.minWallThickness) > v) setMinWallThickness(v); }} tooltip="Wall thickness in mm (0 = thin surface)" />
@@ -111,6 +111,23 @@ export function ShapeControls() {
                       className="accent-[var(--accent)]"
                     />
                     {shape.charAt(0).toUpperCase() + shape.slice(1)}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-3 mb-2">
+              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Radial = inner offset along the radius (fast, but thinner walls at corners of non-circular shapes). Perpendicular = uniform wall thickness everywhere — recommended for Rectangle, Square, Ellipse, Polygon.">Inner Wall</label>
+              <div className="flex gap-3">
+                {(['radial', 'perpendicular'] as const).map((mode) => (
+                  <label key={mode} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
+                    <input
+                      type="radio"
+                      name="innerOffsetMode"
+                      checked={(params.innerOffsetMode ?? 'radial') === mode}
+                      onChange={() => setInnerOffsetMode(mode)}
+                      className="accent-[var(--accent)]"
+                    />
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
                   </label>
                 ))}
               </div>
