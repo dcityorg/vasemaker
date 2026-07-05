@@ -94,6 +94,9 @@ interface VaseStore {
   setColor: (color: string) => void;
   setShowRulers: (show: boolean) => void;
 
+  // Actions — print check
+  setPrintCheck: (update: Partial<VaseParameters['printCheck']>) => void;
+
   // Actions — resolution
   setResolution: (update: Partial<VaseParameters['resolution']>) => void;
   setFlatShading: (flat: boolean) => void;
@@ -514,6 +517,18 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     set((state) => ({ params: { ...state.params, color } })),
   setShowRulers: (show) =>
     set((state) => ({ params: { ...state.params, showRulers: show } })),
+
+  setPrintCheck: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        printCheck: {
+          ...DEFAULT_PARAMETERS.printCheck,
+          ...state.params.printCheck,
+          ...update,
+        },
+      },
+    })),
 
   // Resolution
   setResolution: (update) =>

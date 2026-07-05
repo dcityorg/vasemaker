@@ -279,7 +279,17 @@ export interface VaseParameters {
   // Appearance
   color: string;                // hex color for preview (e.g. '#6d9fff')
   showRulers: boolean;          // show axis lines, tick marks, and dimension labels
+
+  // Print check — overhang highlighting and material estimates
+  printCheck: {
+    showOverhangs: boolean;     // tint downward-facing surfaces red in the preview
+    overhangAngle: number;      // degrees from vertical beyond which a surface is flagged
+    material: FilamentType;     // filament used for weight estimate
+  };
 }
+
+/** Filament materials with known densities (see PRINT_CHECK in config/shape-params.ts) */
+export type FilamentType = 'pla' | 'petg' | 'abs' | 'tpu';
 
 /** Generated mesh data ready for Three.js */
 export interface VaseMesh {

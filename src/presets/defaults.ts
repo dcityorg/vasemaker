@@ -150,4 +150,6 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
 
   color: APPEARANCE.defaultColor,
   showRulers: false,
+
+  printCheck: { showOverhangs: true, overhangAngle: 45, material: 'pla' },
 };

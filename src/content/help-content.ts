@@ -346,6 +346,15 @@ export const HELP_SECTIONS: HelpSection[] = [
     blocks: [
       { type: 'paragraph', text: 'VaseMaker generates watertight STL files ready for slicing. The exported mesh is exactly what you see in the preview (WYSIWYG).' },
 
+      { type: 'heading', text: 'Print Check' },
+      { type: 'paragraph', text: 'The Print Check section (Settings group) estimates material usage and warns about overhangs before you slice.' },
+      { type: 'keyvalue', items: [
+        { key: 'Size', value: 'Bounding box of the mesh in mm — confirm it fits your printer bed' },
+        { key: 'Plastic / Weight / Filament', value: 'Solid volume of the part, its weight for the chosen material, and the length of 1.75mm filament it uses. Requires Wall > 0.' },
+        { key: 'Overhangs', value: 'On by default — tints surfaces red where they lean out past the Max Angle from vertical. Those areas may droop or need support; toggle off for a clean preview' },
+      ] },
+      { type: 'tip', text: 'Estimates assume solid walls (how vases usually slice). Overhang checking is great for catching flared profiles, deep textures, and rounded rims that exceed your printer’s limit — 45° is a safe default, well-tuned printers handle 60°+.' },
+
       { type: 'heading', text: 'Wall Thickness' },
       { type: 'paragraph', text: 'For FDM printers, set wall thickness to match your nozzle:' },
       { type: 'keyvalue', items: [

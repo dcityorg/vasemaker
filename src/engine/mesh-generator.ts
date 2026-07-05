@@ -121,6 +121,7 @@ function generateThinWallMesh(
   const indices = new Uint32Array(totalTris * 3);
   let idxOffset = 0;
 
+  // (angles run CCW viewed from +z, so bl→tr→tl / bl→br→tr faces outward)
   for (let vStep = 0; vStep < vRes; vStep++) {
     for (let tStep = 0; tStep < rRes; tStep++) {
       const tNext = (tStep + 1) % rRes;
@@ -129,11 +130,11 @@ function generateThinWallMesh(
       const tl = (vStep + 1) * rRes + tStep;
       const tr = (vStep + 1) * rRes + tNext;
       indices[idxOffset++] = bl;
+      indices[idxOffset++] = tr;
       indices[idxOffset++] = tl;
-      indices[idxOffset++] = tr;
       indices[idxOffset++] = bl;
-      indices[idxOffset++] = tr;
       indices[idxOffset++] = br;
+      indices[idxOffset++] = tr;
     }
   }
 
@@ -470,7 +471,7 @@ function generateShellMesh(
   const indices = new Uint32Array(maxTriangles * 3);
   let idxOffset = 0;
 
-  // ---- Outer surface quads (CCW = outward-facing normals) ----
+  // ---- Outer surface quads (angles run CCW from +z, so bl→tr→tl faces outward) ----
   for (let vStep = 0; vStep < vRes; vStep++) {
     for (let tStep = 0; tStep < rRes; tStep++) {
       const tNext = (tStep + 1) % rRes;
@@ -480,15 +481,15 @@ function generateShellMesh(
       const tl = outerOffset + (vStep + 1) * rRes + tStep;
       const tr = outerOffset + (vStep + 1) * rRes + tNext;
       indices[idxOffset++] = bl;
+      indices[idxOffset++] = tr;
       indices[idxOffset++] = tl;
-      indices[idxOffset++] = tr;
       indices[idxOffset++] = bl;
-      indices[idxOffset++] = tr;
       indices[idxOffset++] = br;
+      indices[idxOffset++] = tr;
     }
   }
 
-  // ---- Inner surface quads (reversed winding for inward-facing normals) ----
+  // ---- Inner surface quads (reversed winding — faces into the cavity) ----
   for (let iRow = 0; iRow < innerRows - 1; iRow++) {
     for (let tStep = 0; tStep < rRes; tStep++) {
       const tNext = (tStep + 1) % rRes;
@@ -501,11 +502,11 @@ function generateShellMesh(
       const tl = innerOffset + (iRow + 1) * rRes + tStep;
       const tr = innerOffset + (iRow + 1) * rRes + tNext;
       indices[idxOffset++] = bl;
-      indices[idxOffset++] = tr;
       indices[idxOffset++] = tl;
-      indices[idxOffset++] = bl;
-      indices[idxOffset++] = br;
       indices[idxOffset++] = tr;
+      indices[idxOffset++] = bl;
+      indices[idxOffset++] = tr;
+      indices[idxOffset++] = br;
     }
   }
 
@@ -531,11 +532,11 @@ function generateShellMesh(
           const i0 = innerIdx(vStep, tStep);
           const i1 = innerIdx(vStep + 1, tStep);
           indices[idxOffset++] = o0;
+          indices[idxOffset++] = i1;
           indices[idxOffset++] = i0;
-          indices[idxOffset++] = i1;
           indices[idxOffset++] = o0;
-          indices[idxOffset++] = i1;
           indices[idxOffset++] = o1;
+          indices[idxOffset++] = i1;
         }
 
         // Right edge
@@ -547,11 +548,11 @@ function generateShellMesh(
           const i0 = innerIdx(vStep, tNext);
           const i1 = innerIdx(vStep + 1, tNext);
           indices[idxOffset++] = o0;
+          indices[idxOffset++] = i1;
           indices[idxOffset++] = o1;
-          indices[idxOffset++] = i1;
           indices[idxOffset++] = o0;
-          indices[idxOffset++] = i1;
           indices[idxOffset++] = i0;
+          indices[idxOffset++] = i1;
         }
 
         // Bottom edge
@@ -563,11 +564,11 @@ function generateShellMesh(
             const i0 = innerIdx(vStep, tStep);
             const i1 = innerIdx(vStep, tNext);
             indices[idxOffset++] = o0;
+            indices[idxOffset++] = i1;
             indices[idxOffset++] = o1;
-            indices[idxOffset++] = i1;
             indices[idxOffset++] = o0;
-            indices[idxOffset++] = i1;
             indices[idxOffset++] = i0;
+            indices[idxOffset++] = i1;
           }
         }
 
@@ -580,11 +581,11 @@ function generateShellMesh(
             const i0 = innerIdx(vStep + 1, tStep);
             const i1 = innerIdx(vStep + 1, tNext);
             indices[idxOffset++] = o0;
+            indices[idxOffset++] = i1;
             indices[idxOffset++] = i0;
-            indices[idxOffset++] = i1;
             indices[idxOffset++] = o0;
-            indices[idxOffset++] = i1;
             indices[idxOffset++] = o1;
+            indices[idxOffset++] = i1;
           }
         }
       }
@@ -601,11 +602,11 @@ function generateShellMesh(
         const tl = rimOffset + (rStep + 1) * rRes + tStep;
         const tr = rimOffset + (rStep + 1) * rRes + tNext;
         indices[idxOffset++] = bl;
+        indices[idxOffset++] = tr;
         indices[idxOffset++] = tl;
-        indices[idxOffset++] = tr;
         indices[idxOffset++] = bl;
-        indices[idxOffset++] = tr;
         indices[idxOffset++] = br;
+        indices[idxOffset++] = tr;
       }
     }
   }
@@ -619,11 +620,11 @@ function generateShellMesh(
       const innerA = flatRimOffset + rRes + tStep;
       const innerB = flatRimOffset + rRes + tNext;
       indices[idxOffset++] = outerA;
+      indices[idxOffset++] = innerB;
       indices[idxOffset++] = innerA;
-      indices[idxOffset++] = innerB;
       indices[idxOffset++] = outerA;
-      indices[idxOffset++] = innerB;
       indices[idxOffset++] = outerB;
+      indices[idxOffset++] = innerB;
     }
   }
 
@@ -664,11 +665,11 @@ function generateShellMesh(
       const iB = innerOffset + tNext;
       // Normals pointing down
       indices[idxOffset++] = oA;
-      indices[idxOffset++] = iB;
       indices[idxOffset++] = iA;
-      indices[idxOffset++] = oA;
-      indices[idxOffset++] = oB;
       indices[idxOffset++] = iB;
+      indices[idxOffset++] = oA;
+      indices[idxOffset++] = iB;
+      indices[idxOffset++] = oB;
     }
   }
 

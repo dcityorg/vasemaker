@@ -297,6 +297,20 @@ export const APPEARANCE = {
   defaultColor: '#6d9fff',
 } as const;
 
+/** Print check — overhang threshold range and filament data for weight estimates */
+export const PRINT_CHECK = {
+  overhangAngle: { min: 20, max: 80, step: 1 } as SliderRange,
+  /** density in g/cm³ */
+  filaments: {
+    pla:  { label: 'PLA',  density: 1.24 },
+    petg: { label: 'PETG', density: 1.27 },
+    abs:  { label: 'ABS',  density: 1.04 },
+    tpu:  { label: 'TPU',  density: 1.21 },
+  },
+  /** standard filament diameter in mm, for spool-length estimate */
+  filamentDiameter: 1.75,
+} as const;
+
 /** Bezier offset slider ranges */
 export const BEZIER_OFFSET = {
   scaleX: { min: 0, max: 50, step: 1 } as SliderRange,
