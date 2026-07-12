@@ -208,9 +208,10 @@ export function ShapeControls() {
           xRange={[0, 5]}
           yRange={[0, 1]}
           xLabel="Radius Multiplier"
+          showReadout
         />
         <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
-          Double-click to add. Right-click to remove. Shift-click toggles Fixed (□) / Handle (○). Click to select, then arrow keys nudge (Shift = ×5, Alt = fine). Alt-drag = fine; Shift-drag locks to one axis.
+          Double-click to add. Right-click to remove. Shift-click toggles Fixed (□) / Handle (○). Click to select, then arrow keys nudge (Shift = ×5, Alt = fine) or type exact X / height below. X=↓ / X=↑ match a neighbor's X for a perfectly flat (vertical) segment. Alt-drag = fine; Shift-drag locks to one axis.
         </div>
       </Section>
 

@@ -27,6 +27,65 @@ interface BezierCurveEditorProps {
   yLabel?: string;
   width?: number;
   height?: number;
+  /**
+   * Show a numeric readout + editor for the selected point below the chart,
+   * plus a live coordinate badge next to the selected point. Profile-only for now.
+   */
+  showReadout?: boolean;
+}
+
+/** Compact numeric input with a typing draft; commits on blur/Enter, reverts on Escape. */
+function NumField({
+  value,
+  min,
+  max,
+  decimals,
+  onCommit,
+  disabled,
+  title,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  decimals: number;
+  onCommit: (n: number) => void;
+  disabled?: boolean;
+  title?: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const display = draft !== null ? draft : value.toFixed(decimals);
+  const commit = () => {
+    if (draft === null) return;
+    const n = parseFloat(draft);
+    setDraft(null);
+    if (!isNaN(n)) onCommit(Math.max(min, Math.min(max, n)));
+  };
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={display}
+      disabled={disabled}
+      title={title}
+      className="w-10 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1 py-0.5 text-[var(--text-primary)] font-mono text-[11px] text-right focus:outline-none focus:border-[var(--accent)] disabled:opacity-40"
+      onChange={(e) => setDraft(e.target.value)}
+      onFocus={(e) => {
+        setDraft(value.toFixed(decimals));
+        e.currentTarget.select();
+      }}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') {
+          commit();
+          e.currentTarget.blur();
+        } else if (e.key === 'Escape') {
+          setDraft(null);
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
 }
 
 // Layout constants
@@ -57,6 +116,7 @@ export function BezierCurveEditor({
   yLabel,
   width = 260,
   height = 180,
+  showReadout = false,
 }: BezierCurveEditorProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef<number | null>(null);
@@ -337,7 +397,7 @@ export function BezierCurveEditor({
   // Reference line at x=1.0 (if within range)
   const refLineX = xRange[0] <= 1 && xRange[1] >= 1 ? toSvgX(1) : null;
 
-  return (
+  const svgEl = (
     <svg
       ref={svgRef}
       width={width}
@@ -534,6 +594,94 @@ export function BezierCurveEditor({
           </g>
         );
       })}
+
+      {/* Live coordinate badge for the selected point */}
+      {showReadout &&
+        selectedIndex !== null &&
+        points[selectedIndex] &&
+        (() => {
+          const p = points[selectedIndex];
+          const cx = toSvgX(p[0]);
+          const cyPt = toSvgY(p[1]);
+          const above = cyPt - 14 > PADDING.top + 6;
+          const by = above ? cyPt - 12 : cyPt + 20;
+          const bx = Math.max(PADDING.left + 22, Math.min(PADDING.left + plotW - 22, cx));
+          const yStr = yRange[1] <= 1 ? `${(p[1] * 100).toFixed(1)}%` : p[1].toFixed(2);
+          return (
+            <text
+              x={bx}
+              y={by}
+              textAnchor="middle"
+              fontSize={10}
+              fontFamily="monospace"
+              fill="var(--text-primary)"
+              stroke="var(--bg-primary)"
+              strokeWidth={3}
+              paintOrder="stroke"
+              pointerEvents="none"
+            >
+              {`${p[0].toFixed(2)} · ${yStr}`}
+            </text>
+          );
+        })()}
     </svg>
+  );
+
+  if (!showReadout) return svgEl;
+
+  const sel = selectedIndex !== null ? points[selectedIndex] : undefined;
+  const isPct = yRange[1] <= 1;
+  return (
+    <div>
+      {svgEl}
+      <div className="flex items-center gap-1 mt-1 px-1 text-[11px] h-6">
+        {sel && selectedIndex !== null ? (
+          <>
+            <span className="text-[var(--text-secondary)] shrink-0">Pt {selectedIndex + 1}</span>
+            <span className="text-[var(--text-secondary)] ml-1">X</span>
+            <NumField
+              value={sel[0]}
+              min={xRange[0]}
+              max={xRange[1]}
+              decimals={2}
+              title="Exact X value (radius multiplier)"
+              onCommit={(x) => onPointChange(selectedIndex, [x, sel[1]])}
+            />
+            <span className="text-[var(--text-secondary)] ml-1">Ht</span>
+            <NumField
+              value={isPct ? sel[1] * 100 : sel[1]}
+              min={isPct ? yRange[0] * 100 : yRange[0]}
+              max={isPct ? yRange[1] * 100 : yRange[1]}
+              decimals={1}
+              disabled={selectedIndex === 0 || selectedIndex === points.length - 1}
+              title="Exact height"
+              onCommit={(v) => onPointChange(selectedIndex, [sel[0], isPct ? v / 100 : v])}
+            />
+            {isPct && <span className="text-[var(--text-secondary)]">%</span>}
+            <span className="flex-1" />
+            {selectedIndex - 1 >= 0 && (
+              <button
+                className="text-[var(--text-secondary)] hover:text-[var(--accent)] px-1 rounded hover:bg-[var(--bg-secondary)] font-mono shrink-0"
+                title="Match X to the point below (make a vertical/flat segment)"
+                onClick={() => onPointChange(selectedIndex, [points[selectedIndex - 1][0], sel[1]])}
+              >
+                X=↓
+              </button>
+            )}
+            {selectedIndex + 1 <= points.length - 1 && (
+              <button
+                className="text-[var(--text-secondary)] hover:text-[var(--accent)] px-1 rounded hover:bg-[var(--bg-secondary)] font-mono shrink-0"
+                title="Match X to the point above (make a vertical/flat segment)"
+                onClick={() => onPointChange(selectedIndex, [points[selectedIndex + 1][0], sel[1]])}
+              >
+                X=↑
+              </button>
+            )}
+          </>
+        ) : (
+          <span className="text-[var(--text-secondary)] opacity-60">Click a point to edit exact values</span>
+        )}
+      </div>
+    </div>
   );
 }

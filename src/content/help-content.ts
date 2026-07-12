@@ -163,6 +163,15 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'tip', text: 'Want a straight cylindrical bottom transitioning to a curved top? Shift-click the lower middle points to make them Fixed and place them in a vertical line. Leave the upper points as Handles to keep the curve smooth.' },
 
+      { type: 'heading', text: 'Precise Point Values (Profile)' },
+      { type: 'paragraph', text: 'The Profile editor shows exact numbers for whichever point is selected, so you can dial in precise dimensions instead of eyeballing a drag. Click a point to select it.' },
+      { type: 'list', items: [
+        'A small badge next to the selected point shows its live X (radius multiplier) and height as you move it.',
+        'Below the chart, type an exact X or Height value into the boxes and press Enter. The base and top points’ heights stay locked, but their X is fully editable — e.g. set the base to precisely 2.00×.',
+        'X=↓ and X=↑ copy the X value from the point below or above, making a perfectly flat (vertical) segment in one click.',
+      ] },
+      { type: 'tip', text: 'Making a texture roller with a flat section? Set two adjacent points to Fixed (shift-click), select one, and click X=↓ or X=↑ to match its neighbor’s X exactly — the segment between them becomes perfectly straight and true.' },
+
       { type: 'heading', text: 'Custom Twist' },
       { type: 'paragraph', text: 'Custom Twist uses a Bezier curve to define how many degrees the cross-section rotates at each height level. The horizontal axis is degrees of rotation, the vertical axis is height.' },
       { type: 'paragraph', text: 'Example: a curve going from 0\u00b0 at the bottom to 90\u00b0 at the top will twist the shape a quarter turn over its height.' },
