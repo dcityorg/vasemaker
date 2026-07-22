@@ -465,4 +465,45 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
     ],
   },
+
+  // ─── 6. MoldMaker ─────────────────────────────────────────────
+  {
+    id: 'moldmaker',
+    title: 'MoldMaker (Slip Casting)',
+    blocks: [
+      { type: 'paragraph', text: 'MoldMaker turns your vase design into the two 3D-printable plastic parts needed to cast a plaster slip-casting mold. Click the "Mold ▸" button in the header to open it — it reads your current vase design and updates live.' },
+      { type: 'heading', text: 'The Two Printed Parts' },
+      { type: 'keyvalue', items: [
+        { key: 'Master', value: 'A hollow positive of your vase, scaled up for clay shrinkage, with a well (slip reservoir) on top and a flanged lid with pour slots. Pushed into wet plaster to form the mold cavity.' },
+        { key: 'Cottle', value: 'The container that holds the poured plaster while it sets. Drafted so the set plaster block releases.' },
+      ] },
+      { type: 'paragraph', text: 'The plaster cast between them IS the finished mold. Pour slip into it, let the walls thicken, drain, and razor-trim at the 90° well ledge.' },
+      { type: 'heading', text: 'Workflow' },
+      { type: 'list', items: [
+        'Design your vase in VaseMaker as usual',
+        'Click Mold ▸ — the master and cottle are generated from the current design',
+        'Adjust mold settings (shrinkage %, well size, plaster thickness, draft angles)',
+        'Check the Cross-section view to inspect the assembly',
+        'Watch for red undercut warnings on the master — those areas can trap the plaster',
+        'Export both STLs and print them',
+        'Seat the master\'s lid on the cottle rim (the lip self-centers it), pour plaster through the lid slots',
+        'Once set: pour ice-cold water into the hollow master to shrink and release it; warm water helps release the cottle',
+      ] },
+      { type: 'heading', text: 'Views' },
+      { type: 'keyvalue', items: [
+        { key: 'Master / Cottle / Plaster', value: 'Toggle each part independently. Plaster shows the block that will form between them.' },
+        { key: 'Cross-section', value: 'Slices the assembly vertically so you can inspect the well, plaster gap, and walls.' },
+        { key: 'Undercuts', value: 'Tints master surfaces red where they tilt past the Max Angle — those may lock into the plaster when pulling.' },
+      ] },
+      { type: 'heading', text: 'Key Settings' },
+      { type: 'keyvalue', items: [
+        { key: 'Shrink %', value: 'Clay slip shrinks as it dries and fires (typically ~12%). The master is scaled up to compensate, so finished pieces match your designed size.' },
+        { key: 'Well Width / Height', value: 'The slip reservoir on top of the vase cavity. The horizontal step gives a clean 90° edge for razor-trimming.' },
+        { key: 'Draft angles', value: 'Slight outward tapers on the well wall and cottle so parts release cleanly.' },
+        { key: 'Plaster', value: 'Gap between master and cottle = the plaster wall thickness of your mold (20mm is typical).' },
+      ] },
+      { type: 'paragraph', text: 'The Plaster Estimate section shows how much plaster the mold needs, split into approximate powder and water weights for the chosen plaster type.' },
+      { type: 'tip', text: 'Textures carry onto the master (toggle Keep Texture off for a smooth mold). Deep textures like Rods can undercut — check the red highlighting before printing.' },
+    ],
+  },
 ];

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
@@ -169,6 +170,13 @@ export function Sidebar({
       <div className="px-4 py-3 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-semibold text-[var(--text-primary)] flex-1">VaseMaker</h1>
+          <Link
+            href="/mold"
+            className="text-xs px-2 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
+            title="Make a plaster casting mold from this vase"
+          >
+            Mold ▸
+          </Link>
           <button
             onClick={doUndo}
             disabled={!canUndo}
@@ -200,7 +208,7 @@ export function Sidebar({
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.9.0</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.10.0</p>
         {editingName ? (
           <input
             ref={nameInputRef}
