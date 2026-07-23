@@ -28,8 +28,7 @@ export const MOLD_PARAMS = {
   plasterThickness:    { min: 5, max: 50, step: 1 } as SliderRange,
   cottleWallThickness: { min: 1, max: 10, step: 0.5 } as SliderRange,
   cottleDraftAngle:    { min: 0, max: 15, step: 0.5 } as SliderRange,
-
-  undercutAngle: { min: 20, max: 80, step: 1 } as SliderRange,
+  airHoleDiameter:     { min: 2, max: 20, step: 0.5 } as SliderRange,
 } as const;
 
 /**

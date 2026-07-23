@@ -18,12 +18,11 @@ import {
 import { computeMeshStats, MeshStats } from '../mesh-stats';
 import { buildRevolvedShell, offsetRingRadial, liftRing, mergeMeshes, Ring } from './ring-mesh';
 import { buildLid } from './lid';
+import { computeUndercutFlags } from './undercut';
 import type { MoldParameters } from './mold-types';
 
 const tanDeg = (deg: number) => Math.tan((deg * Math.PI) / 180);
 
-/** Radius of the air-relief hole through the cottle floor (4mm diameter). */
-const AIR_HOLE_RADIUS = 2;
 /** The cottle interior floor is never narrower than this radius (40mm diameter) so the plaster block always has a flat base to stand on. */
 const MIN_FLOOR_RADIUS = 20;
 
@@ -186,6 +185,10 @@ export interface MoldMeshes {
   plasterTopZ: number;
   /** In master-local coords, the top of the bottom foot recess (0 when disabled). Downward faces at or below this are the stepped bottom — not an undercut concern. */
   footTopZ: number;
+  /** Per-vertex 0..1 straight-pull undercut factor for the master mesh (1 = trapped: wider than material above it). */
+  undercutFlags: Float32Array;
+  /** True if any master vertex is fully flagged as a pull undercut. */
+  hasUndercuts: boolean;
   /** Widest horizontal extent of the master (incl. lid grip lip), mm — printer-bed fit check. */
   masterMaxDiameter: number;
   /** Widest horizontal extent of the cottle, mm — printer-bed fit check. */
@@ -411,6 +414,16 @@ export function generateMoldMeshes(vase: VaseParameters, mold: MoldParameters): 
 
   const master = mergeMeshes([vessel, lid]);
 
+  // ── Straight-pull undercut analysis on the body rings (post-fuse, so it sees
+  // the actual printed contour). The foot recess rings below and the ledge/well
+  // rings above are never narrower than what's under them, so only the body
+  // stack participates. Body ring v starts at vessel vertex (nFoot + v)·rRes,
+  // and the vessel is first in mergeMeshes, so indices carry straight through. ──
+  const undercut = computeUndercutFlags(
+    outer.rings, outer.heights, rRes,
+    footRings.length * rRes, master.vertexCount, footH,
+  );
+
   // ── Assembly coordinates ──
   // In the mold, the master is lifted `bottomGap` above the cottle floor so a
   // layer of plaster forms beneath it. Everything below is built in assembly
@@ -462,9 +475,11 @@ export function generateMoldMeshes(vase: VaseParameters, mold: MoldParameters): 
     cottleInner.push(clampRingMinRadius(offsetRingRadial(cottleEnv[i], cx, cy, innerDelta, z, rRes), cx, cy, MIN_FLOOR_RADIUS, rRes));
     cottleOuter.push(clampRingMinRadius(offsetRingRadial(cottleEnv[i], cx, cy, innerDelta + mold.cottleWallThickness, z, rRes), cx, cy, minOuterR, rRes));
   }
-  // 4mm air-relief hole through the floor center — lets air in when pulling the
-  // set plaster block out of the cottle.
-  const cottle = buildRevolvedShell(cottleOuter, cottleInner, rRes, true, AIR_HOLE_RADIUS);
+  // Optional air-relief hole through the floor center — lets air in when
+  // pulling the set plaster block out of the cottle. Max slider diameter
+  // (20mm) stays well inside the MIN_FLOOR_RADIUS floor.
+  const airHoleRadius = mold.airHoleEnabled ? mold.airHoleDiameter / 2 : 0;
+  const cottle = buildRevolvedShell(cottleOuter, cottleInner, rRes, true, airHoleRadius);
 
   // ── Plaster (display block): cottle interior with the cavity void ──
   // Both stacks end at the fill line H_c, so the top face closes flat (no flare).
@@ -482,6 +497,8 @@ export function generateMoldMeshes(vase: VaseParameters, mold: MoldParameters): 
     bottomGap,
     plasterTopZ: wellTopZ,
     footTopZ: footH,
+    undercutFlags: undercut.flags,
+    hasUndercuts: undercut.any,
     masterMaxDiameter: maxDiameterXY(master),
     cottleMaxDiameter: maxDiameterXY(cottle),
     plasterVolumeMm3,

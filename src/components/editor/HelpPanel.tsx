@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { HELP_SECTIONS, type HelpBlock } from '@/content/help-content';
+import { HELP_SECTIONS, type HelpBlock, type HelpSection } from '@/content/help-content';
 
 function renderBlock(block: HelpBlock, index: number) {
   switch (block.type) {
@@ -69,7 +69,9 @@ const MIN_WIDTH = 240;
 const MAX_WIDTH = 600;
 const DEFAULT_WIDTH = 320;
 
-export function HelpPanel({ onClose }: { onClose: () => void }) {
+/** Right-side help panel. Renders the vase help by default; pass `sections`
+ * for other tabs' content (e.g. MoldMaker's MOLD_HELP_SECTIONS). */
+export function HelpPanel({ onClose, sections = HELP_SECTIONS }: { onClose: () => void; sections?: HelpSection[] }) {
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const dragging = useRef(false);
   const startX = useRef(0);
@@ -131,7 +133,7 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto sidebar-scroll px-3 py-3">
-        {HELP_SECTIONS.map((section, si) => (
+        {sections.map((section, si) => (
           <details key={section.id} open={si === 0} className="mb-4">
             <summary className="cursor-pointer text-sm font-medium text-[var(--text-primary)] py-2 px-3 bg-[var(--bg-secondary)] rounded select-none hover:bg-[var(--border-color)] transition-colors">
               {section.title}

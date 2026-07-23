@@ -58,12 +58,36 @@ export interface MoldParameters {
   cottleWallThickness: number;
   /** Outward draft of the cottle inner wall so the set plaster releases (degrees, wider toward the opening). */
   cottleDraftAngle: number;
+  /** Punch an air-relief hole through the cottle floor center (lets air in when pulling the set plaster block). */
+  airHoleEnabled: boolean;
+  /** Diameter of the air-relief hole (mm). */
+  airHoleDiameter: number;
 
   // ── Analysis ──
-  /** Surfaces tilting below this angle from vertical are flagged as pull undercuts (degrees). */
-  undercutAngle: number;
   /** Plaster material for the weight estimate. */
   material: PlasterType;
+}
+
+/**
+ * Merge unknown/partial data onto DEFAULT_MOLD_PARAMETERS, keeping only known
+ * keys with matching types. Used when loading settings files and localStorage
+ * entries: files saved by older versions get new defaults for missing params,
+ * and stale fields from removed params are silently dropped.
+ */
+export function mergeMoldParameters(loaded: unknown): MoldParameters {
+  const out: MoldParameters = { ...DEFAULT_MOLD_PARAMETERS };
+  if (loaded && typeof loaded === 'object') {
+    const src = loaded as Record<string, unknown>;
+    for (const key of Object.keys(DEFAULT_MOLD_PARAMETERS) as (keyof MoldParameters)[]) {
+      const v = src[key];
+      if (key === 'material') {
+        if (v === 'pottery' || v === 'hydrocal' || v === 'hydrostone') out.material = v;
+      } else if (typeof v === typeof DEFAULT_MOLD_PARAMETERS[key]) {
+        (out as unknown as Record<string, unknown>)[key] = v;
+      }
+    }
+  }
+  return out;
 }
 
 export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
@@ -90,7 +114,8 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   plasterThickness: 20,
   cottleWallThickness: 3,
   cottleDraftAngle: 3,
+  airHoleEnabled: true,
+  airHoleDiameter: 4,
 
-  undercutAngle: 45,
   material: 'pottery',
 };

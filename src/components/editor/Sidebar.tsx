@@ -208,45 +208,48 @@ export function Sidebar({
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.11.0</p>
-        {editingName ? (
-          <input
-            ref={nameInputRef}
-            type="text"
-            defaultValue={designName || ''}
-            placeholder="Untitled"
-            className="text-xs text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1 py-0.5 w-full outline-none focus:border-[var(--accent)]"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.12.0</p>
+        <div className="flex items-center gap-1 mt-0.5">
+          <span className="text-xs text-[var(--text-secondary)] shrink-0">Design Name:</span>
+          {editingName ? (
+            <input
+              ref={nameInputRef}
+              type="text"
+              defaultValue={designName || ''}
+              placeholder="Untitled"
+              className="text-xs text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1 py-0.5 flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = e.currentTarget.value.trim();
+                  onDesignNameChange(val || null);
+                  setEditingName(false);
+                } else if (e.key === 'Escape') {
+                  setEditingName(false);
+                }
+              }}
+              onBlur={(e) => {
                 const val = e.currentTarget.value.trim();
                 onDesignNameChange(val || null);
                 setEditingName(false);
-              } else if (e.key === 'Escape') {
-                setEditingName(false);
-              }
-            }}
-            onBlur={(e) => {
-              const val = e.currentTarget.value.trim();
-              onDesignNameChange(val || null);
-              setEditingName(false);
-            }}
-          />
-        ) : (
-          <p
-            className="text-xs text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] transition-colors"
-            title="Click to rename design"
-            onClick={() => {
-              setEditingName(true);
-              requestAnimationFrame(() => {
-                nameInputRef.current?.focus();
-                nameInputRef.current?.select();
-              });
-            }}
-          >
-            {isDirty && <span className="text-[var(--accent)]">* </span>}
-            {designName || 'Untitled'}
-          </p>
-        )}
+              }}
+            />
+          ) : (
+            <p
+              className="text-xs text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] transition-colors flex-1 min-w-0"
+              title="Click to rename design"
+              onClick={() => {
+                setEditingName(true);
+                requestAnimationFrame(() => {
+                  nameInputRef.current?.focus();
+                  nameInputRef.current?.select();
+                });
+              }}
+            >
+              {isDirty && <span className="text-[var(--accent)]">* </span>}
+              {designName || 'Untitled'}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Scrollable area — toolbar + parameter controls */}

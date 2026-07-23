@@ -20,34 +20,23 @@ const MASTER_COLOR = '#d9d2c5';
 const COTTLE_COLOR = '#7ea6d6';
 const PLASTER_COLOR = '#e7dfca';
 const UNDERCUT_COLOR = new THREE.Color('#ff2b2b');
-const UNDERCUT_RAMP_DEG = 5;
-const BUILD_PLATE_Z = 0.05;
 
-/** Build a THREE.BufferGeometry from a VaseMesh (memoized, disposed on change). */
-function useGeometry(mesh: VaseMesh, undercutAngle?: number, baseColor?: string, maxZ?: number, minZ?: number): THREE.BufferGeometry {
+/** Build a THREE.BufferGeometry from a VaseMesh (memoized, disposed on change).
+ * When `undercutFlags` (per-vertex 0..1 from the mold generator's straight-pull
+ * analysis) and a base color are given, a vertex-color attribute tints flagged
+ * vertices red. */
+function useGeometry(mesh: VaseMesh, undercutFlags?: Float32Array, baseColor?: string): THREE.BufferGeometry {
   const geo = useMemo(() => {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(mesh.normals, 3));
     geo.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
 
-    if (undercutAngle !== undefined && baseColor) {
+    if (undercutFlags && baseColor) {
       const base = new THREE.Color(baseColor);
       const colors = new Float32Array(mesh.vertexCount * 3);
-      const rampStart = (undercutAngle * Math.PI) / 180;
-      const rampWidth = (UNDERCUT_RAMP_DEG * Math.PI) / 180;
       for (let i = 0; i < mesh.vertexCount; i++) {
-        const nz = mesh.normals[i * 3 + 2];
-        const z = mesh.positions[i * 3 + 2];
-        let f = 0;
-        // Only flag the part of the master embedded in plaster; the flange/lip
-        // above the fill line (maxZ) and the stepped foot recess below minZ
-        // (its treads face down but lift cleanly off the plaster boss) are not
-        // mold-pull undercut concerns.
-        if (nz < 0 && z > (minZ ?? BUILD_PLATE_Z) && (maxZ === undefined || z <= maxZ)) {
-          const tilt = Math.asin(Math.min(1, -nz));
-          f = Math.min(1, Math.max(0, (tilt - rampStart) / rampWidth));
-        }
+        const f = undercutFlags[i];
         colors[i * 3] = base.r + (UNDERCUT_COLOR.r - base.r) * f;
         colors[i * 3 + 1] = base.g + (UNDERCUT_COLOR.g - base.g) * f;
         colors[i * 3 + 2] = base.b + (UNDERCUT_COLOR.b - base.b) * f;
@@ -56,7 +45,7 @@ function useGeometry(mesh: VaseMesh, undercutAngle?: number, baseColor?: string,
     }
     geo.computeBoundingSphere();
     return geo;
-  }, [mesh, undercutAngle, baseColor, maxZ, minZ]);
+  }, [mesh, undercutFlags, baseColor]);
   // The parent hook owns the geometry lifetime — dispose the old one when a new
   // one is built or the viewport unmounts (Parts must NOT dispose, since they
   // toggle in/out of the tree while the geometry stays alive here).
@@ -95,12 +84,11 @@ export function MoldViewport({ mold }: { mold: MoldMeshes }) {
   const radius = useVaseStore((s) => s.params.radius);
   const height = useVaseStore((s) => s.params.height);
   const view = useMoldStore((s) => s.view);
-  const undercutAngle = useMoldStore((s) => s.params.undercutAngle);
 
   const clipPlanes = useMemo(() => [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)], []);
   const clip = view.crossSection ? clipPlanes : null;
 
-  const masterGeo = useGeometry(mold.master, view.showUndercuts ? undercutAngle : undefined, view.showUndercuts ? MASTER_COLOR : undefined, mold.plasterTopZ, mold.footTopZ + BUILD_PLATE_Z);
+  const masterGeo = useGeometry(mold.master, view.showUndercuts ? mold.undercutFlags : undefined, view.showUndercuts ? MASTER_COLOR : undefined);
   const cottleGeo = useGeometry(mold.cottle);
   const plasterGeo = useGeometry(mold.plaster);
 

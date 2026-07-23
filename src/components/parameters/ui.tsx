@@ -47,10 +47,18 @@ export function Section({ title, children, defaultOpen = true, active, checked, 
   active?: boolean; checked?: boolean; onToggle?: (v: boolean) => void; tooltip?: string; titleColor?: string;
 }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  // Browsers queue a `toggle` event when React sets `open` during mount, so
+  // auto-scroll only after a real user click on the summary (keyboard
+  // activation fires a synthetic click too). Without this guard, every
+  // default-open section scrolls itself into view on mount and the sidebar
+  // lands mid-scroll after navigating back from /mold.
+  const userToggled = useRef(false);
 
   const handleToggle = useCallback(() => {
     const el = detailsRef.current;
-    if (!el || !el.open) return;
+    const wasUser = userToggled.current;
+    userToggled.current = false;
+    if (!el || !el.open || !wasUser) return;
     requestAnimationFrame(() => {
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
@@ -58,7 +66,7 @@ export function Section({ title, children, defaultOpen = true, active, checked, 
 
   return (
     <details ref={detailsRef} open={defaultOpen} className="mb-4" onToggle={handleToggle}>
-      <summary className="cursor-pointer text-sm font-medium py-2 px-3 bg-[var(--bg-secondary)] rounded select-none hover:bg-[var(--border-color)] transition-colors flex items-center gap-2" style={titleColor ? { color: titleColor } : { color: 'var(--text-primary)' }} title={tooltip}>
+      <summary onClick={() => { userToggled.current = true; }} className="cursor-pointer text-sm font-medium py-2 px-3 bg-[var(--bg-secondary)] rounded select-none hover:bg-[var(--border-color)] transition-colors flex items-center gap-2" style={titleColor ? { color: titleColor } : { color: 'var(--text-primary)' }} title={tooltip}>
         <span className="flex-1">{title}</span>
         {onToggle ? (
           <button
