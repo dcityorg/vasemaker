@@ -91,7 +91,7 @@ function NumField({
 // Layout constants
 const PADDING = { top: 8, right: 12, bottom: 29, left: 32 };
 const CURVE_SAMPLES = 60;
-const POINT_RADIUS = 6;
+const POINT_RADIUS = 4.2; // 30% smaller than the original 6 — crowded points overlap less
 const POINT_HIT_RADIUS = 12;
 
 /**
@@ -131,6 +131,11 @@ export function BezierCurveEditor({
   } | null>(null);
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  // Remember the last selection so the ▲▼ stepper can restore it after a deselect
+  const lastSelectedRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (selectedIndex !== null) lastSelectedRef.current = selectedIndex;
+  }, [selectedIndex]);
 
   // Clear selection if it falls out of bounds (e.g. user removed the selected point)
   useEffect(() => {
@@ -138,6 +143,26 @@ export function BezierCurveEditor({
       setSelectedIndex(null);
     }
   }, [points.length, selectedIndex]);
+
+  // ▲▼ stepper: move the selection to the next point up/down (points are ordered
+  // bottom → top). With nothing selected, restore the last selection — or pick
+  // the middle point if there never was one. Lets users select crowded/overlapping
+  // points without having to click them.
+  const stepSelection = useCallback(
+    (dir: 1 | -1) => {
+      let next: number;
+      if (selectedIndex !== null) {
+        next = Math.max(0, Math.min(points.length - 1, selectedIndex + dir));
+      } else if (lastSelectedRef.current !== null) {
+        next = Math.max(0, Math.min(points.length - 1, lastSelectedRef.current));
+      } else {
+        next = Math.floor((points.length - 1) / 2);
+      }
+      setSelectedIndex(next);
+      svgRef.current?.focus();
+    },
+    [selectedIndex, points.length]
+  );
 
   // Plot area dimensions
   const plotW = width - PADDING.left - PADDING.right;
@@ -631,9 +656,33 @@ export function BezierCurveEditor({
 
   const sel = selectedIndex !== null ? points[selectedIndex] : undefined;
   const isPct = yRange[1] <= 1;
+  const stepBtnCls =
+    'w-5 h-6 flex items-center justify-center text-[12px] leading-none rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)] disabled:opacity-30 disabled:hover:text-[var(--text-secondary)] disabled:hover:border-[var(--border-color)]';
   return (
-    <div>
+    <div className="relative">
       {svgEl}
+      {/* ▲▼ point stepper — selects the next point up/down without clicking it */}
+      <div
+        className="absolute flex flex-col gap-1.5"
+        style={{ right: 0, top: PADDING.top + plotH / 2 - 28 }}
+      >
+        <button
+          className={stepBtnCls}
+          disabled={selectedIndex !== null && selectedIndex >= points.length - 1}
+          title="Select the next point up (re-selects the last point if none is selected)"
+          onClick={() => stepSelection(1)}
+        >
+          ▲
+        </button>
+        <button
+          className={stepBtnCls}
+          disabled={selectedIndex === 0}
+          title="Select the next point down (re-selects the last point if none is selected)"
+          onClick={() => stepSelection(-1)}
+        >
+          ▼
+        </button>
+      </div>
       <div className="flex items-center gap-1 mt-1 px-1 text-[11px] h-6">
         {sel && selectedIndex !== null ? (
           <>

@@ -24,7 +24,7 @@ const UNDERCUT_RAMP_DEG = 5;
 const BUILD_PLATE_Z = 0.05;
 
 /** Build a THREE.BufferGeometry from a VaseMesh (memoized, disposed on change). */
-function useGeometry(mesh: VaseMesh, undercutAngle?: number, baseColor?: string, maxZ?: number): THREE.BufferGeometry {
+function useGeometry(mesh: VaseMesh, undercutAngle?: number, baseColor?: string, maxZ?: number, minZ?: number): THREE.BufferGeometry {
   const geo = useMemo(() => {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3));
@@ -41,8 +41,10 @@ function useGeometry(mesh: VaseMesh, undercutAngle?: number, baseColor?: string,
         const z = mesh.positions[i * 3 + 2];
         let f = 0;
         // Only flag the part of the master embedded in plaster; the flange/lip
-        // above the fill line (maxZ) is not a mold-pull undercut concern.
-        if (nz < 0 && z > BUILD_PLATE_Z && (maxZ === undefined || z <= maxZ)) {
+        // above the fill line (maxZ) and the stepped foot recess below minZ
+        // (its treads face down but lift cleanly off the plaster boss) are not
+        // mold-pull undercut concerns.
+        if (nz < 0 && z > (minZ ?? BUILD_PLATE_Z) && (maxZ === undefined || z <= maxZ)) {
           const tilt = Math.asin(Math.min(1, -nz));
           f = Math.min(1, Math.max(0, (tilt - rampStart) / rampWidth));
         }
@@ -54,7 +56,7 @@ function useGeometry(mesh: VaseMesh, undercutAngle?: number, baseColor?: string,
     }
     geo.computeBoundingSphere();
     return geo;
-  }, [mesh, undercutAngle, baseColor, maxZ]);
+  }, [mesh, undercutAngle, baseColor, maxZ, minZ]);
   // The parent hook owns the geometry lifetime — dispose the old one when a new
   // one is built or the viewport unmounts (Parts must NOT dispose, since they
   // toggle in/out of the tree while the geometry stays alive here).
@@ -72,7 +74,9 @@ function Part({ geometry, color, opacity, clip, positionZ, vertexColors }: {
 }) {
   return (
     <mesh geometry={geometry} position={[0, 0, positionZ ?? 0]}>
+      {/* key forces a new material when vertexColors flips — three.js doesn't rebuild the shader program for that flag on an existing material (renders black) */}
       <meshStandardMaterial
+        key={vertexColors ? 'vc' : 'plain'}
         color={vertexColors ? '#ffffff' : color}
         vertexColors={vertexColors ?? false}
         transparent={opacity < 1}
@@ -96,7 +100,7 @@ export function MoldViewport({ mold }: { mold: MoldMeshes }) {
   const clipPlanes = useMemo(() => [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)], []);
   const clip = view.crossSection ? clipPlanes : null;
 
-  const masterGeo = useGeometry(mold.master, view.showUndercuts ? undercutAngle : undefined, view.showUndercuts ? MASTER_COLOR : undefined, mold.plasterTopZ);
+  const masterGeo = useGeometry(mold.master, view.showUndercuts ? undercutAngle : undefined, view.showUndercuts ? MASTER_COLOR : undefined, mold.plasterTopZ, mold.footTopZ + BUILD_PLATE_Z);
   const cottleGeo = useGeometry(mold.cottle);
   const plasterGeo = useGeometry(mold.plaster);
 

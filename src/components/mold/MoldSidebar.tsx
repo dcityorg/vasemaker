@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
 import { useMoldStore } from '@/store/mold-store';
+import { useVaseStore } from '@/store/vase-store';
 import { MOLD_PARAMS, PLASTER_MATERIALS } from '@/config/mold-params';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import { generateSTL } from '@/engine/stl-export';
@@ -17,18 +18,19 @@ type MoldNumKey = {
   [K in keyof MoldParameters]: MoldParameters[K] extends number ? K : never;
 }[keyof MoldParameters];
 
-/** True if any surface tilts downward past the undercut threshold (would trap plaster). */
-function hasUndercuts(mesh: VaseMesh, angleDeg: number): boolean {
+/** True if any surface tilts downward past the undercut threshold (would trap plaster). Vertices at or below minZ (build plate + foot recess) are exempt. */
+function hasUndercuts(mesh: VaseMesh, angleDeg: number, minZ: number): boolean {
   const limit = -Math.sin((angleDeg * Math.PI) / 180);
   for (let i = 0; i < mesh.vertexCount; i++) {
     const nz = mesh.normals[i * 3 + 2];
     const z = mesh.positions[i * 3 + 2];
-    if (z > 0.05 && nz < limit) return true;
+    if (z > minZ && nz < limit) return true;
   }
   return false;
 }
 
 export function MoldSidebar({ mold }: { mold: MoldMeshes }) {
+  const designName = useVaseStore((s) => s.designName);
   const params = useMoldStore((s) => s.params);
   const view = useMoldStore((s) => s.view);
   const setParam = useMoldStore((s) => s.setParam);
@@ -42,12 +44,14 @@ export function MoldSidebar({ mold }: { mold: MoldMeshes }) {
     await saveSTLFile(blob, name);
   };
 
+  const stlName = (part: string) => (designName ? `${designName} ${part}.stl` : `${part}.stl`);
+
   const handleExportMaster = () => {
-    if (hasUndercuts(mold.master, params.undercutAngle)) {
+    if (hasUndercuts(mold.master, params.undercutAngle, mold.footTopZ + 0.05)) {
       setWarnExport(true);
       return;
     }
-    exportMesh(mold.master, 'master.stl');
+    exportMesh(mold.master, stlName('master'));
   };
 
   // Plain render function (not a nested component) so the range inputs aren't
@@ -98,7 +102,7 @@ export function MoldSidebar({ mold }: { mold: MoldMeshes }) {
             Export Master
           </button>
           <button
-            onClick={() => exportMesh(mold.cottle, 'cottle.stl')}
+            onClick={() => exportMesh(mold.cottle, stlName('cottle'))}
             className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
             style={{ color: UI_MUTED }}
             title="Export the cottle (container) as an STL"
@@ -122,6 +126,18 @@ export function MoldSidebar({ mold }: { mold: MoldMeshes }) {
             {sl('shrinkPercent', 'Shrink', '%', 'Clay slip shrinkage — master is scaled up by this to compensate')}
             {sl('masterWallThickness', 'Wall', 'mm', 'Printed shell thickness of the hollow master')}
             <Toggle label="Keep Texture" checked={params.keepTexture} onChange={(v) => setParam('keepTexture', v)} tooltip="Carry the vase's surface texture onto the master" />
+          </Section>
+          <Section title="Foot Recess" titleColor={GROUP_COLORS.structure}>
+            <Toggle label="Enabled" checked={params.footEnabled} onChange={(v) => setParam('footEnabled', v)} tooltip="Recess the master's bottom so cast pieces get a foot ring and a recessed center for glaze" />
+            {params.footEnabled && (
+              <>
+                {sl('footWidth', 'Foot Width', 'mm', 'w1 — flat foot ring at the outer edge of the bottom')}
+                {sl('footSlopeWidth', 'Slope Width', 'mm', 'w2 — width of the stepped ramp from the foot up to the recessed center')}
+                {sl('footHeight', 'Depth', 'mm', 'h — how far the center is recessed above the foot plane')}
+                {sl('footStepHeight', 'Step Height', 'mm', 'Vertical size of each ramp step — match your printer layer height')}
+                <Toggle label="Smooth Inside" checked={params.footSmoothInner} onChange={(v) => setParam('footSmoothInner', v)} tooltip="Build the ramp and recessed center from the smooth contour so surface texture doesn't carry into the recess" />
+              </>
+            )}
           </Section>
 
           {/* Well */}
@@ -166,8 +182,12 @@ export function MoldSidebar({ mold }: { mold: MoldMeshes }) {
             <StatRow label="Plaster" value={`${est.volumeCm3.toFixed(0)} cm³`} />
             <StatRow label="Powder" value={`≈ ${fmt(est.powderGrams)} g`} />
             <StatRow label="Water" value={`≈ ${fmt(est.waterGrams)} g`} />
-            <StatRow label="Master size" value={`${mold.masterStats.sizeX.toFixed(0)}×${mold.masterStats.sizeY.toFixed(0)}×${mold.masterStats.sizeZ.toFixed(0)} mm`} />
-            <StatRow label="Cottle size" value={`${mold.cottleStats.sizeX.toFixed(0)}×${mold.cottleStats.sizeY.toFixed(0)}×${mold.cottleStats.sizeZ.toFixed(0)} mm`} />
+          </Section>
+          <Section title="Printer Fit" titleColor={GROUP_COLORS.settings}>
+            <StatRow label="Master ⌀ max" value={`${mold.masterMaxDiameter.toFixed(0)} mm`} />
+            <StatRow label="Master height" value={`${mold.masterStats.sizeZ.toFixed(0)} mm`} />
+            <StatRow label="Cottle ⌀ max" value={`${mold.cottleMaxDiameter.toFixed(0)} mm`} />
+            <StatRow label="Cottle height" value={`${mold.cottleStats.sizeZ.toFixed(0)} mm`} />
           </Section>
 
           <button
@@ -190,7 +210,7 @@ export function MoldSidebar({ mold }: { mold: MoldMeshes }) {
             </p>
             <div className="flex gap-2">
               <button
-                onClick={() => { setWarnExport(false); exportMesh(mold.master, 'master.stl'); }}
+                onClick={() => { setWarnExport(false); exportMesh(mold.master, stlName('master')); }}
                 className="flex-1 px-3 py-1.5 text-xs bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded transition-colors"
               >
                 Export Anyway

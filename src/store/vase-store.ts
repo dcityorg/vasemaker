@@ -19,6 +19,10 @@ interface VaseStore {
   isDirty: boolean;
   markClean: () => void;
 
+  // Design name — used for save/export filenames; shared with the /mold route
+  designName: string | null;
+  setDesignName: (name: string | null) => void;
+
   // Actions — dimension
   setRadius: (radius: number) => void;
   setHeight: (height: number) => void;
@@ -117,6 +121,9 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
   params: { ...applyPreset(BUILT_IN_PRESETS[0]), color: '#0000ff' },
   isDirty: false,
   markClean: () => set({ isDirty: false }),
+
+  designName: null,
+  setDesignName: (name) => set({ designName: name }),
 
   // Dimensions
   setRadius: (radius) =>

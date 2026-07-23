@@ -37,6 +37,20 @@ export interface MoldParameters {
   /** Diameter of each pour hole (mm). */
   pourHoleDiameter: number;
 
+  // ── Foot recess (bottom of the master → foot ring + glaze well on cast pieces) ──
+  /** Recess the master's bottom face so cast pieces get a foot ring and recessed center. */
+  footEnabled: boolean;
+  /** w1 — width of the flat foot ring at the outer edge of the bottom (mm). */
+  footWidth: number;
+  /** w2 — width of the stepped ramp from the foot up to the recessed center (mm). */
+  footSlopeWidth: number;
+  /** h — how far the center is recessed above the foot plane (mm). Clamped below the master wall thickness. */
+  footHeight: number;
+  /** Vertical size of each ramp step (mm) — set to the printer layer height for clean prints. */
+  footStepHeight: number;
+  /** Build the ramp + recessed center from the smooth (untextured) base contour, so surface texture doesn't carry into the recess. */
+  footSmoothInner: boolean;
+
   // ── Plaster / cottle ──
   /** Plaster wall thickness — the gap between the master outer surface and the cottle inner wall (mm). */
   plasterThickness: number;
@@ -65,6 +79,13 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   flangeThickness: 5,
   pourHoleCount: 6,
   pourHoleDiameter: 15,
+
+  footEnabled: true,
+  footWidth: 5,
+  footSlopeWidth: 1,
+  footHeight: 1,
+  footStepHeight: 0.2,
+  footSmoothInner: false,
 
   plasterThickness: 20,
   cottleWallThickness: 3,

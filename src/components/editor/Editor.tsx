@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { Sidebar } from './Sidebar';
 import { HelpPanel } from './HelpPanel';
 import { Viewport } from '@/components/viewport/Viewport';
+import { useVaseStore } from '@/store/vase-store';
 import { CAPTURE_SIZE_PRESETS, CUSTOM_SIZE_INDEX } from '@/config/capture';
 import type { CaptureFormat } from '@/config/capture';
 
@@ -14,8 +15,10 @@ import type { CaptureFormat } from '@/config/capture';
 export function Editor() {
   const [helpOpen, setHelpOpen] = useState(false);
 
-  // Design name — lifted from Sidebar so capture can use it for filename
-  const [designName, setDesignName] = useState<string | null>(null);
+  // Design name — lives in the vase store so capture, exports, and the /mold
+  // route all share it (and it survives Vase ↔ Mold navigation)
+  const designName = useVaseStore((s) => s.designName);
+  const setDesignName = useVaseStore((s) => s.setDesignName);
 
   // Capture state — ephemeral UI state, not saved with design
   const [captureActive, setCaptureActive] = useState(false);

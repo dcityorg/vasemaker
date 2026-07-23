@@ -35,18 +35,23 @@ function ringCentroid(ring: Ring, rRes: number): [number, number, number] {
  * Both stacks must use the same rRes and be ordered bottom → top with >= 2 rings each.
  * When `capTop` is false, the top annulus is omitted (the shell is left open at
  * the top — used when a separate lid closes it).
+ * When `bottomHoleRadius` > 0, a round hole of that radius is punched vertically
+ * through the bottom (both bottom discs become annuli joined by a cylindrical
+ * hole wall) — used for the cottle's air-relief hole. Assumes the outer stack's
+ * bottom ring sits below the inner stack's bottom ring (a floor slab between).
  */
-export function buildRevolvedShell(outerRings: Ring[], innerRings: Ring[], rRes: number, capTop = true): VaseMesh {
+export function buildRevolvedShell(outerRings: Ring[], innerRings: Ring[], rRes: number, capTop = true, bottomHoleRadius = 0): VaseMesh {
   const nOuter = outerRings.length;
   const nInner = innerRings.length;
+  const hasHole = bottomHoleRadius > 0;
 
   const outerVerts = nOuter * rRes;
   const innerVerts = nInner * rRes;
   const outerBase = 0;
   const innerBase = outerVerts;
-  const outerCenterIdx = outerVerts + innerVerts;
-  const innerCenterIdx = outerCenterIdx + 1;
-  const totalVertices = outerVerts + innerVerts + 2;
+  const outerCenterIdx = outerVerts + innerVerts; // hole-outer ring base when hasHole
+  const innerCenterIdx = outerCenterIdx + (hasHole ? rRes : 1); // hole-inner ring base when hasHole
+  const totalVertices = outerVerts + innerVerts + (hasHole ? rRes * 2 : 2);
 
   const positions = new Float32Array(totalVertices * 3);
   const normals = new Float32Array(totalVertices * 3);
@@ -58,20 +63,33 @@ export function buildRevolvedShell(outerRings: Ring[], innerRings: Ring[], rRes:
   for (let r = 0; r < nInner; r++) {
     positions.set(innerRings[r], (innerBase + r * rRes) * 3);
   }
-  // Disc centers
+  // Disc centers (or hole rings around them)
   const [ocx, ocy, ocz] = ringCentroid(outerRings[0], rRes);
-  positions[outerCenterIdx * 3] = ocx;
-  positions[outerCenterIdx * 3 + 1] = ocy;
-  positions[outerCenterIdx * 3 + 2] = ocz;
   const [icx, icy, icz] = ringCentroid(innerRings[0], rRes);
-  positions[innerCenterIdx * 3] = icx;
-  positions[innerCenterIdx * 3 + 1] = icy;
-  positions[innerCenterIdx * 3 + 2] = icz;
+  if (hasHole) {
+    for (let t = 0; t < rRes; t++) {
+      const a = (t / rRes) * Math.PI * 2;
+      const dx = Math.cos(a) * bottomHoleRadius;
+      const dy = Math.sin(a) * bottomHoleRadius;
+      const ho = (outerCenterIdx + t) * 3;
+      positions[ho] = ocx + dx; positions[ho + 1] = ocy + dy; positions[ho + 2] = ocz;
+      const hi = (innerCenterIdx + t) * 3;
+      positions[hi] = icx + dx; positions[hi + 1] = icy + dy; positions[hi + 2] = icz;
+    }
+  } else {
+    positions[outerCenterIdx * 3] = ocx;
+    positions[outerCenterIdx * 3 + 1] = ocy;
+    positions[outerCenterIdx * 3 + 2] = ocz;
+    positions[innerCenterIdx * 3] = icx;
+    positions[innerCenterIdx * 3 + 1] = icy;
+    positions[innerCenterIdx * 3 + 2] = icz;
+  }
 
   const outerQuads = (nOuter - 1) * rRes;
   const innerQuads = (nInner - 1) * rRes;
   const annulusTris = capTop ? rRes * 2 : 0;
-  const totalTris = outerQuads * 2 + innerQuads * 2 + rRes /*outer disc*/ + rRes /*inner disc*/ + annulusTris;
+  const bottomTris = hasHole ? rRes * 6 /*two annuli + hole wall*/ : rRes * 2 /*two disc fans*/;
+  const totalTris = outerQuads * 2 + innerQuads * 2 + bottomTris + annulusTris;
   const indices = new Uint32Array(totalTris * 3);
   let o = 0;
 
@@ -101,20 +119,41 @@ export function buildRevolvedShell(outerRings: Ring[], innerRings: Ring[], rRes:
     }
   }
 
-  // Outer bottom disc (fan, normals down)
-  for (let t = 0; t < rRes; t++) {
-    const tN = (t + 1) % rRes;
-    const a = outerBase + t;
-    const b = outerBase + tN;
-    indices[o++] = outerCenterIdx; indices[o++] = b; indices[o++] = a;
-  }
+  if (hasHole) {
+    // Bottom with a through-hole: outer annulus (down), inner annulus (up),
+    // and a cylindrical hole wall joining the two hole rings.
+    for (let t = 0; t < rRes; t++) {
+      const tN = (t + 1) % rRes;
+      const o0 = outerBase + t, o1 = outerBase + tN;
+      const h0 = outerCenterIdx + t, h1 = outerCenterIdx + tN;
+      const i0 = innerBase + t, i1 = innerBase + tN;
+      const g0 = innerCenterIdx + t, g1 = innerCenterIdx + tN;
+      // Outer bottom annulus (normals down) — same orientation as the old fan
+      indices[o++] = h0; indices[o++] = o1; indices[o++] = o0;
+      indices[o++] = h0; indices[o++] = h1; indices[o++] = o1;
+      // Inner bottom annulus (normals up — closes the cavity floor)
+      indices[o++] = g0; indices[o++] = i0; indices[o++] = i1;
+      indices[o++] = g0; indices[o++] = i1; indices[o++] = g1;
+      // Hole wall (faces the hole axis), bottom ring → top ring
+      indices[o++] = h0; indices[o++] = g0; indices[o++] = g1;
+      indices[o++] = h0; indices[o++] = g1; indices[o++] = h1;
+    }
+  } else {
+    // Outer bottom disc (fan, normals down)
+    for (let t = 0; t < rRes; t++) {
+      const tN = (t + 1) % rRes;
+      const a = outerBase + t;
+      const b = outerBase + tN;
+      indices[o++] = outerCenterIdx; indices[o++] = b; indices[o++] = a;
+    }
 
-  // Inner bottom disc (fan, normals up — closes the cavity floor)
-  for (let t = 0; t < rRes; t++) {
-    const tN = (t + 1) % rRes;
-    const a = innerBase + t;
-    const b = innerBase + tN;
-    indices[o++] = innerCenterIdx; indices[o++] = a; indices[o++] = b;
+    // Inner bottom disc (fan, normals up — closes the cavity floor)
+    for (let t = 0; t < rRes; t++) {
+      const tN = (t + 1) % rRes;
+      const a = innerBase + t;
+      const b = innerBase + tN;
+      indices[o++] = innerCenterIdx; indices[o++] = a; indices[o++] = b;
+    }
   }
 
   // Top annulus (connects outer top ring ↔ inner top ring — the open rim / top face)

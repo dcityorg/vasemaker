@@ -20,6 +20,11 @@ export const MOLD_PARAMS = {
   pourHoleCount:   { min: 0, max: 8, step: 1 } as SliderRange,
   pourHoleDiameter:{ min: 5, max: 40, step: 1 } as SliderRange,
 
+  footWidth:      { min: 0, max: 20, step: 0.5 } as SliderRange,
+  footSlopeWidth: { min: 0.2, max: 10, step: 0.1 } as SliderRange,
+  footHeight:     { min: 0, max: 5, step: 0.1 } as SliderRange,
+  footStepHeight: { min: 0.05, max: 0.6, step: 0.05 } as SliderRange,
+
   plasterThickness:    { min: 5, max: 50, step: 1 } as SliderRange,
   cottleWallThickness: { min: 1, max: 10, step: 0.5 } as SliderRange,
   cottleDraftAngle:    { min: 0, max: 15, step: 0.5 } as SliderRange,
