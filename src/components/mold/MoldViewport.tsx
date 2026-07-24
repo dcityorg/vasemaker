@@ -14,7 +14,7 @@ const MOLD_ORBIT = { dampingFactor: 0.1, minDistance: 40, maxDistance: 3000 };
 import { useVaseStore } from '@/store/vase-store';
 import { useMoldStore } from '@/store/mold-store';
 import type { VaseMesh } from '@/engine/types';
-import type { MoldMeshes } from '@/engine/mold/mold-generator';
+import type { AnyMoldMeshes } from '@/hooks/use-mold-meshes';
 
 const MASTER_COLOR = '#d9d2c5';
 const COTTLE_COLOR = '#7ea6d6';
@@ -25,8 +25,9 @@ const UNDERCUT_COLOR = new THREE.Color('#ff2b2b');
  * When `undercutFlags` (per-vertex 0..1 from the mold generator's straight-pull
  * analysis) and a base color are given, a vertex-color attribute tints flagged
  * vertices red. */
-function useGeometry(mesh: VaseMesh, undercutFlags?: Float32Array, baseColor?: string): THREE.BufferGeometry {
+function useGeometry(mesh: VaseMesh | null, undercutFlags?: Float32Array, baseColor?: string): THREE.BufferGeometry | null {
   const geo = useMemo(() => {
+    if (!mesh) return null;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(mesh.normals, 3));
@@ -49,7 +50,7 @@ function useGeometry(mesh: VaseMesh, undercutFlags?: Float32Array, baseColor?: s
   // The parent hook owns the geometry lifetime — dispose the old one when a new
   // one is built or the viewport unmounts (Parts must NOT dispose, since they
   // toggle in/out of the tree while the geometry stays alive here).
-  useEffect(() => () => geo.dispose(), [geo]);
+  useEffect(() => () => geo?.dispose(), [geo]);
   return geo;
 }
 
@@ -80,7 +81,7 @@ function Part({ geometry, color, opacity, clip, positionZ, vertexColors }: {
   );
 }
 
-export function MoldViewport({ mold }: { mold: MoldMeshes }) {
+export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
   const radius = useVaseStore((s) => s.params.radius);
   const height = useVaseStore((s) => s.params.height);
   const view = useMoldStore((s) => s.view);
@@ -88,8 +89,11 @@ export function MoldViewport({ mold }: { mold: MoldMeshes }) {
   const clipPlanes = useMemo(() => [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)], []);
   const clip = view.crossSection ? clipPlanes : null;
 
-  const masterGeo = useGeometry(mold.master, view.showUndercuts ? mold.undercutFlags : undefined, view.showUndercuts ? MASTER_COLOR : undefined);
-  const cottleGeo = useGeometry(mold.cottle);
+  // In one-piece mode the single printed part takes the master's slot (same
+  // color + undercut tint); the cottle slot is empty.
+  const mainMesh = mold.style === 'twoPart' ? mold.master : mold.mold;
+  const masterGeo = useGeometry(mainMesh, view.showUndercuts ? mold.undercutFlags : undefined, view.showUndercuts ? MASTER_COLOR : undefined);
+  const cottleGeo = useGeometry(mold.style === 'twoPart' ? mold.cottle : null);
   const plasterGeo = useGeometry(mold.plaster);
 
   return (
@@ -111,15 +115,15 @@ export function MoldViewport({ mold }: { mold: MoldMeshes }) {
 
         <GroundGrid radius={radius + 40} height={height + 40} />
 
-        {view.showPlaster && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.45} clip={clip} />}
-        {view.showCottle && <Part geometry={cottleGeo} color={COTTLE_COLOR} opacity={0.4} clip={clip} />}
-        {view.showMaster && (
+        {view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.45} clip={clip} />}
+        {view.showCottle && cottleGeo && <Part geometry={cottleGeo} color={COTTLE_COLOR} opacity={0.4} clip={clip} />}
+        {view.showMaster && masterGeo && (
           <Part
             geometry={masterGeo}
             color={MASTER_COLOR}
             opacity={1}
             clip={clip}
-            positionZ={mold.bottomGap}
+            positionZ={mold.style === 'twoPart' ? mold.bottomGap : 0}
             vertexColors={view.showUndercuts}
           />
         )}

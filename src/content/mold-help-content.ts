@@ -61,7 +61,38 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     ],
   },
 
-  // ─── 3. Master Settings ───────────────────────────────────────
+  // ─── 3. One-Piece Mold ────────────────────────────────────────
+  {
+    id: 'mold-one-piece',
+    title: 'One-Piece Mold',
+    blocks: [
+      { type: 'paragraph', text: 'The Two-Piece / One-Piece tabs at the top of the sidebar switch between two ways of building the same plaster mold. One-Piece replaces the master and cottle with a SINGLE print: the vase sits upside-down in the center, fused to the cottle at the well, and you pour plaster in through the fully open top. The plaster fills the gap around the vase and covers its bottom, forming the solid base of the mold. Released and flipped over, it\'s the identical finished mold — cavity, well funnel, razor edge, and foot boss.' },
+      { type: 'heading', text: 'Why choose it' },
+      { type: 'list', items: [
+        'One print instead of two — no lid, flange, or pour slots',
+        'Nothing to register or hold down: the master can\'t float or shift while the plaster sets',
+        'Pouring is a simple top-fill to the brim — the wall height IS the fill line',
+      ] },
+      { type: 'heading', text: 'How it differs' },
+      { type: 'list', items: [
+        'The cottle wall can\'t hug the vase\'s vertical profile here (it would trap the plaster) — it\'s a straight drafted wall from the widest point, so tapered vases get extra plaster toward the top of the print. It still follows the cross-section shape.',
+        'Air Holes: four holes through the flat floor ring instead of one center hole. Tape or clay them over while pouring; afterwards they break the suction, take compressed air, or let you push rods through to eject the block.',
+        'The same undercut rule applies: the vase must always get wider toward its own top. Red areas mean the plaster block will lock onto the master.',
+      ] },
+      { type: 'heading', text: 'Printing' },
+      { type: 'paragraph', text: 'Print it exactly as shown — open pour side up. The hollow interior under the vase bottom needs internal supports; that surface never touches plaster, so its finish doesn\'t matter. The bottom center stays open so you can pour ice-cold water into the master\'s hollow interior at release time.' },
+      { type: 'heading', text: 'Releasing' },
+      { type: 'list', items: [
+        'Apply mold release to the cottle walls and floor ring before pouring',
+        'After the plaster sets, un-tape the air holes and pour ice-cold water into the hollow center from below to shrink the plastic',
+        'Pull the block straight up and out of the open top — everything (vase, well, foot boss, cottle) releases with that one motion',
+        'If it fights you: more cottle draft, more release agent, compressed air through the floor holes, or push rods through them',
+      ] },
+      { type: 'tip', text: 'This style is newer and less battle-tested than Two-Piece — the single pull has a lot of surface area to unstick at once. Be generous with mold release on the first try.' },
+    ],
+  },
+
+  // ─── 4. Master Settings ───────────────────────────────────────
   {
     id: 'mold-master-settings',
     title: 'Master Settings',
@@ -83,7 +114,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     ],
   },
 
-  // ─── 4. Well, Flange & Cottle Settings ────────────────────────
+  // ─── 5. Well, Flange & Cottle Settings ────────────────────────
   {
     id: 'mold-well-cottle',
     title: 'Well, Flange & Cottle',
@@ -109,7 +140,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     ],
   },
 
-  // ─── 5. Undercut Check ────────────────────────────────────────
+  // ─── 6. Undercut Check ────────────────────────────────────────
   {
     id: 'mold-undercuts',
     title: 'Undercut Check',
@@ -129,7 +160,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     ],
   },
 
-  // ─── 6. Printing, Pouring & Casting ───────────────────────────
+  // ─── 7. Printing, Pouring & Casting ───────────────────────────
   {
     id: 'mold-print-cast',
     title: 'Printing, Pouring & Casting',

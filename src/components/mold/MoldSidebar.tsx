@@ -11,15 +11,20 @@ import { generateSTL } from '@/engine/stl-export';
 import { saveSTLFile, saveDesignFile, openDesignFile } from '@/lib/image-capture';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { mergeMoldParameters } from '@/engine/mold/mold-types';
-import type { MoldMeshes } from '@/engine/mold/mold-generator';
-import type { MoldParameters, PlasterType } from '@/engine/mold/mold-types';
+import type { AnyMoldMeshes } from '@/hooks/use-mold-meshes';
+import type { MoldParameters, MoldStyle, PlasterType } from '@/engine/mold/mold-types';
 import type { VaseMesh } from '@/engine/types';
 
 type MoldNumKey = {
   [K in keyof MoldParameters]: MoldParameters[K] extends number ? K : never;
 }[keyof MoldParameters];
 
-export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: MoldMeshes; helpOpen: boolean; onToggleHelp: () => void }) {
+const MOLD_STYLE_TABS: { value: MoldStyle; label: string; tooltip: string }[] = [
+  { value: 'twoPart', label: 'Two-Piece', tooltip: 'Master + cottle printed separately — press the master into plaster poured in the cottle' },
+  { value: 'onePiece', label: 'One-Piece', tooltip: 'Single print with the vase inverted inside — pour plaster in through the open top' },
+];
+
+export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMeshes; helpOpen: boolean; onToggleHelp: () => void }) {
   const designName = useVaseStore((s) => s.designName);
   const params = useMoldStore((s) => s.params);
   const view = useMoldStore((s) => s.view);
@@ -41,12 +46,18 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: MoldMeshes
 
   const stlName = (part: string) => (designName ? `${designName} ${part}.stl` : `${part}.stl`);
 
-  const handleExportMaster = () => {
+  // Main export: the master (two-part) or the whole mold (one-piece) — both are
+  // gated by the undercut warning.
+  const doExportMain = () => {
+    if (mold.style === 'onePiece') exportMesh(mold.mold, stlName('mold'));
+    else exportMesh(mold.master, stlName('master'));
+  };
+  const handleExportMain = () => {
     if (mold.hasUndercuts) {
       setWarnExport(true);
       return;
     }
-    exportMesh(mold.master, stlName('master'));
+    doExportMain();
   };
 
   // ── Settings files (mold params only — the vase design has its own files) ──
@@ -139,6 +150,23 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: MoldMeshes
           </button>
         </div>
         <p className="text-xs text-[var(--text-secondary)]">Plaster slip-casting mold from your vase</p>
+        {/* Mold style switcher — Two-Piece (master + cottle) vs One-Piece (single pour-in print). Internal value stays 'twoPart' for settings-file compat. */}
+        <div className="flex gap-1 mt-2">
+          {MOLD_STYLE_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setParam('moldStyle', tab.value)}
+              title={tab.tooltip}
+              className={`flex-1 px-2 py-1 text-xs rounded border transition-colors ${
+                params.moldStyle === tab.value
+                  ? 'bg-[var(--accent)] text-white border-[var(--accent)] font-medium'
+                  : 'bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
         {/* Settings profile name — filled by Load/Save Settings, click to rename */}
         <div className="flex items-center gap-1 mt-0.5">
           <span className="text-xs text-[var(--text-secondary)] shrink-0">Settings File:</span>
@@ -212,30 +240,45 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: MoldMeshes
 
           {/* ── STL exports ── */}
           <div className="border-t-[3px] border-[#555] pt-2 flex gap-2">
-            <button
-              onClick={handleExportMaster}
-              className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
-              style={{ color: UI_MUTED }}
-              title="Export the master (positive) as an STL"
-            >
-              Export Master STL
-            </button>
-            <button
-              onClick={() => exportMesh(mold.cottle, stlName('cottle'))}
-              className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
-              style={{ color: UI_MUTED }}
-              title="Export the cottle (container) as an STL"
-            >
-              Export Cottle STL
-            </button>
+            {mold.style === 'twoPart' ? (
+              <>
+                <button
+                  onClick={handleExportMain}
+                  className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
+                  style={{ color: UI_MUTED }}
+                  title="Export the master (positive) as an STL"
+                >
+                  Export Master STL
+                </button>
+                <button
+                  onClick={() => exportMesh(mold.cottle, stlName('cottle'))}
+                  className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
+                  style={{ color: UI_MUTED }}
+                  title="Export the cottle (container) as an STL"
+                >
+                  Export Cottle STL
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleExportMain}
+                className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
+                style={{ color: UI_MUTED }}
+                title="Export the one-piece mold as an STL"
+              >
+                Export Mold STL
+              </button>
+            )}
           </div>
         </div>
 
         <div className="px-3 py-3">
           {/* View toggles */}
           <GroupHeader label="View" color={GROUP_COLORS.settings} />
-          <Toggle label="Master" checked={view.showMaster} onChange={(v) => setView({ showMaster: v })} />
-          <Toggle label="Cottle" checked={view.showCottle} onChange={(v) => setView({ showCottle: v })} />
+          <Toggle label={mold.style === 'onePiece' ? 'Mold' : 'Master'} checked={view.showMaster} onChange={(v) => setView({ showMaster: v })} />
+          {mold.style === 'twoPart' && (
+            <Toggle label="Cottle" checked={view.showCottle} onChange={(v) => setView({ showCottle: v })} />
+          )}
           <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} />
           <Toggle label="Cross-section" checked={view.crossSection} onChange={(v) => setView({ crossSection: v })} tooltip="Slice the assembly to reveal the plaster, well, and cavity" />
           <Toggle label="Undercuts" checked={view.showUndercuts} onChange={(v) => setView({ showUndercuts: v })} tooltip="Highlight areas (red) where the master narrows as it rises — the plaster above locks them in, so the master can't pull straight up" />
@@ -267,19 +310,25 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: MoldMeshes
             {sl('wellHeight', 'Height', 'mm', 'Height of the well wall above the vase rim')}
             {sl('wellDraftAngle', 'Draft', '°', 'Outward taper of the well wall for easy release')}
           </Section>
-          <Section title="Flange" titleColor={GROUP_COLORS.surface} defaultOpen={false}>
-            {sl('flangeWidth', 'Width', 'mm', 'Flange overhang beyond the well — should rest on the cottle rim')}
-            {sl('flangeThickness', 'Thickness', 'mm')}
-          </Section>
+          {mold.style === 'twoPart' && (
+            <Section title="Flange" titleColor={GROUP_COLORS.surface} defaultOpen={false}>
+              {sl('flangeWidth', 'Width', 'mm', 'Flange overhang beyond the well — should rest on the cottle rim')}
+              {sl('flangeThickness', 'Thickness', 'mm')}
+            </Section>
+          )}
 
           {/* Cottle */}
           <GroupHeader label="Cottle" color={GROUP_COLORS.smoothing} />
           <Section title="Cottle" titleColor={GROUP_COLORS.smoothing}>
             {sl('plasterThickness', 'Plaster', 'mm', 'Plaster thickness — gap between master and cottle wall')}
             {sl('cottleWallThickness', 'Wall', 'mm', 'Printed wall thickness of the cottle')}
-            {sl('cottleDraftAngle', 'Draft', '°', 'Cottle taper (wider at top) so the set plaster releases')}
-            <Toggle label="Air Hole" checked={params.airHoleEnabled} onChange={(v) => setParam('airHoleEnabled', v)} tooltip="Hole through the cottle floor center — lets air in behind the plaster block so suction doesn't fight you when pulling it out" />
-            {params.airHoleEnabled && sl('airHoleDiameter', 'Diameter', 'mm', 'Diameter of the air-relief hole')}
+            {sl('cottleDraftAngle', 'Draft', '°', 'Cottle taper (wider toward the opening) so the set plaster releases')}
+            {mold.style === 'twoPart' ? (
+              <Toggle label="Air Hole" checked={params.airHoleEnabled} onChange={(v) => setParam('airHoleEnabled', v)} tooltip="Hole through the cottle floor center — lets air in behind the plaster block so suction doesn't fight you when pulling it out" />
+            ) : (
+              <Toggle label="Air Holes (4)" checked={params.airHoleEnabled} onChange={(v) => setParam('airHoleEnabled', v)} tooltip="Four holes through the floor ring (tape or clay them over while pouring) — break the suction when pulling the plaster block, or inject compressed air / push rods through to eject" />
+            )}
+            {params.airHoleEnabled && sl('airHoleDiameter', 'Diameter', 'mm', mold.style === 'twoPart' ? 'Diameter of the air-relief hole' : 'Approximate size of each of the four air-relief holes')}
           </Section>
 
           {/* Analysis */}
@@ -303,10 +352,19 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: MoldMeshes
             <StatRow label="Water" value={`≈ ${fmt(est.waterGrams)} g`} />
           </Section>
           <Section title="Printer Fit" titleColor={GROUP_COLORS.settings}>
-            <StatRow label="Master max diameter" value={`${mold.masterMaxDiameter.toFixed(0)} mm`} tooltip="Diameter of the smallest circle the master fits inside — compare to your printer bed" />
-            <StatRow label="Master height" value={`${mold.masterStats.sizeZ.toFixed(0)} mm`} />
-            <StatRow label="Cottle max diameter" value={`${mold.cottleMaxDiameter.toFixed(0)} mm`} tooltip="Diameter of the smallest circle the cottle fits inside — compare to your printer bed" />
-            <StatRow label="Cottle height" value={`${mold.cottleStats.sizeZ.toFixed(0)} mm`} />
+            {mold.style === 'twoPart' ? (
+              <>
+                <StatRow label="Master max diameter" value={`${mold.masterMaxDiameter.toFixed(0)} mm`} tooltip="Diameter of the smallest circle the master fits inside — compare to your printer bed" />
+                <StatRow label="Master height" value={`${mold.masterStats.sizeZ.toFixed(0)} mm`} />
+                <StatRow label="Cottle max diameter" value={`${mold.cottleMaxDiameter.toFixed(0)} mm`} tooltip="Diameter of the smallest circle the cottle fits inside — compare to your printer bed" />
+                <StatRow label="Cottle height" value={`${mold.cottleStats.sizeZ.toFixed(0)} mm`} />
+              </>
+            ) : (
+              <>
+                <StatRow label="Mold max diameter" value={`${mold.moldMaxDiameter.toFixed(0)} mm`} tooltip="Diameter of the smallest circle the mold fits inside — compare to your printer bed" />
+                <StatRow label="Mold height" value={`${mold.moldStats.sizeZ.toFixed(0)} mm`} />
+              </>
+            )}
           </Section>
 
           <button
@@ -325,11 +383,13 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: MoldMeshes
           <div className="bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg p-5 max-w-sm mx-4 shadow-xl">
             <p className="text-sm text-[var(--text-primary)] mb-2 font-medium">Undercuts detected</p>
             <p className="text-xs text-[var(--text-secondary)] mb-4">
-              In the areas shown in red, the master gets narrower as it rises, so the plaster above locks it in — it won&apos;t pull straight up out of the mold. Export anyway?
+              {mold.style === 'onePiece'
+                ? <>In the areas shown in red, the vase narrows toward its own top, so the set plaster locks around it — the plaster block won&apos;t pull out of the mold. Export anyway?</>
+                : <>In the areas shown in red, the master gets narrower as it rises, so the plaster above locks it in — it won&apos;t pull straight up out of the mold. Export anyway?</>}
             </p>
             <div className="flex gap-2">
               <button
-                onClick={() => { setWarnExport(false); exportMesh(mold.master, stlName('master')); }}
+                onClick={() => { setWarnExport(false); doExportMain(); }}
                 className="flex-1 px-3 py-1.5 text-xs bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded transition-colors"
               >
                 Export Anyway

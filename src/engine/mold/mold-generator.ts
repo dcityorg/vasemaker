@@ -21,7 +21,7 @@ import { buildLid } from './lid';
 import { computeUndercutFlags } from './undercut';
 import type { MoldParameters } from './mold-types';
 
-const tanDeg = (deg: number) => Math.tan((deg * Math.PI) / 180);
+export const tanDeg = (deg: number) => Math.tan((deg * Math.PI) / 180);
 
 /** The cottle interior floor is never narrower than this radius (40mm diameter) so the plaster block always has a flat base to stand on. */
 const MIN_FLOOR_RADIUS = 20;
@@ -59,7 +59,7 @@ function clampRingMinRadius(ring: Ring, cx: number, cy: number, minR: number, rR
  * The last returned ring is the foot inner edge at z = 0; the caller appends
  * the base ring itself (delta 0) to close the foot annulus.
  */
-function buildFootRings(baseRing: Ring, cx: number, cy: number, rRes: number, w1: number, w2: number, h: number, stepH: number): Ring[] {
+export function buildFootRings(baseRing: Ring, cx: number, cy: number, rRes: number, w1: number, w2: number, h: number, stepH: number): Ring[] {
   if (h <= 0 || w2 <= 0) return [];
   const avail = minRingRadius(baseRing, cx, cy, rRes) - 0.5;
   if (avail <= 0.2) return [];
@@ -93,7 +93,7 @@ function buildFootRings(baseRing: Ring, cx: number, cy: number, rRes: number, w1
  * (their body never reaches the ledge radius inside the window).
  * Mutates `rings` in place.
  */
-function fuseCollarIntoBody(rings: Ring[], heights: number[], tcx: number, tcy: number, rRes: number, ledgeRing: Ring, hTop: number, fuseWindow: number): void {
+export function fuseCollarIntoBody(rings: Ring[], heights: number[], tcx: number, tcy: number, rRes: number, ledgeRing: Ring, hTop: number, fuseWindow: number): void {
   const top = rings.length - 1;
   for (let t = 0; t < rRes; t++) {
     const W0 = Math.hypot(ledgeRing[t * 3] - tcx, ledgeRing[t * 3 + 1] - tcy);
@@ -124,7 +124,7 @@ function fuseCollarIntoBody(rings: Ring[], heights: number[], tcx: number, tcy: 
  * normal keeps full `wt` thickness there by dropping the cavity downward.
  * The tangent uses rows v±2 (clamped) to smooth texture-frequency wiggle.
  */
-function buildCavityRings(rings: Ring[], centers: [number, number][], rRes: number, vFrom: number, vTo: number, wt: number): Ring[] {
+export function buildCavityRings(rings: Ring[], centers: [number, number][], rRes: number, vFrom: number, vTo: number, wt: number): Ring[] {
   const top = rings.length - 1;
   const out: Ring[] = [];
   for (let v = vFrom; v <= vTo; v++) {
@@ -157,7 +157,7 @@ function buildCavityRings(rings: Ring[], centers: [number, number][], rRes: numb
 }
 
 /** Widest horizontal extent of a mesh — diameter of the enclosing circle about the XY bounding-box center. */
-function maxDiameterXY(mesh: VaseMesh): number {
+export function maxDiameterXY(mesh: VaseMesh): number {
   const p = mesh.positions;
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (let i = 0; i < mesh.vertexCount; i++) {
@@ -176,6 +176,8 @@ function maxDiameterXY(mesh: VaseMesh): number {
 }
 
 export interface MoldMeshes {
+  /** Discriminant for the AnyMoldMeshes union (one-piece style has its own shape). */
+  style: 'twoPart';
   master: VaseMesh;
   cottle: VaseMesh;
   plaster: VaseMesh;
@@ -200,7 +202,7 @@ export interface MoldMeshes {
 }
 
 /** Deep-clone a vase design and apply mold-specific adjustments (shrink scale, texture strip). */
-function prepareVaseParams(vase: VaseParameters, scale: number, keepTexture: boolean): VaseParameters {
+export function prepareVaseParams(vase: VaseParameters, scale: number, keepTexture: boolean): VaseParameters {
   const p: VaseParameters = JSON.parse(JSON.stringify(vase));
   p.radius *= scale;
   p.height *= scale;
@@ -222,7 +224,7 @@ function prepareVaseParams(vase: VaseParameters, scale: number, keepTexture: boo
 /** Build the outer-surface ring stack (bottom → top) for a set of vase params.
  * Also returns `smoothBase`: the bottom ring with textures suppressed (used for
  * the foot recess's "smooth inside" option). */
-function buildOuterRings(p: VaseParameters, texturesEnabled: boolean): { rings: Ring[]; centers: [number, number][]; heights: number[]; smoothBase: Ring } {
+export function buildOuterRings(p: VaseParameters, texturesEnabled: boolean): { rings: Ring[]; centers: [number, number][]; heights: number[]; smoothBase: Ring } {
   const vRes = p.resolution.vertical;
   const rRes = p.resolution.radial;
   const { simplexPerm, woodGrainPerm } = precomputeTextureTables(p, texturesEnabled);
@@ -251,7 +253,7 @@ function buildOuterRings(p: VaseParameters, texturesEnabled: boolean): { rings: 
 }
 
 /** A capped solid (surface + bottom disc + top disc) for volume computation only. */
-function buildCappedSolid(rings: Ring[], rRes: number): VaseMesh {
+export function buildCappedSolid(rings: Ring[], rRes: number): VaseMesh {
   // Reuse buildRevolvedShell with a degenerate inner stack collapsed to the axis
   // would double-count; instead build a minimal capped tube here.
   const n = rings.length;
@@ -491,6 +493,7 @@ export function generateMoldMeshes(vase: VaseParameters, mold: MoldParameters): 
   const plasterVolumeMm3 = Math.max(0, cottleInteriorVol - masterEnvelopeVol);
 
   return {
+    style: 'twoPart',
     master,
     cottle,
     plaster,

@@ -9,7 +9,19 @@
 /** Plaster material used for the powder/water weight estimate. */
 export type PlasterType = 'pottery' | 'hydrocal' | 'hydrostone';
 
+/**
+ * Which mold construction to generate:
+ * - 'twoPart'  — master + cottle printed separately; master is pressed down into
+ *   plaster poured in the cottle (the original MoldMaker).
+ * - 'onePiece' — a single print with the vase inverted in the center, fused to
+ *   the cottle at the well; plaster is poured in through the open top.
+ */
+export type MoldStyle = 'twoPart' | 'onePiece';
+
 export interface MoldParameters {
+  /** Mold construction style — see MoldStyle. */
+  moldStyle: MoldStyle;
+
   /** Clay slip shrinkage compensation, as a percent. Master is scaled by 1 + shrinkPercent/100. */
   shrinkPercent: number;
 
@@ -82,6 +94,8 @@ export function mergeMoldParameters(loaded: unknown): MoldParameters {
       const v = src[key];
       if (key === 'material') {
         if (v === 'pottery' || v === 'hydrocal' || v === 'hydrostone') out.material = v;
+      } else if (key === 'moldStyle') {
+        if (v === 'twoPart' || v === 'onePiece') out.moldStyle = v;
       } else if (typeof v === typeof DEFAULT_MOLD_PARAMETERS[key]) {
         (out as unknown as Record<string, unknown>)[key] = v;
       }
@@ -91,12 +105,13 @@ export function mergeMoldParameters(loaded: unknown): MoldParameters {
 }
 
 export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
+  moldStyle: 'twoPart',
   shrinkPercent: 12,
   masterWallThickness: 3,
   keepTexture: true,
 
   wellWidth: 12,
-  wellHeight: 12,
+  wellHeight: 15,
   wellDraftAngle: 3,
 
   flangeWidth: 30,
