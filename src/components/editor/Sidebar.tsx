@@ -177,6 +177,13 @@ export function Sidebar({
           >
             Mold ▸
           </Link>
+          <Link
+            href="/handle"
+            className="text-xs px-2 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
+            title="Design a handle and its plaster casting mold"
+          >
+            Handle ▸
+          </Link>
           <button
             onClick={doUndo}
             disabled={!canUndo}

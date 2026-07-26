@@ -1,0 +1,413 @@
+/**
+ * Handle-mold part geometry — the bottom plate (parting template) and the side
+ * wall (one design, printed twice, 180°-rotationally symmetric).
+ *
+ * Assembly coordinates: plate top = z 0, master mid-plane = z −seatDepth,
+ * well openings face −x (the "well side" wall). The two cone centers sit at
+ * y = 0 and y = H, so the box is centered on y = H/2 — that symmetry is what
+ * lets one wall design serve both positions.
+ *
+ * Each part is a set of closed outward-wound solids merged into one mesh;
+ * added features (V-ridge, domes, tabs, collars, flange) overlap their host by
+ * 0.2–0.3 mm so slicers union them reliably (never coplanar-touching).
+ */
+
+import {
+  MeshBuilder,
+  ensureOutward,
+  extrudeSolid,
+  boxSolid,
+  triangulateFace,
+  circlePoints,
+  rectPoints,
+  ensureCCW,
+  MAP_YZ_X,
+  type P2,
+} from './mesh3';
+import { mergeMeshes } from '../mold/ring-mesh';
+import type { VaseMesh } from '../types';
+
+const EMBED = 0.2;      // feature-into-host overlap for reliable slicer union
+const TAB_LIP = 0.3;    // seam-tab overlap into its own wall panel
+const TAB_T = 4;        // seam tab thickness (mm)
+const FLANGE_T = 3;     // clip flange / tab-web thickness (mm)
+const COLLAR_BAND = 4;  // collar material beyond the well opening radius (mm)
+const SEAL_CLR = 0.25;  // collar D-hole clearance around the cone (mm)
+const DOME_SEG = 32;
+const DOME_RINGS = 8;
+
+/** Box/plate layout computed once by the generator and shared by all parts. */
+export interface MoldLayout {
+  cavX0: number; cavX1: number; cavY0: number; cavY1: number;
+  /** Box y center (= cone midpoint = H/2). */
+  yc: number;
+  px0: number; px1: number; py0: number; py1: number;
+  seat: number;
+  pocketDepth: number;
+  plateThk: number;
+  wallH: number;
+  wt: number;
+  vw: number; vh: number; vclr: number;
+  flangeW: number;
+  domeR: number; domeH: number;
+  /** Well opening radius + cone y centers (0 and H). */
+  openR: number; coneYA: number; coneYB: number;
+  sealDepth: number;
+}
+
+// ── Bottom plate ──────────────────────────────────────────────────────────────
+
+/** Custom slab: plate rect with the pocket hole through it and the recessed
+ * registration dimple carved into the top face. z from zBot to 0. */
+function buildTopSlab(layout: MoldLayout, pocketLoop: P2[], dimpleC: P2, zBot: number): VaseMesh {
+  const b = new MeshBuilder();
+  const outer = ensureCCW(rectPoints(layout.px0, layout.py0, layout.px1, layout.py1));
+  const pocket = pocketLoop.slice();
+  const dimple = circlePoints(dimpleC[0], dimpleC[1], layout.domeR, DOME_SEG);
+
+  // Side walls (outer rect CCW + pocket hole CW, full depth)
+  const pocketCW = sgn(pocket) <= 0 ? pocket : pocket.slice().reverse();
+  for (const oriented of [outer, pocketCW]) {
+    const bot = oriented.map(([x, y]) => b.vertex(x, y, zBot));
+    const top = oriented.map(([x, y]) => b.vertex(x, y, 0));
+    for (let i = 0; i < oriented.length; i++) {
+      const j = (i + 1) % oriented.length;
+      b.quad(bot[i], bot[j], top[j], top[i]);
+    }
+  }
+
+  // Top cap (holes: pocket + dimple circle), bottom cap (hole: pocket)
+  const topFace = triangulateFace(outer, [pocket, dimple]);
+  const topIdx = topFace.points.map(([x, y]) => b.vertex(x, y, 0));
+  for (const [i, j, k] of topFace.tris) b.tri(topIdx[i], topIdx[j], topIdx[k]);
+
+  const botFace = triangulateFace(outer, [pocket]);
+  const botIdx = botFace.points.map(([x, y]) => b.vertex(x, y, zBot));
+  for (const [i, j, k] of botFace.tris) b.tri(botIdx[i], botIdx[k], botIdx[j]);
+
+  // Dimple: inverted spherical cap descending from the rim circle
+  const a = layout.domeR;
+  const h = layout.domeH;
+  const R = (a * a + h * h) / (2 * h);
+  const phiMax = Math.asin(Math.min(1, a / R));
+  const zc = R - h; // sphere center height
+  const rings: number[][] = [];
+  for (let j = 0; j < DOME_RINGS; j++) {
+    const phi = phiMax * (1 - j / DOME_RINGS);
+    const r = R * Math.sin(phi);
+    const z = zc - R * Math.cos(phi);
+    const ring: number[] = [];
+    for (let k = 0; k < DOME_SEG; k++) {
+      const th = (k / DOME_SEG) * Math.PI * 2;
+      ring.push(b.vertex(dimpleC[0] + r * Math.cos(th), dimpleC[1] + r * Math.sin(th), z));
+    }
+    rings.push(ring);
+  }
+  for (let j = 0; j < rings.length - 1; j++) {
+    for (let k = 0; k < DOME_SEG; k++) {
+      const kn = (k + 1) % DOME_SEG;
+      b.quad(rings[j][k], rings[j][kn], rings[j + 1][kn], rings[j + 1][k]);
+    }
+  }
+  const bottom = b.vertex(dimpleC[0], dimpleC[1], -h);
+  const lastRing = rings[rings.length - 1];
+  for (let k = 0; k < DOME_SEG; k++) {
+    const kn = (k + 1) % DOME_SEG;
+    b.tri(bottom, lastRing[k], lastRing[kn]);
+  }
+
+  return b.build();
+}
+
+function sgn(loop: P2[]): number {
+  let s = 0;
+  for (let i = 0; i < loop.length; i++) {
+    const [x1, y1] = loop[i];
+    const [x2, y2] = loop[(i + 1) % loop.length];
+    s += x1 * y2 - x2 * y1;
+  }
+  return s;
+}
+
+/** Proud registration dome: base disc (embedded), short cylinder, spherical cap. */
+function buildDome(cx: number, cy: number, a: number, h: number): VaseMesh {
+  const b = new MeshBuilder();
+  const R = (a * a + h * h) / (2 * h);
+  const phiMax = Math.asin(Math.min(1, a / R));
+  const zc = h - R; // sphere center (below the top)
+  const rings: number[][] = [];
+  const pushRing = (r: number, z: number) => {
+    const ring: number[] = [];
+    for (let k = 0; k < DOME_SEG; k++) {
+      const th = (k / DOME_SEG) * Math.PI * 2;
+      ring.push(b.vertex(cx + r * Math.cos(th), cy + r * Math.sin(th), z));
+    }
+    rings.push(ring);
+  };
+  pushRing(a, -EMBED);
+  pushRing(a, 0);
+  for (let j = 1; j < DOME_RINGS; j++) {
+    const phi = phiMax * (1 - j / DOME_RINGS);
+    pushRing(R * Math.sin(phi), zc + R * Math.cos(phi));
+  }
+  for (let j = 0; j < rings.length - 1; j++) {
+    for (let k = 0; k < DOME_SEG; k++) {
+      const kn = (k + 1) % DOME_SEG;
+      b.quad(rings[j][k], rings[j][kn], rings[j + 1][kn], rings[j + 1][k]);
+    }
+  }
+  const top = b.vertex(cx, cy, h);
+  const last = rings[rings.length - 1];
+  const base = b.vertex(cx, cy, -EMBED);
+  for (let k = 0; k < DOME_SEG; k++) {
+    const kn = (k + 1) % DOME_SEG;
+    b.tri(top, last[k], last[kn]);
+    b.tri(base, rings[0][kn], rings[0][k]);
+  }
+  return ensureOutward(b.build());
+}
+
+/** Closed-rect sweep (mitered corners) of a closed (u,z) cross-section — used
+ * for the plate's V-ridge loop. u+ = outward from the rect. */
+function sweepRectLoop(x0: number, y0: number, x1: number, y1: number, cs: P2[]): VaseMesh {
+  const b = new MeshBuilder();
+  // Corner stations, CCW; outward miter dir is the corner diagonal, scale √2
+  const corners: { px: number; py: number; mx: number; my: number }[] = [
+    { px: x0, py: y0, mx: -Math.SQRT1_2, my: -Math.SQRT1_2 },
+    { px: x1, py: y0, mx: Math.SQRT1_2, my: -Math.SQRT1_2 },
+    { px: x1, py: y1, mx: Math.SQRT1_2, my: Math.SQRT1_2 },
+    { px: x0, py: y1, mx: -Math.SQRT1_2, my: Math.SQRT1_2 },
+  ];
+  const scale = Math.SQRT2;
+  const stations = corners.map((c) =>
+    cs.map(([u, z]) => b.vertex(c.px + c.mx * u * scale, c.py + c.my * u * scale, z))
+  );
+  const n = corners.length;
+  for (let k = 0; k < n; k++) {
+    const kn = (k + 1) % n;
+    for (let j = 0; j < cs.length; j++) {
+      const jn = (j + 1) % cs.length;
+      b.quad(stations[k][j], stations[k][jn], stations[kn][jn], stations[kn][j]);
+    }
+  }
+  return ensureOutward(b.build());
+}
+
+/**
+ * Bottom plate: base slab + top slab (pocket + dimple) + V-ridge loop + proud
+ * dome. Registration pair: dome near cavY1, dimple near cavY0.
+ */
+export function buildPlate(layout: MoldLayout, pocketLoop: P2[], margin: number): VaseMesh {
+  const { px0, py0, px1, py1, plateThk, pocketDepth } = layout;
+  const xd = (layout.cavX0 + layout.cavX1) / 2;
+  const domeC: P2 = [xd, layout.cavY1 - margin / 2];
+  const dimpleC: P2 = [xd, layout.cavY0 + margin / 2];
+
+  const base = boxSolid(px0, py0, px1, py1, -plateThk, -pocketDepth);
+  const top = buildTopSlab(layout, pocketLoop, dimpleC, -pocketDepth - EMBED);
+
+  // V-ridge loop on the wall centerline rect
+  const rx0 = layout.cavX0 - layout.wt / 2;
+  const rx1 = layout.cavX1 + layout.wt / 2;
+  const ry0 = layout.cavY0 - layout.wt / 2;
+  const ry1 = layout.cavY1 + layout.wt / 2;
+  const ridgeCs: P2[] = [
+    [-layout.vw / 2, -EMBED],
+    [layout.vw / 2, -EMBED],
+    [0, layout.vh],
+  ];
+  const ridge = sweepRectLoop(rx0, ry0, rx1, ry1, ridgeCs);
+
+  const dome = buildDome(domeC[0], domeC[1], layout.domeR, layout.domeH);
+
+  return mergeMeshes([base, top, ridge, dome]);
+}
+
+// ── Side wall ─────────────────────────────────────────────────────────────────
+
+interface SweepStation {
+  px: number;
+  py: number;
+  mx: number;
+  my: number;
+  scale: number;
+}
+
+/** Open-path sweep with mitered corners + triangulated end caps. */
+function sweepOpenPath(path: P2[], outward: P2[], cs: P2[]): VaseMesh {
+  const b = new MeshBuilder();
+  const n = path.length;
+  const stations: SweepStation[] = [];
+  for (let k = 0; k < n; k++) {
+    let mx: number, my: number, scale: number;
+    if (k === 0) {
+      [mx, my] = outward[0];
+      scale = 1;
+    } else if (k === n - 1) {
+      [mx, my] = outward[n - 2];
+      scale = 1;
+    } else {
+      const [ax, ay] = outward[k - 1];
+      const [bx2, by2] = outward[k];
+      let sx = ax + bx2, sy = ay + by2;
+      const len = Math.hypot(sx, sy) || 1;
+      sx /= len;
+      sy /= len;
+      mx = sx;
+      my = sy;
+      scale = 1 / Math.max(0.2, sx * bx2 + sy * by2);
+    }
+    stations.push({ px: path[k][0], py: path[k][1], mx, my, scale });
+  }
+
+  const loop = ensureCCW(cs);
+  const verts = stations.map((s) =>
+    loop.map(([u, z]) => b.vertex(s.px + s.mx * u * s.scale, s.py + s.my * u * s.scale, z))
+  );
+  for (let k = 0; k < n - 1; k++) {
+    for (let j = 0; j < loop.length; j++) {
+      const jn = (j + 1) % loop.length;
+      b.quad(verts[k][j], verts[k][jn], verts[k + 1][jn], verts[k + 1][j]);
+    }
+  }
+
+  // End caps
+  const face = triangulateFace(loop, []);
+  const cap = (s: SweepStation, flip: boolean) => {
+    const idx = face.points.map(([u, z]) => b.vertex(s.px + s.mx * u * s.scale, s.py + s.my * u * s.scale, z));
+    for (const [i, j, k] of face.tris) {
+      if (flip) b.tri(idx[i], idx[k], idx[j]);
+      else b.tri(idx[i], idx[j], idx[k]);
+    }
+  };
+  cap(stations[0], true);
+  cap(stations[n - 1], false);
+
+  return ensureOutward(b.build());
+}
+
+/** Collar around a well opening: 1 mm-proud face frame with a D-shaped bite
+ * that the cone's last millimeter nests into (labyrinth seal, zero cutting).
+ * Extruded along x from xFace−EMBED (into the panel) to xFace+sealDepth·dir. */
+function buildCollar(layout: MoldLayout, coneY: number, xFace: number, dir: 1 | -1): VaseMesh {
+  const Rc = layout.openR + SEAL_CLR;
+  const seat = layout.seat;
+  const zTop = Math.min(Rc + COLLAR_BAND, layout.wallH);
+  const yL = coneY - (Rc + COLLAR_BAND);
+  const yR = coneY + (Rc + COLLAR_BAND);
+  const poly: P2[] = [];
+  poly.push([yL, 0]);
+  if (seat < Rc - 0.1) {
+    const dy = Math.sqrt(Rc * Rc - seat * seat);
+    poly.push([coneY - dy, 0]);
+    // Arc over the top of the cone circle (center at z = −seat)
+    const aL = Math.PI - Math.asin(seat / Rc);
+    const aR = Math.asin(seat / Rc);
+    const steps = 24;
+    for (let i = 0; i <= steps; i++) {
+      const a = aL + (aR - aL) * (i / steps);
+      poly.push([coneY + Rc * Math.cos(a), -seat + Rc * Math.sin(a)]);
+    }
+    poly.push([coneY + dy, 0]);
+  }
+  poly.push([yR, 0]);
+  poly.push([yR, zTop]);
+  poly.push([yL, zTop]);
+  const x0 = dir === 1 ? xFace - EMBED : xFace - layout.sealDepth;
+  const x1 = dir === 1 ? xFace + layout.sealDepth : xFace + EMBED;
+  return extrudeSolid(poly, [], x0, x1, MAP_YZ_X);
+}
+
+/**
+ * Side wall — ONE design, printed twice. Covers the lower half of the well
+ * side + the full y0 side + the lower half of the far side. The second copy is
+ * the same part rotated 180° about the box center. Seam tabs: V-ridge tab at
+ * the well-side end, V-groove tab at the far-side end, so each copy's ridge
+ * mates with the other's groove. Collars are built at BOTH y≈0 segments (well
+ * + far): the far one is vestigial on this copy but becomes the second cone's
+ * collar after rotation.
+ */
+export function buildWall(layout: MoldLayout): VaseMesh {
+  const { cavX0, cavX1, cavY0, yc, wt, wallH, vclr, vw, vh, flangeW } = layout;
+  const gW = Math.min(vw / 2 + vclr, wt / 2 - 0.3);
+  const gH = vh + vclr;
+
+  const cx0 = cavX0 - wt / 2;
+  const cx1 = cavX1 + wt / 2;
+  const cy0 = cavY0 - wt / 2;
+
+  // Main body: panel + bottom V-groove, no flange (flange is a separate sweep
+  // that stops short of the seams so the mating tabs have room).
+  const bodyCs: P2[] = [
+    [-wt / 2, wallH],
+    [-wt / 2, 0],
+    [-gW, 0],
+    [0, gH],
+    [gW, 0],
+    [wt / 2, 0],
+    [wt / 2, wallH],
+  ];
+  const path: P2[] = [
+    [cx0, yc],
+    [cx0, cy0],
+    [cx1, cy0],
+    [cx1, yc],
+  ];
+  const outward: P2[] = [
+    [-1, 0],
+    [0, -1],
+    [1, 0],
+  ];
+  const body = sweepOpenPath(path, outward, bodyCs);
+
+  // Clip flange (bottom, outward), trimmed clear of both seam tabs
+  const flangeCs: P2[] = [
+    [wt / 2 - TAB_LIP, 0],
+    [wt / 2 + flangeW, 0],
+    [wt / 2 + flangeW, FLANGE_T],
+    [wt / 2 - TAB_LIP, FLANGE_T],
+  ];
+  const trim = TAB_T + 2;
+  const flangePath: P2[] = [
+    [cx0, yc - trim],
+    [cx0, cy0],
+    [cx1, cy0],
+    [cx1, yc - trim],
+  ];
+  const flange = sweepOpenPath(flangePath, outward, flangeCs);
+
+  // Seam tabs (vertical extrusions, z 0..wallH). Well-side tab carries the
+  // V-ridge on the seam plane (y = yc); far-side tab carries the V-groove.
+  const bx1 = cavX0 - wt;
+  const bx0 = bx1 - flangeW;
+  const xm = (bx0 + bx1) / 2;
+  const ridgeTab: P2[] = [
+    [bx0, yc - TAB_T],
+    [bx1 + TAB_LIP, yc - TAB_T],
+    [bx1 + TAB_LIP, yc],
+    [xm + vw / 2, yc],
+    [xm, yc + vh],
+    [xm - vw / 2, yc],
+    [bx0, yc],
+  ];
+  const fx0 = cavX1 + wt;
+  const fx1 = fx0 + flangeW;
+  const xm2 = (fx0 + fx1) / 2;
+  const grooveTab: P2[] = [
+    [fx0 - TAB_LIP, yc - TAB_T],
+    [fx1, yc - TAB_T],
+    [fx1, yc],
+    [xm2 + gW, yc],
+    [xm2, yc - gH],
+    [xm2 - gW, yc],
+    [fx0 - TAB_LIP, yc],
+  ];
+  const tabA = extrudeSolid(ridgeTab, [], 0, wallH);
+  const tabB = extrudeSolid(grooveTab, [], 0, wallH);
+
+  // Collars at both y≈0 segments (see doc comment)
+  const collarWell = buildCollar(layout, layout.coneYA, cavX0, 1);
+  const collarFar = buildCollar(layout, layout.coneYA, cavX1, -1);
+
+  return mergeMeshes([body, flange, tabA, tabB, collarWell, collarFar]);
+}
