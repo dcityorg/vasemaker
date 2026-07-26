@@ -11,12 +11,15 @@ export type PlasterType = 'pottery' | 'hydrocal' | 'hydrostone';
 
 /**
  * Which mold construction to generate:
- * - 'twoPart'  — master + cottle printed separately; master is pressed down into
- *   plaster poured in the cottle (the original MoldMaker).
- * - 'onePiece' — a single print with the vase inverted in the center, fused to
- *   the cottle at the well; plaster is poured in through the open top.
+ * - 'twoPart'      — "Press 2-Pc": master + cottle printed separately; master is
+ *   pressed down into plaster poured in the cottle (the original MoldMaker).
+ * - 'onePiece'     — "Pour 1-Pc": a single print with the vase inverted in the
+ *   center, fused to the cottle at the well; plaster poured in the open top.
+ * - 'pourTwoPiece' — "Pour 2-Pc": the one-piece split into a center piece
+ *   (vase + well + notched foot flange) and a removable outer shell that
+ *   binder-clips to it; plaster poured in the open top, shell lifts off first.
  */
-export type MoldStyle = 'twoPart' | 'onePiece';
+export type MoldStyle = 'twoPart' | 'onePiece' | 'pourTwoPiece';
 
 export interface MoldParameters {
   /** Mold construction style — see MoldStyle. */
@@ -75,6 +78,24 @@ export interface MoldParameters {
   /** Diameter of the air-relief hole (mm). */
   airHoleDiameter: number;
 
+  // ── Foot flange (Pour 2-Pc only: where center and shell clip together) ──
+  /** How far both flanges extend beyond the shell wall's outer face (mm). */
+  flangeOverlap: number;
+  /** Thickness of EACH flange — center foot and shell flange (mm). */
+  footFlangeThickness: number;
+  /** Height of the two plaster-trap notch rings on the center flange (mm). */
+  notchHeight: number;
+  /** Width of each notch ring (mm). */
+  notchWidth: number;
+  /** Groove oversize around each notch so the shell seats (mm). */
+  notchClearance: number;
+  /** How far the center flange extends past the shell flange — an exposed lip
+   * to press the center down while pulling the shell up (mm). */
+  flangeLip: number;
+  /** Empty shell wall above the plaster fill line — the rim you grab to pull
+   * the shell off (mm). */
+  shellGrabHeight: number;
+
   // ── Analysis ──
   /** Plaster material for the weight estimate. */
   material: PlasterType;
@@ -95,7 +116,7 @@ export function mergeMoldParameters(loaded: unknown): MoldParameters {
       if (key === 'material') {
         if (v === 'pottery' || v === 'hydrocal' || v === 'hydrostone') out.material = v;
       } else if (key === 'moldStyle') {
-        if (v === 'twoPart' || v === 'onePiece') out.moldStyle = v;
+        if (v === 'twoPart' || v === 'onePiece' || v === 'pourTwoPiece') out.moldStyle = v;
       } else if (typeof v === typeof DEFAULT_MOLD_PARAMETERS[key]) {
         (out as unknown as Record<string, unknown>)[key] = v;
       }
@@ -128,9 +149,17 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
 
   plasterThickness: 20,
   cottleWallThickness: 3,
-  cottleDraftAngle: 3,
+  cottleDraftAngle: 4,
   airHoleEnabled: true,
   airHoleDiameter: 4,
+
+  flangeOverlap: 10,
+  footFlangeThickness: 2,
+  notchHeight: 1,
+  notchWidth: 1.5,
+  notchClearance: 0.2,
+  flangeLip: 3,
+  shellGrabHeight: 10,
 
   material: 'pottery',
 };

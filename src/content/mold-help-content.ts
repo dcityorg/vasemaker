@@ -64,9 +64,9 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
   // ─── 3. One-Piece Mold ────────────────────────────────────────
   {
     id: 'mold-one-piece',
-    title: 'One-Piece Mold',
+    title: 'Pour 1-Pc Mold',
     blocks: [
-      { type: 'paragraph', text: 'The Two-Piece / One-Piece tabs at the top of the sidebar switch between two ways of building the same plaster mold. One-Piece replaces the master and cottle with a SINGLE print: the vase sits upside-down in the center, fused to the cottle at the well, and you pour plaster in through the fully open top. The plaster fills the gap around the vase and covers its bottom, forming the solid base of the mold. Released and flipped over, it\'s the identical finished mold — cavity, well funnel, razor edge, and foot boss.' },
+      { type: 'paragraph', text: 'The Press 2-Pc / Pour 1-Pc / Pour 2-Pc tabs at the top of the sidebar switch between three ways of building the same plaster mold. Pour 1-Pc replaces the master and cottle with a SINGLE print: the vase sits upside-down in the center, fused to the cottle at the well, and you pour plaster in through the fully open top. The plaster fills the gap around the vase and covers its bottom, forming the solid base of the mold. Released and flipped over, it\'s the identical finished mold — cavity, well funnel, razor edge, and foot boss.' },
       { type: 'heading', text: 'Why choose it' },
       { type: 'list', items: [
         'One print instead of two — no lid, flange, or pour slots',
@@ -88,11 +88,39 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
         'Pull the block straight up and out of the open top — everything (vase, well, foot boss, cottle) releases with that one motion',
         'If it fights you: more cottle draft, more release agent, compressed air through the floor holes, or push rods through them',
       ] },
-      { type: 'tip', text: 'This style is newer and less battle-tested than Two-Piece — the single pull has a lot of surface area to unstick at once. Be generous with mold release on the first try.' },
+      { type: 'tip', text: 'The single pull has a lot of surface area to unstick at once. If that worries you, use Pour 2-Pc — same pour, but the outer shell unclips and lifts off first, so release is much easier.' },
     ],
   },
 
-  // ─── 4. Master Settings ───────────────────────────────────────
+  // ─── 4. Pour Two-Piece Mold ───────────────────────────────────
+  {
+    id: 'mold-pour-two-piece',
+    title: 'Pour 2-Pc Mold',
+    blocks: [
+      { type: 'paragraph', text: 'Pour 2-Pc is the pour mold split into two prints that binder-clip together: a CENTER piece (the upside-down vase and well, whose floor spreads out into a flat foot flange) and a removable outer SHELL (an open-topped wall with a matching flange). You pour the same way — plaster in the open top — but at release time the shell unclips and lifts off first, leaving the plaster block standing free on the center. Only the center form is left to release, which makes this the easiest-releasing style.' },
+      { type: 'heading', text: 'The foot flange' },
+      { type: 'list', items: [
+        'Both flanges are 2 mm thick by default and overlap 10 mm beyond the shell wall — that overlap is where the binder clips grab',
+        'Two raised notch rings on the center flange nest into grooves in the shell flange. Plaster trying to leak under the shell wall has to climb over both rings — a labyrinth seal',
+        'The clips clamp directly over the notches, pressing the seal closed. Clip all the way around the flange',
+        'Notch Fit sets the groove oversize — if the shell won\'t seat, increase it; if plaster seeps, decrease it',
+        'The center flange sticks out a few millimeters past the shell flange (Center Lip): press down on that exposed rim while you pull the shell up, so the center stays put',
+      ] },
+      { type: 'heading', text: 'The shell' },
+      { type: 'paragraph', text: 'Unlike the other styles, the shell\'s Draft tapers INWARD going up: the plaster block is slightly narrower at the top than the bottom, so the shell slides up and off without a fight. It also saves some plaster. The shell still follows your vase\'s cross-section shape.' },
+      { type: 'paragraph', text: 'The wall runs an extra Grab Height (10 mm default) above the plaster fill line — an empty rim to grab when pulling the shell off. Fill to the line (plaster thickness above the vase bottom), NOT to the brim: the Plaster view shows the intended level.' },
+      { type: 'heading', text: 'Workflow' },
+      { type: 'list', items: [
+        'Print the center (supports under the hollow interior, like Pour 1-Pc) and the shell (prints flange-down, no supports)',
+        'Seat the shell\'s grooves onto the center\'s notch rings and binder-clip the flanges all around',
+        'Tape or clay over the four round air holes, apply mold release, and pour to the fill line (Grab Height below the brim)',
+        'When set: unclip, lift the shell straight up and off, then release the center (ice-cold water in the hollow interior, air or push rods through the floor holes)',
+      ] },
+      { type: 'tip', text: 'The shell is reusable: re-clip it for every re-pour of this design. If you tweak only the vase profile but keep the footprint, the old shell may still fit — compare the Shell numbers in Printer Fit.' },
+    ],
+  },
+
+  // ─── 5. Master Settings ───────────────────────────────────────
   {
     id: 'mold-master-settings',
     title: 'Master Settings',
@@ -114,7 +142,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     ],
   },
 
-  // ─── 5. Well, Flange & Cottle Settings ────────────────────────
+  // ─── 6. Well, Flange & Cottle Settings ────────────────────────
   {
     id: 'mold-well-cottle',
     title: 'Well, Flange & Cottle',
@@ -140,7 +168,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     ],
   },
 
-  // ─── 6. Undercut Check ────────────────────────────────────────
+  // ─── 7. Undercut Check ────────────────────────────────────────
   {
     id: 'mold-undercuts',
     title: 'Undercut Check',
@@ -160,7 +188,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     ],
   },
 
-  // ─── 7. Printing, Pouring & Casting ───────────────────────────
+  // ─── 8. Printing, Pouring & Casting ───────────────────────────
   {
     id: 'mold-print-cast',
     title: 'Printing, Pouring & Casting',

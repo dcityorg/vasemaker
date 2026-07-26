@@ -89,11 +89,12 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
   const clipPlanes = useMemo(() => [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)], []);
   const clip = view.crossSection ? clipPlanes : null;
 
-  // In one-piece mode the single printed part takes the master's slot (same
-  // color + undercut tint); the cottle slot is empty.
-  const mainMesh = mold.style === 'twoPart' ? mold.master : mold.mold;
+  // The master slot renders whichever part carries the vase form (master /
+  // one-piece mold / pour-2pc center) with the undercut tint; the cottle slot
+  // renders the container part (cottle / — / shell).
+  const mainMesh = mold.style === 'twoPart' ? mold.master : mold.style === 'pourTwoPiece' ? mold.center : mold.mold;
   const masterGeo = useGeometry(mainMesh, view.showUndercuts ? mold.undercutFlags : undefined, view.showUndercuts ? MASTER_COLOR : undefined);
-  const cottleGeo = useGeometry(mold.style === 'twoPart' ? mold.cottle : null);
+  const cottleGeo = useGeometry(mold.style === 'twoPart' ? mold.cottle : mold.style === 'pourTwoPiece' ? mold.shell : null);
   const plasterGeo = useGeometry(mold.plaster);
 
   return (
