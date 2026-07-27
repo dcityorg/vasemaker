@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, GizmoHelper, GizmoViewcube } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { GroundGrid } from '@/components/viewport/SceneHelpers';
 import { LIGHTING } from '@/config/viewport';
 import { useHandleStore } from '@/store/handle-store';
@@ -11,6 +12,7 @@ import type { VaseMesh } from '@/engine/types';
 import type { HandleMeshes } from '@/engine/handle/handle-generator';
 
 const MASTER_COLOR = '#8fa8d8';
+const WELL_COLOR = '#a8bce0';
 const PLATE_COLOR = '#d98a4a';
 const WALL_COLOR = '#c97f45';
 const PLASTER_COLOR = '#e7dfca';
@@ -46,8 +48,52 @@ function Part({ geometry, color, opacity }: { geometry: THREE.BufferGeometry; co
 
 export function HandleViewport({ handle }: { handle: HandleMeshes }) {
   const view = useHandleStore((s) => s.view);
+  const controlsRef = useRef<OrbitControlsImpl>(null);
 
-  const masterGeo = useGeometry(handle.master);
+  /**
+   * Square the view up: keep the current distance and target, snap the view
+   * direction to `dir` (or, if omitted, to the world axis nearest the current
+   * direction). Side views get z-up; top/bottom views keep the screen-up
+   * closest to the current one, snapped to an axis — so clicking ⌂ or a cube
+   * face near your current view only nudges it square instead of spinning the
+   * handle 90°.
+   */
+  const snapView = (dir?: THREE.Vector3) => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    const cam = controls.object;
+    const offset = cam.position.clone().sub(controls.target);
+    const dist = offset.length();
+    let d = dir?.clone();
+    if (!d) {
+      const ax = Math.abs(offset.x), ay = Math.abs(offset.y), az = Math.abs(offset.z);
+      d = ax >= ay && ax >= az
+        ? new THREE.Vector3(Math.sign(offset.x) || 1, 0, 0)
+        : ay >= az
+          ? new THREE.Vector3(0, Math.sign(offset.y) || 1, 0)
+          : new THREE.Vector3(0, 0, Math.sign(offset.z) || 1);
+    }
+    d.normalize();
+    if (Math.abs(d.z) > 0.9) {
+      // Top/bottom: screen-up = the horizontal direction we were viewing
+      // along, snapped to the nearest axis.
+      const h = new THREE.Vector3(-offset.x, -offset.y, 0);
+      if (h.lengthSq() < 1e-6) h.copy(cam.up).setZ(0);
+      if (h.lengthSq() < 1e-6) h.set(0, 1, 0);
+      cam.up.set(
+        Math.abs(h.x) >= Math.abs(h.y) ? Math.sign(h.x) : 0,
+        Math.abs(h.y) > Math.abs(h.x) ? Math.sign(h.y) : 0,
+        0
+      );
+    } else {
+      cam.up.set(0, 0, 1);
+    }
+    cam.position.copy(controls.target.clone().add(d.multiplyScalar(dist)));
+    controls.update();
+  };
+
+  const bodyGeo = useGeometry(handle.masterBody);
+  const wellsGeo = useGeometry(handle.masterWells);
   const plateGeo = useGeometry(handle.plate);
   const wallGeo = useGeometry(handle.wall);
   const wallBGeo = useGeometry(handle.wallB);
@@ -82,10 +128,31 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
           {view.showPlate && plateGeo && <Part geometry={plateGeo} color={PLATE_COLOR} opacity={1} />}
           {view.showWalls && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} />}
           {view.showWalls && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} />}
-          {view.showHandle && masterGeo && <Part geometry={masterGeo} color={MASTER_COLOR} opacity={1} />}
+          {view.showHandle && bodyGeo && <Part geometry={bodyGeo} color={MASTER_COLOR} opacity={1} />}
+          {view.showHandle && view.showWells && wellsGeo && <Part geometry={wellsGeo} color={WELL_COLOR} opacity={1} />}
         </group>
 
+        {/* Clickable orientation cube — snap the view square to the world.
+            Custom onClick replaces drei's default (which re-rolls the camera
+            up-vector and spins the handle 90° on Top). */}
+        <GizmoHelper alignment="top-right" margin={[70, 70]}>
+          <GizmoViewcube
+            faces={['Right', 'Left', 'Back', 'Front', 'Top', 'Bottom']}
+            color="#3a3f46"
+            hoverColor="#5a80c0"
+            textColor="#cfd4da"
+            strokeColor="#22252a"
+            opacity={0.95}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (e.face) snapView(new THREE.Vector3(e.face.normal.x, e.face.normal.y, e.face.normal.z));
+              return null;
+            }}
+          />
+        </GizmoHelper>
+
         <OrbitControls
+          ref={controlsRef}
           makeDefault
           enableDamping
           dampingFactor={0.1}
@@ -94,6 +161,16 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
           maxDistance={2500}
         />
       </Canvas>
+
+      {/* Home — square the view up to the nearest straight-on view */}
+      <button
+        onClick={() => snapView()}
+        className="absolute top-[104px] right-[26px] w-8 h-8 rounded border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-colors text-base leading-none"
+        style={{ backgroundColor: 'rgba(28, 30, 34, 0.85)' }}
+        title="Square up: snap to the nearest straight-on view (keeps your distance and framing)"
+      >
+        ⌂
+      </button>
     </div>
   );
 }

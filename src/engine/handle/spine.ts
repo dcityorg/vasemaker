@@ -31,9 +31,16 @@ export function sampleSpine(
   heightMm: number,
   n: number
 ): SpineStation[] {
+  // The piecewise Bezier maps its parameter through the FIXED points' heights,
+  // so the meaningful domain is [firstY, lastY], not [0, 1] — endpoints may sit
+  // anywhere on the wall (hook shapes). Sampling outside that span would clamp
+  // to the endpoints and collapse rings into degenerate geometry.
+  const t0 = points[0][1];
+  const t1 = points[points.length - 1][1];
   const raw: [number, number][] = [];
   for (let i = 0; i <= n; i++) {
-    const [xf, yf] = evaluatePiecewiseBezier(i / n, points, types);
+    const t = t0 + (t1 - t0) * (i / n);
+    const [xf, yf] = evaluatePiecewiseBezier(t, points, types);
     raw.push([Math.max(0, xf) * depthMm, yf * heightMm]);
   }
 

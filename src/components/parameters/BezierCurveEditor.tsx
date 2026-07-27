@@ -32,6 +32,18 @@ interface BezierCurveEditorProps {
    * plus a live coordinate badge next to the selected point. Profile-only for now.
    */
   showReadout?: boolean;
+  /**
+   * Extra polylines drawn in data space as thin red guides (e.g. the handle
+   * outline in HandleMaker). Render-only.
+   */
+  overlayPaths?: [number, number][][];
+  /**
+   * Allow the first/last points to move in y (they stay draggable in x as
+   * usual). Default false: endpoints are locked to yRange[0]/yRange[1] (the
+   * Profile-curve behavior). The HandleMaker spine passes true so hook-shaped
+   * handles can attach at any height.
+   */
+  freeEndpointY?: boolean;
 }
 
 /** Compact numeric input with a typing draft; commits on blur/Enter, reverts on Escape. */
@@ -117,6 +129,8 @@ export function BezierCurveEditor({
   width = 260,
   height = 180,
   showReadout = false,
+  overlayPaths,
+  freeEndpointY = false,
 }: BezierCurveEditorProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef<number | null>(null);
@@ -279,13 +293,15 @@ export function BezierCurveEditor({
         else dataX = pd.startDataX;
       }
 
-      // Lock first/last point Y values
-      if (index === 0) dataY = yRange[0];
-      if (index === points.length - 1) dataY = yRange[1];
+      // Lock first/last point Y values (unless endpoints are free)
+      if (!freeEndpointY) {
+        if (index === 0) dataY = yRange[0];
+        if (index === points.length - 1) dataY = yRange[1];
+      }
 
       onPointChange(index, [dataX, dataY]);
     },
-    [toDataX, toDataY, xRange, yRange, points.length, onPointChange]
+    [toDataX, toDataY, xRange, yRange, points.length, onPointChange, freeEndpointY]
   );
 
   const handlePointerUp = useCallback(() => {
@@ -344,20 +360,22 @@ export function BezierCurveEditor({
       if (e.key === 'ArrowLeft') nx -= stepX;
       else if (e.key === 'ArrowRight') nx += stepX;
       else if (e.key === 'ArrowUp') {
-        if (isEndpoint) return;
+        if (isEndpoint && !freeEndpointY) return;
         ny += stepY;
       } else if (e.key === 'ArrowDown') {
-        if (isEndpoint) return;
+        if (isEndpoint && !freeEndpointY) return;
         ny -= stepY;
       }
       nx = Math.max(xRange[0], Math.min(xRange[1], nx));
       ny = Math.max(yRange[0], Math.min(yRange[1], ny));
-      // Endpoints stay locked to their y
-      if (idx === 0) ny = yRange[0];
-      if (idx === points.length - 1) ny = yRange[1];
+      // Endpoints stay locked to their y (unless free)
+      if (!freeEndpointY) {
+        if (idx === 0) ny = yRange[0];
+        if (idx === points.length - 1) ny = yRange[1];
+      }
       onPointChange(idx, [nx, ny]);
     },
-    [selectedIndex, points, xRange, yRange, arrowStepX, arrowStepY, onPointChange]
+    [selectedIndex, points, xRange, yRange, arrowStepX, arrowStepY, onPointChange, freeEndpointY]
   );
 
   // Double-click on plot area to add a point
@@ -551,6 +569,19 @@ export function BezierCurveEditor({
         />
       )}
 
+      {/* Overlay guide paths (e.g. the actual handle outline) */}
+      {overlayPaths?.map((pts, i) => (
+        <path
+          key={`ov-${i}`}
+          d={pts.map(([px, py], j) => `${j === 0 ? 'M' : 'L'}${toSvgX(px).toFixed(1)},${toSvgY(py).toFixed(1)}`).join(' ')}
+          fill="none"
+          stroke="#e05555"
+          strokeWidth={1}
+          opacity={0.85}
+          pointerEvents="none"
+        />
+      ))}
+
       {/* Control points */}
       {points.map((p, i) => {
         const cx = toSvgX(p[0]);
@@ -563,7 +594,7 @@ export function BezierCurveEditor({
         const fill = isEndpoint ? 'var(--text-secondary)' : 'var(--accent)';
         const tipPrefix = isFixed ? 'Fixed point.' : 'Handle.';
         const tipSuffix = isEndpoint
-          ? ' Drag to move (locked to this end).'
+          ? (freeEndpointY ? ' Drag to move along this edge.' : ' Drag to move (locked to this end).')
           : ' Drag to move. Shift-click to toggle Fixed/Handle.' + (canRemove ? ' Right-click to remove.' : '');
         const isSelected = i === selectedIndex;
         return (
@@ -702,7 +733,7 @@ export function BezierCurveEditor({
               min={isPct ? yRange[0] * 100 : yRange[0]}
               max={isPct ? yRange[1] * 100 : yRange[1]}
               decimals={1}
-              disabled={selectedIndex === 0 || selectedIndex === points.length - 1}
+              disabled={!freeEndpointY && (selectedIndex === 0 || selectedIndex === points.length - 1)}
               title="Exact height"
               onCommit={(v) => onPointChange(selectedIndex, [sel[0], isPct ? v / 100 : v])}
             />

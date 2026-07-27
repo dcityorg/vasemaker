@@ -18,6 +18,7 @@ const MIN_SPINE_POINTS = 3;
 
 export interface HandleView {
   showHandle: boolean;
+  showWells: boolean;
   showPlate: boolean;
   showWalls: boolean;
   showPlaster: boolean;
@@ -25,6 +26,7 @@ export interface HandleView {
 
 const DEFAULT_VIEW: HandleView = {
   showHandle: true,
+  showWells: true,
   showPlate: true,
   showWalls: false,
   showPlaster: false,
@@ -67,9 +69,9 @@ export const useHandleStore = create<HandleStore>((set) => ({
       const pts = state.params.spinePoints.map((p) => [...p] as BezierPoint);
       if (index < 0 || index >= pts.length) return state;
       const isEnd = index === 0 || index === pts.length - 1;
-      // Endpoints stay anchored to the vase-wall plane (x=0); their y is
-      // already locked by the editor (0 / 1).
-      pts[index] = isEnd ? [0, index === 0 ? 0 : 1] : point;
+      // Endpoints stay anchored to the vase-wall plane (x=0); their height is
+      // free (hook shapes) but clamped to the drawing area.
+      pts[index] = isEnd ? [0, Math.max(0, Math.min(1, point[1]))] : point;
       return { params: { ...state.params, spinePoints: pts } };
     }),
 

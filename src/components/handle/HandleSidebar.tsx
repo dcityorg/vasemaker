@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
 import { BezierCurveEditor } from '@/components/parameters/BezierCurveEditor';
+import { evaluatePiecewiseBezier } from '@/engine/bezier';
 import { useHandleStore, DEFAULT_HANDLE_SETTINGS_NAME } from '@/store/handle-store';
 import { HANDLE_PARAMS } from '@/config/handle-params';
 import { HANDLE_PRESETS } from '@/config/handle-presets';
@@ -17,7 +18,7 @@ import { translateMesh } from '@/engine/handle/mesh3';
 import type { HandleMeshes } from '@/engine/handle/handle-generator';
 import type { HandleParameters } from '@/engine/handle/handle-types';
 import type { PlasterType } from '@/engine/mold/mold-types';
-import type { VaseMesh } from '@/engine/types';
+import type { VaseMesh, BezierPoint } from '@/engine/types';
 
 type HandleNumKey = {
   [K in keyof HandleParameters]: HandleParameters[K] extends number ? K : never;
@@ -115,6 +116,41 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   const est = estimatePlaster(handle.plasterVolumeMm3, params.material);
   const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(2)} k` : n.toFixed(0));
   const selectedPreset = HANDLE_PRESETS.find((p) => p.id === presetId);
+
+  // ── Spine editor in real mm with true aspect ratio ──
+  // Points are stored normalized [0..1]²; the editor shows/edits them in mm
+  // (x: 0..Depth, y: 0..Height) so what you draw is what you get. The plot
+  // box is sized to the actual depth:height ratio (tall and narrow, like a
+  // real handle) within sidebar limits.
+  const spineMm = params.spinePoints.map(([x, y]) => [x * params.depth, y * params.height] as BezierPoint);
+  const ratio = params.depth / params.height;
+  let plotH = 280;
+  let plotW = Math.max(70, plotH * ratio);
+  if (plotW > 225) {
+    plotW = 225;
+    plotH = Math.max(120, plotW / ratio);
+  }
+  const spineW = Math.round(plotW) + 44; // + horizontal padding
+  const spineH = Math.round(plotH) + 37; // + vertical padding
+
+  // Thin red guide: the handle's CENTER line (the exact swept path), clamped
+  // to the drawing area.
+  const outlinePaths = (() => {
+    const pts = params.spinePoints;
+    const y0 = pts[0][1];
+    const y1 = pts[pts.length - 1][1];
+    const n = 48;
+    const c: [number, number][] = [];
+    for (let i = 0; i <= n; i++) {
+      const t = y0 + (y1 - y0) * (i / n);
+      const [xf, yf] = evaluatePiecewiseBezier(t, pts, params.spineTypes);
+      c.push([
+        Math.min(params.depth, Math.max(0, xf * params.depth)),
+        Math.min(params.height, Math.max(0, yf * params.height)),
+      ]);
+    }
+    return [c];
+  })();
 
   return (
     <div className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
@@ -234,7 +270,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
                 onClick={() => exportMesh(handle.master, handle.layout.masterLift, 'handle')}
                 className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
                 style={{ color: UI_MUTED }}
-                title="Export the handle master (print with supports)"
+                title="Export the half-handle master (prints flat side down, no supports)"
               >
                 Export Handle STL
               </button>
@@ -247,6 +283,26 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
                 Export Plate STL
               </button>
             </div>
+            {handle.masterB && handle.plateB && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => exportMesh(handle.masterB!, handle.layout.masterLift, 'handle B')}
+                  className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
+                  style={{ color: UI_MUTED }}
+                  title="Mirrored master for the second mold half (asymmetric handle)"
+                >
+                  Export Handle B STL
+                </button>
+                <button
+                  onClick={() => exportMesh(handle.plateB!, handle.layout.plateLift, 'plate B')}
+                  className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
+                  style={{ color: UI_MUTED }}
+                  title="Mirrored plate for the second mold half (asymmetric handle)"
+                >
+                  Export Plate B STL
+                </button>
+              </div>
+            )}
             <button
               onClick={() => exportMesh(handle.wall, 0, 'wall')}
               className="w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
@@ -255,6 +311,11 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             >
               Export Wall STL (print 2 copies)
             </button>
+            <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
+              {handle.isSymmetric
+                ? 'Symmetric handle: one plate — pour it twice for the two mold halves.'
+                : 'Asymmetric handle: pour half A with the A parts, half B with the mirrored B parts.'}
+            </p>
           </div>
         </div>
 
@@ -269,45 +330,56 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           {/* View toggles */}
           <GroupHeader label="View" color={GROUP_COLORS.settings} />
           <Toggle label="Handle" checked={view.showHandle} onChange={(v) => setView({ showHandle: v })} />
+          <Toggle label="Wells" checked={view.showWells} onChange={(v) => setView({ showWells: v })} tooltip="Hide to see the finished handle — its ends cut flat and parallel to the vase wall" />
           <Toggle label="Plate" checked={view.showPlate} onChange={(v) => setView({ showPlate: v })} />
           <Toggle label="Walls" checked={view.showWalls} onChange={(v) => setView({ showWalls: v })} tooltip="Both wall copies in their assembled positions" />
           <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour volume" />
 
           {/* Handle */}
           <GroupHeader label="Handle" color={GROUP_COLORS.structure} />
-          <Section title="Spine" titleColor={GROUP_COLORS.structure} tooltip="The handle's centerline in side view — left edge is the vase wall">
+          <Section title="Handle Profile" titleColor={GROUP_COLORS.structure} tooltip="The handle's centerline in side view, in real mm — left edge is the vase wall. End points slide up/down the wall for hook shapes. The red line shows the exact center line the handle sweeps along">
             <BezierCurveEditor
-              points={params.spinePoints}
+              points={spineMm}
               pointTypes={params.spineTypes}
-              onPointChange={setSpinePoint}
-              onPointAdd={addSpinePoint}
+              onPointChange={(i, [xm, ym]) => setSpinePoint(i, [xm / params.depth, ym / params.height])}
+              onPointAdd={([xm, ym]) => addSpinePoint([xm / params.depth, ym / params.height])}
               onPointRemove={removeSpinePoint}
               onPointTypeToggle={toggleSpineType}
               maxPoints={8}
               minPoints={3}
-              xRange={[0, 1]}
-              yRange={[0, 1]}
-              xLabel="stick-out (× Depth)"
+              xRange={[0, params.depth]}
+              yRange={[0, params.height]}
+              arrowStepX={1}
+              arrowStepY={1}
+              xLabel="stick-out (mm)"
+              width={spineW}
+              height={spineH}
               showReadout
+              freeEndpointY
+              overlayPaths={outlinePaths}
             />
           </Section>
           <Section title="Dimensions" titleColor={GROUP_COLORS.structure}>
-            {sl('height', 'Height', 'mm', 'Distance between the two attachment points on the vase wall')}
-            {sl('depth', 'Depth', 'mm', 'Stick-out from the vase wall where the spine reaches x=1')}
+            {sl('height', 'Height', 'mm', 'Height of the drawing area — the whole curve scales with it')}
+            {sl('depth', 'Depth', 'mm', 'Width of the drawing area (max stick-out) — the whole curve scales with it')}
             {sl('width', 'Width', 'mm', 'Cross-section width in the parting plane')}
             {sl('thickness', 'Thickness', 'mm', 'Cross-section thickness perpendicular to the parting plane')}
             {sl('shrinkPercent', 'Shrink', '%', 'Clay shrinkage — the master prints this much larger than the designed size')}
+            <Toggle label="Hollow" checked={params.masterHollow} onChange={(v) => setParam('masterHollow', v)} tooltip="Hollow the master from its flat side to save plastic" />
+            {params.masterHollow && sl('masterShellThickness', 'Shell', 'mm', 'Printed wall thickness of the hollow master')}
           </Section>
-          <Section title="Well Cones" titleColor={GROUP_COLORS.structure}>
-            {sl('openingDiameter', 'Opening', 'mm', 'Diameter of the slip pour opening at each end')}
-            {sl('coneLength', 'Length', 'mm', 'Cone length from the handle end to the mold wall')}
+          <Section title="Wells" titleColor={GROUP_COLORS.structure}>
+            {sl('openingDiameter', 'Opening', 'mm', 'Diameter of the pour opening / cylinder at each end')}
+            {sl('cylinderLength', 'Cylinder', 'mm', 'Straight cylinder section at the mold wall — always perpendicular to the wall')}
+            {sl('coneLength', 'Transition', 'mm', 'Length of the transition from the cylinder to the handle\u2019s flat wall-plane cut')}
           </Section>
 
           {/* Mold */}
           <GroupHeader label="Mold" color={GROUP_COLORS.surface} />
           <Section title="Plate" titleColor={GROUP_COLORS.surface} defaultOpen={false}>
-            {sl('seatDepth', 'Seat Depth', 'mm', 'How far the handle mid-plane sits below the plate top')}
-            {sl('plateFloor', 'Floor Below', 'mm', 'Solid plate floor under the pocket (leak seal)')}
+            {sl('seatDepth', 'Seat Depth', 'mm', 'How deep the half-handle’s flat skirt sits into the plate (the parting plane stays at the plate top)')}
+            {sl('lipWidth', 'Lip Width', 'mm', 'Support-lip ring the handle rests on — inside it the plate is open so you can tape the handle from below')}
+            {sl('plateFloor', 'Lip Thickness', 'mm', 'Plate material under the seat pocket')}
             {sl('recessClearance', 'Fit Clearance', 'mm', 'Gap between the handle and the pocket walls — tune to your printer')}
             {sl('domeDiameter', 'Dome Diameter', 'mm', 'Registration bump/dimple pair size')}
             {sl('domeHeight', 'Dome Height', 'mm')}

@@ -29,21 +29,36 @@ export interface HandleParameters {
   /** Cross-section thickness, perpendicular to the parting plane. */
   thickness: number;
 
-  // ── Well cones (slip reservoirs — cut off the cast handle) ──
-  /** Diameter of the pour opening at each cone end. */
+  // ── Wells (slip reservoirs — cut off the cast handle). Each well runs
+  // perpendicular to the vase-wall plane: a straight cylinder at the mold wall,
+  // then a transition lofting to the handle's flat wall-plane cut. ──
+  /** Diameter of the pour opening / cylinder. */
   openingDiameter: number;
-  /** Length of each cone from the handle end to the opening plane. */
+  /** Length of the straight cylinder section at the mold wall. */
+  cylinderLength: number;
+  /** Length of the transition from the cylinder to the handle cut face. */
   coneLength: number;
   /** Clay shrinkage compensation % — the master body is scaled up by this. */
   shrinkPercent: number;
 
+  // ── Master shelling ──
+  /** Hollow the master from its flat side (saves plastic). */
+  masterHollow: boolean;
+  /** Printed shell wall thickness when hollow (mm). */
+  masterShellThickness: number;
+
   // ── Bottom plate ──
-  /** How far the master's mid-plane sits below the plate top (mm). */
+  /** Depth of the seat pocket — the master's flat-bottomed skirt sits this far
+   * into the plate, resting on the lip (mm). The parting plane is the plate top. */
   seatDepth: number;
-  /** Solid plate floor thickness below the pocket (mm). */
+  /** Thickness of the support lip under the seat (the plate material between
+   * the pocket floor and the plate bottom, mm). */
   plateFloor: number;
   /** XY clearance between master silhouette and the pocket walls (mm). */
   recessClearance: number;
+  /** Width of the support lip ring the master rests on — inside it, the plate
+   * is cut through so the master can be taped from below (mm). */
+  lipWidth: number;
 
   // ── V ridge/groove (plate↔wall alignment + leak dam; also the seam Vs) ──
   vWidth: number;
@@ -89,12 +104,17 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   thickness: 10,
 
   openingDiameter: 18,
-  coneLength: 15,
+  cylinderLength: 8,
+  coneLength: 12,
   shrinkPercent: 12,
 
+  masterHollow: true,
+  masterShellThickness: 2,
+
   seatDepth: 1,
-  plateFloor: 1,
+  plateFloor: 2,
   recessClearance: 0.15,
+  lipWidth: 2,
 
   vWidth: 2,
   vHeight: 1,
@@ -139,9 +159,11 @@ export function mergeHandleParameters(loaded: unknown): HandleParameters {
 
   if (isBezierPointArray(src.spinePoints)) {
     const pts = src.spinePoints.map((p) => [p[0], p[1]] as BezierPoint);
-    // Endpoints always anchor to the vase-wall plane at heights 0 and 1
-    pts[0] = [0, 0];
-    pts[pts.length - 1] = [0, 1];
+    // Endpoints always anchor to the vase-wall plane (x=0); their heights are
+    // free (hook-shaped handles) but clamped to the drawing area.
+    const clampY = (y: number) => Math.max(0, Math.min(1, y));
+    pts[0] = [0, clampY(pts[0][1])];
+    pts[pts.length - 1] = [0, clampY(pts[pts.length - 1][1])];
     out.spinePoints = pts;
     const t = src.spineTypes;
     out.spineTypes =
