@@ -120,8 +120,8 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   vHeight: 1,
   vClearance: 0.2,
 
-  domeDiameter: 7,
-  domeHeight: 1,
+  domeDiameter: 10,
+  domeHeight: 2,
 
   flangeWidth: 12,
 

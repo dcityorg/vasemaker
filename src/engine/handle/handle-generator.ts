@@ -20,7 +20,7 @@
 import { sampleSpine } from './spine';
 import { buildMasterParts, loopSelfIntersects, type HandleBodyDims } from './handle-mesh';
 import { buildPlate, buildWall, type MoldLayout } from './mold-parts';
-import { boxSolid, translateMesh, rotate180Z, flipWinding, signedArea, type P2 } from './mesh3';
+import { boxSolid, extrudeSolid, rectPoints, translateMesh, rotate180Z, flipWinding, signedArea, type P2 } from './mesh3';
 import { mergeMeshes } from '../mold/ring-mesh';
 import { computeMeshStats, type MeshStats } from '../mesh-stats';
 import { computeNormals } from '../normals';
@@ -187,7 +187,17 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
 
   const plateRaw = buildPlate(layout, pocketLoop, tapeHole, margin);
   const wallRaw = buildWall(layout);
-  const plasterRaw = boxSolid(cavX0, cavY0, cavX1, cavY1, 0, wallH);
+  // Plaster display block: the pour with the handle's footprint cut out up to
+  // the master's height, solid plaster above it (display-only approximation —
+  // the true cavity is the handle's rounded imprint).
+  // The block extends 1 mm into the wall zone so the pocket hole (whose well
+  // openings sit exactly at cavX0) stays strictly inside the outer boundary —
+  // a hole touching the boundary breaks the triangulation.
+  const maxUpper = Math.max(dims.ht, dims.openR);
+  const plasterRaw = mergeMeshes([
+    extrudeSolid(rectPoints(cavX0 - 1, cavY0, cavX1, cavY1), [pocketLoop], 0, maxUpper),
+    boxSolid(cavX0 - 1, cavY0, cavX1, cavY1, maxUpper - 0.2, wallH),
+  ]);
 
   const masterBody = translateMesh(parts.body, -bcx, -bcy, 0);
   const masterWells = translateMesh(mergeMeshes([parts.wellA, parts.wellB]), -bcx, -bcy, 0);

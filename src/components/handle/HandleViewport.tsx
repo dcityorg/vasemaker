@@ -75,23 +75,21 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
     }
     d.normalize();
     if (Math.abs(d.z) > 0.9) {
-      // Top/bottom: screen-up = the horizontal direction we were viewing
-      // along, snapped to the nearest axis.
-      const h = new THREE.Vector3(-offset.x, -offset.y, 0);
-      if (h.lengthSq() < 1e-6) h.copy(cam.up).setZ(0);
-      if (h.lengthSq() < 1e-6) h.set(0, 1, 0);
-      cam.up.set(
-        Math.abs(h.x) >= Math.abs(h.y) ? Math.sign(h.x) : 0,
-        Math.abs(h.y) > Math.abs(h.x) ? Math.sign(h.y) : 0,
-        0
-      );
-    } else {
-      cam.up.set(0, 0, 1);
+      // Top/bottom: tilt ~1.5° off vertical toward the current azimuth instead
+      // of changing the camera's up-vector — OrbitControls orbits relative to
+      // `up`, so changing it made the mouse feel completely different after a
+      // snap. With a constant z-up the view is visually straight down and the
+      // controls keep behaving normally.
+      let hx = offset.x, hy = offset.y;
+      const hLen = Math.hypot(hx, hy);
+      if (hLen < 1e-6) { hx = 0; hy = -1; } else { hx /= hLen; hy /= hLen; }
+      const tilt = 0.027;
+      d.set(hx * tilt, hy * tilt, Math.sign(d.z) * Math.sqrt(1 - tilt * tilt));
     }
+    cam.up.set(0, 0, 1); // always — never leave a snapped up-vector behind
     cam.position.copy(controls.target.clone().add(d.multiplyScalar(dist)));
     controls.update();
   };
-
   const bodyGeo = useGeometry(handle.masterBody);
   const wellsGeo = useGeometry(handle.masterWells);
   const plateGeo = useGeometry(handle.plate);
