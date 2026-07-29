@@ -110,8 +110,6 @@ function isLoopSymmetric(loop: P2[], yc: number, tol: number): boolean {
 
 export function generateHandleMold(p: HandleParameters): HandleMeshes {
   const S = 1 + p.shrinkPercent / 100;
-  const H = p.height * S;
-  const D = p.depth * S;
   const dims: HandleBodyDims = {
     hw: (p.width * S) / 2,
     ht: (p.thickness * S) / 2,
@@ -123,7 +121,8 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
   // Lip can't be wider than the narrowest half-width of the master footprint
   const lipW = Math.min(p.lipWidth, Math.min(dims.hw, dims.openR) + p.recessClearance - 1);
 
-  const stations = sampleSpine(p.spinePoints, p.spineTypes, D, H, SPINE_SAMPLES);
+  // Spine points are already in mm; S is the clay-shrinkage upscale.
+  const stations = sampleSpine(p.spinePoints, p.spineTypes, SPINE_SAMPLES, S);
   const yA = stations[0].y;
   const yB = stations[stations.length - 1].y;
   const parts = buildMasterParts(stations, dims, {

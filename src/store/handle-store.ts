@@ -7,14 +7,23 @@
 
 import { create } from 'zustand';
 import type { BezierPoint } from '@/engine/types';
-import type { HandleParameters } from '@/engine/handle/handle-types';
-import { DEFAULT_HANDLE_PARAMETERS, mergeHandleParameters } from '@/engine/handle/handle-types';
+import type { HandleParameters, WindowExtents } from '@/engine/handle/handle-types';
+import {
+  DEFAULT_HANDLE_PARAMETERS,
+  mergeHandleParameters,
+  controlBounds,
+  fitWindowTo,
+  growWindowFor,
+} from '@/engine/handle/handle-types';
+import { measureSpine } from '@/engine/handle/spine';
 import type { HandlePreset } from '@/config/handle-presets';
 
 export const DEFAULT_HANDLE_SETTINGS_NAME = 'handle design';
 const STORAGE_KEY = 'vasemaker-handle-settings';
 const MAX_SPINE_POINTS = 8;
 const MIN_SPINE_POINTS = 3;
+/** Smallest drawing area a window edge may be dragged down to, mm. */
+const MIN_WINDOW_SEP = 10;
 
 export interface HandleView {
   showHandle: boolean;
@@ -47,8 +56,34 @@ interface HandleStore {
   addSpinePoint: (point: BezierPoint) => void;
   removeSpinePoint: (index: number) => void;
   toggleSpineType: (index: number) => void;
+  /** Scale the spine vertically until the two ends are `span` mm apart. */
+  setSpineSpan: (span: number) => void;
+  /** Scale the spine horizontally until it reaches `maxX` mm from the wall. */
+  setSpineDepth: (maxX: number) => void;
+  /** Move a drawing-area edge, refusing to hide a control point. */
+  setWindowEdge: (edge: keyof WindowExtents, value: number) => void;
+  /** Shrink the drawing area back onto the control points. */
+  fitWindow: () => void;
+  /** Slide the whole design so the lower attachment end sits at y = 0. */
+  reOriginSpine: () => void;
   applyPreset: (preset: HandlePreset) => void;
   reset: () => void;
+}
+
+/** Rescale the spine about an anchor and re-open the window if it grew past it. */
+function scaledParams(
+  params: HandleParameters,
+  factor: number,
+  axis: 'x' | 'y',
+  anchor: number
+): HandleParameters {
+  if (!Number.isFinite(factor) || factor <= 0) return params;
+  const pts = params.spinePoints.map(([x, y]) =>
+    axis === 'y'
+      ? ([x, anchor + (y - anchor) * factor] as BezierPoint)
+      : ([Math.max(0, x * factor), y] as BezierPoint)
+  );
+  return { ...params, spinePoints: pts, ...growWindowFor(pts, params) };
 }
 
 export const useHandleStore = create<HandleStore>((set) => ({
@@ -68,10 +103,13 @@ export const useHandleStore = create<HandleStore>((set) => ({
     set((state) => {
       const pts = state.params.spinePoints.map((p) => [...p] as BezierPoint);
       if (index < 0 || index >= pts.length) return state;
+      const { winRight, winTop, winBottom } = state.params;
+      const x = Math.max(0, Math.min(winRight, point[0]));
+      const y = Math.max(winBottom, Math.min(winTop, point[1]));
       const isEnd = index === 0 || index === pts.length - 1;
       // Endpoints stay anchored to the vase-wall plane (x=0); their height is
-      // free (hook shapes) but clamped to the drawing area.
-      pts[index] = isEnd ? [0, Math.max(0, Math.min(1, point[1]))] : point;
+      // free (hook shapes) within the drawing area.
+      pts[index] = isEnd ? [0, y] : [x, y];
       return { params: { ...state.params, spinePoints: pts } };
     }),
 
@@ -113,17 +151,78 @@ export const useHandleStore = create<HandleStore>((set) => ({
       return { params: { ...state.params, spineTypes: types } };
     }),
 
+  setSpineSpan: (span) =>
+    set((state) => {
+      const p = state.params;
+      const pts = p.spinePoints;
+      const m = measureSpine(pts, p.spineTypes);
+      // Both ends at the same height leaves no span to scale by (a handle that
+      // leaves and returns to the same spot) — fall back to the overall extent
+      // so the slider still does something sensible instead of dividing by 0.
+      const current = m.span > 1e-6 ? m.span : m.overallHeight;
+      if (current <= 1e-6 || span <= 0) return state;
+      // The lower attachment end stays put; the handle grows upward.
+      const anchor = Math.min(pts[0][1], pts[pts.length - 1][1]);
+      return { params: scaledParams(p, span / current, 'y', anchor) };
+    }),
+
+  setSpineDepth: (maxX) =>
+    set((state) => {
+      const p = state.params;
+      const m = measureSpine(p.spinePoints, p.spineTypes);
+      if (m.maxX <= 1e-6 || maxX <= 0) return state;
+      return { params: scaledParams(p, maxX / m.maxX, 'x', 0) };
+    }),
+
+  setWindowEdge: (edge, value) =>
+    set((state) => {
+      const p = state.params;
+      const b = controlBounds(p.spinePoints);
+      // Never hide a control point — an off-window point can't be grabbed back.
+      let next: number;
+      if (edge === 'winRight') next = Math.max(value, b.maxX, MIN_WINDOW_SEP);
+      else if (edge === 'winTop') next = Math.max(value, b.maxY, p.winBottom + MIN_WINDOW_SEP);
+      else next = Math.min(value, b.minY, p.winTop - MIN_WINDOW_SEP);
+      return { params: { ...p, [edge]: Math.round(next * 10) / 10 } };
+    }),
+
+  fitWindow: () =>
+    set((state) => ({ params: { ...state.params, ...fitWindowTo(state.params.spinePoints) } })),
+
+  reOriginSpine: () =>
+    set((state) => {
+      const p = state.params;
+      const pts = p.spinePoints;
+      const dy = -Math.min(pts[0][1], pts[pts.length - 1][1]);
+      if (Math.abs(dy) < 1e-9) return state;
+      return {
+        params: {
+          ...p,
+          spinePoints: pts.map(([x, y]) => [x, y + dy] as BezierPoint),
+          // The window slides with it, so the drawing doesn't move at all —
+          // only the numbers on the axis change, which is the whole point.
+          winTop: p.winTop + dy,
+          winBottom: p.winBottom + dy,
+        },
+      };
+    }),
+
   applyPreset: (preset) =>
-    set((state) => ({
-      params: {
-        ...state.params,
-        ...preset.params,
-        spinePoints: (preset.params.spinePoints ?? state.params.spinePoints).map(
-          (p) => [...p] as BezierPoint
-        ),
-        spineTypes: [...(preset.params.spineTypes ?? state.params.spineTypes)],
-      },
-    })),
+    set((state) => {
+      const spinePoints = (preset.params.spinePoints ?? state.params.spinePoints).map(
+        (p) => [...p] as BezierPoint
+      );
+      return {
+        params: {
+          ...state.params,
+          ...preset.params,
+          spinePoints,
+          spineTypes: [...(preset.params.spineTypes ?? state.params.spineTypes)],
+          // Presets carry a shape, not a viewport — frame it on arrival.
+          ...fitWindowTo(spinePoints),
+        },
+      };
+    }),
 
   reset: () => set({ params: freshDefaults(), settingsName: DEFAULT_HANDLE_SETTINGS_NAME }),
 }));

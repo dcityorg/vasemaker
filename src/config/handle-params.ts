@@ -5,10 +5,18 @@
 import type { SliderRange } from './mold-params';
 
 export const HANDLE_PARAMS = {
+  // Height/Depth are measurements of the centerline that the sliders scale the
+  // spine to hit — not stored params (see HandleParameters).
   height:    { min: 30, max: 250, step: 1 } as SliderRange,
   depth:     { min: 10, max: 100, step: 0.5 } as SliderRange,
   width:     { min: 5, max: 40, step: 0.5 } as SliderRange,
   thickness: { min: 4, max: 30, step: 0.5 } as SliderRange,
+
+  // Drawing area (view only). Ranges are generous because the window exists
+  // precisely to give you somewhere to drag a control point to.
+  winRight:  { min: 10, max: 200, step: 1 } as SliderRange,
+  winTop:    { min: -100, max: 400, step: 1 } as SliderRange,
+  winBottom: { min: -200, max: 100, step: 1 } as SliderRange,
 
   openingDiameter: { min: 8, max: 40, step: 0.5 } as SliderRange,
   cylinderLength:  { min: 3, max: 30, step: 0.5 } as SliderRange,

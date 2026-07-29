@@ -54,11 +54,12 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
    * Square the view up: keep the current distance and target, snap the view
    * direction to `dir` (or, if omitted, to the world axis nearest the current
    * direction). Side views get z-up; top/bottom views keep the screen-up
-   * closest to the current one, snapped to an axis — so clicking ⌂ or a cube
-   * face near your current view only nudges it square instead of spinning the
-   * handle 90°.
+   * closest to the current one, snapped to an axis — so clicking a cube face
+   * near your current view only nudges it square instead of spinning the
+   * handle 90°. `azimuth` overrides that "keep what you had" behaviour with a
+   * fixed horizontal bearing (see homeView).
    */
-  const snapView = (dir?: THREE.Vector3) => {
+  const snapView = (dir?: THREE.Vector3, azimuth?: [number, number]) => {
     const controls = controlsRef.current;
     if (!controls) return;
     const cam = controls.object;
@@ -80,7 +81,8 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
       // `up`, so changing it made the mouse feel completely different after a
       // snap. With a constant z-up the view is visually straight down and the
       // controls keep behaving normally.
-      let hx = offset.x, hy = offset.y;
+      let hx = azimuth ? azimuth[0] : offset.x;
+      let hy = azimuth ? azimuth[1] : offset.y;
       const hLen = Math.hypot(hx, hy);
       if (hLen < 1e-6) { hx = 0; hy = -1; } else { hx /= hLen; hy /= hLen; }
       const tilt = 0.027;
@@ -90,6 +92,20 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
     cam.position.copy(controls.target.clone().add(d.multiplyScalar(dist)));
     controls.update();
   };
+
+  /**
+   * Home — the view you want while drawing the profile: straight down on the
+   * parting plane, oriented exactly like the Handle Profile editor. World +x
+   * (stick-out depth) runs screen-RIGHT and world +y (height along the vase
+   * wall) runs screen-UP, so the wall plane and the well openings — which run
+   * out to −x — land on the LEFT, matching the editor whose left edge is the
+   * wall. Deliberately NOT the 3/4 view most apps home to.
+   *
+   * Why azimuth (0, −1): with a z-up camera, screen-up ends up being the
+   * negated horizontal bearing, so parking the camera on the −y side puts
+   * world +y up the screen. Zoom and pan are left untouched.
+   */
+  const homeView = () => snapView(new THREE.Vector3(0, 0, 1), [0, -1]);
   const bodyGeo = useGeometry(handle.masterBody);
   const wellsGeo = useGeometry(handle.masterWells);
   const plateGeo = useGeometry(handle.plate);
@@ -160,12 +176,12 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
         />
       </Canvas>
 
-      {/* Home — square the view up to the nearest straight-on view */}
+      {/* Home — top view matching the Handle Profile editor */}
       <button
-        onClick={() => snapView()}
+        onClick={homeView}
         className="absolute top-[104px] right-[26px] w-8 h-8 rounded border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-colors text-base leading-none"
         style={{ backgroundColor: 'rgba(28, 30, 34, 0.85)' }}
-        title="Square up: snap to the nearest straight-on view (keeps your distance and framing)"
+        title="Home: look straight down on the handle, oriented like the Handle Profile editor — openings to the left (keeps your zoom)"
       >
         ⌂
       </button>

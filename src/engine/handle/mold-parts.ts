@@ -210,7 +210,11 @@ function sweepRectLoop(x0: number, y0: number, x1: number, y1: number, cs: P2[])
  */
 export function buildPlate(layout: MoldLayout, pocketLoop: P2[], tapeHole: P2[], margin: number): VaseMesh {
   const { px0, py0, px1, py1, seat, lipThk } = layout;
-  const xd = (layout.cavX0 + layout.cavX1) / 2;
+  // Registration pair sits 3/4 of the way from the well side toward the far
+  // side, NOT on the cavity centerline: the walls split at the mid-x point, so
+  // a centered dome lands right on the wall seam and fouls the tape that goes
+  // over it. Three-quarters clears the seam while staying well inside the plate.
+  const xd = layout.cavX0 + 0.75 * (layout.cavX1 - layout.cavX0);
   const domeC: P2 = [xd, layout.cavY1 - margin / 2];
   const dimpleC: P2 = [xd, layout.cavY0 + margin / 2];
 

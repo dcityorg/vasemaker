@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
-import { BezierCurveEditor } from '@/components/parameters/BezierCurveEditor';
+import { BezierCurveEditor, EDITOR_CHROME } from '@/components/parameters/BezierCurveEditor';
 import { evaluatePiecewiseBezier } from '@/engine/bezier';
 import { useHandleStore, DEFAULT_HANDLE_SETTINGS_NAME } from '@/store/handle-store';
 import { HANDLE_PARAMS } from '@/config/handle-params';
@@ -14,15 +14,22 @@ import { generateSTL } from '@/engine/stl-export';
 import { saveSTLFile, saveDesignFile, openDesignFile } from '@/lib/image-capture';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { mergeHandleParameters } from '@/engine/handle/handle-types';
+import { measureSpine } from '@/engine/handle/spine';
 import { translateMesh } from '@/engine/handle/mesh3';
 import type { HandleMeshes } from '@/engine/handle/handle-generator';
-import type { HandleParameters } from '@/engine/handle/handle-types';
+import type { HandleParameters, WindowExtents } from '@/engine/handle/handle-types';
 import type { PlasterType } from '@/engine/mold/mold-types';
-import type { VaseMesh, BezierPoint } from '@/engine/types';
+import type { VaseMesh } from '@/engine/types';
 
 type HandleNumKey = {
   [K in keyof HandleParameters]: HandleParameters[K] extends number ? K : never;
 }[keyof HandleParameters];
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
+const miniBtn =
+  'flex-1 py-1 text-[11px] rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] ' +
+  'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)] transition-colors';
 
 export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   handle: HandleMeshes;
@@ -38,6 +45,11 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   const setSpinePoint = useHandleStore((s) => s.setSpinePoint);
   const addSpinePoint = useHandleStore((s) => s.addSpinePoint);
   const removeSpinePoint = useHandleStore((s) => s.removeSpinePoint);
+  const setSpineSpan = useHandleStore((s) => s.setSpineSpan);
+  const setSpineDepth = useHandleStore((s) => s.setSpineDepth);
+  const setWindowEdge = useHandleStore((s) => s.setWindowEdge);
+  const fitWindow = useHandleStore((s) => s.fitWindow);
+  const reOriginSpine = useHandleStore((s) => s.reOriginSpine);
   const toggleSpineType = useHandleStore((s) => s.toggleSpineType);
   const applyPreset = useHandleStore((s) => s.applyPreset);
   const reset = useHandleStore((s) => s.reset);
@@ -100,6 +112,18 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
     e.target.value = '';
   };
 
+  const win = (k: keyof WindowExtents, label: string, tooltip: string) => (
+    <SliderRow
+      label={label}
+      value={params[k]}
+      min={HANDLE_PARAMS[k].min}
+      max={HANDLE_PARAMS[k].max}
+      step={HANDLE_PARAMS[k].step}
+      tooltip={tooltip}
+      onChange={(v) => setWindowEdge(k, v)}
+    />
+  );
+
   const sl = (k: HandleNumKey, label: string, suffix?: string, tooltip?: string) => (
     <SliderRow
       label={label}
@@ -117,24 +141,30 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(2)} k` : n.toFixed(0));
   const selectedPreset = HANDLE_PRESETS.find((p) => p.id === presetId);
 
-  // ── Spine editor in real mm with true aspect ratio ──
-  // Points are stored normalized [0..1]²; the editor shows/edits them in mm
-  // (x: 0..Depth, y: 0..Height) so what you draw is what you get. The plot
-  // box is sized to the actual depth:height ratio (tall and narrow, like a
-  // real handle) within sidebar limits.
-  const spineMm = params.spinePoints.map(([x, y]) => [x * params.depth, y * params.height] as BezierPoint);
-  const ratio = params.depth / params.height;
-  let plotH = 280;
-  let plotW = Math.max(70, plotH * ratio);
-  if (plotW > 225) {
-    plotW = 225;
-    plotH = Math.max(120, plotW / ratio);
+  // ── Spine editor ──
+  // Points are stored in mm and drawn straight into a window whose extents are
+  // their own params, so resizing the drawing area never touches the handle.
+  // The plot box keeps the two axes at the SAME mm-per-pixel — a handle drawn
+  // out of proportion is worse than one drawn small — so the box follows the
+  // window's ratio, and a tall narrow window grows the box's height rather
+  // than stretching its width.
+  const winW = params.winRight;
+  const winH = params.winTop - params.winBottom;
+  const ratio = winW / winH;
+  const MAX_PLOT_W = 215; // keeps the whole editor inside the sidebar
+  let plotH = Math.min(360, Math.max(200, MAX_PLOT_W / ratio));
+  let plotW = plotH * ratio;
+  if (plotW > MAX_PLOT_W) {
+    plotW = MAX_PLOT_W;
+    plotH = plotW / ratio;
   }
-  const spineW = Math.round(plotW) + 44; // + horizontal padding
-  const spineH = Math.round(plotH) + 37; // + vertical padding
+  const spineW = Math.round(plotW) + EDITOR_CHROME.x;
+  const spineH = Math.round(plotH) + EDITOR_CHROME.y;
 
-  // Thin red guide: the handle's CENTER line (the exact swept path), clamped
-  // to the drawing area.
+  // Measured off the centerline — what the Height/Depth sliders report and set.
+  const measure = measureSpine(params.spinePoints, params.spineTypes);
+
+  // Thin red guide: the handle's CENTER line (the exact swept path).
   const outlinePaths = (() => {
     const pts = params.spinePoints;
     const y0 = pts[0][1];
@@ -144,10 +174,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
     for (let i = 0; i <= n; i++) {
       const t = y0 + (y1 - y0) * (i / n);
       const [xf, yf] = evaluatePiecewiseBezier(t, pts, params.spineTypes);
-      c.push([
-        Math.min(params.depth, Math.max(0, xf * params.depth)),
-        Math.min(params.height, Math.max(0, yf * params.height)),
-      ]);
+      c.push([Math.max(0, xf), yf]);
     }
     return [c];
   })();
@@ -337,20 +364,35 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
 
           {/* Handle */}
           <GroupHeader label="Handle" color={GROUP_COLORS.structure} />
+          <Section title="Drawing Area" titleColor={GROUP_COLORS.structure} defaultOpen={false} tooltip="Size of the profile editor's window only — moving these never changes the handle. Widen one to give yourself room to drag a control point further out">
+            {win('winTop', 'Top (mm)', 'Top edge of the drawing area')}
+            {win('winBottom', 'Bottom (mm)', 'Bottom edge — go negative for room below the handle')}
+            {win('winRight', 'Right (mm)', 'Right edge. The left edge is always 0 — the vase wall')}
+            <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug">
+              An edge stops at the outermost control point, so nothing can be hidden.
+            </p>
+          </Section>
           <Section title="Handle Profile" titleColor={GROUP_COLORS.structure} tooltip="The handle's centerline in side view, in real mm — left edge is the vase wall. End points slide up/down the wall for hook shapes. The red line shows the exact center line the handle sweeps along">
             <BezierCurveEditor
-              points={spineMm}
+              points={params.spinePoints}
               pointTypes={params.spineTypes}
-              onPointChange={(i, [xm, ym]) => setSpinePoint(i, [xm / params.depth, ym / params.height])}
-              onPointAdd={([xm, ym]) => addSpinePoint([xm / params.depth, ym / params.height])}
+              onPointChange={setSpinePoint}
+              onPointAdd={addSpinePoint}
               onPointRemove={removeSpinePoint}
               onPointTypeToggle={toggleSpineType}
               maxPoints={8}
               minPoints={3}
-              xRange={[0, params.depth]}
-              yRange={[0, params.height]}
+              xRange={[0, params.winRight]}
+              yRange={[params.winBottom, params.winTop]}
+              showUnitRefLine={false}
               arrowStepX={1}
               arrowStepY={1}
+              /* This editor works in mm, so it needs a mm-scale drag grid —
+                 the 0.05 default is far below one pixel here, which made a
+                 drag effectively unsnapped and Alt-drag indistinguishable
+                 from a plain one. 0.5 mm normally, 0.1 mm with Alt. */
+              dragStepX={0.5}
+              dragStepY={0.5}
               xLabel="stick-out (mm)"
               width={spineW}
               height={spineH}
@@ -358,15 +400,50 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               freeEndpointY
               overlayPaths={outlinePaths}
             />
+            <div className="flex gap-1 mt-1">
+              <button className={miniBtn} onClick={reOriginSpine}
+                title="Slide the whole design so the lower attachment end sits at 0 — the drawing doesn't move, only the numbers on the axis">
+                Re-origin
+              </button>
+              <button className={miniBtn} onClick={fitWindow}
+                title="Shrink the drawing area back onto the handle. It can only close in as far as the outermost control point, so some empty space stays wherever a handle reaches out past the curve">
+                Fit
+              </button>
+            </div>
           </Section>
-          <Section title="Dimensions" titleColor={GROUP_COLORS.structure}>
-            {sl('height', 'Height', 'mm', 'Height of the drawing area — the whole curve scales with it')}
-            {sl('depth', 'Depth', 'mm', 'Width of the drawing area (max stick-out) — the whole curve scales with it')}
-            {sl('width', 'Width', 'mm', 'Cross-section width in the parting plane')}
-            {sl('thickness', 'Thickness', 'mm', 'Cross-section thickness perpendicular to the parting plane')}
-            {sl('shrinkPercent', 'Shrink', '%', 'Clay shrinkage — the master prints this much larger than the designed size')}
+          <Section title="Handle Dimensions" titleColor={GROUP_COLORS.structure}>
+            <SliderRow
+              label="Height (mm)"
+              value={round1(measure.span)}
+              min={HANDLE_PARAMS.height.min}
+              max={HANDLE_PARAMS.height.max}
+              step={HANDLE_PARAMS.height.step}
+              valueLabel={`${round1(measure.span)} / ${round1(measure.overallHeight)}`}
+              tooltip="Handle height, measured on the centerline: distance between the two attachment ends / overall tallest-to-lowest. The slider sets the attachment distance and the overall follows. Scales the curve vertically only, anchored at the lower end — stick-out is unchanged"
+              onChange={setSpineSpan}
+            />
+            <SliderRow
+              label="Depth (mm)"
+              value={round1(measure.maxX)}
+              min={HANDLE_PARAMS.depth.min}
+              max={HANDLE_PARAMS.depth.max}
+              step={HANDLE_PARAMS.depth.step}
+              tooltip="How far the centerline reaches from the vase wall at its furthest. Scales the curve horizontally only"
+              onChange={setSpineDepth}
+            />
+            {/* Width/Thickness are deliberately crossed: the stored fields keep
+                their original meaning (`width` = in-plane, `thickness` =
+                out-of-plane) so existing settings files and presets describe
+                the same physical handle, but the LABELS were swapped in
+                v1.16.0 to match how people actually describe a handle — width
+                is what you see looking at the mug head-on, thickness is how
+                thick the strap looks in profile. Same pattern as the mold's
+                'perpendicular' value behind the "Parallel" label. */}
+            {sl('thickness', 'Width (mm)', undefined, 'Cross-section width — perpendicular to the parting plane; the dimension you see looking at the mug head-on')}
+            {sl('width', 'Thickness (mm)', undefined, 'Cross-section thickness — measured in the parting plane; how thick the strap looks in the profile view')}
+            {sl('shrinkPercent', 'Shrink (%)', undefined, 'Clay shrinkage — the master prints this much larger than the designed size')}
             <Toggle label="Hollow" checked={params.masterHollow} onChange={(v) => setParam('masterHollow', v)} tooltip="Hollow the master from its flat side to save plastic" />
-            {params.masterHollow && sl('masterShellThickness', 'Shell', 'mm', 'Printed wall thickness of the hollow master')}
+            {params.masterHollow && sl('masterShellThickness', 'Shell (mm)', undefined, 'Printed wall thickness of the hollow master')}
           </Section>
           <Section title="Wells" titleColor={GROUP_COLORS.structure}>
             {sl('openingDiameter', 'Opening', 'mm', 'Diameter of the pour opening / cylinder at each end')}
@@ -424,7 +501,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               value={`${handle.layout.cavW.toFixed(0)} × ${handle.layout.cavD.toFixed(0)} × ${handle.layout.wallH.toFixed(0)} mm`}
               tooltip="Wall interior size (W × D × H) — a printed wall pair fits any handle with the same numbers"
             />
-            <StatRow label="Handle size" value={`${handle.masterStats.sizeX.toFixed(0)} × ${handle.masterStats.sizeY.toFixed(0)} × ${handle.masterStats.sizeZ.toFixed(0)} mm`} tooltip="Master bounding box including well cones (shrink-scaled)" />
+            <StatRow label="Master size (printed)" value={`${handle.masterStats.sizeX.toFixed(0)} × ${handle.masterStats.sizeY.toFixed(0)} × ${handle.masterStats.sizeZ.toFixed(0)} mm`} tooltip="Bounding box of the printed master — bigger than the Height/Depth you designed, because it includes the well cones and the shrink upscale" />
             <StatRow label="Handle plastic" value={`${(handle.masterStats.volumeMm3 / 1000).toFixed(0)} cm³`} />
           </Section>
 

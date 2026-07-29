@@ -4,6 +4,11 @@
  *
  * Handle-plane coordinates: x = stick-out depth from the vase wall (x=0 is the
  * wall plane), y = height along the wall. The parting plane is the x–y plane.
+ *
+ * Control points are stored in MILLIMETRES (v1.16.0). They used to be normalized
+ * 0–1 and multiplied by separate `height`/`depth` params, which meant those two
+ * sliders were really scale factors and the drawing area could never be resized
+ * without resizing the handle. Millimetres decouple the two.
  */
 
 import { evaluatePiecewiseBezier } from '../bezier';
@@ -20,16 +25,51 @@ export interface SpineStation {
   ny: number;
 }
 
+/** What the Height and Depth sliders report, all measured off the centerline. */
+export interface SpineMeasure {
+  /** Distance between the two attachment ends — what the Height slider sets. */
+  span: number;
+  /** Lowest-to-highest extent of the curve; ≥ span, bigger when a handle
+   *  point pulls the curve past an endpoint. */
+  overallHeight: number;
+  /** Furthest the curve reaches from the wall — what the Depth slider sets. */
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
+/** Walk the curve and measure it. Pure — no scaling, no shrink compensation. */
+export function measureSpine(
+  points: BezierPoint[],
+  types: CurvePointType[],
+  samples = 160
+): SpineMeasure {
+  const t0 = points[0][1];
+  const t1 = points[points.length - 1][1];
+  let minY = Infinity;
+  let maxY = -Infinity;
+  let maxX = 0;
+  for (let i = 0; i <= samples; i++) {
+    const t = t0 + (t1 - t0) * (i / samples);
+    const [xf, yf] = evaluatePiecewiseBezier(t, points, types);
+    const x = Math.max(0, xf);
+    if (x > maxX) maxX = x;
+    if (yf < minY) minY = yf;
+    if (yf > maxY) maxY = yf;
+  }
+  return { span: Math.abs(t1 - t0), overallHeight: maxY - minY, maxX, minY, maxY };
+}
+
 /**
- * Sample the spine at n+1 stations in mm. depthMm/heightMm scale the normalized
- * [0–1]² control points.
+ * Sample the spine at n+1 stations. Control points are already in mm; `scale`
+ * applies shrink compensation (about the origin — the mold layout re-centers on
+ * the well midpoint, so absolute y position never matters).
  */
 export function sampleSpine(
   points: BezierPoint[],
   types: CurvePointType[],
-  depthMm: number,
-  heightMm: number,
-  n: number
+  n: number,
+  scale = 1
 ): SpineStation[] {
   // The piecewise Bezier maps its parameter through the FIXED points' heights,
   // so the meaningful domain is [firstY, lastY], not [0, 1] — endpoints may sit
@@ -41,7 +81,7 @@ export function sampleSpine(
   for (let i = 0; i <= n; i++) {
     const t = t0 + (t1 - t0) * (i / n);
     const [xf, yf] = evaluatePiecewiseBezier(t, points, types);
-    raw.push([Math.max(0, xf) * depthMm, yf * heightMm]);
+    raw.push([Math.max(0, xf) * scale, yf * scale]);
   }
 
   const stations: SpineStation[] = [];

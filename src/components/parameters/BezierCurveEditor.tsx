@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
 import { evaluatePiecewiseBezier } from '@/engine/bezier';
+import { FINE_FACTOR, COARSE_FACTOR, snapToGrid } from './ui';
 import type { BezierPoint, CurvePointType } from '@/engine/types';
 
 interface BezierCurveEditorProps {
@@ -23,6 +24,15 @@ interface BezierCurveEditorProps {
   arrowStepX?: number;
   /** Base arrow-key step on y axis. Defaults to 0.025. */
   arrowStepY?: number;
+  /**
+   * Grid a drag snaps to on the x axis (Alt-drag is 5× finer). Defaults to
+   * 0.05. This has to be a prop because the editors work in different units:
+   * the vase Profile's x is a radius multiple (0–5), the handle spine's is
+   * millimetres (0–depth), and a grid tuned for one is sub-pixel in the other.
+   */
+  dragStepX?: number;
+  /** Grid a drag snaps to on the y axis (Alt-drag is 5× finer). Defaults to 0.025. */
+  dragStepY?: number;
   xLabel?: string;
   yLabel?: string;
   width?: number;
@@ -44,6 +54,12 @@ interface BezierCurveEditorProps {
    * handles can attach at any height.
    */
   freeEndpointY?: boolean;
+  /**
+   * Draw the dashed reference line at x = 1 (the vase's "radius × 1"). Turn it
+   * off for editors whose x axis is millimetres, where 1 mm means nothing and
+   * the line just sits next to the axis as noise.
+   */
+  showUnitRefLine?: boolean;
 }
 
 /** Compact numeric input with a typing draft; commits on blur/Enter, reverts on Escape. */
@@ -101,9 +117,28 @@ function NumField({
 }
 
 // Layout constants
-const PADDING = { top: 8, right: 12, bottom: 29, left: 32 };
+// right is wide enough to park the ▲▼ stepper beside the plot instead of on
+// top of it — a control point dragged to the far edge used to hide underneath.
+const PADDING = { top: 8, right: 20, bottom: 29, left: 32 };
+/** Width of the ▲▼ stepper buttons; they live in the right padding. */
+const STEP_BTN_W = 18;
+
+/** Non-plot chrome the editor adds around the plot area — callers that size the
+ *  component from a desired plot size should add these. */
+export const EDITOR_CHROME = {
+  x: PADDING.left + PADDING.right,
+  y: PADDING.top + PADDING.bottom,
+};
 const CURVE_SAMPLES = 60;
 const POINT_RADIUS = 4.2; // 30% smaller than the original 6 — crowded points overlap less
+
+/** Round an axis interval to the nearest 1, 2 or 5 times a power of ten. */
+function niceStep(target: number): number {
+  if (!(target > 0)) return 1;
+  const mag = Math.pow(10, Math.floor(Math.log10(target)));
+  const n = target / mag;
+  return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * mag;
+}
 const POINT_HIT_RADIUS = 12;
 
 /**
@@ -124,6 +159,8 @@ export function BezierCurveEditor({
   yRange,
   arrowStepX = 0.05,
   arrowStepY = 0.025,
+  dragStepX = 0.05,
+  dragStepY = 0.025,
   xLabel,
   yLabel,
   width = 260,
@@ -131,6 +168,7 @@ export function BezierCurveEditor({
   showReadout = false,
   overlayPaths,
   freeEndpointY = false,
+  showUnitRefLine = true,
 }: BezierCurveEditorProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef<number | null>(null);
@@ -278,14 +316,10 @@ export function BezierCurveEditor({
       dataX = Math.max(xRange[0], Math.min(xRange[1], dataX));
       dataY = Math.max(yRange[0], Math.min(yRange[1], dataY));
 
-      // Modifier-aware rounding: Alt = finer (5×), default = current grid
-      if (e.altKey) {
-        dataX = Math.round(dataX * 100) / 100; // 0.01 precision
-        dataY = Math.round(dataY * 200) / 200; // 0.005 precision
-      } else {
-        dataX = Math.round(dataX * 20) / 20;   // 0.05 precision
-        dataY = Math.round(dataY * 40) / 40;   // 0.025 precision
-      }
+      // Modifier-aware snapping: Alt = 5× finer than this editor's drag grid.
+      // (Defaults reproduce the old hard-coded 0.05/0.025 and 0.01/0.005.)
+      dataX = snapToGrid(dataX, e.altKey ? dragStepX * FINE_FACTOR : dragStepX);
+      dataY = snapToGrid(dataY, e.altKey ? dragStepY * FINE_FACTOR : dragStepY);
 
       // Axis-lock: pin the off-axis to its starting value
       if (pd && movedBeyondThreshold && pd.axisLock !== null) {
@@ -301,7 +335,7 @@ export function BezierCurveEditor({
 
       onPointChange(index, [dataX, dataY]);
     },
-    [toDataX, toDataY, xRange, yRange, points.length, onPointChange, freeEndpointY]
+    [toDataX, toDataY, xRange, yRange, points.length, onPointChange, freeEndpointY, dragStepX, dragStepY]
   );
 
   const handlePointerUp = useCallback(() => {
@@ -349,11 +383,11 @@ export function BezierCurveEditor({
       let stepY = arrowStepY;
       if (e.altKey) {
         // Alt wins over Shift if both pressed (precision over speed)
-        stepX = arrowStepX * 0.2;
-        stepY = arrowStepY * 0.2;
+        stepX = arrowStepX * FINE_FACTOR;
+        stepY = arrowStepY * FINE_FACTOR;
       } else if (e.shiftKey) {
-        stepX = arrowStepX * 5;
-        stepY = arrowStepY * 5;
+        stepX = arrowStepX * COARSE_FACTOR;
+        stepY = arrowStepY * COARSE_FACTOR;
       }
       let nx = p[0];
       let ny = p[1];
@@ -430,15 +464,21 @@ export function BezierCurveEditor({
   const yTicks = useMemo(() => {
     const ticks: number[] = [];
     const range = yRange[1] - yRange[0];
-    const step = range <= 1 ? 0.25 : range <= 5 ? 1 : 10;
-    for (let v = yRange[0]; v <= yRange[1] + 0.001; v += step) {
+    // ≤1 and ≤5 preserve the vase editors' exact spacing (0–1 heights, 0–5
+    // radius multiples). Wider ranges are millimetre spans (HandleMaker), where
+    // the window is resizable, so the step is derived instead of fixed at 10.
+    const step = range <= 1 ? 0.25 : range <= 5 ? 1 : niceStep(range / 12);
+    // Start on a multiple of the step — a window opened into negative y should
+    // still label 0, 10, 20 … rather than -7, 3, 13 …
+    const first = Math.ceil(yRange[0] / step - 1e-6) * step;
+    for (let v = first; v <= yRange[1] + 1e-6; v += step) {
       ticks.push(Math.round(v * 100) / 100);
     }
     return ticks;
   }, [yRange]);
 
   // Reference line at x=1.0 (if within range)
-  const refLineX = xRange[0] <= 1 && xRange[1] >= 1 ? toSvgX(1) : null;
+  const refLineX = showUnitRefLine && xRange[0] <= 1 && xRange[1] >= 1 ? toSvgX(1) : null;
 
   const svgEl = (
     <svg
@@ -688,14 +728,17 @@ export function BezierCurveEditor({
   const sel = selectedIndex !== null ? points[selectedIndex] : undefined;
   const isPct = yRange[1] <= 1;
   const stepBtnCls =
-    'w-5 h-6 flex items-center justify-center text-[12px] leading-none rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)] disabled:opacity-30 disabled:hover:text-[var(--text-secondary)] disabled:hover:border-[var(--border-color)]';
+    'h-6 flex items-center justify-center text-[12px] leading-none rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)] disabled:opacity-30 disabled:hover:text-[var(--text-secondary)] disabled:hover:border-[var(--border-color)]';
   return (
     <div className="relative">
       {svgEl}
-      {/* ▲▼ point stepper — selects the next point up/down without clicking it */}
+      {/* ▲▼ point stepper — selects the next point up/down without clicking it.
+          Anchored by LEFT off the svg width, not `right: 0`: this wrapper can be
+          narrower than the svg (the svg overflows it), and anchoring to the
+          wrapper's right edge parked the buttons on top of the plot. */}
       <div
         className="absolute flex flex-col gap-1.5"
-        style={{ right: 0, top: PADDING.top + plotH / 2 - 28 }}
+        style={{ left: width - STEP_BTN_W - 1, width: STEP_BTN_W, top: PADDING.top + plotH / 2 - 28 }}
       >
         <button
           className={stepBtnCls}
@@ -724,7 +767,7 @@ export function BezierCurveEditor({
               min={xRange[0]}
               max={xRange[1]}
               decimals={2}
-              title="Exact X value (radius multiplier)"
+              title={xLabel ? `Exact ${xLabel}` : 'Exact X value (radius multiplier)'}
               onCommit={(x) => onPointChange(selectedIndex, [x, sel[1]])}
             />
             <span className="text-[var(--text-secondary)] ml-1">Ht</span>

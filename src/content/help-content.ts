@@ -44,8 +44,11 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'keyvalue', items: [
         { key: '\u2318Z', value: 'Undo' },
         { key: '\u2318\u21e7Z', value: 'Redo' },
-        { key: '\u2190 \u2192', value: 'Click a slider, then use arrow keys to nudge the value one step at a time for precise control' },
+        { key: '\u2190 \u2192', value: 'Click a slider, then use arrow keys to nudge it one step at a time' },
+        { key: '\u21e7 + \u2190 \u2192', value: 'Nudge a slider 5\u00d7 further per press' },
+        { key: '\u2325 + \u2190 \u2192', value: 'Nudge a slider 5\u00d7 finer \u2014 below its normal step. Alt wins if you hold both' },
       ] },
+      { type: 'paragraph', text: 'The same two modifiers work while dragging a slider: hold Alt/Option for finer resolution than the slider\u2019s step, Shift for coarser jumps. They behave identically in the curve editors, so the feel carries between them.' },
       { type: 'heading', text: 'Design Name' },
       { type: 'paragraph', text: 'The design name appears below the version line in the sidebar header. Click it to rename your design. The name is used for Save Design, Save Image, and Export STL filenames. An asterisk (*) appears when you have unsaved changes.' },
       { type: 'paragraph', text: 'The name updates automatically when you load a design file, save a design, or select a preset. You can also click the name to type a new one at any time.' },

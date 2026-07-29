@@ -2,7 +2,29 @@
 
 import { useRef, useCallback } from 'react';
 
-/** Reusable slider row */
+/**
+ * Modifier multipliers shared by every fine-adjust control (sliders and the
+ * Bezier curve editors) so the muscle memory carries between them:
+ * Alt/Option = 5× finer, Shift = 5× coarser. Alt wins when both are held —
+ * precision beats speed.
+ */
+export const FINE_FACTOR = 0.2;
+export const COARSE_FACTOR = 5;
+
+/** Snap to a grid, trimming binary-float noise (0.1 * 3 → 0.30000000000000004). */
+export function snapToGrid(v: number, grid: number): number {
+  if (!(grid > 0)) return v;
+  return parseFloat((Math.round(v / grid) * grid).toFixed(6));
+}
+
+/**
+ * Reusable slider row.
+ *
+ * Arrow keys nudge the focused slider by one `step`; **Alt/Option** gives a
+ * step 5× finer than the slider's own and **Shift** one 5× coarser. The same
+ * multipliers apply while dragging, so Alt-drag resolves finer than the step
+ * grid and Shift-drag jumps in coarse increments.
+ */
 export function SliderRow({
   label,
   value,
@@ -12,6 +34,7 @@ export function SliderRow({
   onChange,
   tooltip,
   suffix,
+  valueLabel,
 }: {
   label: string;
   value: number;
@@ -21,21 +44,84 @@ export function SliderRow({
   onChange: (v: number) => void;
   tooltip?: string;
   suffix?: string;
+  /**
+   * Replaces the numeric readout when the slider's value alone doesn't tell the
+   * story — e.g. HandleMaker's Height shows "100 / 115" (the span it sets, and
+   * the overall extent that follows along). Widens the column to suit.
+   */
+  valueLabel?: string;
 }) {
+  // Modifier state for the drag path. The `input` event carries no modifier
+  // flags, so they're latched from the pointer events that precede it.
+  const mods = useRef({ alt: false, shift: false });
+
+  const gridFor = (alt: boolean, shift: boolean) =>
+    alt ? step * FINE_FACTOR : shift ? step * COARSE_FACTOR : step;
+
+  /** Clamp to range and drop float noise. */
+  const clean = (v: number) => parseFloat(Math.max(min, Math.min(max, v)).toFixed(6));
+
+  const commit = (next: number, el?: HTMLInputElement) => {
+    if (next !== value) onChange(next);
+    // Unchanged after snapping: React won't re-render, so the input would keep
+    // the un-snapped position it just reported and the thumb would sit
+    // slightly off the real value. Put it back by hand.
+    else if (el) el.value = String(value);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const dir =
+      e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1
+      : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1
+      : 0;
+    if (!dir) return;
+    e.preventDefault(); // native stepping ignores the modifiers — do it ourselves
+    // Relative, NOT re-snapped to the modified grid: Shift means "move by 5
+    // steps", so 124 → 129. Snapping would align to the coarse grid instead
+    // and jump to 130, and an Alt-fine offset would be lost on the next
+    // ordinary press. This matches how the curve editors nudge.
+    commit(clean(value + dir * gridFor(e.altKey, e.shiftKey)));
+  };
+
+  const latchMods = (e: React.PointerEvent<HTMLInputElement>) => {
+    mods.current = { alt: e.altKey, shift: e.shiftKey };
+  };
+
   return (
     <div className="flex items-center gap-2 mb-2">
-      <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title={tooltip}>{label}</label>
+      {/* w-28, not w-24: labels carrying a unit ("Thickness (mm)") wrapped to a
+          second line and threw the row heights out of alignment. Toggle matches
+          so its label still lines up with the sliders around it. */}
+      <label className="text-sm text-[var(--text-secondary)] w-28 shrink-0" title={tooltip}>{label}</label>
       <input
         type="range"
         min={min}
         max={max}
-        step={step}
+        /* `any` — with a fixed step the browser's value sanitisation snaps an
+           Alt-fine value straight back to the coarse grid (12.4 → 12 at
+           step=1). Snapping happens in commit() instead, so an unmodified
+           drag still lands on the slider's own step exactly as before. */
+        step="any"
         value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        onKeyDown={handleKeyDown}
+        onPointerDown={latchMods}
+        onPointerMove={latchMods}
+        onChange={(e) =>
+          // Dragging is absolute positioning, so here the grid DOES align the
+          // value — an unmodified drag lands on the slider's own step exactly
+          // as it did before, Alt resolves 5× finer, Shift 5× coarser.
+          commit(
+            clean(snapToGrid(parseFloat(e.target.value), gridFor(mods.current.alt, mods.current.shift))),
+            e.target
+          )
+        }
         className="flex-1 min-w-0 h-1.5 accent-[var(--accent)]"
       />
-      <span className="text-xs text-[var(--text-secondary)] w-12 shrink-0 text-right tabular-nums">
-        {value}{suffix}
+      <span
+        className={`text-xs text-[var(--text-secondary)] shrink-0 text-right tabular-nums ${valueLabel ? 'w-[68px]' : 'w-12'}`}
+        title={tooltip}
+      >
+        {valueLabel ?? `${value}${suffix ?? ''}`}
       </span>
     </div>
   );
@@ -99,7 +185,10 @@ export function Toggle({ label, checked, onChange, onReset, tooltip }: {
 }) {
   return (
     <div className="flex items-center gap-3 mb-2">
-      <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title={tooltip}>{label}</label>
+      {/* w-28, not w-24: labels carrying a unit ("Thickness (mm)") wrapped to a
+          second line and threw the row heights out of alignment. Toggle matches
+          so its label still lines up with the sliders around it. */}
+      <label className="text-sm text-[var(--text-secondary)] w-28 shrink-0" title={tooltip}>{label}</label>
       <button
         onClick={() => onChange(!checked)}
         className={`w-8 h-4 rounded-full transition-colors ${

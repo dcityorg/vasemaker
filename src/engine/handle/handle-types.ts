@@ -11,22 +11,34 @@ import type { PlasterType } from '../mold/mold-types';
 
 export interface HandleParameters {
   /**
-   * Spine centerline control points as [depthFraction 0–1, heightFraction 0–1].
-   * The left edge (x=0) is the vase-wall plane; first/last points are locked
-   * to x=0 (the attachment ends) and y=0 / y=1. Scaled by depth/height mm.
+   * Spine centerline control points in MILLIMETRES: [stickOut, height]. x=0 is
+   * the vase-wall plane and the first/last points are locked there (the two
+   * attachment ends); their heights are free so hook shapes can attach at any
+   * level, and y may be negative.
+   *
+   * Before v1.16.0 these were normalized 0–1 and scaled by `height`/`depth`
+   * params — see mergeHandleParameters for the one-way migration.
    */
   spinePoints: BezierPoint[];
   /** Per-point fixed/handle types (same convention as the vase Profile curve). */
   spineTypes: CurvePointType[];
 
+  // ── Drawing area (view only — never affects the exported geometry) ──
+  /** Right edge of the profile editor, mm. x always starts at 0 (the wall). */
+  winRight: number;
+  /** Top edge of the profile editor, mm. */
+  winTop: number;
+  /** Bottom edge of the profile editor, mm — usually 0 or negative. */
+  winBottom: number;
+
   // ── Handle size (finished, pre-shrink, mm) ──
-  /** Overall height — distance between the two attachment points. */
-  height: number;
-  /** Stick-out from the vase wall at spine x=1. */
-  depth: number;
-  /** Cross-section width, measured in the parting plane. */
+  /**
+   * Cross-section size in the parting plane. Surfaced in the UI as
+   * **Thickness** (v1.16.0) — the field name is kept so existing settings
+   * files and presets keep describing the same handle.
+   */
   width: number;
-  /** Cross-section thickness, perpendicular to the parting plane. */
+  /** Cross-section size perpendicular to the parting plane. Surfaced in the UI as **Width**. */
   thickness: number;
 
   // ── Wells (slip reservoirs — cut off the cast handle). Each well runs
@@ -91,15 +103,18 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   // tangent-smooth there (no kink → no offset cusp) and make Depth literal.
   spinePoints: [
     [0, 0],
-    [1, 0.15],
-    [1, 0.5],
-    [1, 0.85],
-    [0, 1],
+    [35, 15],
+    [35, 50],
+    [35, 85],
+    [0, 100],
   ],
   spineTypes: ['fixed', 'handle', 'fixed', 'handle', 'fixed'],
 
-  height: 100,
-  depth: 35,
+  // Matches fitWindowTo() of the spine above, so the app opens already fitted.
+  winRight: 40,
+  winTop: 105,
+  winBottom: -5,
+
   width: 14,
   thickness: 10,
 
@@ -133,6 +148,62 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   material: 'pottery',
 };
 
+/** Breathing room "Fit" leaves around the control points, mm. */
+export const WINDOW_MARGIN = 5;
+/** Smallest usable drawing area, mm — guards degenerate spines. */
+const MIN_WINDOW = 10;
+
+export interface WindowExtents {
+  winRight: number;
+  winTop: number;
+  winBottom: number;
+}
+
+/**
+ * Bounding box of the CONTROL POINTS — deliberately not the curve. A Bezier
+ * always lies inside the convex hull of its control points, so a window that
+ * shows every control point is guaranteed to show the whole curve too.
+ */
+export function controlBounds(points: BezierPoint[]): { maxX: number; minY: number; maxY: number } {
+  let maxX = 0;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of points) {
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  return Number.isFinite(minY) ? { maxX, minY, maxY } : { maxX: 0, minY: 0, maxY: 0 };
+}
+
+/** Window extents are user-facing slider values — keep them to 0.1 mm. */
+const r1 = (n: number) => Math.round(n * 10) / 10;
+
+/** The snuggest window that still shows every control point, plus a margin. */
+export function fitWindowTo(points: BezierPoint[]): WindowExtents {
+  const b = controlBounds(points);
+  return {
+    winRight: r1(Math.max(MIN_WINDOW, b.maxX + WINDOW_MARGIN)),
+    winTop: r1(b.maxY + WINDOW_MARGIN),
+    winBottom: r1(b.minY - WINDOW_MARGIN),
+  };
+}
+
+/**
+ * Expand a window — never shrink it — until no control point is hidden. Used
+ * after scaling, which is the one operation that can push points out of view
+ * (dragging can't: the editor clamps to the window).
+ */
+export function growWindowFor(points: BezierPoint[], win: WindowExtents): WindowExtents {
+  const b = controlBounds(points);
+  const out = {
+    winRight: r1(Math.max(win.winRight, b.maxX + WINDOW_MARGIN, MIN_WINDOW)),
+    winTop: r1(Math.max(win.winTop, b.maxY + WINDOW_MARGIN)),
+    winBottom: r1(Math.min(win.winBottom, b.minY - WINDOW_MARGIN)),
+  };
+  return out.winTop - out.winBottom >= MIN_WINDOW ? out : fitWindowTo(points);
+}
+
 function isBezierPointArray(v: unknown): v is BezierPoint[] {
   return (
     Array.isArray(v) &&
@@ -157,13 +228,27 @@ export function mergeHandleParameters(loaded: unknown): HandleParameters {
   if (!loaded || typeof loaded !== 'object') return out;
   const src = loaded as Record<string, unknown>;
 
+  let migrated = false;
   if (isBezierPointArray(src.spinePoints)) {
-    const pts = src.spinePoints.map((p) => [p[0], p[1]] as BezierPoint);
+    let pts = src.spinePoints.map((p) => [p[0], p[1]] as BezierPoint);
+    // v1.16.0 migration: the spine used to be stored normalized 0–1 and scaled
+    // by the old `height`/`depth` params. Detect that shape — every coordinate
+    // inside the unit square — and bake the scale in once. A millimetre spine
+    // of a real handle is tens of mm across, so it can't be mistaken for one.
+    const legacyH = src.height;
+    const legacyD = src.depth;
+    if (
+      typeof legacyH === 'number' &&
+      typeof legacyD === 'number' &&
+      pts.every(([x, y]) => x >= 0 && x <= 1 && y >= 0 && y <= 1)
+    ) {
+      pts = pts.map(([x, y]) => [x * legacyD, y * legacyH] as BezierPoint);
+      migrated = true;
+    }
     // Endpoints always anchor to the vase-wall plane (x=0); their heights are
-    // free (hook-shaped handles) but clamped to the drawing area.
-    const clampY = (y: number) => Math.max(0, Math.min(1, y));
-    pts[0] = [0, clampY(pts[0][1])];
-    pts[pts.length - 1] = [0, clampY(pts[pts.length - 1][1])];
+    // free, and may be negative.
+    pts[0] = [0, pts[0][1]];
+    pts[pts.length - 1] = [0, pts[pts.length - 1][1]];
     out.spinePoints = pts;
     const t = src.spineTypes;
     out.spineTypes =
@@ -183,5 +268,9 @@ export function mergeHandleParameters(loaded: unknown): HandleParameters {
       (out as unknown as Record<string, unknown>)[key] = v;
     }
   }
+
+  // A legacy file has no window of its own, and any file could name one that
+  // hides a control point (making it ungrabbable), so settle the window last.
+  Object.assign(out, migrated ? fitWindowTo(out.spinePoints) : growWindowFor(out.spinePoints, out));
   return out;
 }
