@@ -42,4 +42,9 @@ export const HANDLE_PARAMS = {
   plasterAbove:  { min: 5, max: 40, step: 1 } as SliderRange,
   wallThickness: { min: 3, max: 8, step: 0.5 } as SliderRange,
   wellSealDepth: { min: 0, max: 3, step: 0.5 } as SliderRange,
+
+  // Mesh resolution. The defaults already sit well under what a 0.4 mm nozzle
+  // can render; these exist for control on large handles and for file size.
+  spineSamples:    { min: 40, max: 400, step: 10 } as SliderRange,
+  sectionSegments: { min: 8, max: 64, step: 2 } as SliderRange,
 } as const;

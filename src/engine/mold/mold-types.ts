@@ -19,7 +19,7 @@ export type PlasterType = 'pottery' | 'hydrocal' | 'hydrostone';
  *   (vase + well + notched foot flange) and a removable outer shell that
  *   binder-clips to it; plaster poured in the open top, shell lifts off first.
  */
-export type MoldStyle = 'twoPart' | 'onePiece' | 'pourTwoPiece';
+export type MoldStyle = 'twoPart' | 'onePiece' | 'pourTwoPiece' | 'pourThreePiece';
 
 export interface MoldParameters {
   /** Mold construction style — see MoldStyle. */
@@ -89,6 +89,14 @@ export interface MoldParameters {
   notchWidth: number;
   /** Groove oversize around each notch so the shell seats (mm). */
   notchClearance: number;
+
+  // ── Pour 3-Pc only: the vertically split cottle ──
+  /** Azimuth of the vertical split plane, degrees. */
+  seamAngle: number;
+  /** Thickness of each seam fin (the clip tab at the split), mm. */
+  seamFinWidth: number;
+  /** Force a round shell instead of following the cross-section. */
+  roundShell: boolean;
   /** How far the center flange extends past the shell flange — an exposed lip
    * to press the center down while pulling the shell up (mm). */
   flangeLip: number;
@@ -116,7 +124,7 @@ export function mergeMoldParameters(loaded: unknown): MoldParameters {
       if (key === 'material') {
         if (v === 'pottery' || v === 'hydrocal' || v === 'hydrostone') out.material = v;
       } else if (key === 'moldStyle') {
-        if (v === 'twoPart' || v === 'onePiece' || v === 'pourTwoPiece') out.moldStyle = v;
+        if (v === 'twoPart' || v === 'onePiece' || v === 'pourTwoPiece' || v === 'pourThreePiece') out.moldStyle = v;
       } else if (typeof v === typeof DEFAULT_MOLD_PARAMETERS[key]) {
         (out as unknown as Record<string, unknown>)[key] = v;
       }
@@ -156,8 +164,11 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   flangeOverlap: 10,
   footFlangeThickness: 2,
   notchHeight: 1,
-  notchWidth: 1.5,
+  notchWidth: 2,
   notchClearance: 0.2,
+  seamAngle: 0,
+  seamFinWidth: 3,
+  roundShell: false,
   flangeLip: 3,
   shellGrabHeight: 10,
 

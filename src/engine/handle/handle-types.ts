@@ -94,6 +94,12 @@ export interface HandleParameters {
   /** How far the collar around each well opening stands proud of the wall face (leak seal, mm). */
   wellSealDepth: number;
 
+  // ── Mesh resolution ──
+  /** Stations sampled along the spine. */
+  spineSamples: number;
+  /** Segments around half the cross-section. */
+  sectionSegments: number;
+
   // ── Analysis ──
   material: PlasterType;
 }
@@ -144,6 +150,9 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   plasterAbove: 10,
   wallThickness: 4,
   wellSealDepth: 1,
+
+  spineSamples: 140,
+  sectionSegments: 24,
 
   material: 'pottery',
 };

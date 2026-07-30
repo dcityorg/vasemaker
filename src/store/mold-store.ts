@@ -23,6 +23,12 @@ const STORAGE_KEY = 'vasemaker-mold-settings';
 export interface MoldView {
   showMaster: boolean;
   showCottle: boolean;
+  /** Pour 3-Pc only: the second shell half, so one can be hidden to inspect flange edges. */
+  showCottleB: boolean;
+  /** Per-face normals — the V apexes read as creases instead of smooth tubes. */
+  flatShading: boolean;
+  /** Draw the shell translucent, to see how the whole assembly fits together. */
+  ghostShell: boolean;
   showPlaster: boolean;
   crossSection: boolean;
   showUndercuts: boolean;
@@ -31,6 +37,9 @@ export interface MoldView {
 const DEFAULT_VIEW: MoldView = {
   showMaster: true,
   showCottle: true,
+  showCottleB: true,
+  flatShading: false,
+  ghostShell: false,
   showPlaster: false,
   crossSection: false,
   showUndercuts: true,

@@ -35,6 +35,8 @@ export const MOLD_PARAMS = {
   notchHeight:         { min: 0.5, max: 2, step: 0.1 } as SliderRange,
   notchWidth:          { min: 1, max: 3, step: 0.1 } as SliderRange,
   notchClearance:      { min: 0, max: 0.5, step: 0.05 } as SliderRange,
+  seamAngle:           { min: 0, max: 360, step: 1 } as SliderRange,
+  seamFinWidth:        { min: 2, max: 8, step: 0.5 } as SliderRange,
   flangeLip:           { min: 0, max: 10, step: 0.5 } as SliderRange,
   shellGrabHeight:     { min: 0, max: 30, step: 1 } as SliderRange,
 } as const;

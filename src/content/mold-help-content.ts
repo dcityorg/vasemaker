@@ -66,7 +66,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     id: 'mold-one-piece',
     title: 'Pour 1-Pc Mold',
     blocks: [
-      { type: 'paragraph', text: 'The Press 2-Pc / Pour 1-Pc / Pour 2-Pc tabs at the top of the sidebar switch between three ways of building the same plaster mold. Pour 1-Pc replaces the master and cottle with a SINGLE print: the vase sits upside-down in the center, fused to the cottle at the well, and you pour plaster in through the fully open top. The plaster fills the gap around the vase and covers its bottom, forming the solid base of the mold. Released and flipped over, it\'s the identical finished mold — cavity, well funnel, razor edge, and foot boss.' },
+      { type: 'paragraph', text: 'The Press 2-Pc / Pour 1-Pc / Pour 2-Pc / Pour 3-Pc tabs at the top of the sidebar switch between four ways of building the same plaster mold. Pour 1-Pc replaces the master and cottle with a SINGLE print: the vase sits upside-down in the center, fused to the cottle at the well, and you pour plaster in through the fully open top. The plaster fills the gap around the vase and covers its bottom, forming the solid base of the mold. Released and flipped over, it\'s the identical finished mold — cavity, well funnel, razor edge, and foot boss.' },
       { type: 'heading', text: 'Why choose it' },
       { type: 'list', items: [
         'One print instead of two — no lid, flange, or pour slots',
@@ -117,6 +117,32 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
         'When set: unclip, lift the shell straight up and off, then release the center (ice-cold water in the hollow interior, air or push rods through the floor holes)',
       ] },
       { type: 'tip', text: 'The shell is reusable: re-clip it for every re-pour of this design. If you tweak only the vase profile but keep the footprint, the old shell may still fit — compare the Shell numbers in Printer Fit.' },
+    ],
+  },
+  {
+    id: 'mold-pour-three',
+    title: 'Pour 3-Pc Mold',
+    blocks: [
+      { type: 'paragraph', text: 'Pour 3-Pc is Pour 2-Pc with the outer shell split vertically into two halves that clip to each other as well as to the center. Instead of sliding the shell up over the whole plaster block, you unclip, part the two halves sideways, and the block stands free. Everything else — the pour, the well, the foot recess, the air holes — is identical.' },
+      { type: 'heading', text: 'The seam seal' },
+      { type: 'paragraph', text: 'Both the flange rings and the vertical seams use the same V ridge-and-groove profile as the handle mold, which poured completely leak-free. The two vertical Vs on each seam fin sit at the same radii as the two rings on the flange and run down to meet them, so plaster escaping in any direction has to climb two barriers — through the wall seam, through the fin seam, or out under the flange. A loose fit still seals; the clips do not need to be tight.' },
+      { type: 'heading', text: 'Round vs shaped shell' },
+      { type: 'paragraph', text: 'The shell follows your cross-section by default, which keeps the plaster block close to the vase and saves material. A half-shell can only part sideways if the cross-section is convex, so a concave one — heart, rose, butterfly, gear — makes the shell fall back to round automatically, and the sidebar says so. No seam angle fixes that: the shell reaches into the notch between lobes and locks. Round Shell forces round on any vase, which costs plaster but lets one printed shell serve several designs.' },
+      { type: 'heading', text: 'Printing' },
+      { type: 'paragraph', text: 'When the cross-section is half-turn symmetric — circles, ellipses, squares, rectangles — the two halves are the same part, so you print one Shell STL twice. Anything else exports Shell A and Shell B. Each half prints standing on its flange with the fins vertical; no supports.' },
+      { type: 'tip', text: 'Put the Seam Angle on a flat stretch of the cross-section rather than a corner. A fin at a sharp corner has to lie in the plane that bisects it, which is awkward to clamp — though on a square a corner seam actually releases a little more easily.' },
+    ],
+  },
+  {
+    id: 'mold-mesh-quality',
+    title: 'Mesh Quality & File Size',
+    blocks: [
+      { type: 'paragraph', text: 'Mold parts have no resolution setting of their own — they inherit the Radial and Vertical sliders from the Vase tab\u2019s Resolution section. Printer Fit shows the current values as a reminder, along with the triangle count and rough STL size of each part, so you can see what an export is going to cost before you make it.' },
+      { type: 'heading', text: 'How fine is fine enough' },
+      { type: 'paragraph', text: 'On a master around 170 mm across, the default 360 radial steps put the faceting error near 0.003 mm — roughly a hundred times finer than a 0.4 mm nozzle laying 0.2 mm layers can reproduce. Halving to 180 is still about 0.013 mm, and you would have to drop near 64 before faceting became visible on the print. Vertical resolution behaves the same way. So for a smooth master the defaults are not buying quality; they are buying file size and slicer time.' },
+      { type: 'heading', text: 'When high resolution does matter' },
+      { type: 'paragraph', text: 'With Keep Texture on and a textured vase, radial resolution has to resolve the texture features themselves — flutes, voronoi cells, an SVG motif — not just the roundness of the wall. That needs several segments per feature and is a far higher bar than smoothness, so leave it high in that case.' },
+      { type: 'tip', text: 'On the pour styles the center piece dominates the file because it carries the vase surface twice, outer and cavity; the shell is a few thousand triangles either way. If an export feels unwieldy, drop the vase resolution rather than simplifying afterwards in the slicer.' },
     ],
   },
 

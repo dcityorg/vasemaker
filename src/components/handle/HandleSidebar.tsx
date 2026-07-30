@@ -27,6 +27,12 @@ type HandleNumKey = {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
+/** Binary STL is an 84-byte header plus 50 bytes per triangle. */
+const stlSize = (tris: number) => {
+  const mb = (84 + tris * 50) / (1024 * 1024);
+  return `${tris >= 1000 ? `${(tris / 1000).toFixed(0)}k` : tris} tris · ${mb < 1 ? `${(mb * 1024).toFixed(0)} KB` : `${mb.toFixed(1)} MB`}`;
+};
+
 const miniBtn =
   'flex-1 py-1 text-[11px] rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] ' +
   'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)] transition-colors';
@@ -359,7 +365,8 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           <Toggle label="Handle" checked={view.showHandle} onChange={(v) => setView({ showHandle: v })} />
           <Toggle label="Wells" checked={view.showWells} onChange={(v) => setView({ showWells: v })} tooltip="Hide to see the finished handle — its ends cut flat and parallel to the vase wall" />
           <Toggle label="Plate" checked={view.showPlate} onChange={(v) => setView({ showPlate: v })} />
-          <Toggle label="Walls" checked={view.showWalls} onChange={(v) => setView({ showWalls: v })} tooltip="Both wall copies in their assembled positions" />
+          <Toggle label="Wall A" checked={view.showWallA} onChange={(v) => setView({ showWallA: v })} tooltip="First wall in its assembled position — turn one wall off to inspect the wall-to-plate joint" />
+          <Toggle label="Wall B" checked={view.showWallB} onChange={(v) => setView({ showWallB: v })} tooltip="Second wall copy (same print, rotated 180°)" />
           <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour volume" />
 
           {/* Handle */}
@@ -494,6 +501,10 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             <StatRow label="Powder" value={`≈ ${fmt(est.powderGrams)} g`} />
             <StatRow label="Water" value={`≈ ${fmt(est.waterGrams)} g`} />
           </Section>
+          <Section title="Resolution" titleColor={GROUP_COLORS.settings} defaultOpen={false} tooltip="Mesh density of the exported parts. The defaults already sit well under what a 0.4 mm nozzle can render — raise them for a large handle, lower them to cut file size">
+            {sl('spineSamples', 'Along', undefined, 'Stations sampled along the spine — controls smoothness around the bend')}
+            {sl('sectionSegments', 'Around', undefined, 'Segments around half the cross-section — controls how round the strap looks')}
+          </Section>
           <Section title="Printer Fit" titleColor={GROUP_COLORS.settings}>
             <StatRow label="Plate" value={`${handle.layout.plateW.toFixed(0)} × ${handle.layout.plateD.toFixed(0)} mm`} tooltip="Plate footprint — the biggest part; compare to your printer bed" />
             <StatRow
@@ -503,6 +514,10 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             />
             <StatRow label="Master size (printed)" value={`${handle.masterStats.sizeX.toFixed(0)} × ${handle.masterStats.sizeY.toFixed(0)} × ${handle.masterStats.sizeZ.toFixed(0)} mm`} tooltip="Bounding box of the printed master — bigger than the Height/Depth you designed, because it includes the well cones and the shrink upscale" />
             <StatRow label="Handle plastic" value={`${(handle.masterStats.volumeMm3 / 1000).toFixed(0)} cm³`} />
+            <StatRow label="Mesh" value={`${params.spineSamples} × ${params.sectionSegments}`} tooltip="Along × around mesh resolution, from the Resolution section above" />
+            <StatRow label="Handle STL" value={stlSize(handle.masterStats.triangleCount)} tooltip="Triangle count and approximate binary STL size" />
+            <StatRow label="Plate STL" value={stlSize(handle.plateStats.triangleCount)} />
+            <StatRow label="Wall STL" value={stlSize(handle.wallStats.triangleCount)} />
           </Section>
 
           <button

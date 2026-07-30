@@ -24,10 +24,12 @@ const MOLD_STYLE_TABS: { value: MoldStyle; label: string; tooltip: string }[] = 
   { value: 'twoPart', label: 'Press 2-Pc', tooltip: 'Master + cottle printed separately — press the master into plaster poured in the cottle' },
   { value: 'onePiece', label: 'Pour 1-Pc', tooltip: 'Single print with the vase inverted inside — pour plaster in through the open top' },
   { value: 'pourTwoPiece', label: 'Pour 2-Pc', tooltip: 'Pour mold split in two: center piece + removable outer shell that binder-clips to its foot flange — much easier release' },
+  { value: 'pourThreePiece', label: 'Pour 3-Pc', tooltip: 'Pour 2-Pc with the shell split vertically into two clip-together halves — part them sideways instead of lifting the shell off the whole block' },
 ];
 
 export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMeshes; helpOpen: boolean; onToggleHelp: () => void }) {
   const designName = useVaseStore((s) => s.designName);
+  const vaseRes = useVaseStore((s) => s.params.resolution);
   const params = useMoldStore((s) => s.params);
   const view = useMoldStore((s) => s.view);
   const settingsName = useMoldStore((s) => s.settingsName);
@@ -46,12 +48,19 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     await saveSTLFile(blob, name);
   };
 
+  // Both pour-and-clip styles share every label, slider and stat below.
+  const isPourClip = mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece';
+  /** Binary STL is an 84-byte header plus 50 bytes per triangle. */
+  const stlSize = (tris: number) => {
+    const mb = (84 + tris * 50) / (1024 * 1024);
+    return `${tris >= 1000 ? `${(tris / 1000).toFixed(0)}k` : tris} tris · ${mb < 1 ? `${(mb * 1024).toFixed(0)} KB` : `${mb.toFixed(1)} MB`}`;
+  };
   const stlName = (part: string) => (designName ? `${designName} ${part}.stl` : `${part}.stl`);
 
   // Main export: the part carrying the vase form — gated by the undercut warning.
   const doExportMain = () => {
     if (mold.style === 'onePiece') exportMesh(mold.mold, stlName('mold'));
-    else if (mold.style === 'pourTwoPiece') exportMesh(mold.center, stlName('center'));
+    else if (mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece') exportMesh(mold.center, stlName('center'));
     else exportMesh(mold.master, stlName('master'));
   };
   const handleExportMain = () => {
@@ -153,7 +162,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
         </div>
         <p className="text-xs text-[var(--text-secondary)]">Plaster slip-casting mold from your vase</p>
         {/* Mold style switcher — Two-Piece (master + cottle) vs One-Piece (single pour-in print). Internal value stays 'twoPart' for settings-file compat. */}
-        <div className="flex gap-1 mt-2">
+        <div className="grid grid-cols-2 gap-1 mt-2">
           {MOLD_STYLE_TABS.map((tab) => (
             <button
               key={tab.value}
@@ -292,6 +301,36 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 </button>
               </>
             )}
+            {mold.style === 'pourThreePiece' && (
+              <>
+                <button
+                  onClick={handleExportMain}
+                  className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
+                  style={{ color: UI_MUTED }}
+                  title="Export the center piece (vase + well + V-ridged foot flange)"
+                >
+                  Export Center STL
+                </button>
+                <button
+                  onClick={() => exportMesh(translateMesh(mold.shellA, 0, 0, -mold.shellExportDrop), stlName(mold.halvesIdentical ? 'shell' : 'shell A'))}
+                  className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
+                  style={{ color: UI_MUTED }}
+                  title={mold.halvesIdentical ? 'Export one shell half — print it twice' : 'Export shell half A'}
+                >
+                  {mold.halvesIdentical ? 'Export Shell STL (print 2)' : 'Export Shell A STL'}
+                </button>
+                {!mold.halvesIdentical && (
+                  <button
+                    onClick={() => exportMesh(translateMesh(mold.shellB, 0, 0, -mold.shellExportDrop), stlName('shell B'))}
+                    className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
+                    style={{ color: UI_MUTED }}
+                    title="Export shell half B (mirror-position half — this cross-section is not half-turn symmetric)"
+                  >
+                    Export Shell B STL
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
 
@@ -299,7 +338,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           {/* View toggles */}
           <GroupHeader label="View" color={GROUP_COLORS.settings} />
           <Toggle
-            label={mold.style === 'onePiece' ? 'Mold' : mold.style === 'pourTwoPiece' ? 'Center' : 'Master'}
+            label={mold.style === 'onePiece' ? 'Mold' : isPourClip ? 'Center' : 'Master'}
             checked={view.showMaster}
             onChange={(v) => setView({ showMaster: v })}
           />
@@ -309,8 +348,20 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           {mold.style === 'pourTwoPiece' && (
             <Toggle label="Shell" checked={view.showCottle} onChange={(v) => setView({ showCottle: v })} tooltip="The removable outer shell, shown clipped in place" />
           )}
+          {/* Two toggles, not one: hiding a half is how you get a clear look
+              down the flange edges and the seam Vs. */}
+          {mold.style === 'pourThreePiece' && (
+            <>
+              <Toggle label="Shell A" checked={view.showCottle} onChange={(v) => setView({ showCottle: v })} tooltip="First shell half — turn one off to inspect the flange edges and seam Vs" />
+              <Toggle label="Shell B" checked={view.showCottleB} onChange={(v) => setView({ showCottleB: v })} tooltip="Second shell half" />
+            </>
+          )}
           <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} />
           <Toggle label="Cross-section" checked={view.crossSection} onChange={(v) => setView({ crossSection: v })} tooltip="Slice the assembly to reveal the plaster, well, and cavity" />
+          <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals. Smooth shading averages across a V ridge's three faces and renders the sharp apex as a rounded tube — flat shading gives it a crease and puts a hard shadow line in each groove" />
+          {(mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece') && (
+            <Toggle label="Ghost Shell" checked={view.ghostShell} onChange={(v) => setView({ ghostShell: v })} tooltip="Draw the shell translucent to see how the whole assembly fits together. Opaque is clearer for inspecting the flange features — stacked transparent surfaces sort badly at the seam" />
+          )}
           <Toggle label="Undercuts" checked={view.showUndercuts} onChange={(v) => setView({ showUndercuts: v })} tooltip="Highlight areas (red) where the master narrows as it rises — the plaster above locks them in, so the master can't pull straight up" />
 
           {/* Master */}
@@ -348,31 +399,55 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           )}
 
           {/* Cottle / Shell */}
-          <GroupHeader label={mold.style === 'pourTwoPiece' ? 'Shell' : 'Cottle'} color={GROUP_COLORS.smoothing} />
-          <Section title={mold.style === 'pourTwoPiece' ? 'Shell' : 'Cottle'} titleColor={GROUP_COLORS.smoothing}>
-            {sl('plasterThickness', 'Plaster', 'mm', mold.style === 'pourTwoPiece' ? 'Plaster thickness at the widest point — gap between master and shell wall' : 'Plaster thickness — gap between master and cottle wall')}
-            {sl('cottleWallThickness', 'Wall', 'mm', mold.style === 'pourTwoPiece' ? 'Printed wall thickness of the shell' : 'Printed wall thickness of the cottle')}
-            {sl('cottleDraftAngle', 'Draft', '°', mold.style === 'pourTwoPiece'
+          <GroupHeader label={isPourClip ? 'Shell' : 'Cottle'} color={GROUP_COLORS.smoothing} />
+          <Section title={isPourClip ? 'Shell' : 'Cottle'} titleColor={GROUP_COLORS.smoothing}>
+            {sl('plasterThickness', 'Plaster', 'mm', isPourClip ? 'Plaster thickness at the widest point — gap between master and shell wall' : 'Plaster thickness — gap between master and cottle wall')}
+            {sl('cottleWallThickness', 'Wall', 'mm', isPourClip ? 'Printed wall thickness of the shell' : 'Printed wall thickness of the cottle')}
+            {sl('cottleDraftAngle', 'Draft', '°', isPourClip
               ? 'Inward taper going up — the plaster is narrower at the top, so the shell lifts up and off easily (also saves plaster)'
               : 'Cottle taper (wider toward the opening) so the set plaster releases')}
             {mold.style === 'pourTwoPiece' && sl('shellGrabHeight', 'Grab Height', 'mm', 'Empty wall above the plaster fill line — the rim you grab to pull the shell off. Fill only to the line, not the brim')}
             {mold.style === 'twoPart' ? (
               <Toggle label="Air Hole" checked={params.airHoleEnabled} onChange={(v) => setParam('airHoleEnabled', v)} tooltip="Hole through the cottle floor center — lets air in behind the plaster block so suction doesn't fight you when pulling it out" />
             ) : (
-              <Toggle label="Air Holes (4)" checked={params.airHoleEnabled} onChange={(v) => setParam('airHoleEnabled', v)} tooltip={mold.style === 'pourTwoPiece'
+              <Toggle label="Air Holes (4)" checked={params.airHoleEnabled} onChange={(v) => setParam('airHoleEnabled', v)} tooltip={isPourClip
                 ? 'Four round holes through the plaster-floor ring (tape or clay them over while pouring) — break the suction, inject compressed air, or push rods through to eject'
                 : 'Four holes through the floor ring (tape or clay them over while pouring) — break the suction when pulling the plaster block, or inject compressed air / push rods through to eject'} />
             )}
             {params.airHoleEnabled && sl('airHoleDiameter', 'Diameter', 'mm', mold.style === 'twoPart' ? 'Diameter of the air-relief hole' : 'Approximate size of each of the four air-relief holes')}
           </Section>
-          {mold.style === 'pourTwoPiece' && (
-            <Section title="Foot Flange" titleColor={GROUP_COLORS.smoothing} tooltip="Where the center piece and shell binder-clip together">
-              {sl('flangeOverlap', 'Overlap', 'mm', 'How far both flanges extend beyond the shell wall — the binder-clip grab zone, containing both notches')}
+          {(mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece') && (
+            <Section title="Foot Flange" titleColor={GROUP_COLORS.smoothing} tooltip="Where the center piece and shell binder-clip together. The two V ridges and their grooves are the same seal as the handle mold, which poured leak-free">
+              {sl('flangeOverlap', 'Overlap', 'mm', 'How far both flanges extend beyond the shell wall — the binder-clip grab zone, containing both V rings')}
               {sl('footFlangeThickness', 'Thickness', 'mm', 'Thickness of EACH flange (clips clamp the doubled stack)')}
-              {sl('notchHeight', 'Notch Height', 'mm', 'Height of the two plaster-trap notch rings on the center flange')}
-              {sl('notchWidth', 'Notch Width', 'mm')}
-              {sl('notchClearance', 'Notch Fit', 'mm', 'Groove oversize around each notch so the shell seats — tune to your printer')}
+              {sl('notchHeight', 'V Height', 'mm', 'Height of the two V ridge rings on the center flange')}
+              {sl('notchWidth', 'V Width', 'mm', 'Base width of each V ridge')}
+              {sl('notchClearance', 'V Fit', 'mm', 'Groove oversize around each V so the shell seats — tune to your printer. A loose V still seals')}
               {sl('flangeLip', 'Center Lip', 'mm', 'Exposed rim of the center flange beyond the shell flange — press down here while pulling the shell up')}
+            </Section>
+          )}
+          {mold.style === 'pourThreePiece' && (
+            <Section title="Split Cottle" titleColor={GROUP_COLORS.smoothing} tooltip="The vertical split that turns the shell into two clip-together halves">
+              {sl('seamAngle', 'Seam Angle', '°', 'Where the vertical split runs. Put it on a flat part of the cross-section rather than a corner — a fin at a sharp corner has to lie in the plane bisecting it')}
+              {sl('seamFinWidth', 'Fin Thickness', 'mm', 'Thickness of each seam fin. Clips grab both fins, so they clamp twice this')}
+              <Toggle
+                label="Round Shell"
+                checked={params.roundShell}
+                onChange={(v) => setParam('roundShell', v)}
+                tooltip="Force a round shell instead of following the cross-section. Uses more plaster on non-round vases, but one printed shell can serve many designs"
+              />
+              {mold.style === 'pourThreePiece' && mold.forcedRound && (
+                <p className="text-[11px] text-[var(--accent)] mt-1 leading-snug">
+                  Shell forced round: this cross-section is too concave to part sideways at any seam angle.
+                </p>
+              )}
+              {mold.style === 'pourThreePiece' && (
+                <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug">
+                  {mold.halvesIdentical
+                    ? 'Halves are identical — print Shell STL twice.'
+                    : 'Cross-section is not half-turn symmetric — print Shell A and Shell B.'}
+                </p>
+              )}
             </Section>
           )}
 
@@ -411,12 +486,34 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 <StatRow label="Mold height" value={`${mold.moldStats.sizeZ.toFixed(0)} mm`} />
               </>
             )}
-            {mold.style === 'pourTwoPiece' && (
+            {isPourClip && (
               <>
                 <StatRow label="Center max diameter" value={`${mold.centerMaxDiameter.toFixed(0)} mm`} tooltip="Diameter of the smallest circle the center piece fits inside (includes the foot flange) — compare to your printer bed" />
                 <StatRow label="Center height" value={`${mold.centerStats.sizeZ.toFixed(0)} mm`} />
                 <StatRow label="Shell max diameter" value={`${mold.shellMaxDiameter.toFixed(0)} mm`} tooltip="Diameter of the smallest circle the shell fits inside — compare to your printer bed" />
                 <StatRow label="Shell height" value={`${mold.shellStats.sizeZ.toFixed(0)} mm`} />
+              </>
+            )}
+            {/* Mesh density is inherited from the vase — there is deliberately no
+                duplicate slider here, so show it as a reminder before exporting. */}
+            <StatRow
+              label="Mesh"
+              value={`${vaseRes.radial} × ${vaseRes.vertical}`}
+              tooltip="Radial × vertical mesh resolution, inherited from the Vase tab's Resolution section — change it there. The defaults are already far finer than a 0.4 mm nozzle can print; the cost is file size. High radial only earns its keep when Keep Texture is on and the vase is textured"
+            />
+            {mold.style === 'twoPart' && (
+              <>
+                <StatRow label="Master STL" value={stlSize(mold.masterStats.triangleCount)} tooltip="Triangle count and approximate binary STL size" />
+                <StatRow label="Cottle STL" value={stlSize(mold.cottleStats.triangleCount)} />
+              </>
+            )}
+            {mold.style === 'onePiece' && (
+              <StatRow label="Mold STL" value={stlSize(mold.moldStats.triangleCount)} tooltip="Triangle count and approximate binary STL size" />
+            )}
+            {isPourClip && (
+              <>
+                <StatRow label="Center STL" value={stlSize(mold.centerStats.triangleCount)} tooltip="Triangle count and approximate binary STL size. The center carries the vase surface twice — outer and cavity — so it dominates the file" />
+                <StatRow label="Shell STL" value={stlSize(mold.shellStats.triangleCount)} />
               </>
             )}
           </Section>

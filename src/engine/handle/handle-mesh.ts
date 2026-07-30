@@ -53,7 +53,13 @@ export interface MasterParts {
   silhouetteAt: (clearance: number) => P2[];
 }
 
-const HALF_SEG = 24;
+let HALF_SEG = 24;
+/** Set the cross-section segment count. Module-level (like svg-pattern's data
+ *  setter) because the profile builders are called from deep in the sweep and
+ *  threading a count through every one of them buys nothing. */
+export function setSectionSegments(n: number): void {
+  HALF_SEG = Math.max(6, Math.round(n));
+}
 const EXT_RINGS = 16;
 /** The wells' cone tip sits this far past the wall plane, buried inside the
  * body so the two solids genuinely overlap (slicer union). */

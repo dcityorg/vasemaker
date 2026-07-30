@@ -140,8 +140,8 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
         <group position={[0, 0, lift]}>
           {view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.4} />}
           {view.showPlate && plateGeo && <Part geometry={plateGeo} color={PLATE_COLOR} opacity={1} />}
-          {view.showWalls && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} />}
-          {view.showWalls && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} />}
+          {view.showWallA && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} />}
+          {view.showWallB && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} />}
           {view.showHandle && bodyGeo && <Part geometry={bodyGeo} color={MASTER_COLOR} opacity={1} />}
           {view.showHandle && view.showWells && wellsGeo && <Part geometry={wellsGeo} color={WELL_COLOR} opacity={1} />}
         </group>

@@ -29,7 +29,10 @@ export interface HandleView {
   showHandle: boolean;
   showWells: boolean;
   showPlate: boolean;
-  showWalls: boolean;
+  /** The two wall copies toggle separately (the Pour 3-Pc Shell A/B pattern) so
+   *  one can be hidden to inspect the wall-to-plate joint. */
+  showWallA: boolean;
+  showWallB: boolean;
   showPlaster: boolean;
 }
 
@@ -37,7 +40,8 @@ const DEFAULT_VIEW: HandleView = {
   showHandle: true,
   showWells: true,
   showPlate: true,
-  showWalls: false,
+  showWallA: false,
+  showWallB: false,
   showPlaster: false,
 };
 

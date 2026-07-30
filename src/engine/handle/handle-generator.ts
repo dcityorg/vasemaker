@@ -18,7 +18,7 @@
  */
 
 import { sampleSpine } from './spine';
-import { buildMasterParts, loopSelfIntersects, type HandleBodyDims } from './handle-mesh';
+import { buildMasterParts, loopSelfIntersects, setSectionSegments, type HandleBodyDims } from './handle-mesh';
 import { buildPlate, buildWall, type MoldLayout } from './mold-parts';
 import { boxSolid, extrudeSolid, rectPoints, translateMesh, rotate180Z, flipWinding, signedArea, type P2 } from './mesh3';
 import { mergeMeshes } from '../mold/ring-mesh';
@@ -27,7 +27,6 @@ import { computeNormals } from '../normals';
 import type { HandleParameters } from './handle-types';
 import type { VaseMesh } from '../types';
 
-const SPINE_SAMPLES = 140;
 /** Max silhouette deviation (mm) still treated as top-bottom symmetric. */
 const SYMMETRY_TOL = 0.4;
 
@@ -122,7 +121,8 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
   const lipW = Math.min(p.lipWidth, Math.min(dims.hw, dims.openR) + p.recessClearance - 1);
 
   // Spine points are already in mm; S is the clay-shrinkage upscale.
-  const stations = sampleSpine(p.spinePoints, p.spineTypes, SPINE_SAMPLES, S);
+  setSectionSegments(p.sectionSegments);
+  const stations = sampleSpine(p.spinePoints, p.spineTypes, Math.round(p.spineSamples), S);
   const yA = stations[0].y;
   const yB = stations[stations.length - 1].y;
   const parts = buildMasterParts(stations, dims, {
