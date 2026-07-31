@@ -56,11 +56,28 @@ export interface MoldLayout {
   sealDepth: number;
 }
 
-/** V-ridge placement (Gary, 2026-07-26): outer ridge base 2 mm in from the
- * plate/flange edge, second ridge 2.5 mm inside the first — both under the
- * wall's clip flange, doubling the leak dam near the outside edge. */
+/** Outer ridge base stays 2 mm in from the plate/flange edge (Gary, 2026-07-26)
+ * — the leak dam nearest the outside. */
 const RIDGE_EDGE_INSET = 2;
-const RIDGE_GAP = 2.5;
+
+/**
+ * Seam-band feature positions, measured IN from the plate/flange edge, shared
+ * by the plate (ridge loops) and the wall (flange grooves + seam Vs) so the
+ * two parts can never drift apart. The arrangement is the pour-3-pc one
+ * rotated onto this mold: ring dam, vertical V, ring dam, vertical V at even
+ * pitch from the edge dam to the wall panel. Interleaving matters because the
+ * seam Vs now run FULL HEIGHT to the plate (2026-07-29): a vertical V standing
+ * on a ridge line would block the ridge instead of sealing beside it.
+ * flangeW ≥ ~13 keeps ≥ 0.5 mm of printable wall between neighbouring voids —
+ * the default is 14; old saves at 12 print with merged voids at the seams.
+ */
+function seamBandPositions(layout: MoldLayout): { dR1: number; dV1: number; dR2: number; dV2: number } {
+  const gW = layout.vw / 2 + layout.vclr;
+  const dR1 = RIDGE_EDGE_INSET + layout.vw / 2;
+  const dInner = layout.flangeW - gW - 0.3;
+  const pitch = (dInner - dR1) / 3;
+  return { dR1, dV1: dR1 + pitch, dR2: dR1 + 2 * pitch, dV2: dInner };
+}
 
 // ── Bottom plate ──────────────────────────────────────────────────────────────
 
@@ -230,8 +247,7 @@ export function buildPlate(layout: MoldLayout, pocketLoop: P2[], tapeHole: P2[],
     [layout.vw / 2, -EMBED],
     [0, layout.vh],
   ];
-  const d1 = RIDGE_EDGE_INSET + layout.vw / 2;
-  const d2 = d1 + layout.vw + RIDGE_GAP;
+  const { dR1: d1, dR2: d2 } = seamBandPositions(layout);
   const ridge1 = sweepRectLoop(px0 + d1, py0 + d1, px1 - d1, py1 - d1, ridgeCs);
   const ridge2 = sweepRectLoop(px0 + d2, py0 + d2, px1 - d2, py1 - d2, ridgeCs);
 
@@ -342,7 +358,7 @@ function buildCollar(layout: MoldLayout, coneY: number, xFace: number, dir: 1 | 
 export function buildWall(layout: MoldLayout): VaseMesh {
   const { cavX0, cavX1, cavY0, cavY1, yc, wt, wallH, vclr, vw, vh, flangeW } = layout;
   const gW = vw / 2 + vclr;
-  /** Vertical seam-tab groove depth (mates the other copy's vertical ridge). */
+  /** Vertical seam groove depth (mates the other copy's vertical ridge). */
   const gH = vh + vclr;
   /** Flange-underside groove height, kept inside the flange thickness. */
   const gHf = Math.min(vh + vclr, FLANGE_T - 0.6);
@@ -376,12 +392,15 @@ export function buildWall(layout: MoldLayout): VaseMesh {
   ];
   const body = sweepOpenPath(path, outward, bodyCs);
 
-  // Clip flange (bottom, outward) runs the FULL path to both seams; its
-  // underside carries the TWO V-grooves that mate with the plate's edge
-  // ridges. The flange outer edge is flush with the plate edge.
+  // Clip flange (bottom, outward); its underside carries the TWO V-grooves
+  // that mate with the plate's edge ridges. The flange outer edge is flush
+  // with the plate edge. It stops TAB_T short of each seam: a swept profile
+  // cannot carry the vertical seam Vs on its end face, so the seam feet below
+  // own that region instead (they continue the grooves as square channels).
   const uEdge = wt / 2 + flangeW;
-  const u1 = uEdge - (RIDGE_EDGE_INSET + vw / 2);
-  const u2 = u1 - (vw + RIDGE_GAP);
+  const band = seamBandPositions(layout);
+  const u1 = uEdge - band.dR1;
+  const u2 = uEdge - band.dR2;
   const flangeCs: P2[] = [
     [wt / 2 - TAB_LIP, 0],
     [u2 - gW, 0],
@@ -394,57 +413,92 @@ export function buildWall(layout: MoldLayout): VaseMesh {
     [uEdge, FLANGE_T],
     [wt / 2 - TAB_LIP, FLANGE_T],
   ];
-  const flange = sweepOpenPath(path, outward, flangeCs);
+  const xF = xc - TAB_T; // flange ends here; feet own [xF, xc]
+  const flangePath: P2[] = [
+    [xF, cy0],
+    [cx0, cy0],
+    [cx0, cy1],
+    [xF, cy1],
+  ];
+  const flange = sweepOpenPath(flangePath, outward, flangeCs);
 
-  // Seam tabs: vertical plates sitting ON TOP of the flange (z from just
-  // inside it up to the wall top), welded into the flange below and into the
-  // panel via a small lip. Each tab occupies the x < xc side of its seam so
-  // the rotated copy's tab lands face-to-face on the other side. The mating
-  // faces carry TWO vertical V pairs: ridges on the y0-side tab, grooves on
-  // the y1-side tab, placed symmetrically about the flange-band center so the
-  // rotation maps ridge onto groove.
+  /**
+   * Seam-face outline: a plate spanning [yA, yB] with its mating edge at the
+   * seam plane x = xc, carrying vertical V bumps (ridge side) or notches
+   * (groove side) at the given centers (ascending). Every seam solid — foot
+   * fingers, channel bridge, tab — is this shape extruded over its z band.
+   */
+  const seamFace = (xInner: number, yA: number, yB: number, vs: number[], ridge: boolean): P2[] => {
+    const pts: P2[] = [[xInner, yA], [xc, yA]];
+    for (const v of vs) {
+      if (ridge) pts.push([xc, v - vw / 2], [xc + vh, v], [xc, v + vw / 2]);
+      else pts.push([xc, v - gW], [xc - gH, v], [xc, v + gW]);
+    }
+    pts.push([xc, yB], [xInner, yB]);
+    return pts;
+  };
+
+  /**
+   * Seam feet, in TWO layers so the ridge crossings are snug tunnels rather
+   * than open windows (Gary, 2026-07-29 — a full-height channel let plaster
+   * over the ridge with no resistance):
+   *  - finger slabs, z ∈ [0, tunH+EMBED]: tile the band BETWEEN the plate-ridge
+   *    lines, so each vertical V runs from the PLATE TOP up. The gaps between
+   *    fingers are the square channel walls.
+   *  - bridge slab, z ∈ [tunH, FLANGE_T]: full band width, spanning the
+   *    channels — its underside is the tunnel roof, vClearance above the
+   *    ridge crest, making the crossing as tight as the V-groove seat.
+   * Both are plain extrusions, so the Vs are just outline shape; the tab above
+   * continues them to the wall top.
+   */
+  const tunH = vh + vclr;
+  const xIn = xF - EMBED;
+  const finger = (yA: number, yB: number, v: number | null, ridge: boolean): VaseMesh =>
+    extrudeSolid(seamFace(xIn, yA, yB, v !== null ? [v] : [], ridge), [], 0, tunH + EMBED);
+
+  // Seam tabs: vertical plates from just inside the flange top up to the wall
+  // top, welded into the bridge/feet below and into the panel via a small lip.
+  // Each tab occupies the x < xc side of its seam so the rotated copy's tab
+  // lands face-to-face on the other side. The mating faces carry TWO vertical
+  // V pairs — ridges on the y0-side tab, grooves on the y1-side tab — at the
+  // shared band positions, which the 180° rotation maps onto each other
+  // (ridge y = py0 + dV mirrors to groove y = py1 - dV).
   const tabZ0 = FLANGE_T - EMBED;
-  const V_SPACING = 3; // half-distance between the two vertical Vs
 
-  // y0-side seam (ridges). Flange band: [py0, cavY0 - wt].
+  // y0-side seam (ridges). Flange band: [py0, cavY0 - wt], edge at py0.
   const b0 = layout.py0;
   const b1 = cavY0 - wt;
-  const ym = (b0 + b1) / 2;
-  const ridgeTab: P2[] = [
-    [xc - TAB_T, b0],
-    [xc, b0],
-    [xc, ym - V_SPACING - vw / 2],
-    [xc + vh, ym - V_SPACING],
-    [xc, ym - V_SPACING + vw / 2],
-    [xc, ym + V_SPACING - vw / 2],
-    [xc + vh, ym + V_SPACING],
-    [xc, ym + V_SPACING + vw / 2],
-    [xc, b1 + TAB_LIP],
-    [xc - TAB_T, b1 + TAB_LIP],
-  ];
-  // y1-side seam (grooves). Flange band: [cavY1 + wt, py1].
+  const r1 = b0 + band.dR1;
+  const r2 = b0 + band.dR2;
+  const v1 = b0 + band.dV1;
+  const v2 = b0 + band.dV2;
+  // y1-side seam (grooves). Flange band: [cavY1 + wt, py1], edge at py1.
   const t0 = cavY1 + wt;
   const t1 = layout.py1;
-  const ym2 = (t0 + t1) / 2;
-  const grooveTab: P2[] = [
-    [xc - TAB_T, t0 - TAB_LIP],
-    [xc, t0 - TAB_LIP],
-    [xc, ym2 - V_SPACING - gW],
-    [xc - gH, ym2 - V_SPACING],
-    [xc, ym2 - V_SPACING + gW],
-    [xc, ym2 + V_SPACING - gW],
-    [xc - gH, ym2 + V_SPACING],
-    [xc, ym2 + V_SPACING + gW],
-    [xc, t1],
-    [xc - TAB_T, t1],
+  const q1 = t1 - band.dR1;
+  const q2 = t1 - band.dR2;
+  const w1 = t1 - band.dV1;
+  const w2 = t1 - band.dV2;
+  const tabA = extrudeSolid(seamFace(xc - TAB_T, b0, b1 + TAB_LIP, [v1, v2], true), [], tabZ0, wallH);
+  const tabB = extrudeSolid(seamFace(xc - TAB_T, t0 - TAB_LIP, t1, [w2, w1], false), [], tabZ0, wallH);
+
+  const feet = [
+    // y0 seam: edge strip, between-ridges strip (V1), panel-side strip (V2)
+    finger(b0, r1 - gW, null, true),
+    finger(r1 + gW, r2 - gW, v1, true),
+    finger(r2 + gW, b1 + TAB_LIP, v2, true),
+    extrudeSolid(seamFace(xIn, b0, b1 + TAB_LIP, [v1, v2], true), [], tunH, FLANGE_T),
+    // y1 seam, mirrored: panel-side strip (V2'), between-ridges strip (V1'), edge strip
+    finger(t0 - TAB_LIP, q2 - gW, w2, false),
+    finger(q2 + gW, q1 - gW, w1, false),
+    finger(q1 + gW, t1, null, false),
+    extrudeSolid(seamFace(xIn, t0 - TAB_LIP, t1, [w2, w1], false), [], tunH, FLANGE_T),
   ];
-  const tabA = extrudeSolid(ridgeTab, [], tabZ0, wallH);
-  const tabB = extrudeSolid(grooveTab, [], tabZ0, wallH);
 
   // Collars for BOTH wells on this design's full (well) side. The rotated
   // copy's collars land on the far wall as harmless shallow dents.
   const collarA = buildCollar(layout, layout.coneYA, cavX0, 1);
   const collarB = buildCollar(layout, layout.coneYB, cavX0, 1);
 
-  return mergeMeshes([body, flange, tabA, tabB, collarA, collarB]);
+  return mergeMeshes([body, flange, tabA, tabB, ...feet, collarA, collarB]);
 }

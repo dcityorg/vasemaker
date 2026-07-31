@@ -144,7 +144,7 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   domeDiameter: 10,
   domeHeight: 2,
 
-  flangeWidth: 12,
+  flangeWidth: 14,
 
   plasterMargin: 25,
   plasterAbove: 10,
