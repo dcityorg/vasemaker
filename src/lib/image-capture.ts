@@ -149,6 +149,37 @@ export async function saveDesignFile(json: string, suggestedName: string): Promi
 }
 
 /**
+ * Save a companion plain-text file (the mold bench sheet). Opens in the same
+ * directory as the last save, with the name pre-filled, so it lands beside the
+ * JSON — the File System Access API gives no way to reach a handle's parent
+ * directory, so a second dialog is the only way to place it there. On browsers
+ * without the picker (Brave, Firefox) both files just go to Downloads.
+ */
+export async function saveTextFile(text: string, suggestedName: string): Promise<void> {
+  const blob = new Blob([text], { type: 'text/plain' });
+  const filename = `${suggestedName}.txt`;
+
+  if ('showSaveFilePicker' in window) {
+    try {
+      const handle = await (window as unknown as PickerWindow).showSaveFilePicker({
+        suggestedName: filename,
+        startIn: lastFileHandle ?? undefined,
+        types: [{ description: 'Text File', accept: { 'text/plain': ['.txt'] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (err) {
+      // Cancelling the text file is harmless — the settings are already saved.
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      console.warn('[SaveText] showSaveFilePicker failed, falling back to anchor:', err);
+    }
+  }
+  anchorDownload(blob, filename);
+}
+
+/**
  * Open a design JSON file using the File System Access API.
  * Returns { name, text } on success, null if cancelled or API not available.
  * Remembers the directory for subsequent save dialogs.

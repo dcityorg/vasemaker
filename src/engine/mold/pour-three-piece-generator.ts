@@ -2,11 +2,12 @@
  * Pour three-piece mold generator — Pour 2-Pc with the cottle split vertically.
  *
  * 1. CENTER — identical to Pour 2-Pc (inverted vase + well + foot flange with
- *    two V ridge rings, 4 round air holes).
+ *    three V ridge rings; no air holes — the halves part sideways).
  * 2. SHELL HALF ×2 — half of the drafted open-topped wall, bottom flange with
- *    two V grooves, and a SEAM FIN at each end of its arc: a flat plate lying in
- *    the split plane, extending radially outward, running the full height.
- *    Binder clips clamp fin-to-fin at the two seams and flange-to-center below.
+ *    three V grooves, and a SEAM BLOCK at each end of its arc: the full
+ *    cross-section carried out to the flange edge over the whole height, with
+ *    vertical Vs on its seam face. Binder clips clamp block-to-block at the two
+ *    seams and flange-to-center below.
  *
  * Release: unclip, part the halves sideways, and the plaster block stands free —
  * no sliding the shell up over the whole block.
@@ -17,15 +18,14 @@
  *   direction. Concave shapes (heart, rose, butterfly…) grow a tongue into the
  *   notch between lobes and lock, at ANY seam angle, so those fall back to a
  *   round shell automatically.
- * - A groove is subtractive and there is no CSG here, so the vertical seam Vs
- *   sit at radii INTERLEAVED between the ring Vs — nothing has to be cut away
- *   for them and the flange (with its ring grooves) runs unbroken to the seam.
- *   Below the fins, the seam Vs continue through the flange band to the shell
- *   bottom: the groove side carves prismatic TROUGHS through the seam end cap
- *   (end-ring vertices swing tangentially into the material, and the cap is a
- *   quad grid rather than a fan so the trough has real walls), and the ridge
- *   side welds matching V POSTS onto its cap. Every radial path out of the
- *   seam slot therefore crosses two V barriers at every height.
+ * - A groove is subtractive and there is no CSG here, so the swept arc STOPS
+ *   SHORT of the seam plane and the seam block owns the last few mm. Nothing
+ *   can then fill a notch cut into the block, so the vertical Vs sit at the
+ *   SAME radii as the ring grooves and run the full height, each standing on
+ *   the ring ridge it continues — one barrier turning a corner rather than two
+ *   handing off at different radii. (Before 2026-07-30 the swept flange reached
+ *   the seam and filled any notch, which forced interleaved radii plus
+ *   hand-built cap troughs and welded posts through the flange band.)
  *
  * ⚠ Inherited coordinate trap: print orientation negates y. Every print-space
  * contour derived from upright rings must use (x, −y).
@@ -46,13 +46,10 @@ import {
   maxDiameterXY,
 } from './mold-generator';
 import { computeUndercutFlags } from './undercut';
-import { MeshBuilder, extrudeSolid, ensureOutward, type P2 } from '../handle/mesh3';
-import { vSeamLayout, vRidgeSection, vGrooveDepth, sweepContourSection } from './v-seam';
+import { MeshBuilder, extrudeSolid, ensureOutward, triangulateFace, type P2 } from '../handle/mesh3';
+import { vSeamLayout, vRidgeSection, vGrooveSection, vGrooveDepth, vEdgeMargin, vMaxWidth, sweepContourSection } from './v-seam';
 import type { MoldParameters } from './mold-types';
 
-const AIR_HOLE_COUNT = 4;
-const HOLE_SEGMENTS = 24;
-const EMBED = 0.2;
 const MIN_RIM_GAP = 5;
 /** Half-gap between the two shell halves at the split plane, mm. */
 const SEAM_CLEARANCE = 0.1;
@@ -135,9 +132,14 @@ export function generatePourThreePieceMold(vase: VaseParameters, mold: MoldParam
   const cwt = mold.cottleWallThickness;
   const ffT = mold.footFlangeThickness;
   const O = mold.flangeOverlap;
-  const vw = mold.notchWidth;
-  const vh = mold.notchHeight;
   const clr = mold.notchClearance;
+  // Material outboard of the outermost groove = the shell wall thickness.
+  const edgeMargin = vEdgeMargin(cwt, O);
+  // Adjacent ring grooves must not run into each other (the flange profile would
+  // fold and earcut would produce garbage), and a groove must be deep enough to
+  // swallow its ridge. Shrink the V rather than let either happen.
+  const vw = Math.min(mold.notchWidth, vMaxWidth(O, edgeMargin, clr));
+  const vh = Math.max(0.3, Math.min(mold.notchHeight, ffT - 0.6 - clr));
   const finT = mold.seamFinWidth;
 
   const masterParams = prepareVaseParams(vase, scale, mold.keepTexture);
@@ -253,32 +255,18 @@ export function generatePourThreePieceMold(vase: VaseParameters, mold: MoldParam
   const midWallRing = offsetRingRadial(topRing, tcx, tcy, wellOuterDelta - wt / 2, 0, rRes);
   const slabInnerPoly: P2[] = [];
   for (let t = 0; t < rRes; t++) slabInnerPoly.push([midWallRing[t * 3], -midWallRing[t * 3 + 1]]);
-  const holes: P2[][] = [slabInnerPoly];
-  if (mold.airHoleEnabled && mold.airHoleDiameter > 0) {
-    for (let k = 0; k < AIR_HOLE_COUNT; k++) {
-      const t = Math.round((k + 0.5) * (rRes / AIR_HOLE_COUNT)) % rRes;
-      const rIn = Math.hypot(wellTopRing[t * 3] - tcx, wellTopRing[t * 3 + 1] - tcy);
-      const rOut = baseR[t] + P;
-      const rc = (rIn + rOut) / 2;
-      const holeR = Math.min(mold.airHoleDiameter / 2, Math.max(0.5, (rOut - rIn) / 2 - 1));
-      const cx = tcx + dirX[t] * rc;
-      const cy = -(tcy + dirY[t] * rc);
-      const circle: P2[] = [];
-      for (let s = 0; s < HOLE_SEGMENTS; s++) {
-        const a = (s / HOLE_SEGMENTS) * Math.PI * 2;
-        circle.push([cx + holeR * Math.cos(a), cy + holeR * Math.sin(a)]);
-      }
-      holes.push(circle);
-    }
-  }
-  const slab = extrudeSolid(flangeOuterPoly, holes, 0, ffT);
+  // No air holes in this style (dropped 2026-07-30 at Gary's request): the shell
+  // halves part sideways, so there is no suction pull to break. The other three
+  // styles keep theirs — they all lift a part off the set plaster.
+  const slab = extrudeSolid(flangeOuterPoly, [slabInnerPoly], 0, ffT);
 
-  const s0 = P + cwt;
-  const seam = vSeamLayout(s0, O, vw, clr);
-  const [c1, c2] = seam.rings;
-  const ridge1 = sweepContourSection(vRidgeSection(c1, ffT, vw, vh), rRes, stationAt);
-  const ridge2 = sweepContourSection(vRidgeSection(c2, ffT, vw, vh), rRes, stationAt);
-  const center = mergeMeshes([vessel, slab, ridge1, ridge2]);
+  const gHalf = vw / 2 + clr;
+  // Anchor the inner ring at the wall's outer face, but never so far in that its
+  // groove would break out through the wall's inner face on a thin wall.
+  const s0 = Math.max(P + cwt, P + gHalf + 0.05);
+  const seamRings = vSeamLayout(s0, O, vw, clr, edgeMargin);
+  const ridges = seamRings.map((c) => sweepContourSection(vRidgeSection(c, ffT, vw, vh), rRes, stationAt));
+  const center = mergeMeshes([vessel, slab, ...ridges]);
 
   const undercut = computeUndercutFlags(outer.rings, outer.heights, rRes, nF * rRes, center.vertexCount, footH);
 
@@ -290,237 +278,194 @@ export function generatePourThreePieceMold(vase: VaseParameters, mold: MoldParam
   const draftTan = Math.min(tanDeg(mold.cottleDraftAngle), Math.max(0, P - MIN_RIM_GAP) / Math.max(1, HFill - STRAIGHT_BASE));
   const gd = vGrooveDepth(vh, clr, ffT);
   const zFlangeTop = zB + ffT;
-  const g = vw / 2 + clr;
-  const [rv1, rv2] = seam.verticals;
-  /**
-   * De-z-fight offsets, cosmetic only: the cap troughs used to share their apex
-   * line with the fin notches (and the posts crossed the fin bumps' flanks), so
-   * bare-half viewport views shimmered at every seam V. Oversizing the trough
-   * and insetting the post keeps every nested pair ≥ 0.05 mm apart; the
-   * labyrinth seal is clearance-tolerant by design, so function is unchanged.
-   */
-  const TROUGH_EXTRA = 0.1;
-  const POST_INSET = 0.05;
-  /** Trough depth past the seam plane — the fins' notch apex plus the oversize. */
-  const troughD = SEAM_CLEARANCE + vh + clr + TROUGH_EXTRA;
-  /** Trough half-width at the seam plane. */
-  const troughHalf = g + TROUGH_EXTRA;
+  const sIn = P;            // wall inner face at flange level
+  const sOut = P + cwt + O; // flange outer edge
 
   /** Wall lean at height z — zero through the straight base, drafted above it. */
   const lean = (z: number) => draftTan * Math.max(0, z - zB - STRAIGHT_BASE);
+  /** Draft kink height, kept strictly between the groove apexes and the rim. */
+  const zStr = Math.max(zB + gd + 0.05, Math.min(zB + STRAIGHT_BASE, zT - 0.05));
 
-  /** Like stationAt but with a tangential offset `w` (the fins' seam-plane axis). */
+  /** Like stationAt but with a tangential offset `w` — distance from the seam plane. */
   const placeW = (t: number, u: number, w: number, z: number): [number, number, number] => [
     tcx + dirX[t] * (baseR[t] + u) - dirY[t] * w,
     -(tcy + dirY[t] * (baseR[t] + u) + dirX[t] * w),
     z,
   ];
 
+  /** Ring-groove depth in an underside at radial offset `s`; 0 away from every ring. */
+  const ringGroove = (s: number): number => {
+    for (const c of seamRings) {
+      const d = Math.abs(s - c);
+      if (d < gHalf) return gd * (1 - d / gHalf);
+    }
+    return 0;
+  };
+
   /**
-   * Cap-grid columns across the flange band, inner → outer. Every column is a
-   * profile point on BOTH the bottom edge and the flange-top edge, so the seam
-   * end cap can be a quad grid whose boundary is exactly the sweep's end ring —
-   * a cap vertex anywhere else on the profile boundary would be a T-junction.
-   * Ring grooves live at the c columns (bottom raised to the groove apex), the
-   * vertical seam Vs at the rv columns (`trough` — displaced off the seam plane
-   * on the groove end, so the cap carries a full-height prismatic V channel).
+   * Wall + flange cross-section, walked clockwise in (u, z): up the inner face,
+   * across the rim, down the outer face to the flange, out to the flange edge,
+   * then back along the underside through the ring grooves. No point is emitted
+   * at the wall's outer face on the underside — the inner groove already
+   * straddles it, and re-emitting it backtracks and folds the bottom edge.
+   * `triangulateFace` normalises the loop to CCW, which is the winding the
+   * sweep quads and end caps below assume.
    */
-  const cols: { u: number; zb: number; trough: boolean }[] = [
-    { u: P, zb: zB, trough: false },
-    { u: c1 - g, zb: zB, trough: false },
-    { u: c1, zb: zB + gd, trough: false },
-    { u: c1 + g, zb: zB, trough: false },
-    { u: rv1 - troughHalf, zb: zB, trough: false },
-    { u: rv1, zb: zB, trough: true },
-    { u: rv1 + troughHalf, zb: zB, trough: false },
-    { u: c2 - g, zb: zB, trough: false },
-    { u: c2, zb: zB + gd, trough: false },
-    { u: c2 + g, zb: zB, trough: false },
-    { u: rv2 - troughHalf, zb: zB, trough: false },
-    { u: rv2, zb: zB, trough: true },
-    { u: rv2 + troughHalf, zb: zB, trough: false },
-    { u: P + cwt + O, zb: zB, trough: false },
+  const rawProfile: P2[] = [
+    [sIn, zB],
+    [sIn, zStr],
+    [sIn - lean(zT), zT],
+    [sIn + cwt - lean(zT), zT],
+    [sIn + cwt, zStr],
+    [sIn + cwt, zFlangeTop],
+    [sOut, zFlangeTop],
+    [sOut, zB],
+    ...seamRings.slice().reverse().flatMap((c) => vGrooveSection(c, zB, vw, clr, gd)),
   ];
-  const nCols = cols.length;
-  // Extreme settings (small overlap, thin cottle wall) can push the bands into
-  // each other; keep columns strictly increasing so the grid never folds.
-  for (let i = 1; i < nCols; i++) cols[i].u = Math.max(cols[i].u, cols[i - 1].u + 0.02);
-
-  /**
-   * Wall + flange profile, built from the columns. The flange runs unbroken to
-   * the seam, so its ring grooves do too — possible because the vertical Vs sit
-   * BETWEEN the ring radii, where nothing has to be cut away for them.
-   * Indices 2..5 are the wall panel corners (the seam caps rely on that).
-   */
-  const profile: P2[] = [];
-  const pushP = (u: number, z: number): number => { profile.push([u, z]); return profile.length - 1; };
-  const capBot = new Array<number>(nCols);
-  const capTop = new Array<number>(nCols).fill(-1);
-  capBot[0] = pushP(P, zB);
-  capTop[0] = pushP(P, zFlangeTop);
-  pushP(P, zB + STRAIGHT_BASE);
-  pushP(P - lean(zT), zT);
-  pushP(P + cwt - lean(zT), zT);
-  pushP(P + cwt, zB + STRAIGHT_BASE);
-  capTop[2] = pushP(P + cwt, zFlangeTop);
-  for (let i = 3; i < nCols; i++) capTop[i] = pushP(cols[i].u, zFlangeTop);
-  for (let i = nCols - 1; i >= 1; i--) capBot[i] = pushP(cols[i].u, cols[i].zb);
-  // (column 1's top corner sits under the wall — an interior cap vertex, not a
-  // profile point, created per cap below)
-
-  /** Profile indices displaced tangentially on a half's END ring to carve the troughs. */
-  const troughIdx = new Set<number>();
-  for (let i = 0; i < nCols; i++) if (cols[i].trough) { troughIdx.add(capBot[i]); troughIdx.add(capTop[i]); }
+  const cap = triangulateFace(rawProfile, []);
+  const profile = cap.points;
+  const nP = profile.length;
 
   const half = Math.floor(rRes / 2);
   const seamStation = ((Math.round((seamRad / (Math.PI * 2)) * rRes) % rRes) + rRes) % rRes;
 
   /**
-   * Ridge post: continues a fin's vertical V ridge down through the flange band
-   * to the shell bottom, so the seam slot is barred all the way down to the
-   * center's flange. Base sunk into the flange behind the seam cap; apex crosses
-   * the seam into the mating half's cap trough. Inset by POST_INSET so its
-   * exposed flanks nest strictly inside the fin bump above instead of crossing
-   * them (viewport z-fighting; the seal has clearance to spare).
+   * Perpendicular distance from seam plane `sT` of the point at radial offset
+   * `u` on station `sT + dir·k`. A radial end plane leans away from the seam
+   * plane with radius, so the two callers below need different `u`: the
+   * keep-out test the SMALLEST radius that carries a groove, the block length
+   * the LARGEST radius on the end cap.
    */
-  const buildPost = (t: number, c: number): VaseMesh => {
-    const xy = (u: number, w: number): P2 => {
-      const q = placeW(t, u, w, 0);
-      return [q[0], q[1]];
-    };
-    const outline: P2[] = [
-      xy(c - vw / 2 + POST_INSET, EMBED),
-      xy(c + vw / 2 - POST_INSET, EMBED),
-      xy(c, SEAM_CLEARANCE - vh + POST_INSET),
-    ];
-    return extrudeSolid(outline, [], zB, zFlangeTop);
+  const distFromSeam = (sT: number, k: number, dir: number, u: number): number => {
+    const t = (((sT + dir * k) % rRes) + rRes) % rRes;
+    const r = baseR[t] + u;
+    return Math.abs(dirX[t] * r * -dirY[sT] + dirY[t] * r * dirX[sT]);
   };
 
-  /** Build one half from station `start`, spanning `half + 1` stations. */
+  /**
+   * The swept arc STOPS SHORT of the seam plane and a seam block owns the rest.
+   * That is what lets the vertical Vs be real grooves: there is no CSG here —
+   * parts are unioned by overlapping — so swept flange material reaching the
+   * seam would simply fill any notch cut into it. (Until 2026-07-30 it did, and
+   * the Vs had to be interleaved between the rings and continued through the
+   * flange band as hand-built cap troughs and welded posts.)
+   *
+   * `drop` = fewest whole stations that clear a groove's depth. `blockLen` =
+   * far enough back that the block swallows the arc's end cap, measured at the
+   * flange edge where a radial end plane is furthest from the seam plane.
+   */
+  const seamKeepOut = SEAM_CLEARANCE + vh + clr + 0.4;
+  const maxDrop = Math.max(1, Math.floor(half / 4));
+  const seamStations = [seamStation, (seamStation + half) % rRes];
+  let drop = 1;
+  while (drop < maxDrop) {
+    let worst = Infinity;
+    for (const sT of seamStations) for (const dir of [1, -1]) worst = Math.min(worst, distFromSeam(sT, drop, dir, seamRings[0]));
+    if (worst >= seamKeepOut) break;
+    drop++;
+  }
+  let blockLen = finT;
+  for (const sT of seamStations) for (const dir of [1, -1]) blockLen = Math.max(blockLen, distFromSeam(sT, drop, dir, sOut) + 0.5);
+
+  /**
+   * Seam block: the last `blockLen` mm before the seam plane, built as its own
+   * solid. Section = the (z, w) rectangle from the seam face back to the far
+   * face, swept along the radial columns `s`. Its underside carries the ring
+   * grooves and its seam face the vertical Vs, both driven by the SAME
+   * `seamRings` radii — so each vertical V stands directly on the ring ridge it
+   * continues and the barrier turns the corner instead of handing off.
+   *
+   * `s` is the unleaned radius: u = s − lean(z) keeps the block leaning with the
+   * drafted wall, so the plaster sees no step where block meets arc.
+   */
+  const blockCols = (() => {
+    const set = [sIn, sOut];
+    for (const c of seamRings) set.push(c - gHalf, c - vw / 2, c, c + vw / 2, c + gHalf);
+    return set
+      .map((s) => Math.min(Math.max(s, sIn), sOut))
+      .sort((a, b) => a - b)
+      .filter((s, i, arr) => i === 0 || s - arr[i - 1] > 1e-4);
+  })();
+
+  const buildSeamBlock = (t: number, sgn: 1 | -1, ridge: boolean): VaseMesh => {
+    const wFar = sgn * (SEAM_CLEARANCE + blockLen);
+    /** Seam-face displacement at `s`: out across the seam on the ridge half,
+     *  back into the material on the groove half. */
+    const seamV = (s: number): number => {
+      for (const c of seamRings) {
+        const d = Math.abs(s - c);
+        if (ridge) { if (d < vw / 2) return -vh * (1 - d / (vw / 2)); }
+        else if (d < gHalf) return (vh + clr) * (1 - d / gHalf);
+      }
+      return 0;
+    };
+    const mb = new MeshBuilder();
+    const rings = blockCols.map((s) => {
+      const wS = sgn * (SEAM_CLEARANCE + seamV(s));
+      const zb = zB + ringGroove(s);
+      // CCW in (z, w) for sgn > 0; the sgn < 0 mirror flips it, so reverse back.
+      const pts: P2[] = [[zb, wS], [zStr, wS], [zT, wS], [zT, wFar], [zStr, wFar], [zb, wFar]];
+      return (sgn > 0 ? pts : pts.slice().reverse()).map(([z, w]) => {
+        const q = placeW(t, s - lean(z), w, z);
+        return mb.vertex(q[0], q[1], q[2]);
+      });
+    });
+    const n = 6;
+    for (let j = 0; j + 1 < rings.length; j++) {
+      for (let i = 0; i < n; i++) {
+        const iN = (i + 1) % n;
+        mb.quad(rings[j][i], rings[j][iN], rings[j + 1][iN], rings[j + 1][i]);
+      }
+    }
+    // Section is a rectangle with collinear extras — convex, so a fan is safe.
+    const last = rings.length - 1;
+    for (let i = 1; i + 1 < n; i++) {
+      mb.tri(rings[last][0], rings[last][i], rings[last][i + 1]);
+      mb.tri(rings[0][0], rings[0][i + 1], rings[0][i]);
+    }
+    return ensureOutward(mb.build());
+  };
+
+  /** One half: the swept arc between the two seam planes, plus a block at each. */
   const buildHalf = (start: number): VaseMesh => {
     const mb = new MeshBuilder();
-    const nP = profile.length;
     const rings: number[][] = [];
-    for (let k = 0; k <= half; k++) {
+    for (let k = drop; k <= half - drop; k++) {
       const t = (start + k) % rRes;
-      const ring: number[] = [];
-      for (let pi = 0; pi < nP; pi++) {
-        const [u, z] = profile[pi];
-        // The end (groove) ring carries the seam troughs: its rv columns swing
-        // off the seam plane into the material. When troughD exceeds one
-        // station's arc this folds the bottom/top facet outlines slightly over
-        // the previous station — an in-plane overlap slicers union away; the
-        // solid is correct at every slicing height.
-        const w = k === half && troughIdx.has(pi) ? -troughD : 0;
-        const [x, y, zz] = placeW(t, u, w, z);
-        ring.push(mb.vertex(x, y, zz));
-      }
-      rings.push(ring);
+      rings.push(profile.map(([u, z]) => {
+        const q = placeW(t, u, 0, z);
+        return mb.vertex(q[0], q[1], q[2]);
+      }));
     }
-    for (let k = 0; k < half; k++) {
+    for (let k = 0; k + 1 < rings.length; k++) {
       for (let j = 0; j < nP; j++) {
         const jn = (j + 1) % nP;
         mb.quad(rings[k][j], rings[k][jn], rings[k + 1][jn], rings[k + 1][j]);
       }
     }
-
-    /**
-     * Seam end cap: a quad grid across the flange band (so the ring grooves and
-     * seam troughs run through to the seam plane with real walls) plus the wall
-     * panel above it. The old whole-profile centroid fan folded outside the
-     * L-shaped profile — a drafted wall leans further than it is thick, so no
-     * single fan centre sees the whole polygon.
-     */
-    const buildCap = (k: number, forward: boolean) => {
-      const t = (start + k) % rRes;
-      const ring = rings[k];
-      const q = forward
-        ? (a: number, b: number, c: number, d: number) => mb.quad(a, b, c, d)
-        : (a: number, b: number, c: number, d: number) => mb.quad(d, c, b, a);
-      const tr = forward
-        ? (a: number, b: number, c: number) => mb.tri(a, b, c)
-        : (a: number, b: number, c: number) => mb.tri(c, b, a);
-      const xq = placeW(t, c1 - g, 0, zFlangeTop);
-      const X = mb.vertex(xq[0], xq[1], xq[2]); // interior band corner under the wall
-      const topAt = (i: number) => (i === 1 ? X : ring[capTop[i]]);
-      for (let i = 0; i < nCols - 1; i++) q(ring[capBot[i + 1]], ring[capBot[i]], topAt(i), topAt(i + 1));
-      // Wall panel: fan the squat part from X (which sits on its bottom edge),
-      // quad the leaning part — both star-safe.
-      tr(X, ring[capTop[0]], ring[2]);
-      tr(X, ring[2], ring[5]);
-      tr(X, ring[5], ring[capTop[2]]);
-      q(ring[2], ring[3], ring[4], ring[5]);
+    // End caps: earcut over the same profile points, so the cap boundary is
+    // exactly the sweep's end ring. Both sit buried inside a seam block — they
+    // only have to close the arc solid. Winding follows extrudeSolid's
+    // convention: (u, z) section CCW, sweep along +station, high end forward.
+    const capAt = (t: number, forward: boolean) => {
+      const ids = profile.map(([u, z]) => {
+        const q = placeW(t, u, 0, z);
+        return mb.vertex(q[0], q[1], q[2]);
+      });
+      for (const [i, j, k] of cap.tris) {
+        if (forward) mb.tri(ids[i], ids[j], ids[k]);
+        else mb.tri(ids[k], ids[j], ids[i]);
+      }
     };
-    buildCap(0, false);
-    buildCap(half, true);
+    capAt((start + half - drop) % rRes, true);
+    capAt((start + drop) % rRes, false);
 
-    const swept = ensureOutward(mb.build());
     return mergeMeshes([
-      swept,
-      buildFin(start % rRes, true, true),
-      buildFin((start + half) % rRes, false, false),
-      buildPost(start % rRes, rv1),
-      buildPost(start % rRes, rv2),
+      ensureOutward(mb.build()),
+      buildSeamBlock(start % rRes, 1, true),
+      buildSeamBlock((start + half) % rRes, -1, false),
     ]);
   };
-
-  /**
-   * Seam fin: a plate in the split plane sitting ON TOP of the flange, running
-   * to the wall top — the handle mold's arrangement. Above the flange the fin is
-   * the only material out past the wall, so a groove notch in its seam face has
-   * nothing to fill it; that is what removed the old flange taper. Lofted, not
-   * extruded, so it tracks the wall's lean instead of detaching near the top.
-   */
-  function buildFin(t: number, positiveSide: boolean, ridge: boolean): VaseMesh {
-    const sgn = positiveSide ? 1 : -1;
-    const ax = dirX[t], ay = dirY[t];
-    const nx = -dirY[t], ny = dirX[t];
-    const R = baseR[t];
-    const place = (u: number, w: number, z: number): [number, number, number] => [
-      tcx + ax * (R + u) + nx * w,
-      -(tcy + ay * (R + u) + ny * w),
-      z,
-    ];
-    const wIn = sgn * SEAM_CLEARANCE;
-    const wOut = sgn * (SEAM_CLEARANCE + finT);
-    const zLo = zFlangeTop - EMBED; // weld down into the flange; posts/troughs carry the Vs below
-    const zHi = zT;
-
-    /** Seam-face outline at height z, inner → outer, with V bumps or notches. */
-    const face = (z: number): [number, number][] => {
-      const d = lean(z);
-      const out: [number, number][] = [[P - d - EMBED, wIn]];
-      for (const c0 of seam.verticals) {
-        const c = c0 - d;
-        if (ridge) out.push([c - vw / 2, wIn], [c, wIn - sgn * vh], [c + vw / 2, wIn]);
-        else out.push([c - g, wIn], [c, wIn + sgn * (vh + clr)], [c + g, wIn]);
-      }
-      out.push([P + cwt + O - d, wIn], [P + cwt + O - d, wOut], [P - d - EMBED, wOut]);
-      return out;
-    };
-
-    const mb = new MeshBuilder();
-    const loFace = face(zLo), hiFace = face(zHi);
-    const n = loFace.length;
-    const loIds = loFace.map(([u, w]) => { const q = place(u, w, zLo); return mb.vertex(q[0], q[1], q[2]); });
-    const hiIds = hiFace.map(([u, w]) => { const q = place(u, w, zHi); return mb.vertex(q[0], q[1], q[2]); });
-    for (let i = 0; i < n; i++) {
-      const j = (i + 1) % n;
-      mb.quad(loIds[i], loIds[j], hiIds[j], hiIds[i]);
-    }
-    const cen = (f: [number, number][], z: number) => {
-      let x = 0, y = 0;
-      for (const [u, w] of f) { const q = place(u, w, z); x += q[0]; y += q[1]; }
-      return mb.vertex(x / f.length, y / f.length, z);
-    };
-    const loC = cen(loFace, zLo), hiC = cen(hiFace, zHi);
-    for (let i = 0; i < n; i++) {
-      const j = (i + 1) % n;
-      mb.tri(loC, loIds[j], loIds[i]);
-      mb.tri(hiC, hiIds[i], hiIds[j]);
-    }
-    return ensureOutward(mb.build());
-  }
 
   const halvesIdentical = isHalfTurnSymmetric(baseR);
   const shellA = buildHalf(seamStation);

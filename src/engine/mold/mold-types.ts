@@ -93,7 +93,8 @@ export interface MoldParameters {
   // ── Pour 3-Pc only: the vertically split cottle ──
   /** Azimuth of the vertical split plane, degrees. */
   seamAngle: number;
-  /** Thickness of each seam fin (the clip tab at the split), mm. */
+  /** How far each seam block reaches back from the split plane, mm — the clip
+   *  grab thickness, and the region the swept arc hands over to the block. */
   seamFinWidth: number;
   /** Force a round shell instead of following the cross-section. */
   roundShell: boolean;
@@ -161,15 +162,15 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   airHoleEnabled: true,
   airHoleDiameter: 4,
 
-  flangeOverlap: 10,
-  footFlangeThickness: 2,
-  notchHeight: 1,
+  flangeOverlap: 14,
+  footFlangeThickness: 4,
+  notchHeight: 1.2,
   notchWidth: 2,
   notchClearance: 0.2,
   seamAngle: 0,
-  seamFinWidth: 3,
+  seamFinWidth: 4,
   roundShell: false,
-  flangeLip: 3,
+  flangeLip: 0,
   shellGrabHeight: 10,
 
   material: 'pottery',

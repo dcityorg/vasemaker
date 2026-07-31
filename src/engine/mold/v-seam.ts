@@ -21,36 +21,59 @@ export const V_EMBED = 0.2;
 /** Material left under a groove apex so it cannot eat through the flange, mm. */
 const GROOVE_FLOOR = 0.6;
 
-export interface SeamLayout {
-  /** Radii of the two horizontal ring features (ridge on the master, groove on the shell). */
-  rings: [number, number];
-  /** Radii of the two vertical seam features — 3-piece only, interleaved between the rings. */
-  verticals: [number, number];
+/** Concentric seal rings, matching the reference mold Gary poured leak-free. */
+export const SEAL_RING_COUNT = 3;
+
+/**
+ * Radii of the seal rings, innermost first — ridges on the center flange,
+ * grooves in the shell's underside, and (3-piece only) the vertical seam Vs at
+ * the SAME radii, so the barrier turns the corner at the seam instead of
+ * handing off to a different radius.
+ *
+ * Alignment is the point. Up to 2026-07-30 the vertical Vs were INTERLEAVED
+ * between the rings, because a groove is subtractive and the shell's swept
+ * flange reached the seam plane and filled any notch cut into it. The 3-piece
+ * shell now stops short of the seam and a separate seam block owns the last few
+ * mm, so a groove costs nothing and the vertical V can sit directly above the
+ * ring ridge it continues.
+ *
+ * The innermost ring straddles the wall/flange junction — the furthest in it can
+ * go with solid material on both sides, which shortens the plaster's run-up to
+ * the first barrier. Callers pass `wallOuter` already clamped so the groove
+ * cannot break out through the wall's inner face.
+ */
+export function vSeamLayout(wallOuter: number, overlap: number, vw: number, clr: number, edgeMargin: number): number[] {
+  const half = vw / 2 + clr;
+  const last = wallOuter + Math.max(half + 0.3, overlap - half - edgeMargin);
+  const pitch = (last - wallOuter) / (SEAL_RING_COUNT - 1);
+  return Array.from({ length: SEAL_RING_COUNT }, (_, i) => wallOuter + i * pitch);
+}
+
+/** Land left between two adjacent grooves, mm — one nozzle pass plus margin. */
+const MIN_LAND = 0.6;
+
+/**
+ * Material left outboard of the OUTERMOST groove, mm. Tied to the shell wall
+ * thickness at Gary's request (2026-07-30): the old fixed 0.3 mm left a sliver
+ * at the flange edge that would split. Clamped so a small Overlap cannot let
+ * the margin eat the whole flange and leave no room for the rings.
+ */
+export function vEdgeMargin(wallThickness: number, overlap: number): number {
+  return Math.min(wallThickness, Math.max(0.3, (overlap - 4) / 2));
 }
 
 /**
- * Four features alternating outward: ring, vertical, ring, vertical.
+ * Largest V base width that still leaves `MIN_LAND` between adjacent grooves.
  *
- * Interleaving them is what lets the flange run UNBROKEN to the seam. When the
- * vertical V shared a radius with a ring, the master's ridge already occupied
- * that space at flange level, so the fin had to replace the flange locally and
- * the ring grooves died a few mm short of the seam (Gary's 2026-07-29 photo).
- * Off-radius, the two never meet and nothing has to be cut away.
- *
- * The innermost ring straddles the wall/flange junction — the furthest in it can
- * go with solid material on both sides. Further in and the groove would break
- * through the shell's 3 mm wall bottom, or leave a sub-nozzle lip that will not
- * print. It also shortens the plaster's run-up to the first barrier.
- *
- * `wallOuter` is the shell wall's outer face (offset from the contour); features
- * spread from there to the flange edge, held clear by a half-width plus margin.
+ * With N rings spanning `wallOuter` → flange edge − half − edgeMargin, the pitch
+ * is (overlap − half − edgeMargin)/(N−1) and the land is pitch − 2·half, so
+ * half ≤ (overlap − edgeMargin − (N−1)·MIN_LAND) / (2N−1). Without this the
+ * grooves merge, the flange profile folds back on itself, and earcut emits
+ * garbage — so the V shrinks rather than the mold breaking.
  */
-export function vSeamLayout(wallOuter: number, overlap: number, vw: number, clr: number): SeamLayout {
-  const half = vw / 2 + clr;
-  const last = wallOuter + Math.max(half + 0.3, overlap - half - 0.3);
-  const pitch = (last - wallOuter) / 3;
-  const at = (i: number) => wallOuter + i * pitch;
-  return { rings: [at(0), at(2)], verticals: [at(1), at(3)] };
+export function vMaxWidth(overlap: number, edgeMargin: number, clr: number): number {
+  const half = (overlap - edgeMargin - (SEAL_RING_COUNT - 1) * MIN_LAND) / (2 * SEAL_RING_COUNT - 1);
+  return Math.max(0.3, 2 * (half - clr));
 }
 
 /** Groove depth, clamped so it never breaks through a thin flange. */

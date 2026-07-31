@@ -41,7 +41,7 @@ import {
 } from './mold-generator';
 import { computeUndercutFlags } from './undercut';
 import { MeshBuilder, extrudeSolid, ensureOutward, type P2 } from '../handle/mesh3';
-import { vSeamLayout, vRidgeSection, vGrooveSection, vGrooveDepth, sweepContourSection } from './v-seam';
+import { vSeamLayout, vRidgeSection, vGrooveSection, vGrooveDepth, vEdgeMargin, vMaxWidth, sweepContourSection } from './v-seam';
 import type { MoldParameters } from './mold-types';
 
 const AIR_HOLE_COUNT = 4;
@@ -88,9 +88,11 @@ export function generatePourTwoPieceMold(vase: VaseParameters, mold: MoldParamet
   const cwt = mold.cottleWallThickness;
   const ffT = mold.footFlangeThickness;
   const O = mold.flangeOverlap;
-  const nW = mold.notchWidth;
-  const nH = mold.notchHeight;
   const nClr = mold.notchClearance;
+  // Same clamps as Pour 3-Pc: keep adjacent grooves from merging (which folds the
+  // flange profile) and keep a groove deeper than the ridge it receives.
+  const nW = Math.min(mold.notchWidth, vMaxWidth(O, vEdgeMargin(cwt, O), nClr));
+  const nH = Math.max(0.3, Math.min(mold.notchHeight, ffT - 0.6 - nClr));
 
   const masterParams = prepareVaseParams(vase, scale, mold.keepTexture);
   const texturesEnabled = mold.keepTexture && masterParams.textures.enabled !== false;
@@ -220,23 +222,25 @@ export function generatePourTwoPieceMold(vase: VaseParameters, mold: MoldParamet
   }
   const slab = extrudeSolid(flangeOuterPoly, holes, 0, ffT);
 
-  // ── Two V ridge rings on the slab top face ──
+  // ── V ridge rings on the slab top face ──
   // Was square notch rings; switched to the handle mold's V profile after that
-  // joint poured leak-free (see engine/mold/v-seam.ts).
-  // Rings share the 3-Pc layout: the inner one straddles the wall/flange
+  // joint poured leak-free (see engine/mold/v-seam.ts). Three rings since
+  // 2026-07-30, shared with 3-Pc: the inner one straddles the wall/flange
   // junction so the plaster meets a barrier almost immediately.
-  const s0 = P + cwt; // shell wall outer face at flange level
-  const [c1, c2] = vSeamLayout(s0, O, nW, nClr).rings;
+  const gHalf = nW / 2 + nClr;
+  // Anchor the inner ring at the wall's outer face, but never so far in that its
+  // groove would break out through the wall's inner face on a thin wall.
+  const s0 = Math.max(P + cwt, P + gHalf + 0.05);
+  const seamRings = vSeamLayout(s0, O, nW, nClr, vEdgeMargin(cwt, O));
   const stationAt = (t: number, u: number, z: number): [number, number, number] => [
     tcx + dirX[t] * (baseR[t] + u),
     -(tcy + dirY[t] * (baseR[t] + u)),
     z,
   ];
-  const ridge1 = sweepContourSection(vRidgeSection(c1, ffT, nW, nH), rRes, stationAt);
-  const ridge2 = sweepContourSection(vRidgeSection(c2, ffT, nW, nH), rRes, stationAt);
+  const ridges = seamRings.map((c) => sweepContourSection(vRidgeSection(c, ffT, nW, nH), rRes, stationAt));
 
   // Vessel FIRST so undercutFlags stay index-aligned with the body rings.
-  const center = mergeMeshes([vessel, slab, ridge1, ridge2]);
+  const center = mergeMeshes([vessel, slab, ...ridges]);
 
   const undercut = computeUndercutFlags(
     outer.rings, outer.heights, rRes,
@@ -261,10 +265,10 @@ export function generatePourTwoPieceMold(vase: VaseParameters, mold: MoldParamet
     [P + cwt, zB + ffT],            // outer wall down to flange top
     [P + cwt + O, zB + ffT],        // flange top outer edge (flush with center flange)
     [P + cwt + O, zB],              // flange outer underside corner
-    // underside inward with the two V grooves (outer → inner)
-    ...vGrooveSection(c2, zB, nW, nClr, gd),
-    ...vGrooveSection(c1, zB, nW, nClr, gd),
-    [P + cwt, zB],                  // wall outer at the underside → close along the wall bottom face
+    // underside inward with the V grooves (outer → inner), then straight on to
+    // the inner wall face. No point at [P + cwt, zB]: the inner groove already
+    // straddles it, so re-emitting it backtracks and folds the bottom edge.
+    ...seamRings.slice().reverse().flatMap((c) => vGrooveSection(c, zB, nW, nClr, gd)),
   ];
 
   const sb = new MeshBuilder();

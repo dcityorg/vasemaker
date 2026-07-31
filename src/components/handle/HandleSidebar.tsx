@@ -11,8 +11,9 @@ import { HANDLE_PRESETS } from '@/config/handle-presets';
 import { PLASTER_MATERIALS } from '@/config/mold-params';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import { generateSTL } from '@/engine/stl-export';
-import { saveSTLFile, saveDesignFile, openDesignFile } from '@/lib/image-capture';
+import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib/image-capture';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
+import { buildPrintReport } from '@/lib/print-report';
 import { mergeHandleParameters } from '@/engine/handle/handle-types';
 import { measureSpine } from '@/engine/handle/spine';
 import { translateMesh } from '@/engine/handle/mesh3';
@@ -76,7 +77,46 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   const handleSaveSettings = async () => {
     const json = JSON.stringify({ app: 'VaseMaker', type: 'handle-settings', settings: params }, null, 2);
     const chosenName = await saveDesignFile(json, settingsName || DEFAULT_HANDLE_SETTINGS_NAME);
-    if (chosenName !== null) setSettingsName(chosenName);
+    if (chosenName === null) return; // cancelled — don't offer the text file either
+    setSettingsName(chosenName);
+    // Companion bench sheet, same as MoldMaker: plaster batch + printer fit so
+    // the numbers are at hand without opening the app.
+    const L = handle.layout;
+    const dim = (n: number) => `${n.toFixed(0)} mm`;
+    await saveTextFile(buildPrintReport({
+      title: chosenName,
+      identity: [
+        { label: 'Design', value: chosenName },
+        { label: 'Mold style', value: 'Handle — two-part plaster' },
+        { label: 'Parts to print', value: handle.isSymmetric ? '3 STLs (wall prints twice)' : '5 STLs (A + B kits, wall twice)' },
+        { label: 'Saved', value: new Date().toLocaleString() },
+      ],
+      material: params.material,
+      plasterVolumeMm3: handle.plasterVolumeMm3,
+      volumeLabel: 'Volume (both halves)',
+      parts: [
+        { label: 'Plate', note: handle.isSymmetric ? 'pour twice' : 'A + B', rows: [
+          { label: 'footprint', value: `${dim(L.plateW)} x ${dim(L.plateD)}` },
+          { label: 'triangles', value: handle.plateStats.triangleCount.toLocaleString('en-US') },
+        ] },
+        { label: 'Wall', note: 'print 2', rows: [
+          { label: 'cavity W x D x H', value: `${dim(L.cavW)} x ${dim(L.cavD)} x ${dim(L.wallH)}` },
+          { label: 'triangles', value: handle.wallStats.triangleCount.toLocaleString('en-US') },
+        ] },
+        { label: 'Handle master', note: handle.isSymmetric ? undefined : 'A + B', rows: [
+          { label: 'printed size', value: `${dim(handle.masterStats.sizeX)} x ${dim(handle.masterStats.sizeY)} x ${dim(handle.masterStats.sizeZ)}` },
+          { label: 'plastic', value: `${(handle.masterStats.volumeMm3 / 1000).toFixed(0)} cm3` },
+          { label: 'triangles', value: handle.masterStats.triangleCount.toLocaleString('en-US') },
+        ] },
+      ],
+      keySettings: [
+        { label: 'Shrink', value: `${params.shrinkPercent}%` },
+        { label: 'Plaster margin', value: `${params.plasterMargin} mm` },
+        { label: 'Plaster above', value: `${params.plasterAbove} mm` },
+        { label: 'Wall thickness', value: `${params.wallThickness} mm` },
+        { label: 'Mesh resolution', value: `${params.spineSamples} along x ${params.sectionSegments} around` },
+      ],
+    }), chosenName);
   };
 
   const applySettingsText = (text: string, baseName: string) => {

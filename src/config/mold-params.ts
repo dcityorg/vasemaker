@@ -31,7 +31,7 @@ export const MOLD_PARAMS = {
   airHoleDiameter:     { min: 2, max: 20, step: 0.5 } as SliderRange,
 
   flangeOverlap:       { min: 6, max: 25, step: 1 } as SliderRange,
-  footFlangeThickness: { min: 1.5, max: 4, step: 0.5 } as SliderRange,
+  footFlangeThickness: { min: 1.5, max: 8, step: 0.5 } as SliderRange,
   notchHeight:         { min: 0.5, max: 2, step: 0.1 } as SliderRange,
   notchWidth:          { min: 1, max: 3, step: 0.1 } as SliderRange,
   notchClearance:      { min: 0, max: 0.5, step: 0.05 } as SliderRange,

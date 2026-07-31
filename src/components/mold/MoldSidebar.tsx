@@ -8,13 +8,15 @@ import { useVaseStore } from '@/store/vase-store';
 import { MOLD_PARAMS, PLASTER_MATERIALS } from '@/config/mold-params';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import { generateSTL } from '@/engine/stl-export';
-import { saveSTLFile, saveDesignFile, openDesignFile } from '@/lib/image-capture';
+import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib/image-capture';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
+import { buildPrintReport, type ReportPart } from '@/lib/print-report';
 import { mergeMoldParameters } from '@/engine/mold/mold-types';
 import { translateMesh } from '@/engine/handle/mesh3';
 import type { AnyMoldMeshes } from '@/hooks/use-mold-meshes';
 import type { MoldParameters, MoldStyle, PlasterType } from '@/engine/mold/mold-types';
 import type { VaseMesh } from '@/engine/types';
+import type { MeshStats } from '@/engine/mesh-stats';
 
 type MoldNumKey = {
   [K in keyof MoldParameters]: MoldParameters[K] extends number ? K : never;
@@ -41,6 +43,13 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * Name used for the settings + bench-sheet files. Until the user names the
+   * profile themselves it follows the VASE design name, so Save Settings lands
+   * beside the STL exports instead of a generic "mold settings" (Gary, 2026-07-30).
+   */
+  const fileName = (settingsName === DEFAULT_SETTINGS_NAME && designName ? designName : settingsName) || DEFAULT_SETTINGS_NAME;
 
   const exportMesh = async (mesh: VaseMesh, name: string) => {
     const buffer = generateSTL(mesh);
@@ -73,10 +82,62 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
 
   // ── Settings files (mold params only — the vase design has its own files) ──
 
+  /** Printed parts for the bench sheet — same rows as the Printer Fit section. */
+  const reportParts = (): ReportPart[] => {
+    const part = (label: string, maxDiameter: number, stats: MeshStats, note?: string): ReportPart => ({
+      label,
+      note,
+      rows: [
+        { label: 'max diameter', value: `${maxDiameter.toFixed(0)} mm` },
+        { label: 'height', value: `${stats.sizeZ.toFixed(0)} mm` },
+        { label: 'footprint', value: `${stats.sizeX.toFixed(0)} x ${stats.sizeY.toFixed(0)} mm` },
+        { label: 'triangles', value: stats.triangleCount.toLocaleString('en-US') },
+      ],
+    });
+    if (mold.style === 'twoPart') return [
+      part('Master', mold.masterMaxDiameter, mold.masterStats),
+      part('Cottle', mold.cottleMaxDiameter, mold.cottleStats),
+    ];
+    if (mold.style === 'onePiece') return [part('Mold', mold.moldMaxDiameter, mold.moldStats)];
+    if (mold.style === 'pourThreePiece') return [
+      part('Center', mold.centerMaxDiameter, mold.centerStats),
+      part(
+        mold.halvesIdentical ? 'Shell' : 'Shell A + Shell B',
+        mold.shellMaxDiameter, mold.shellStats,
+        mold.halvesIdentical ? 'print 2' : 'each',
+      ),
+    ];
+    return [
+      part('Center', mold.centerMaxDiameter, mold.centerStats),
+      part('Shell', mold.shellMaxDiameter, mold.shellStats),
+    ];
+  };
+
   const handleSaveSettings = async () => {
     const json = JSON.stringify({ app: 'VaseMaker', type: 'mold-settings', settings: params }, null, 2);
-    const chosenName = await saveDesignFile(json, settingsName || DEFAULT_SETTINGS_NAME);
-    if (chosenName !== null) setSettingsName(chosenName);
+    const chosenName = await saveDesignFile(json, fileName);
+    if (chosenName === null) return; // cancelled — don't offer the text file either
+    setSettingsName(chosenName);
+    // Companion bench sheet: plaster batch + printer fit, so the numbers are at
+    // hand without opening the app. Second dialog is unavoidable — see saveTextFile.
+    await saveTextFile(buildPrintReport({
+      title: chosenName,
+      identity: [
+        { label: 'Vase design', value: designName || '(unnamed)' },
+        { label: 'Mold style', value: MOLD_STYLE_TABS.find((t) => t.value === mold.style)?.label ?? mold.style },
+        { label: 'Saved', value: new Date().toLocaleString() },
+      ],
+      material: params.material,
+      plasterVolumeMm3: mold.plasterVolumeMm3,
+      parts: reportParts(),
+      keySettings: [
+        { label: 'Shrink', value: `${params.shrinkPercent}%` },
+        { label: 'Master wall', value: `${params.masterWallThickness} mm` },
+        { label: 'Plaster thickness', value: `${params.plasterThickness} mm` },
+        { label: 'Well', value: `${params.wellWidth} mm wide x ${params.wellHeight} mm tall` },
+        { label: 'Mesh resolution', value: `${vaseRes.radial} radial x ${vaseRes.vertical} vertical` },
+      ],
+    }), chosenName);
   };
 
   const applySettingsText = (text: string, baseName: string) => {
@@ -185,7 +246,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             <input
               ref={nameInputRef}
               type="text"
-              defaultValue={settingsName}
+              defaultValue={fileName}
               placeholder={DEFAULT_SETTINGS_NAME}
               className="text-xs text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1 py-0.5 flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
               onKeyDown={(e) => {
@@ -213,7 +274,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 });
               }}
             >
-              {settingsName}
+              {fileName}
             </p>
           )}
         </div>
@@ -407,29 +468,33 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               ? 'Inward taper going up — the plaster is narrower at the top, so the shell lifts up and off easily (also saves plaster)'
               : 'Cottle taper (wider toward the opening) so the set plaster releases')}
             {mold.style === 'pourTwoPiece' && sl('shellGrabHeight', 'Grab Height', 'mm', 'Empty wall above the plaster fill line — the rim you grab to pull the shell off. Fill only to the line, not the brim')}
-            {mold.style === 'twoPart' ? (
+            {/* Pour 3-Pc has no air holes: the halves part sideways, so there is
+                no suction pull to break. Every other style lifts a part off the
+                set plaster and still needs them. */}
+            {mold.style === 'twoPart' && (
               <Toggle label="Air Hole" checked={params.airHoleEnabled} onChange={(v) => setParam('airHoleEnabled', v)} tooltip="Hole through the cottle floor center — lets air in behind the plaster block so suction doesn't fight you when pulling it out" />
-            ) : (
-              <Toggle label="Air Holes (4)" checked={params.airHoleEnabled} onChange={(v) => setParam('airHoleEnabled', v)} tooltip={isPourClip
+            )}
+            {(mold.style === 'onePiece' || mold.style === 'pourTwoPiece') && (
+              <Toggle label="Air Holes (4)" checked={params.airHoleEnabled} onChange={(v) => setParam('airHoleEnabled', v)} tooltip={mold.style === 'pourTwoPiece'
                 ? 'Four round holes through the plaster-floor ring (tape or clay them over while pouring) — break the suction, inject compressed air, or push rods through to eject'
                 : 'Four holes through the floor ring (tape or clay them over while pouring) — break the suction when pulling the plaster block, or inject compressed air / push rods through to eject'} />
             )}
-            {params.airHoleEnabled && sl('airHoleDiameter', 'Diameter', 'mm', mold.style === 'twoPart' ? 'Diameter of the air-relief hole' : 'Approximate size of each of the four air-relief holes')}
+            {mold.style !== 'pourThreePiece' && params.airHoleEnabled && sl('airHoleDiameter', 'Diameter', 'mm', mold.style === 'twoPart' ? 'Diameter of the air-relief hole' : 'Approximate size of each of the four air-relief holes')}
           </Section>
           {(mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece') && (
-            <Section title="Foot Flange" titleColor={GROUP_COLORS.smoothing} tooltip="Where the center piece and shell binder-clip together. The two V ridges and their grooves are the same seal as the handle mold, which poured leak-free">
-              {sl('flangeOverlap', 'Overlap', 'mm', 'How far both flanges extend beyond the shell wall — the binder-clip grab zone, containing both V rings')}
+            <Section title="Foot Flange" titleColor={GROUP_COLORS.smoothing} tooltip="Where the center piece and shell binder-clip together. The three V ridges and their grooves are the same seal as the handle mold, which poured leak-free">
+              {sl('flangeOverlap', 'Overlap', 'mm', 'How far both flanges extend beyond the shell wall — the binder-clip grab zone, containing all three V rings')}
               {sl('footFlangeThickness', 'Thickness', 'mm', 'Thickness of EACH flange (clips clamp the doubled stack)')}
-              {sl('notchHeight', 'V Height', 'mm', 'Height of the two V ridge rings on the center flange')}
-              {sl('notchWidth', 'V Width', 'mm', 'Base width of each V ridge')}
+              {sl('notchHeight', 'V Height', 'mm', 'Height of the three V ridge rings on the center flange (clamped so the groove can always swallow the ridge)')}
+              {sl('notchWidth', 'V Width', 'mm', 'Base width of each V ridge (clamped so adjacent grooves cannot run into each other)')}
               {sl('notchClearance', 'V Fit', 'mm', 'Groove oversize around each V so the shell seats — tune to your printer. A loose V still seals')}
               {sl('flangeLip', 'Center Lip', 'mm', 'Exposed rim of the center flange beyond the shell flange — press down here while pulling the shell up')}
             </Section>
           )}
           {mold.style === 'pourThreePiece' && (
             <Section title="Split Cottle" titleColor={GROUP_COLORS.smoothing} tooltip="The vertical split that turns the shell into two clip-together halves">
-              {sl('seamAngle', 'Seam Angle', '°', 'Where the vertical split runs. Put it on a flat part of the cross-section rather than a corner — a fin at a sharp corner has to lie in the plane bisecting it')}
-              {sl('seamFinWidth', 'Fin Thickness', 'mm', 'Thickness of each seam fin. Clips grab both fins, so they clamp twice this')}
+              {sl('seamAngle', 'Seam Angle', '°', 'Where the vertical split runs. Put it on a flat part of the cross-section rather than a corner — a seam block at a sharp corner has to lie in the plane bisecting it')}
+              {sl('seamFinWidth', 'Seam Block', 'mm', 'How far each half is solid back from the split plane, carrying the vertical Vs. Clips grab both blocks, so they clamp twice this')}
               <Toggle
                 label="Round Shell"
                 checked={params.roundShell}

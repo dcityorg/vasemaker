@@ -66,7 +66,13 @@ export const useMoldStore = create<MoldStore>((set) => ({
     set((state) => ({ view: { ...state.view, ...update } })),
   setSettingsName: (name) =>
     set({ settingsName: name.trim() || DEFAULT_SETTINGS_NAME }),
-  reset: () => set({ params: { ...DEFAULT_MOLD_PARAMETERS }, settingsName: DEFAULT_SETTINGS_NAME }),
+  // Keep the current style: Reset means "default settings for THIS mold", not
+  // "back to Press 2-Pc" (Gary, 2026-07-30 — being thrown to another tab mid-work
+  // was the annoyance, and moldStyle is a mode, not really a setting).
+  reset: () => set((state) => ({
+    params: { ...DEFAULT_MOLD_PARAMETERS, moldStyle: state.params.moldStyle },
+    settingsName: DEFAULT_SETTINGS_NAME,
+  })),
 }));
 
 // ── localStorage persistence ──

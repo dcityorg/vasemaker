@@ -19,7 +19,7 @@ export const HANDLE_HELP_SECTIONS: HelpSection[] = [
         'Turn on the Plate / Wall A / Wall B / Plaster view toggles to see the mold grow around the handle (hide one wall to inspect the wall-to-plate joint)',
         'Export the STLs (print the wall twice) and pour each mold half',
       ] },
-      { type: 'tip', text: 'Everything auto-saves in this browser — your handle design is still here after a reload. Use Save Settings to keep named design files.' },
+      { type: 'tip', text: 'Everything auto-saves in this browser — your handle design is still here after a reload. Use Save Settings to keep named design files; it writes a «name».json plus a «name».txt bench sheet with the plaster batch and printer-fit numbers, so you can size a pour without opening the app. Your browser asks for each file separately — the second dialog opens in the same folder with the name filled in.' },
     ],
   },
   {
