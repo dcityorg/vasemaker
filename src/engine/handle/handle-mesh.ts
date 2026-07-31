@@ -58,7 +58,27 @@ export interface MasterParts {
   wellB: VaseMesh;
   /** Mid-plane silhouette of body + wells, offset outward by `clearance` mm. */
   silhouetteAt: (clearance: number) => P2[];
+  /**
+   * The two seat-lip seal lines (one per side of the strap), each running from
+   * `xEnd` at well A, along the handle, to `xEnd` at well B — the exact centre
+   * lines of the master's underside grooves, so the plate's ridges are built
+   * from the same numbers rather than from a parallel derivation.
+   *
+   * `inset` pulls the line further inboard (used for the tape-hole boundary,
+   * which has to clear the ridge). Null when there is no seal to run.
+   */
+  seatSealPaths: ((xEnd: number, inset: number) => P2[][]) | null;
 }
+
+/** Where the well plug switches from its straight run to tracking the body
+ *  plug — a hair BEFORE the wall plane, so by the time the body plug exists
+ *  the two grooves already coincide. */
+const WELL_STEP = -0.03;
+
+
+/** Where the well plugs hand the groove over to the body plug (mm past the
+ *  wall plane, so the two solids overlap instead of touching coplanar). */
+const SEAL_JOIN = 0.3;
 
 let HALF_SEG = 24;
 /** Set the cross-section segment count. Module-level (like svg-pattern's data
@@ -67,7 +87,7 @@ let HALF_SEG = 24;
 export function setSectionSegments(n: number): void {
   HALF_SEG = Math.max(6, Math.round(n));
 }
-const EXT_RINGS = 16;
+const EXT_RINGS = 48;
 /** The wells' cone tip sits this far past the wall plane, buried inside the
  * body so the two solids genuinely overlap (slicer union). */
 const CONE_TIP_X = 2;
@@ -214,7 +234,10 @@ function extendedFrames(stations: SpineStation[], dims: HandleBodyDims): { frame
   const ext = (end: SpineStation, dx0: number, dy0: number): RingFrame[] => {
     const out: RingFrame[] = [];
     const blendLen = dims.hw * 1.5;
-    const ds = (dims.hw + 4) / 6;
+    // Fine steps: these rings carry the clamped cut face, where the tube's
+    // offset curves hardest — and the body plug's seat groove is a chord
+    // between them, which has to agree with the well plug's own samples.
+    const ds = Math.min(0.55, (dims.hw + 4) / 14);
     let cx = end.x, cy = end.y, sAcc = 0;
     for (let e = 0; e < EXT_RINGS; e++) {
       const w = Math.min(1, sAcc / blendLen);
@@ -242,18 +265,21 @@ function framePoint(f: RingFrame, u: number, z: number): [number, number, number
 }
 
 /**
- * Bottom edge from −au to +au at z = −seat, with a V notch at ±gc rising `gH`.
- * Points run in increasing u so the caller's loop stays CCW. Falls back to a
- * plain flat edge when the notches would overlap each other or the edge ends.
+ * Bottom edge from −au to +au at z = −seat, with a V notch centred on `gLo`
+ * and another on `gHi`, each rising `gH`. Points run in increasing u so the
+ * caller's loop stays CCW. Falls back to a plain flat edge when the notches
+ * would overlap each other or run off the ends — the two centres are allowed
+ * to differ because near the wall the groove bends onto the wells' line.
  */
-function notchedBottom(au: number, seat: number, v: { gc: number; gW: number; gH: number } | null): P2[] {
+function notchedBottom(au: number, seat: number, v: { gLo: number; gHi: number; gW: number; gH: number } | null): P2[] {
   const flat: P2[] = [[-au, -seat], [au, -seat]];
-  if (!v || v.gc <= v.gW + 0.05 || v.gc + v.gW >= au - 0.05) return flat;
-  const { gc, gW, gH } = v;
+  if (!v) return flat;
+  const { gLo, gHi, gW, gH } = v;
+  if (gLo - gW <= -au + 0.05 || gHi + gW >= au - 0.05 || gLo + gW >= gHi - gW) return flat;
   return [
     [-au, -seat],
-    [-gc - gW, -seat], [-gc, -seat + gH], [-gc + gW, -seat],
-    [gc - gW, -seat], [gc, -seat + gH], [gc + gW, -seat],
+    [gLo - gW, -seat], [gLo, -seat + gH], [gLo + gW, -seat],
+    [gHi - gW, -seat], [gHi, -seat + gH], [gHi + gW, -seat],
     [au, -seat],
   ];
 }
@@ -263,6 +289,22 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
   const outerProfile = halfProfile(dims.hw, dims.ht, seat);
   const canHollow = opts.hollow && opts.shellT < Math.min(dims.hw, dims.ht) - 0.5;
   const bodyProfile = canHollow ? channelProfile(dims.hw, dims.ht, opts.shellT, seat) : outerProfile;
+  const capT = capThickness(opts.shellT, seat);
+  /**
+   * Skirt depth used by every solid EXCEPT the underside plugs. They stop
+   * `capT − 0.3` above the flat bottom (same rule `channelProfile` already
+   * applies to the body's shell) so the plugs ALONE own the underside — which
+   * is what keeps the seat-lip groove exposed instead of quietly filled by a
+   * neighbouring solid that also reaches z = −seat.
+   */
+  const skirtSeat = canHollow ? seat - Math.max(0, capT - 0.3) : seat;
+  /** The body's outer profile with that raised skirt — what the wells' loft
+   *  rims must land on, since the shell no longer reaches the bottom. */
+  const cutProfile = canHollow ? halfProfile(dims.hw, dims.ht, skirtSeat) : outerProfile;
+  const sv = opts.seatV;
+  /** Groove height actually cut into the plugs (never through their roof). */
+  const seatGH = sv ? Math.min(sv.gH, capT - 0.4) : 0;
+  const sealOn = canHollow && sv !== null && seatGH > 0.2;
 
   const { frames, extALen } = extendedFrames(stations, dims);
   const stationBase = extALen; // index of stations[0] in frames
@@ -297,55 +339,8 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
   }
   let body = ensureOutward(bb.build());
 
-  // ── Channel plug: floors the hollow so the underside is a CLOSED solid face ──
-  // A separate overlapping solid, because the cross-section loop above cannot
-  // enclose a detached void. Swept along the SAME frames with the same x >= 0
-  // clamp, so it tracks the body exactly; it overlaps the shell walls laterally
-  // and is never wider than the outer surface.
-  if (canHollow) {
-    const capT = capThickness(opts.shellT, seat);
-    // FULL width (less a 0.2 inset so it never coincides with the outer skin),
-    // not just the channel: that makes the whole underside belong to ONE solid,
-    // which is what lets the seat-lip V groove be cut cleanly rather than
-    // straddling the plug/shell-wall boundary.
-    const au = dims.hw + 0.05; // fractionally proud: a narrower plug leaves a
-    // 0.05 mm downward ledge around the skirt, and the pocket has clearance.
-    const gH = opts.seatV ? Math.min(opts.seatV.gH, capT - 0.4) : 0;
-    const notch = opts.seatV && gH > 0.2
-      ? { gc: dims.hw - opts.seatV.depth, gW: opts.seatV.gW, gH }
-      : null;
-    const plugProfile: P2[] = [
-      ...notchedBottom(au, seat, notch),
-      [au, -seat + capT],
-      [-au, -seat + capT],
-    ];
-    const pb = new MeshBuilder();
-    const pRings: number[][] = [];
-    for (let i = 0; i < frames.length; i++) {
-      const isEnd = i === 0 || i === frames.length - 1;
-      const ring: number[] = [];
-      for (const [u, z] of plugProfile) {
-        const [x, y, zz] = framePoint(frames[i], u, z);
-        ring.push(pb.vertex(isEnd ? 0 : Math.max(0, x), y, zz));
-      }
-      pRings.push(ring);
-    }
-    const PM = plugProfile.length;
-    for (let r = 0; r < pRings.length - 1; r++) {
-      for (let k = 0; k < PM; k++) {
-        const kn = (k + 1) % PM;
-        pb.quad(pRings[r][k], pRings[r][kn], pRings[r + 1][kn], pRings[r + 1][k]);
-      }
-    }
-    const plugFace = triangulateFace(plugProfile, []);
-    const pFirst = pRings[0];
-    const pLast = pRings[pRings.length - 1];
-    for (const [i, j, k] of plugFace.tris) {
-      pb.tri(pFirst[i], pFirst[k], pFirst[j]);
-      pb.tri(pLast[i], pLast[j], pLast[k]);
-    }
-    body = mergeMeshesLocal([body, ensureOutward(pb.build())]);
-  }
+  // (The body's channel plug is built AFTER the wells — its groove has to bend
+  // onto the line the well plugs could actually host, so it needs their answer.)
 
   // ── Wells: round hollow half-cylinder + SOLID transition lofting onto the
   // handle's actual cut surface ──
@@ -400,7 +395,46 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
     return out;
   };
 
-  interface WellBuild { cyl: VaseMesh; trans: VaseMesh; extNeg: number; extPos: number; }
+  /**
+   * y where the swept curve traced by profile point `u` (at the mid-plane)
+   * crosses the plane x = px, walking from outside the wall inward like
+   * `crossingOutline`. Null when that strand never rises past the plane.
+   *
+   * With u = ±hw this is the master's true edge at that plane; with u = ±(hw −
+   * seat-V depth) it is the body plug's groove line — which is how the well
+   * seal knows where to meet the body's groove instead of guessing.
+   */
+  const edgeAt = (u: number, px: number, outerIdx: number, step: -1 | 1): number | null => {
+    let prev = framePoint(frames[outerIdx], u, 0);
+    for (let i = outerIdx + step; i >= 0 && i < frames.length; i += step) {
+      const cur = framePoint(frames[i], u, 0);
+      if (prev[0] <= px && cur[0] > px) {
+        const t = (px - prev[0]) / Math.max(1e-9, cur[0] - prev[0]);
+        return prev[1] + (cur[1] - prev[1]) * t;
+      }
+      prev = cur;
+    }
+    return null;
+  };
+
+  interface WellBuild {
+    cyl: VaseMesh;
+    trans: VaseMesh;
+    extNeg: number;
+    extPos: number;
+    /** Seal-line offset from the well axis, per world side (−1 / +1), or null
+     *  when no groove fits under this well. */
+    sealD: { [k: string]: number } | null;
+    /** Profile-u that puts the BODY plug's groove on this well's seal line at
+     *  the join plane, per strap side (frame-u sign). Null = leave the body
+     *  line alone (a near-parallel approach makes the solve ill-conditioned). */
+    uEnd: { [k: string]: number | null };
+    /** Groove centre line under this well — the plate's ridge is swept along
+     *  the very same samples. */
+    sealY: ((ys: 1 | -1, x: number) => number) | null;
+    /** Planes at which the plug (and so the ridge) is sampled. */
+    sealXs: number[];
+  }
   const buildWell = (end: SpineStation, outerIdx: number, step: -1 | 1, endIdx: number): WellBuild => {
     // σ aligns the well ring's +u axis with the tube's in-plane normal at this
     // end so loft strand k connects the matching side (no 180° twist).
@@ -409,8 +443,8 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
 
     // Cylinder (its own closed solid; annular caps when hollow)
     const profAt = (r: number): P2[] => hollowWell
-      ? channelObround(0, 0, r, opts.shellT, seat)
-      : halfObround(0, 0, r, seat);
+      ? channelObround(0, 0, r, opts.shellT, skirtSeat)
+      : halfObround(0, 0, r, skirtSeat);
     const cylProf = profAt(dims.openR);
     // Groove for the collar's bore ring — the cylinder's radius dips over a
     // slightly wider span than the ring, so the ring seats with clearance.
@@ -438,27 +472,9 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
     }
     let cyl = ensureOutward(cb.build());
     // Plug the bore's open bottom, same idea as the body's (a closed loop
-    // cannot enclose a detached void). Two rings, since the cylinder is a
-    // straight sweep between xOpen and xCyl.
-    if (hollowWell) {
-      const capT = capThickness(opts.shellT, seat);
-      const pu = dims.openR - opts.shellT + 0.3;
-      const plugProf: P2[] = [
-        [-pu, -seat], [pu, -seat], [pu, -seat + capT], [-pu, -seat + capT],
-      ];
-      const wb = new MeshBuilder();
-      const wRing = (x: number): number[] => plugProf.map(([u, z]) => wb.vertex(x, end.y + sigma * u, z));
-      const w0 = wRing(xOpen), w1 = wRing(xCyl);
-      for (let k = 0; k < plugProf.length; k++) {
-        const kn = (k + 1) % plugProf.length;
-        wb.quad(w0[k], w0[kn], w1[kn], w1[k]);
-      }
-      for (const [i, j, k] of triangulateFace(plugProf, []).tris) {
-        wb.tri(w0[i], w0[k], w0[j]);
-        wb.tri(w1[i], w1[j], w1[k]);
-      }
-      cyl = mergeMeshesLocal([cyl, ensureOutward(wb.build())]);
-    }
+    // cannot enclose a detached void). Built after the transition, below —
+    // ONE plug spans the cylinder AND the transition so the seat groove runs
+    // unbroken from the mold wall to the body plug.
 
     // Transition: lofts from the cylinder's profile to the tube's cut outline.
     // ALWAYS SOLID (2026-07-30). It used to loft hollow, so the void ran
@@ -468,11 +484,11 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
     // floored by its own plug, so no void is reachable from under the plate.
     // Costs very little plastic. Starts a hair SMALLER than the cylinder so
     // surfaces never coincide in the overlap zone (slicer-ambiguous).
-    const startProf = halfObround(0, 0, dims.openR - 0.05, seat);
+    const startProf = halfObround(0, 0, dims.openR - 0.05, skirtSeat);
     // Body-profile strands: outer surface only, now that this is solid.
     const outerCount = HALF_SEG + 3;
     const outline = crossingOutline(
-      outerProfile,
+      cutProfile,
       outerIdx, step, CONE_TIP_X, endIdx,
       outerCount, 0.4
     );
@@ -502,7 +518,176 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
       if (dy > extPos) extPos = dy;
       if (-dy > extNeg) extNeg = -dy;
     }
-    return { cyl, trans, extNeg, extPos };
+
+    // ── Underside plug: the well's floor AND the seat-lip groove ──
+    // One solid from the mold wall to SEAL_JOIN, so the barrier the plate's
+    // ridge rides in is continuous from the wall to where the body plug (whose
+    // groove follows the spine) takes over. The cylinder and transition above
+    // it now stop at `skirtSeat`, so this plug alone owns the underside — the
+    // 2026-07-31 lesson: a groove cut into a solid that another solid also
+    // reaches is filled, and every manifold check still passes.
+    let sealD: { [k: string]: number } | null = null;
+    let sealY: ((ys: 1 | -1, x: number) => number) | null = null;
+    let sealXs: number[] = [];
+    const uEnd: { [k: string]: number | null } = { '-1': null, '1': null };
+    if (canHollow) {
+      const x0 = xOpen;
+      const x1 = SEAL_JOIN;
+      // Transition edge at a plane: the loft runs xCyl−0.3 (radius openR) →
+      // CONE_TIP_X (the cut outline), so its flank interpolates linearly.
+      const tSpan = CONE_TIP_X - (xCyl - 0.3);
+      const flank = (x: number, ys: 1 | -1): number => {
+        if (x <= xCyl) return dims.openR;
+        const t = Math.min(1, Math.max(0, (x - (xCyl - 0.3)) / tSpan));
+        return dims.openR + t * ((ys > 0 ? extPos : extNeg) - dims.openR);
+      };
+      let xs = [x0, xCyl];
+      for (let i = 1; i <= 8; i++) xs.push(xCyl + ((0 - xCyl) * i) / 8);
+      // Dense past the wall plane: the plug widens abruptly there (the body's
+      // clamped cut face is wider than the transition) and its groove starts
+      // tracking the body's strand.
+      for (const x of [-2.2, -1.8, -1.4, -1.0, -0.6, -0.3, -0.1, -0.02, 0.05, 0.12, 0.2, x1]) {
+        if (x <= x1 + 1e-9) xs.push(x);
+      }
+      /** Half-width the plug may occupy: the transition's flank, or the body's
+       *  own section once past the wall, where the body plug backs it. */
+      /** Half-width the plug may occupy — the transition's own flank, never
+       *  more: past the wall the body is wider, but this plug has to stay
+       *  inside the master's footprint at every plane it spans, and the
+       *  narrowest of those is what the pocket is cut to. */
+      const half = (x: number, ys: 1 | -1): number => flank(x, ys) + 0.05;
+
+      if (sealOn && sv) {
+        const gW = sv.gW;
+        // Widest offset the groove can sit at and still have plug either side
+        // of it at EVERY station — checked here rather than trusted, because a
+        // notch that overruns its host silently degrades to a flat bottom.
+        let dMax = Infinity;
+        const dJoin: { [k: string]: number } = {};
+        for (const ysN of [-1, 1] as const) {
+          for (const x of xs) dMax = Math.min(dMax, half(x, ysN) - gW - 0.25);
+          const yb = edgeAt(ysN * sigma * (dims.hw - sv.depth), 0, outerIdx, step);
+          dJoin[ysN] = yb === null ? Infinity : Math.abs(yb - end.y);
+        }
+        const d: { [k: string]: number } = {};
+        let ok = true;
+        for (const ysN of [-1, 1] as const) {
+          d[ysN] = Math.min(dims.openR - sv.depth, dJoin[ysN], dMax);
+          if (!(d[ysN] > gW + 0.4)) ok = false;
+        }
+        if (ok) sealD = d;
+      }
+
+      // Profile-u that lands the body plug's groove on this seal line at the
+      // WALL PLANE — where the body plug starts, so the two grooves agree
+      // exactly at the handover instead of meeting at an angle. That matters more than it looks: `sweepClosedLoop`
+      // miters its corners, so a near-square turn in the ridge path balloons
+      // the ridge's base by up to 2.5x and it no longer fits its own groove.
+      // The body plug then BENDS onto this line over `SEAL_TAPER`, and
+      // (below) this plug tracks that same strand through the overlap — two V's
+      // even a couple of tenths apart intersect to a shallower groove, and the
+      // ridge lifts the master by the difference.
+      if (sealD && sv) {
+        for (const ysN of [-1, 1] as const) {
+          const sgn = (ysN * sigma) as 1 | -1;
+          const target = end.y + ysN * sealD[ysN];
+          // Frame where the body's nominal groove crosses the wall plane —
+          // used only to turn a wanted world y into a profile u.
+          let anchor: RingFrame | null = null;
+          let prev = framePoint(frames[outerIdx], sgn * (dims.hw - sv.depth), 0);
+          for (let i = outerIdx + step; i >= 0 && i < frames.length; i += step) {
+            const cur = framePoint(frames[i], sgn * (dims.hw - sv.depth), 0);
+            if (prev[0] <= 0 && cur[0] > 0) { anchor = frames[i]; break; }
+            prev = cur;
+          }
+          if (!anchor || Math.abs(anchor.uy) < 0.3) continue;
+          // Solve so the strand at u ACTUALLY passes through the target at
+          // WELL_STEP. One linear guess is not enough — a different u crosses
+          // the plane at a different frame — and being a couple of tenths out
+          // here puts a corner in the ridge path that the mitered sweep cannot
+          // follow, which is what lifts the master.
+          let u = (target - anchor.cy) / anchor.uy;
+          for (let k = 0; k < 6; k++) {
+            const y = edgeAt(u, WELL_STEP, outerIdx, step);
+            if (y === null) break;
+            const err = y - target;
+            if (Math.abs(err) < 0.002) break;
+            u -= err / anchor.uy;
+          }
+          if (Math.abs(u) <= dims.hw - sv.gW - 0.4) uEnd[sgn] = u;
+        }
+      }
+
+      /**
+       * Groove centre at plane `x`, world y. Straight back from the wall, but
+       * from `WELL_STEP` on it follows the body plug's own strand so the two
+       * grooves coincide wherever both plugs exist. THE PLATE'S RIDGE IS BUILT
+       * FROM THIS SAME FUNCTION — anywhere the two derivations could differ,
+       * the ridge stands beside the groove and lifts the master by the gap.
+       */
+      sealY = (ysN: 1 | -1, x: number): number => {
+        const flat = end.y + ysN * sealD![ysN];
+        const u = uEnd[(ysN * sigma) as 1 | -1];
+        let y = flat;
+        // Past WELL_STEP, follow the body plug's own strand. No blend is needed
+        // because `uEnd` is solved so that strand passes through `flat` at the
+        // wall plane — the two lines meet there by construction, and a corner
+        // in the ridge path is exactly what the mitered sweep cannot follow.
+        if (x >= WELL_STEP && u !== null) {
+          const s = edgeAt(u, x, outerIdx, step);
+          if (s !== null) y = s;
+        }
+        // Never let the notch run off the plug — `notchedBottom` would fall
+        // back to a flat bottom and the seal would vanish without a word.
+        const lim = half(x, ysN) - sv!.gW - 0.25;
+        return end.y + ysN * Math.min(lim, ysN * (y - end.y));
+      };
+      const zBot = -seat;
+      const zTop = -seat + capT;
+      const ring = (x: number): P2[] => {
+        const yLo = end.y - half(x, -1);
+        const yHi = end.y + half(x, 1);
+        const bottom: P2[] = sealD
+          ? (() => {
+            const gW = sv!.gW;
+            const gLo = Math.min(sealY!(-1, x), sealY!(1, x));
+            const gHi = Math.max(sealY!(-1, x), sealY!(1, x));
+            return [
+              [yLo, zBot],
+              [gLo - gW, zBot], [gLo, zBot + seatGH], [gLo + gW, zBot],
+              [gHi - gW, zBot], [gHi, zBot + seatGH], [gHi + gW, zBot],
+              [yHi, zBot],
+            ];
+          })()
+          : [[yLo, zBot], [yHi, zBot]];
+        return [...bottom, [yHi, zTop], [yLo, zTop]];
+      };
+      // Sorted and de-duplicated: two stations closer than a micron produce
+      // zero-area quads, which every manifold check flags as degenerate.
+      xs.sort((a, b) => a - b);
+      xs = xs.filter((x, i, a) => i === 0 || x - a[i - 1] > 1e-3);
+      if (!sealD) sealY = null;
+      sealXs = xs;
+      const proto = ring(xCyl);
+      const wb = new MeshBuilder();
+      const wRings = xs.map((x) => ring(x).map(([y, z]) => wb.vertex(x, y, z)));
+      const PM = proto.length;
+      for (let r = 0; r + 1 < wRings.length; r++) {
+        for (let k = 0; k < PM; k++) {
+          const kn = (k + 1) % PM;
+          wb.quad(wRings[r][k], wRings[r][kn], wRings[r + 1][kn], wRings[r + 1][k]);
+        }
+      }
+      const wFace = triangulateFace(proto, []);
+      const w0 = wRings[0], w1 = wRings[wRings.length - 1];
+      for (const [i, j, k] of wFace.tris) {
+        wb.tri(w0[i], w0[k], w0[j]);
+        wb.tri(w1[i], w1[j], w1[k]);
+      }
+      cyl = mergeMeshesLocal([cyl, ensureOutward(wb.build())]);
+    }
+
+    return { cyl, trans, extNeg, extPos, sealD, uEnd, sealY, sealXs };
   };
 
   const wA = buildWell(stations[0], 0, 1, stationBase);
@@ -510,21 +695,174 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
   const wellA = mergeMeshesLocal([wA.cyl, wA.trans]);
   const wellB = mergeMeshesLocal([wB.cyl, wB.trans]);
 
-  // ── Silhouette ──
   const endA = stations[0];
   const endB = stations[stations.length - 1];
   const sigmaA = endA.ny >= 0 ? 1 : -1;
   const sigmaB = endB.ny >= 0 ? 1 : -1;
+
+  // ── Seat-groove centre line ───────────────────────────────────────────────
+  // Along the strap the groove sits `sv.depth` in from the outline, but near
+  // each end it BENDS onto the straight line the well plug runs back to the
+  // wall on. It has to: at the wall plane the master's underside is only as
+  // wide as the transition, while the body's clamped cut face is ~1 mm wider,
+  // so the body's own line has no material under it there. Where the two plugs
+  // overlap their notches must agree — two V's a few tenths apart intersect to
+  // a shallower groove, and the ridge then lifts the master off the lip by the
+  // difference (measured 0.36 mm before this bend was added).
+  const gcBody = sv ? dims.hw - sv.depth : 0;
+  /**
+   * Distance over which the body's groove bends onto the well's line, mm.
+   * Generous on purpose: the bend has to be gentle enough that the plate's
+   * MITERED ridge sweep still sits inside the plug's per-frame notch, and a
+   * strap much wider than its well opening has a long way to bend.
+   */
+  const SEAL_TAPER = Math.max(8, 4 * Math.abs(dims.hw - dims.openR) + 6);
+  const uEndA = wA.uEnd;
+  const uEndB = wB.uEnd;
+  let bodyGrooveOk = sealOn;
+  const midFrame = stationBase + Math.floor(stations.length / 2);
+  /** Groove centre (profile u) for strap side `sign` at frame `i`. */
+  const notchU = (i: number, sign: -1 | 1): number => {
+    const base = sign * gcBody;
+    const uEnd = (i < midFrame ? uEndA : uEndB)[sign];
+    if (uEnd === null || uEnd === undefined) return base;
+    const xr = framePoint(frames[i], base, 0)[0];
+    const w = Math.min(1, Math.max(0, (xr - SEAL_JOIN) / SEAL_TAPER));
+    return uEnd + (base - uEnd) * w;
+  };
+
+  // ── Channel plug: floors the hollow so the underside is a CLOSED solid face ──
+  // A separate overlapping solid, because the cross-section loop above cannot
+  // enclose a detached void. Swept along the SAME frames with the same x >= 0
+  // clamp, so it tracks the body exactly; it overlaps the shell walls laterally
+  // and is never wider than the outer surface.
+  if (canHollow) {
+    // FULL width (less a 0.2 inset so it never coincides with the outer skin),
+    // not just the channel: that makes the whole underside belong to ONE solid,
+    // which is what lets the seat-lip V groove be cut cleanly rather than
+    // straddling the plug/shell-wall boundary.
+    const au = dims.hw + 0.05; // fractionally proud: a narrower plug leaves a
+    // 0.05 mm downward ledge around the skirt, and the pocket has clearance.
+    const profileAt = (i: number, notch: boolean): P2[] => [
+      ...notchedBottom(au, seat, notch && sv
+        ? { gLo: notchU(i, -1), gHi: notchU(i, 1), gW: sv.gW, gH: seatGH }
+        : null),
+      [au, -seat + capT],
+      [-au, -seat + capT],
+    ];
+    // Every ring must carry the notch or none may: a per-ring fallback to a
+    // flat bottom changes the point count and the sweep silently mismatches.
+    // (`notchedBottom` falls back rather than folding the profile, so this is
+    // the only place that can notice it went missing.)
+    let profiles = frames.map((_, i) => profileAt(i, sealOn));
+    if (profiles.some((pr) => pr.length !== profiles[0].length)) {
+      bodyGrooveOk = false;
+      profiles = frames.map((_, i) => profileAt(i, false));
+    }
+    const pb = new MeshBuilder();
+    const pRings: number[][] = [];
+    for (let i = 0; i < frames.length; i++) {
+      const isEnd = i === 0 || i === frames.length - 1;
+      const ring: number[] = [];
+      for (const [u, z] of profiles[i]) {
+        const [x, y, zz] = framePoint(frames[i], u, z);
+        ring.push(pb.vertex(isEnd ? 0 : Math.max(0, x), y, zz));
+      }
+      pRings.push(ring);
+    }
+    const PM = profiles[0].length;
+    for (let r = 0; r < pRings.length - 1; r++) {
+      for (let k = 0; k < PM; k++) {
+        const kn = (k + 1) % PM;
+        pb.quad(pRings[r][k], pRings[r][kn], pRings[r + 1][kn], pRings[r + 1][k]);
+      }
+    }
+    const plugFace = triangulateFace(profiles[0], []);
+    const pFirst = pRings[0];
+    const pLast = pRings[pRings.length - 1];
+    for (const [i, j, k] of plugFace.tris) {
+      pb.tri(pFirst[i], pFirst[k], pFirst[j]);
+      pb.tri(pLast[i], pLast[j], pLast[k]);
+    }
+    body = mergeMeshesLocal([body, ensureOutward(pb.build())]);
+  }
+
+  // ── Silhouette ──
+  /**
+   * Outward extent of the master at plane `px`, on the strap side `sign` of
+   * well `w` — the larger of the transition's own lofted flank and the tube's
+   * surface where it crosses that plane.
+   *
+   * Until 2026-07-31 the well region was closed with a single straight CHORD
+   * from the cylinder to the transition tip, which cut ~1 mm INSIDE the tube
+   * near the wall plane: the body's cut face is wider than the transition
+   * there (the spine's extension curves, so the clamped section bulges). The
+   * master then fouled the plate's pocket wall and sat 2 mm proud on two
+   * corners — with the master held off the lip, no amount of sealing helps.
+   */
+  const wellFlank = (px: number, ys: 1 | -1, w: WellBuild): number => {
+    if (px > CONE_TIP_X) return -Infinity; // the transition ends at the tip plane
+    const span = CONE_TIP_X - (xCyl - 0.3);
+    const t = Math.min(1, Math.max(0, (px - (xCyl - 0.3)) / span));
+    return dims.openR + t * ((ys > 0 ? w.extPos : w.extNeg) - dims.openR);
+  };
+  const wellEnvelope = (
+    cl: number, sign: 1 | -1, ys: 1 | -1, end: SpineStation, w: WellBuild,
+    outerIdx: number, step: -1 | 1, xStop: number,
+  ): P2[] => {
+    const out: P2[] = [];
+    const N = 16;
+    const planes: number[] = [];
+    for (let k = 0; k <= N; k++) planes.push(xCyl + ((xStop - xCyl) * k) / N);
+    // The tube's clamped cut face appears abruptly at the wall plane, so put a
+    // sample either side of it — an evenly spaced list steps straight over the
+    // step and interpolates back inside the master.
+    // Extra planes where the boundary turns hardest — right at the wall, where
+    // the clamped cut face appears, and just past it as the strand swings back.
+    if (xStop > 0.1) {
+      planes.push(-0.2, -0.12, -0.05, 0.01, 0.1, 0.25, 0.5, 0.8, 1.2, 1.7, 2.4, 3.2);
+    }
+    planes.sort((a, b) => a - b);
+    for (const px of planes) {
+      if (px < xCyl - 1e-9 || px > xStop + 1e-9) continue;
+      let d = wellFlank(px, ys, w) + cl;
+      // The tube's own extent at this plane, from BOTH measures — neither alone
+      // is enough. The offset strand is the true envelope along the smooth
+      // stretch (a per-frame scan misses it: the widest section at a plane
+      // usually lies BETWEEN two sampled frames). The per-frame scan is what
+      // catches the clamped cut face at the wall, where the strand is clamped
+      // away and the piled-up sections are the widest thing there.
+      // A hair of slack on the tube terms: the swept surface is polygonal and
+      // this boundary is sampled, so the two disagree by a few hundredths —
+      // enough for a corner of the master to catch on the pocket wall.
+      const bias = 0.1;
+      // Opened out over the same ramp the well plug widens on, so the pocket is
+      // never the narrower of the two.
+      if (px >= -0.15) {
+        const strand = edgeAt(sign * (dims.hw + cl), px, outerIdx, step);
+        if (strand !== null) d = Math.max(d, ys * (strand - end.y) + bias);
+        const i0 = step > 0 ? 0 : midFrame;
+        const i1 = step > 0 ? midFrame : frames.length;
+        for (let i = i0; i < i1; i++) {
+          const f = frames[i];
+          if (Math.abs(f.ux) < 1e-6) continue;
+          const u = (px - f.cx) / f.ux;
+          if (Math.abs(u) > dims.hw + cl + 1e-6) continue;
+          d = Math.max(d, ys * (f.cy + f.uy * u - end.y) + bias);
+        }
+      }
+      if (Number.isFinite(d)) out.push([px, end.y + ys * d]);
+    }
+    return out;
+  };
   const silhouetteAt = (cl: number): P2[] => {
     const side = (sign: 1 | -1): P2[] => {
       const pts: P2[] = [];
       // ySign keeps each side continuous with the tube's n-relative offsets
-      const ysA = sign * sigmaA;
-      const ysB = sign * sigmaB;
-      // Well A: opening + cylinder edge, then the cone edge necking in
+      const ysA = (sign * sigmaA) as 1 | -1;
+      const ysB = (sign * sigmaB) as 1 | -1;
+      // Well A: opening + cylinder edge, then the transition edge necking in
       pts.push([xOpen, endA.y + ysA * (dims.openR + cl)]);
-      pts.push([xCyl, endA.y + ysA * (dims.openR + cl)]);
-      pts.push([CONE_TIP_X, endA.y + ysA * ((ysA > 0 ? wA.extPos : wA.extNeg) + cl)]);
       // Body: station offsets. Points behind the cone tip plane OR inside
       // either cone-tip circle are skipped — the loop already encloses those
       // regions via the well segments, and keeping them would jog the
@@ -548,17 +886,69 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
       while (lo < offs.length && inWell(offs[lo][0], offs[lo][1], endA, { neg: wA.extNeg, pos: wA.extPos })) lo++;
       let hi = offs.length - 1;
       while (hi >= 0 && inWell(offs[hi][0], offs[hi][1], endB, { neg: wB.extNeg, pos: wB.extPos })) hi--;
+      // The skipped stretch is bridged by the ENVELOPE of the well and the tube
+      // rather than a chord, so the boundary always encloses the master.
+      const stopA = lo < offs.length ? Math.max(CONE_TIP_X, offs[lo][0]) : CONE_TIP_X;
+      const stopB = hi >= 0 ? Math.max(CONE_TIP_X, offs[hi][0]) : CONE_TIP_X;
+      pts.push(...wellEnvelope(cl, sign, ysA, endA, wA, 0, 1, stopA));
       for (let i = lo; i <= hi; i++) pts.push(offs[i]);
-      // Well B: cone edge back out to the opening
-      pts.push([CONE_TIP_X, endB.y + ysB * ((ysB > 0 ? wB.extPos : wB.extNeg) + cl)]);
-      pts.push([xCyl, endB.y + ysB * (dims.openR + cl)]);
+      // Well B: transition edge back out to the opening
+      pts.push(...wellEnvelope(cl, sign, ysB, endB, wB, frames.length - 1, -1, stopB).reverse());
       pts.push([xOpen, endB.y + ysB * (dims.openR + cl)]);
       return pts;
     };
     return removeLocalCusps(dedupeLoop([...side(-1), ...side(1).reverse()]));
   };
 
-  return { hollowed: canHollow, body, wellA, wellB, silhouetteAt };
+  /**
+   * Seat-lip seal lines. Along the strap they ARE the body plug's groove line
+   * (same frames, same offset), so the plate's ridge cannot drift off the
+   * groove; under each well they run straight back to the mold wall at the
+   * offset that well's plug could actually accommodate.
+   */
+  const seatSealPaths = bodyGrooveOk && wA.sealY && wB.sealY
+    ? (xEnd: number, inset: number): P2[][] => {
+      const out: P2[][] = [];
+      for (const sign of [-1, 1] as const) {
+        const ysA = (sign * sigmaA) as 1 | -1;
+        const ysB = (sign * sigmaB) as 1 | -1;
+        if (wA.sealD![ysA] - inset <= 0.2 || wB.sealD![ysB] - inset <= 0.2) return [];
+        /** The well's own groove samples, inset toward the strap centre. */
+        // Stations past `xEnd` are dropped, not clipped: the tape hole stops a
+        // lip-width short of the wall, and keeping the plug's outermost station
+        // would run the boundary backwards and self-intersect the polygon.
+        const wellRun = (w: WellBuild, ys: 1 | -1): P2[] =>
+          [xEnd, ...w.sealXs.filter((x) => x > xEnd + 1e-6)]
+            .map((x) => [x, w.sealY!(ys, x) - ys * inset] as P2);
+        // Contiguous run of the body line that clears the join plane — taken as
+        // a range, not a filter, so a stray dip can't split it into two runs.
+        const line: P2[] = frames.map((f, i) => {
+          const [x, y] = framePoint(f, notchU(i, sign) - sign * inset, 0);
+          return [x, y] as P2;
+        });
+        // The line is followed down to WELL_STEP, not to the join plane: past
+        // the wall the well plug tracks this same strand, so the ridge has to
+        // as well or it sits beside the groove for those few tenths.
+        // Body line picked up where the well plugs stop, so the two agree at
+        // the handover: past SEAL_JOIN only the body plug carries the groove.
+        const joinA = wA.sealXs[wA.sealXs.length - 1];
+        const joinB = wB.sealXs[wB.sealXs.length - 1];
+        let lo = 0;
+        while (lo < line.length && line[lo][0] < joinA) lo++;
+        let hi = line.length - 1;
+        while (hi >= 0 && line[hi][0] < joinB) hi--;
+        if (hi - lo < 2) return [];
+        out.push(removeLocalCusps(dedupeLoop([
+          ...wellRun(wA, ysA),
+          ...line.slice(lo, hi + 1),
+          ...wellRun(wB, ysB).reverse(),
+        ]), 8, false));
+      }
+      return out;
+    }
+    : null;
+
+  return { hollowed: canHollow, body, wellA, wellB, silhouetteAt, seatSealPaths };
 }
 
 /**
@@ -569,7 +959,7 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
  * edges in the plate faces. Crossing segment pairs up to `maxSpan` apart are
  * cut at their intersection point, removing the loop-let.
  */
-function removeLocalCusps(loop: P2[], maxSpan = 8): P2[] {
+function removeLocalCusps(loop: P2[], maxSpan = 8, closed = true): P2[] {
   const pts = loop.slice();
   let guard = 0;
   let changed = true;
@@ -579,7 +969,7 @@ function removeLocalCusps(loop: P2[], maxSpan = 8): P2[] {
     outer: for (let i = 0; i < n; i++) {
       for (let d = 2; d <= maxSpan; d++) {
         const j = i + d;
-        if (j >= n) break;
+        if (j >= n || (!closed && j >= n - 1)) break;
         const s1: [P2, P2] = [pts[i], pts[i + 1]];
         const s2: [P2, P2] = [pts[j], pts[(j + 1) % n]];
         if (!segIntersect(s1, s2)) continue;

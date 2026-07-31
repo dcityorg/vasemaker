@@ -228,7 +228,7 @@ function buildDome(cx: number, cy: number, a: number, h: number): VaseMesh {
  * rectangle. The miter scale is clamped so a sharp corner in the silhouette
  * produces a blunt bevel instead of a spike.
  */
-function sweepClosedLoop(loop: P2[], cs: P2[], closed = true): VaseMesh {
+function sweepClosedLoop(loop: P2[], cs: P2[], closed = true, maxMiter = 2.5): VaseMesh {
   const L = closed ? ensureCCW(dedupeLoop(loop)) : dedupeLoop(loop);
   const n = L.length;
   const b = new MeshBuilder();
@@ -257,7 +257,7 @@ function sweepClosedLoop(loop: P2[], cs: P2[], closed = true): VaseMesh {
     let mx = ax + bx, my = ay + by;
     const ml = Math.hypot(mx, my);
     if (ml < 1e-9) { mx = bx; my = by; } else { mx /= ml; my /= ml; }
-    const scale = Math.min(2.5, 1 / Math.max(0.35, mx * bx + my * by));
+    const scale = Math.min(maxMiter, 1 / Math.max(0.35, mx * bx + my * by));
     const ring: number[] = [];
     for (const [u, z] of cs) ring.push(b.vertex(L[i][0] + mx * scale * u, L[i][1] + my * scale * u, z));
     rings.push(ring);
@@ -322,7 +322,7 @@ export function buildPlate(
   margin: number,
   /** Centre lines of the seat-lip V ridges (one per side of the strap), and
    *  their height. Null = no lip V (solid master: no plug to groove). */
-  seatV: { loops: P2[][]; height: number; width: number } | null,
+  seatV: { loops: P2[][]; height: number; half: number } | null,
 ): VaseMesh {
   const { px0, py0, px1, py1, seat, lipThk } = layout;
   // Registration pair sits 3/4 of the way from the well side toward the far
@@ -359,10 +359,15 @@ export function buildPlate(
   const lipRidge = (seatV?.loops ?? [])
     .filter((l) => l.length > 2)
     .map((l) => sweepClosedLoop(l, [
-      [-seatV!.width / 2, -seat - EMBED],
-      [seatV!.width / 2, -seat - EMBED],
+      [-seatV!.half, -seat - EMBED],
+      [seatV!.half, -seat - EMBED],
       [0, -seat + seatV!.height],
-    ], false));
+    ], false, 1.1));
+  // Miter clamped hard (1.1, not the default 2.5): this ridge has to stay
+  // inside a groove only `vWidth/2 + clearance` wide, and a mitered corner
+  // widens the swept section — at the turn onto the wells that alone put the
+  // ridge's flank 0.2 mm proud of the groove floor and lifted the master. The
+  // crest is at u = 0 so it is unaffected; only the base corner under-fills.
 
   const dome = buildDome(domeC[0], domeC[1], layout.domeR, layout.domeH);
 
