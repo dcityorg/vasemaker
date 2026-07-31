@@ -31,10 +31,14 @@ function useGeometry(mesh: VaseMesh | null): THREE.BufferGeometry | null {
   return geo;
 }
 
-function Part({ geometry, color, opacity }: { geometry: THREE.BufferGeometry; color: string; opacity: number }) {
+function Part({ geometry, color, opacity, flat }: { geometry: THREE.BufferGeometry; color: string; opacity: number; flat: boolean }) {
   return (
     <mesh geometry={geometry}>
+      {/* key forces a fresh material: three.js needs a shader recompile when
+          flatShading changes, it is not a live uniform. */}
       <meshStandardMaterial
+        key={flat ? 'flat' : 'smooth'}
+        flatShading={flat}
         color={color}
         transparent={opacity < 1}
         opacity={opacity}
@@ -138,12 +142,12 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
         <GroundGrid radius={gridR} height={gridR} />
 
         <group position={[0, 0, lift]}>
-          {view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.4} />}
-          {view.showPlate && plateGeo && <Part geometry={plateGeo} color={PLATE_COLOR} opacity={1} />}
-          {view.showWallA && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} />}
-          {view.showWallB && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} />}
-          {view.showHandle && bodyGeo && <Part geometry={bodyGeo} color={MASTER_COLOR} opacity={1} />}
-          {view.showHandle && view.showWells && wellsGeo && <Part geometry={wellsGeo} color={WELL_COLOR} opacity={1} />}
+          {view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.4} flat={view.flatShading} />}
+          {view.showPlate && plateGeo && <Part geometry={plateGeo} color={PLATE_COLOR} opacity={1} flat={view.flatShading} />}
+          {view.showWallA && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} />}
+          {view.showWallB && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} />}
+          {view.showHandle && bodyGeo && <Part geometry={bodyGeo} color={MASTER_COLOR} opacity={1} flat={view.flatShading} />}
+          {view.showHandle && view.showWells && wellsGeo && <Part geometry={wellsGeo} color={WELL_COLOR} opacity={1} flat={view.flatShading} />}
         </group>
 
         {/* Clickable orientation cube — snap the view square to the world.

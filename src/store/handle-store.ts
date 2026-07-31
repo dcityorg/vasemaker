@@ -34,6 +34,8 @@ export interface HandleView {
   showWallA: boolean;
   showWallB: boolean;
   showPlaster: boolean;
+  /** Per-face normals — creases the V ridges instead of rounding them off. */
+  flatShading: boolean;
 }
 
 const DEFAULT_VIEW: HandleView = {
@@ -43,6 +45,7 @@ const DEFAULT_VIEW: HandleView = {
   showWallA: false,
   showWallB: false,
   showPlaster: false,
+  flatShading: false,
 };
 
 function freshDefaults(): HandleParameters {

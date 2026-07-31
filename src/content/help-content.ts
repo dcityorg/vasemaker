@@ -413,7 +413,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Vertical', value: '100\u2013200 for most prints. Up to 500 for fine textures or tall vases.' },
         { key: 'Radial', value: '200\u2013360 for smooth curves. Up to 720 for high-count textures (Square Flute, Fluting).' },
       ] },
-      { type: 'paragraph', text: 'Use the Show Facets toggle to preview the actual polygon edges that will be in your STL file. If you can see visible flat faces, increase resolution.' },
+      { type: 'paragraph', text: 'Use the Flat Shading toggle (Appearance section) to preview the actual polygon edges that will be in your STL file. If you can see visible flat faces, increase resolution.' },
       { type: 'tip', text: 'For final export, bump radial resolution to 360+. For quick iteration, keep it lower. Dense textures like 80-count Square Flute need 400+ radial to look sharp.' },
 
       { type: 'heading', text: 'Cutout / Lattice Prints' },
@@ -423,7 +423,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         'Use Smooth Zones (5\u201310% base and rim) to keep the top and bottom solid',
         'SVG Pattern: use high-contrast black/white images. Grayscale areas may produce unpredictable partial holes',
         'High resolution (150+ vertical, 200+ radial) gives smoother hole edges and better slicer results',
-        'Preview with Show Facets on to see the actual polygon edges the slicer will receive',
+        'Preview with Flat Shading on to see the actual polygon edges the slicer will receive',
       ] },
       { type: 'tip', text: 'Print a small test piece first. Lattice vases with thin bars may need supports or slower print speed.' },
 

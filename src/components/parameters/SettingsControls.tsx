@@ -41,10 +41,10 @@ export function SettingsControls() {
     <>
       <GroupHeader label="Settings" color={GROUP_COLORS.settings} />
 
-      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor || params.showRulers} tooltip="Visual settings for the 3D preview" titleColor={GROUP_COLORS.settings}>
-        {(params.color !== APPEARANCE.defaultColor || params.showRulers) && (
+      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor || params.showRulers || params.flatShading} tooltip="Visual settings for the 3D preview" titleColor={GROUP_COLORS.settings}>
+        {(params.color !== APPEARANCE.defaultColor || params.showRulers || params.flatShading) && (
           <div className="flex justify-end mb-1">
-            <button onClick={() => { setColor(APPEARANCE.defaultColor); setShowRulers(false); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+            <button onClick={() => { setColor(APPEARANCE.defaultColor); setShowRulers(false); setFlatShading(false); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
           </div>
         )}
         <div className="flex items-center gap-3 mb-2">
@@ -57,6 +57,10 @@ export function SettingsControls() {
           />
         </div>
         <Toggle label="Show Rulers" checked={params.showRulers ?? false} onChange={setShowRulers} tooltip="Display axis lines and dimension markers (mm) in the 3D view" />
+        {/* Was "Show Facets" in Resolution until 2026-07-30. Same param — it
+            reads as an appearance choice and matches the Mold/Handle tabs,
+            where it lives with the other view toggles. */}
+        <Toggle label="Flat Shading" checked={params.flatShading} onChange={setFlatShading} tooltip="Per-face normals instead of smoothed ones — shows the actual polygon facets the STL will contain, and gives sharp edges a crease instead of a rounded highlight" />
       </Section>
 
       <Section title="Print Check" defaultOpen={false} active={printCheckActive} tooltip="Material estimates and overhang warnings for 3D printing" titleColor={GROUP_COLORS.settings}>
@@ -124,15 +128,13 @@ export function SettingsControls() {
 
       <Section title="Resolution" defaultOpen={false} tooltip="Mesh density — higher values show finer detail but create larger files" titleColor={GROUP_COLORS.settings} active={
         params.resolution.vertical !== RESOLUTION.defaults.vertical ||
-        params.resolution.radial !== RESOLUTION.defaults.radial ||
-        params.flatShading
+        params.resolution.radial !== RESOLUTION.defaults.radial
       }>
         <div className="flex justify-end mb-1">
-          <button onClick={() => { setResolution({ ...RESOLUTION.defaults }); setFlatShading(false); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+          <button onClick={() => setResolution({ ...RESOLUTION.defaults })} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
         <SliderRow label="Vertical" value={params.resolution.vertical} {...RESOLUTION.vertical} onChange={(v) => setResolution({ vertical: v })} tooltip="Number of rows from bottom to top" />
         <SliderRow label="Radial" value={params.resolution.radial} {...RESOLUTION.radial} onChange={(v) => setResolution({ radial: v })} tooltip="Number of segments around circumference" />
-        <Toggle label="Show Facets" checked={params.flatShading} onChange={setFlatShading} tooltip="Show flat-shaded triangles instead of smooth surface" />
         <div className="text-xs text-[var(--text-secondary)] mt-2 opacity-60">
           Dense or detailed textures require higher resolution. Higher values produce larger STL files.
         </div>

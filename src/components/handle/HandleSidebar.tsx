@@ -408,6 +408,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           <Toggle label="Wall A" checked={view.showWallA} onChange={(v) => setView({ showWallA: v })} tooltip="First wall in its assembled position — turn one wall off to inspect the wall-to-plate joint" />
           <Toggle label="Wall B" checked={view.showWallB} onChange={(v) => setView({ showWallB: v })} tooltip="Second wall copy (same print, rotated 180°)" />
           <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour volume" />
+          <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals. Smooth shading averages across a V ridge's three faces and renders the sharp apex as a rounded tube — flat shading gives it a crease and puts a hard shadow line in each groove" />
 
           {/* Handle */}
           <GroupHeader label="Handle" color={GROUP_COLORS.structure} />

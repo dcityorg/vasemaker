@@ -43,9 +43,16 @@ export interface MasterOptions {
   seat: number;
   hollow: boolean;
   shellT: number;
+  /** Seat-lip V groove in the skirt bottom, mating the plate's lip ridge.
+   *  `depth` is measured inward from the master's outline. Null = no groove. */
+  seatV: { depth: number; gW: number; gH: number } | null;
+  /** Groove around each well cylinder at x, receiving the collar's bore ring. */
+  collarV: { x: number; halfW: number; depth: number } | null;
 }
 
 export interface MasterParts {
+  /** True when the channel was actually hollowed (and so has a plug to groove). */
+  hollowed: boolean;
   body: VaseMesh;
   wellA: VaseMesh;
   wellB: VaseMesh;
@@ -81,25 +88,57 @@ function halfProfile(a: number, b: number, seat: number): P2[] {
 }
 
 /**
+ * Cap thickness under the hollow channel, mm. The void's floor sits this far
+ * above the master's flat bottom, so the underside is a CLOSED solid face.
+ *
+ * Until 2026-07-30 the channel was open along its whole flat bottom — one long
+ * trough running the length of the handle and out through both wells, closed
+ * only by the tape across the plate's access hole. Gary poured a mold on
+ * 2026-07-30 and plaster that crossed the seat lip ran the entire underside.
+ * Capping it means a leak can no longer get INSIDE the master; it also gives
+ * the tape a continuous flat face to grab instead of two thin shell rails.
+ *
+ * Never thicker than the skirt, so the plug stays inside it and the underside
+ * becomes a solid band — which is also what gives the seat lip's V groove
+ * material to cut into.
+ */
+export function capThickness(sT: number, seat: number): number {
+  // Strictly inside the skirt: at seat exactly, the void floor would land on
+  // the parting plane and coincide with the inner profile's own end points —
+  // duplicate loop points, which earcut turns into degenerate slivers.
+  return Math.min(sT, Math.max(0.8, seat - 0.4));
+}
+
+/**
  * Hollow (channel) cross-section: the solid profile shelled to thickness sT,
  * open at the flat bottom. Closed simple loop.
+ *
+ * It has to stay open here: a single closed loop cannot enclose a DETACHED
+ * void, so there is no way to floor the channel from inside the cross-section.
+ * The floor is a separate swept plug solid instead — see `capThickness`.
  */
 function channelProfile(a: number, b: number, sT: number, seat: number): P2[] {
   const ai = a - sT;
   const bi = b - sT;
+  // The skirt stops SHORT of the flat bottom, overlapping the plug by 0.3: the
+  // plug alone then forms the whole underside, so the seat-lip groove cut into
+  // it is exposed everywhere rather than being filled by shell-wall material
+  // wherever the two overlap (2026-07-31 — that swallowed the groove entirely,
+  // and squeezing it inboard of the wall left it hard against the tape hole).
+  const zSkirt = -seat + Math.max(0, capThickness(sT, seat) - 0.3);
   const pts: P2[] = [];
-  pts.push([a, -seat]);
+  pts.push([a, zSkirt]);
   for (let j = 0; j <= HALF_SEG; j++) {
     const th = (j / HALF_SEG) * Math.PI;
     pts.push([Math.cos(th) * a, Math.sin(th) * b]);
   }
-  pts.push([-a, -seat]);
-  pts.push([-ai, -seat]);
+  pts.push([-a, zSkirt]);
+  pts.push([-ai, zSkirt]);
   for (let j = HALF_SEG; j >= 0; j--) {
     const th = (j / HALF_SEG) * Math.PI;
     pts.push([Math.cos(th) * ai, Math.sin(th) * bi]);
   }
-  pts.push([ai, -seat]);
+  pts.push([ai, zSkirt]);
   return pts;
 }
 
@@ -202,6 +241,23 @@ function framePoint(f: RingFrame, u: number, z: number): [number, number, number
   return [f.cx + f.ux * u, f.cy + f.uy * u, z];
 }
 
+/**
+ * Bottom edge from −au to +au at z = −seat, with a V notch at ±gc rising `gH`.
+ * Points run in increasing u so the caller's loop stays CCW. Falls back to a
+ * plain flat edge when the notches would overlap each other or the edge ends.
+ */
+function notchedBottom(au: number, seat: number, v: { gc: number; gW: number; gH: number } | null): P2[] {
+  const flat: P2[] = [[-au, -seat], [au, -seat]];
+  if (!v || v.gc <= v.gW + 0.05 || v.gc + v.gW >= au - 0.05) return flat;
+  const { gc, gW, gH } = v;
+  return [
+    [-au, -seat],
+    [-gc - gW, -seat], [-gc, -seat + gH], [-gc + gW, -seat],
+    [gc - gW, -seat], [gc, -seat + gH], [gc + gW, -seat],
+    [au, -seat],
+  ];
+}
+
 export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims, opts: MasterOptions): MasterParts {
   const seat = opts.seat;
   const outerProfile = halfProfile(dims.hw, dims.ht, seat);
@@ -210,11 +266,6 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
 
   const { frames, extALen } = extendedFrames(stations, dims);
   const stationBase = extALen; // index of stations[0] in frames
-  // Strand list for the transition outline when hollow — the body's channel
-  // cross-section (outer surface then inner shell), same topology as
-  // channelObround so the loft maps index-to-index.
-  const channelProfileForOutline = channelProfile(dims.hw, dims.ht, opts.shellT, seat);
-
   // ── Body: sweep the profile along the chain, clamp every vertex to x ≥ 0 ──
   const bb = new MeshBuilder();
   const M = bodyProfile.length;
@@ -244,7 +295,57 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
     bb.tri(first[i], first[k], first[j]);
     bb.tri(last[i], last[j], last[k]);
   }
-  const body = ensureOutward(bb.build());
+  let body = ensureOutward(bb.build());
+
+  // ── Channel plug: floors the hollow so the underside is a CLOSED solid face ──
+  // A separate overlapping solid, because the cross-section loop above cannot
+  // enclose a detached void. Swept along the SAME frames with the same x >= 0
+  // clamp, so it tracks the body exactly; it overlaps the shell walls laterally
+  // and is never wider than the outer surface.
+  if (canHollow) {
+    const capT = capThickness(opts.shellT, seat);
+    // FULL width (less a 0.2 inset so it never coincides with the outer skin),
+    // not just the channel: that makes the whole underside belong to ONE solid,
+    // which is what lets the seat-lip V groove be cut cleanly rather than
+    // straddling the plug/shell-wall boundary.
+    const au = dims.hw + 0.05; // fractionally proud: a narrower plug leaves a
+    // 0.05 mm downward ledge around the skirt, and the pocket has clearance.
+    const gH = opts.seatV ? Math.min(opts.seatV.gH, capT - 0.4) : 0;
+    const notch = opts.seatV && gH > 0.2
+      ? { gc: dims.hw - opts.seatV.depth, gW: opts.seatV.gW, gH }
+      : null;
+    const plugProfile: P2[] = [
+      ...notchedBottom(au, seat, notch),
+      [au, -seat + capT],
+      [-au, -seat + capT],
+    ];
+    const pb = new MeshBuilder();
+    const pRings: number[][] = [];
+    for (let i = 0; i < frames.length; i++) {
+      const isEnd = i === 0 || i === frames.length - 1;
+      const ring: number[] = [];
+      for (const [u, z] of plugProfile) {
+        const [x, y, zz] = framePoint(frames[i], u, z);
+        ring.push(pb.vertex(isEnd ? 0 : Math.max(0, x), y, zz));
+      }
+      pRings.push(ring);
+    }
+    const PM = plugProfile.length;
+    for (let r = 0; r < pRings.length - 1; r++) {
+      for (let k = 0; k < PM; k++) {
+        const kn = (k + 1) % PM;
+        pb.quad(pRings[r][k], pRings[r][kn], pRings[r + 1][kn], pRings[r + 1][k]);
+      }
+    }
+    const plugFace = triangulateFace(plugProfile, []);
+    const pFirst = pRings[0];
+    const pLast = pRings[pRings.length - 1];
+    for (const [i, j, k] of plugFace.tris) {
+      pb.tri(pFirst[i], pFirst[k], pFirst[j]);
+      pb.tri(pLast[i], pLast[j], pLast[k]);
+    }
+    body = mergeMeshesLocal([body, ensureOutward(pb.build())]);
+  }
 
   // ── Wells: round hollow half-cylinder + SOLID transition lofting onto the
   // handle's actual cut surface ──
@@ -307,38 +408,71 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
     const hollowWell = canHollow && dims.openR - opts.shellT > 0.8;
 
     // Cylinder (its own closed solid; annular caps when hollow)
-    const cylProf = hollowWell
-      ? channelObround(0, 0, dims.openR, opts.shellT, seat)
-      : halfObround(0, 0, dims.openR, seat);
+    const profAt = (r: number): P2[] => hollowWell
+      ? channelObround(0, 0, r, opts.shellT, seat)
+      : halfObround(0, 0, r, seat);
+    const cylProf = profAt(dims.openR);
+    // Groove for the collar's bore ring — the cylinder's radius dips over a
+    // slightly wider span than the ring, so the ring seats with clearance.
+    const cv = opts.collarV;
+    const useCv = cv !== null && cv.x - cv.halfW > xOpen + 0.05 && cv.x + cv.halfW < xCyl - 0.05
+      && cv.depth > 0.1 && cv.depth < opts.shellT - 0.3;
+    const cxs = useCv && cv ? [xOpen, cv.x - cv.halfW, cv.x, cv.x + cv.halfW, xCyl] : [xOpen, xCyl];
+    const rCyl = (x: number): number => (useCv && cv
+      ? dims.openR - cv.depth * Math.max(0, 1 - Math.abs(x - cv.x) / cv.halfW)
+      : dims.openR);
     const cb = new MeshBuilder();
-    const cylRing = (x: number): number[] =>
-      cylProf.map(([u, z]) => cb.vertex(x, end.y + sigma * u, z));
-    const cr0 = cylRing(xOpen);
-    const cr1 = cylRing(xCyl);
+    const cRings = cxs.map((x) => profAt(rCyl(x)).map(([u, z]) => cb.vertex(x, end.y + sigma * u, z)));
     const Mc = cylProf.length;
-    for (let k = 0; k < Mc; k++) {
-      const kn = (k + 1) % Mc;
-      cb.quad(cr0[k], cr0[kn], cr1[kn], cr1[k]);
+    for (let r = 0; r + 1 < cRings.length; r++) {
+      for (let k = 0; k < Mc; k++) {
+        const kn = (k + 1) % Mc;
+        cb.quad(cRings[r][k], cRings[r][kn], cRings[r + 1][kn], cRings[r + 1][k]);
+      }
     }
     const cylFace = triangulateFace(cylProf, []);
+    const cr0 = cRings[0], cr1 = cRings[cRings.length - 1];
     for (const [i, j, k] of cylFace.tris) {
       cb.tri(cr0[i], cr0[k], cr0[j]);
       cb.tri(cr1[i], cr1[j], cr1[k]);
     }
-    const cyl = ensureOutward(cb.build());
+    let cyl = ensureOutward(cb.build());
+    // Plug the bore's open bottom, same idea as the body's (a closed loop
+    // cannot enclose a detached void). Two rings, since the cylinder is a
+    // straight sweep between xOpen and xCyl.
+    if (hollowWell) {
+      const capT = capThickness(opts.shellT, seat);
+      const pu = dims.openR - opts.shellT + 0.3;
+      const plugProf: P2[] = [
+        [-pu, -seat], [pu, -seat], [pu, -seat + capT], [-pu, -seat + capT],
+      ];
+      const wb = new MeshBuilder();
+      const wRing = (x: number): number[] => plugProf.map(([u, z]) => wb.vertex(x, end.y + sigma * u, z));
+      const w0 = wRing(xOpen), w1 = wRing(xCyl);
+      for (let k = 0; k < plugProf.length; k++) {
+        const kn = (k + 1) % plugProf.length;
+        wb.quad(w0[k], w0[kn], w1[kn], w1[k]);
+      }
+      for (const [i, j, k] of triangulateFace(plugProf, []).tris) {
+        wb.tri(w0[i], w0[k], w0[j]);
+        wb.tri(w1[i], w1[j], w1[k]);
+      }
+      cyl = mergeMeshesLocal([cyl, ensureOutward(wb.build())]);
+    }
 
     // Transition: lofts from the cylinder's profile to the tube's cut outline.
-    // Hollow with the body (its cavity lofts from the cylinder bore onto the
-    // handle's INNER shell outline, so the void runs continuously cylinder →
-    // transition → handle). Starts a hair SMALLER than the cylinder so
+    // ALWAYS SOLID (2026-07-30). It used to loft hollow, so the void ran
+    // continuously cylinder → transition → handle — one trough the length of
+    // the master, which is how a leak at the seat lip reached everywhere. Solid
+    // here isolates the bore from the body channel, and each of those is
+    // floored by its own plug, so no void is reachable from under the plate.
+    // Costs very little plastic. Starts a hair SMALLER than the cylinder so
     // surfaces never coincide in the overlap zone (slicer-ambiguous).
-    const startProf = canHollow
-      ? channelObround(0, 0, dims.openR - 0.05, opts.shellT, seat)
-      : halfObround(0, 0, dims.openR - 0.05, seat);
-    // Body-profile strands: outer surface first (tucked), then inner (hollow)
+    const startProf = halfObround(0, 0, dims.openR - 0.05, seat);
+    // Body-profile strands: outer surface only, now that this is solid.
     const outerCount = HALF_SEG + 3;
     const outline = crossingOutline(
-      canHollow ? channelProfileForOutline : outerProfile,
+      outerProfile,
       outerIdx, step, CONE_TIP_X, endIdx,
       outerCount, 0.4
     );
@@ -424,7 +558,7 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
     return removeLocalCusps(dedupeLoop([...side(-1), ...side(1).reverse()]));
   };
 
-  return { body, wellA, wellB, silhouetteAt };
+  return { hollowed: canHollow, body, wellA, wellB, silhouetteAt };
 }
 
 /**

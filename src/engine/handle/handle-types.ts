@@ -132,10 +132,10 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   masterHollow: true,
   masterShellThickness: 2,
 
-  seatDepth: 1,
-  plateFloor: 2,
+  seatDepth: 2,
+  plateFloor: 1,
   recessClearance: 0.15,
-  lipWidth: 2,
+  lipWidth: 4,
 
   vWidth: 2,
   vHeight: 1,
@@ -149,7 +149,7 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   plasterMargin: 25,
   plasterAbove: 10,
   wallThickness: 4,
-  wellSealDepth: 1,
+  wellSealDepth: 2,
 
   spineSamples: 140,
   sectionSegments: 24,
