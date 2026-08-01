@@ -342,20 +342,20 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           <div className="border-t-[3px] border-[#555] pt-2 flex flex-col gap-2">
             <div className="flex gap-2">
               <button
-                onClick={() => exportMesh(handle.master, handle.layout.masterLift, 'handle')}
+                onClick={() => exportMesh(handle.master, handle.layout.masterLift, handle.masterB ? 'handle A' : 'handle')}
                 className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
                 style={{ color: UI_MUTED }}
                 title="Export the half-handle master (prints flat side down, no supports)"
               >
-                Export Handle STL
+                Export Handle{handle.masterB ? ' A' : ''} STL
               </button>
               <button
-                onClick={() => exportMesh(handle.plate, handle.layout.plateLift, 'plate')}
+                onClick={() => exportMesh(handle.plate, handle.layout.plateLift, handle.plateB ? 'plate A' : 'plate')}
                 className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
                 style={{ color: UI_MUTED }}
                 title="Export the bottom plate"
               >
-                Export Plate STL
+                Export Plate{handle.plateB ? ' A' : ''} STL
               </button>
             </div>
             {handle.masterB && handle.plateB && (
@@ -535,6 +535,12 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             {sl('width', 'Thickness (mm)', undefined, 'FINISHED handle thickness, after shrink — measured IN the parting plane, so the master carries ALL of it. How thick the strap looks in the profile view')}
             {sl('shrinkPercent', 'Shrink (%)', undefined, 'Clay shrinkage — the master prints this much larger than the designed size')}
             {sl('masterShellThickness', 'Shell (mm)', undefined, 'Printed wall thickness of the hollow master. The master is always hollow — the seat-lip groove is cut into the floor of that cavity, so a solid master would have no groove and the plate\u2019s ridge would hold it up off the lip. Clamped automatically so the cavity stays open on a thin strap')}
+            {/* Resolution lives HERE, not in a Settings section (Gary, 2026-08-01):
+                he printed a master and only then saw the facets, having forgotten
+                to raise it. It belongs where you are already thinking about the
+                handle's shape. */}
+            {sl('spineSamples', 'Along', undefined, 'Stations sampled along the spine — controls smoothness around the bend')}
+            {sl('sectionSegments', 'Around', undefined, 'Segments around HALF the cross-section — how round the strap prints. Also drives the well collar\u2019s bore and the registration natches, so the sealing surfaces stay as smooth as the handle')}
           </Section>
           <Section title="Wells" titleColor={GROUP_COLORS.structure}>
             {sl('openingDiameter', 'Opening', 'mm', 'Diameter of the pour opening / cylinder at each end')}
@@ -585,10 +591,6 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             <StatRow label="Powder" value={`≈ ${fmt(est.powderGrams)} g`} />
             <StatRow label="Water" value={`≈ ${fmt(est.waterGrams)} g`} />
           </Section>
-          <Section title="Resolution" titleColor={GROUP_COLORS.settings} defaultOpen={false} tooltip="Mesh density of the exported parts. The defaults already sit well under what a 0.4 mm nozzle can render — raise them for a large handle, lower them to cut file size">
-            {sl('spineSamples', 'Along', undefined, 'Stations sampled along the spine — controls smoothness around the bend')}
-            {sl('sectionSegments', 'Around', undefined, 'Segments around half the cross-section — controls how round the strap looks')}
-          </Section>
           <Section title="Printer Fit" titleColor={GROUP_COLORS.settings}>
             <StatRow label="Plate" value={`${handle.layout.plateW.toFixed(0)} × ${handle.layout.plateD.toFixed(0)} mm`} tooltip="Plate footprint — the biggest part; compare to your printer bed" />
             <StatRow
@@ -609,7 +611,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             />
             <StatRow label="Master size (printed)" value={`${handle.masterStats.sizeX.toFixed(0)} × ${handle.masterStats.sizeY.toFixed(0)} × ${handle.masterStats.sizeZ.toFixed(0)} mm`} tooltip="Bounding box of the printed master — bigger than the Height/Depth you designed, because it includes the well cones and the shrink upscale" />
             <StatRow label="Handle plastic" value={`${(handle.masterStats.volumeMm3 / 1000).toFixed(0)} cm³`} />
-            <StatRow label="Mesh" value={`${params.spineSamples} × ${params.sectionSegments}`} tooltip="Along × around mesh resolution, from the Resolution section above" />
+            <StatRow label="Mesh" value={`${params.spineSamples} × ${params.sectionSegments}`} tooltip="Along × around mesh resolution, set in Handle Dimensions" />
             <StatRow label="Handle STL" value={stlSize(handle.masterStats.triangleCount)} tooltip="Triangle count and approximate binary STL size" />
             <StatRow label="Plate STL" value={stlSize(handle.plateStats.triangleCount)} />
             <StatRow label="Wall STL" value={stlSize(handle.wallStats.triangleCount)} />

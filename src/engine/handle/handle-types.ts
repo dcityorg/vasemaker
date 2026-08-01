@@ -171,9 +171,12 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   wellSealDepth: 2,
 
   spineSamples: 140,
-  // 24 put 0.9 mm facets on the strap and the plaster records every one; 40
-  // halves that for nothing but mesh size.
-  sectionSegments: 40,
+  // 80 (Gary, 2026-08-01, after printing a master at 24 and seeing the facets).
+  // Chord deviation from a true ellipse: 24 → 0.017 mm, 40 → 0.006, 80 → 0.0015.
+  // All of those are under a layer height, so this is bought for confidence and
+  // for the well collar's sealing bore rather than for the strap itself; the
+  // only cost is mesh size.
+  sectionSegments: 80,
 
   material: 'pottery',
 };
