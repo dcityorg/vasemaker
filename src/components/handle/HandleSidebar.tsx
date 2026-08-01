@@ -499,8 +499,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             {sl('thickness', 'Width (mm)', undefined, 'FINISHED handle width — both halves together, after shrink. The dimension you see looking at the mug head-on. The printed master carries HALF of it, because the parting plane splits this direction')}
             {sl('width', 'Thickness (mm)', undefined, 'FINISHED handle thickness, after shrink — measured IN the parting plane, so the master carries ALL of it. How thick the strap looks in the profile view')}
             {sl('shrinkPercent', 'Shrink (%)', undefined, 'Clay shrinkage — the master prints this much larger than the designed size')}
-            <Toggle label="Hollow" checked={params.masterHollow} onChange={(v) => setParam('masterHollow', v)} tooltip="Hollow the master from its flat side to save plastic" />
-            {params.masterHollow && sl('masterShellThickness', 'Shell (mm)', undefined, 'Printed wall thickness of the hollow master')}
+            {sl('masterShellThickness', 'Shell (mm)', undefined, 'Printed wall thickness of the hollow master. The master is always hollow — the seat-lip groove is cut into the floor of that cavity, so a solid master would have no groove and the plate\u2019s ridge would hold it up off the lip. Clamped automatically so the cavity stays open on a thin strap')}
           </Section>
           <Section title="Wells" titleColor={GROUP_COLORS.structure}>
             {sl('openingDiameter', 'Opening', 'mm', 'Diameter of the pour opening / cylinder at each end')}
@@ -566,6 +565,12 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               label="Strap section"
               value={`${params.thickness} × ${params.width} cast → ${(params.thickness * shrinkS / 2).toFixed(1)} × ${(params.width * shrinkS).toFixed(1)} printed`}
               tooltip="Width × Thickness of the FINISHED handle, then the half-section actually printed on the master: half the Width (the parting plane splits that direction) and the full Thickness, both scaled up by Shrink"
+            />
+            <StatRow
+              label="Hollow cavity"
+              value={`${handle.channel[0].toFixed(1)} × ${handle.channel[1].toFixed(1)} mm`
+                + (handle.shellUsed < params.masterShellThickness - 0.01 ? `  (shell clamped to ${handle.shellUsed.toFixed(2)})` : '')}
+              tooltip="Open void inside the master. Its floor is what the seat-lip groove is cut into, so the cavity is never allowed to close — Shell is clamped down on a thin strap rather than filling it in"
             />
             <StatRow label="Master size (printed)" value={`${handle.masterStats.sizeX.toFixed(0)} × ${handle.masterStats.sizeY.toFixed(0)} × ${handle.masterStats.sizeZ.toFixed(0)} mm`} tooltip="Bounding box of the printed master — bigger than the Height/Depth you designed, because it includes the well cones and the shrink upscale" />
             <StatRow label="Handle plastic" value={`${(handle.masterStats.volumeMm3 / 1000).toFixed(0)} cm³`} />

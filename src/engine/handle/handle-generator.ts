@@ -54,6 +54,12 @@ export interface HandleMeshes {
    *  groove, and a lip narrower than the V has nowhere to put the ridge. The
    *  master then rests on a plain flat land, which is what leaked. */
   hasSeatSeal: boolean;
+  /** Shell thickness actually used — clamped below the slider on a thin strap
+   *  so the channel stays open (and so the master stays hollowable at all). */
+  shellUsed: number;
+  /** Open channel inside the master, mm — width × height. Zero-ish means the
+   *  cavity has closed and the shell is doing nothing but adding plastic. */
+  channel: [number, number];
   /** True when the silhouette is top-bottom symmetric (one plate/master kit). */
   isSymmetric: boolean;
 
@@ -124,6 +130,23 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
   // Lip can't be wider than the narrowest half-width of the master footprint
   const lipW = Math.min(p.lipWidth, Math.min(dims.hw, dims.openR) + p.recessClearance - 1);
 
+  /**
+   * Shell thickness, clamped so the channel stays a genuinely open void.
+   *
+   * The plug floors the channel `capT` above the master's bottom, so the void
+   * left is `ht − shellT − (capT − 0.3)`. At the old slider max of 4 on a 10 mm
+   * strap that came to 0.3 mm — the cavity was closed, the master weighed 32%
+   * more than it needed to, and the render looked solid (Gary, 2026-07-31; the
+   * seat groove DID survive, it just wasn't visible any more). Clamping keeps
+   * at least 1 mm of void, and keeps `canHollow` true on thin straps, which is
+   * what the seat-lip seal depends on.
+   */
+  const capTMax = Math.max(0.8, seat - 0.4);
+  const shellT = Math.max(1, Math.min(
+    p.masterShellThickness,
+    dims.ht - capTMax - 0.7,
+    Math.min(dims.hw, dims.ht) - 0.55,
+  ));
   // Spine points are already in mm; S is the clay-shrinkage upscale.
   setSectionSegments(p.sectionSegments);
   const stations = sampleSpine(p.spinePoints, p.spineTypes, Math.round(p.spineSamples), S);
@@ -189,18 +212,20 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
   const collarHalfW = Math.max(0.2, grooveHalfW - p.vClearance);
   // Keep the ring wider than it is tall — a tall thin fin standing off a curved
   // bore prints poorly and snaps (Gary, 2026-07-31).
-  const collarVh = Math.max(0.3, Math.min(p.vHeight, collarHalfW * 1.2, p.masterShellThickness - p.vClearance - 0.5));
+  const collarVh = Math.max(0.3, Math.min(p.vHeight, collarHalfW * 1.2, shellT - p.vClearance - 0.5));
   const collarV = { x: collarVx, h: collarVh, halfW: collarHalfW };
   // Ridge height leaves TWICE the nominal clearance under the groove's apex.
   // The extra is not slop: ridge and groove are built by different machinery (a
   // mitered sweep along a path vs. a notch in a per-frame profile), and where
   // the seal line turns onto the wells they disagree by up to ~0.1 mm. A dam
   // 0.2 mm shorter costs nothing; a master held 0.1 mm off its lip leaks.
-  const seatVh = Math.max(0.3, Math.min(p.vHeight, capThickness(p.masterShellThickness, seat) - 2 * p.vClearance - 0.4));
+  const seatVh = Math.max(0.3, Math.min(p.vHeight, capThickness(shellT, seat) - 2 * p.vClearance - 0.4));
   const parts = buildMasterParts(stations, dims, {
     seat,
-    hollow: p.masterHollow,
-    shellT: p.masterShellThickness,
+    // Always hollow — a solid master has no plug, so it has no seat groove and
+    // the plate's ridge simply holds it up off the lip.
+    hollow: true,
+    shellT,
     // Groove depth is TWO clearances over the ridge crest (capped by the plug's
     // own thickness) — the ridge was lowered, the groove was not.
     seatV: seatVFits ? { depth: seatVDepth, gW: seatGW, gH: seatVh + 2 * p.vClearance } : null,
@@ -349,6 +374,11 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
     master, masterBody, masterWells, plate, wall, wallB, plaster, masterB, plateB,
     hasSelfIntersection,
     hasSeatSeal: seatVRuns.length === 2,
+    shellUsed: shellT,
+    channel: [
+      Math.max(0, 2 * (dims.hw - shellT)),
+      Math.max(0, dims.ht - shellT - (capThickness(shellT, seat) - 0.3)),
+    ],
     isSymmetric,
     masterStats, plateStats, wallStats,
     plasterVolumeMm3,

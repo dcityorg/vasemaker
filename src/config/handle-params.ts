@@ -22,7 +22,7 @@ export const HANDLE_PARAMS = {
   cylinderLength:  { min: 3, max: 30, step: 0.5 } as SliderRange,
   coneLength:      { min: 4, max: 40, step: 0.5 } as SliderRange,
   shrinkPercent:   { min: 0, max: 25, step: 0.5 } as SliderRange,
-  masterShellThickness: { min: 1, max: 4, step: 0.25 } as SliderRange,
+  masterShellThickness: { min: 1, max: 3, step: 0.25 } as SliderRange,
 
   seatDepth:       { min: 0.5, max: 3, step: 0.1 } as SliderRange,
   plateFloor:      { min: 1, max: 4, step: 0.5 } as SliderRange,

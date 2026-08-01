@@ -55,6 +55,11 @@ export interface HandleParameters {
 
   // ── Master shelling ──
   /** Hollow the master from its flat side (saves plastic). */
+  /** Vestigial (v1.24.0): the master is ALWAYS hollowed now — the seat-lip
+   *  groove is cut into the channel plug, and a solid master has no plug, so
+   *  turning this off silently produced a flat-bottomed master that the plate's
+   *  ridges held up off the lip. Kept so old settings files still load; forced
+   *  true by `mergeHandleParameters`. */
   masterHollow: boolean;
   /** Printed shell wall thickness when hollow (mm). */
   masterShellThickness: number;
@@ -297,5 +302,8 @@ export function mergeHandleParameters(loaded: unknown): HandleParameters {
   // A legacy file has no window of its own, and any file could name one that
   // hides a control point (making it ungrabbable), so settle the window last.
   Object.assign(out, migrated ? fitWindowTo(out.spinePoints) : growWindowFor(out.spinePoints, out));
+  // Always hollow — see the field's note. An old file saying otherwise had no
+  // seat-lip seal at all, so honouring it would just reproduce the leak.
+  out.masterHollow = true;
   return out;
 }
