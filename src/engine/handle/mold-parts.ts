@@ -464,7 +464,14 @@ export function collarXSpan(xFace: number, sealDepth: number): [number, number] 
 
 function buildCollar(layout: MoldLayout, coneY: number, xFace: number, dir: 1 | -1): VaseMesh {
   const Rc = layout.openR + SEAL_CLR;
-  const zTop = Math.min(Rc + COLLAR_BAND, layout.wallH);
+  // Full wall height, not `Rc + COLLAR_BAND` (Gary, 2026-07-31). A boss that
+  // stops part-way up leaves a horizontal top ledge, and that ledge is a
+  // mid-air overhang when the wall is printed UPSIDE DOWN — which is the
+  // orientation that makes the bore self-supporting. Running the boss to the
+  // rim removes the ledge in both orientations; it costs ~0.6 cm³ per collar
+  // and just deepens the vertical channel the collar already imprints in the
+  // plaster face above the pour opening.
+  const zTop = layout.wallH;
   const yL = coneY - (Rc + COLLAR_BAND);
   const yR = coneY + (Rc + COLLAR_BAND);
   const steps = layout.seg;
