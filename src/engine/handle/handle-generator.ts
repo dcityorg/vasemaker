@@ -286,6 +286,7 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
     // the pocket) as soon as Plaster Margin is reduced.
     domeR: Math.max(2, Math.min(p.domeDiameter / 2, margin / 2 - 4)),
     domeH: p.domeHeight,
+    seg: Math.max(8, Math.round(p.sectionSegments)),
     openR: dims.openR,
     coneYA: Math.min(yA, yB),
     coneYB: Math.max(yA, yB),

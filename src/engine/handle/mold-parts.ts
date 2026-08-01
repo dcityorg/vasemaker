@@ -34,7 +34,7 @@ const TAB_T = 4;        // seam tab thickness (mm)
 const FLANGE_T = 3;     // clip flange / tab-web thickness (mm)
 const COLLAR_BAND = 4;  // collar material beyond the well opening radius (mm)
 export const SEAL_CLR = 0.25;  // collar D-hole clearance around the cone (mm)
-const DOME_SEG = 32;
+/** Fallback circle resolution; the layout's `seg` overrides it where it matters. */
 const DOME_RINGS = 8;
 
 /** Box/plate layout computed once by the generator and shared by all parts. */
@@ -52,6 +52,11 @@ export interface MoldLayout {
   vw: number; vh: number; vclr: number;
   flangeW: number;
   domeR: number; domeH: number;
+  /** Cross-section segments over a HALF turn — the Around slider. Curved
+   *  features here follow it too, so "Around" means the same thing on the
+   *  collar bore and the natches as it does on the strap. Both used to be
+   *  hard-coded and ended up an order of magnitude coarser than the handle. */
+  seg: number;
   /** Well opening radius + cone y centers (the spine endpoint heights). */
   openR: number; coneYA: number; coneYB: number;
   sealDepth: number;
@@ -110,12 +115,19 @@ export function seamMaxVWidth(flangeW: number, vclr: number): number {
 
 // ── Bottom plate ──────────────────────────────────────────────────────────────
 
+/** Segments around a full circle for the natch pair — twice the half-section
+ *  count, capped so a very high Around setting can't run away. */
+function domeSeg(layout: MoldLayout): number {
+  return Math.min(128, Math.max(24, 2 * layout.seg));
+}
+
 /** Custom slab: plate rect with the pocket hole through it and the recessed
  * registration dimple carved into the top face. z from zBot to 0. */
 function buildTopSlab(layout: MoldLayout, pocketLoop: P2[], dimpleC: P2, zBot: number): VaseMesh {
   const b = new MeshBuilder();
   const outer = ensureCCW(rectPoints(layout.px0, layout.py0, layout.px1, layout.py1));
   const pocket = pocketLoop.slice();
+  const DOME_SEG = domeSeg(layout);
   const dimple = circlePoints(dimpleC[0], dimpleC[1], layout.domeR, DOME_SEG);
 
   // Side walls (outer rect CCW + pocket hole CW, full depth)
@@ -184,7 +196,7 @@ function sgn(loop: P2[]): number {
 }
 
 /** Proud registration dome: base disc (embedded), short cylinder, spherical cap. */
-function buildDome(cx: number, cy: number, a: number, h: number): VaseMesh {
+function buildDome(cx: number, cy: number, a: number, h: number, DOME_SEG: number): VaseMesh {
   const b = new MeshBuilder();
   const R = (a * a + h * h) / (2 * h);
   const phiMax = Math.asin(Math.min(1, a / R));
@@ -369,7 +381,7 @@ export function buildPlate(
   // ridge's flank 0.2 mm proud of the groove floor and lifted the master. The
   // crest is at u = 0 so it is unaffected; only the base corner under-fills.
 
-  const dome = buildDome(domeC[0], domeC[1], layout.domeR, layout.domeH);
+  const dome = buildDome(domeC[0], domeC[1], layout.domeR, layout.domeH, domeSeg(layout));
 
   return mergeMeshes([base, top, ...ridges, ...lipRidge, dome]);
 }
@@ -455,7 +467,7 @@ function buildCollar(layout: MoldLayout, coneY: number, xFace: number, dir: 1 | 
   const zTop = Math.min(Rc + COLLAR_BAND, layout.wallH);
   const yL = coneY - (Rc + COLLAR_BAND);
   const yR = coneY + (Rc + COLLAR_BAND);
-  const steps = 24;
+  const steps = layout.seg;
   /** Collar cross-section in (y, z) for a given bore radius. CCW. */
   const polyAt = (r: number): P2[] => {
     const poly: P2[] = [[yL, 0]];

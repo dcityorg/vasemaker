@@ -46,5 +46,5 @@ export const HANDLE_PARAMS = {
   // Mesh resolution. The defaults already sit well under what a 0.4 mm nozzle
   // can render; these exist for control on large handles and for file size.
   spineSamples:    { min: 40, max: 400, step: 10 } as SliderRange,
-  sectionSegments: { min: 8, max: 64, step: 2 } as SliderRange,
+  sectionSegments: { min: 8, max: 96, step: 2 } as SliderRange,
 } as const;
