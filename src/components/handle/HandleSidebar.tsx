@@ -44,6 +44,8 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   onToggleHelp: () => void;
 }) {
   const params = useHandleStore((s) => s.params);
+  /** Clay-shrink upscale — the master prints this much larger than the cast. */
+  const shrinkS = 1 + params.shrinkPercent / 100;
   const view = useHandleStore((s) => s.view);
   const settingsName = useHandleStore((s) => s.settingsName);
   const setParam = useHandleStore((s) => s.setParam);
@@ -494,8 +496,8 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
                 is what you see looking at the mug head-on, thickness is how
                 thick the strap looks in profile. Same pattern as the mold's
                 'perpendicular' value behind the "Parallel" label. */}
-            {sl('thickness', 'Width (mm)', undefined, 'Cross-section width — perpendicular to the parting plane; the dimension you see looking at the mug head-on')}
-            {sl('width', 'Thickness (mm)', undefined, 'Cross-section thickness — measured in the parting plane; how thick the strap looks in the profile view')}
+            {sl('thickness', 'Width (mm)', undefined, 'FINISHED handle width — both halves together, after shrink. The dimension you see looking at the mug head-on. The printed master carries HALF of it, because the parting plane splits this direction')}
+            {sl('width', 'Thickness (mm)', undefined, 'FINISHED handle thickness, after shrink — measured IN the parting plane, so the master carries ALL of it. How thick the strap looks in the profile view')}
             {sl('shrinkPercent', 'Shrink (%)', undefined, 'Clay shrinkage — the master prints this much larger than the designed size')}
             <Toggle label="Hollow" checked={params.masterHollow} onChange={(v) => setParam('masterHollow', v)} tooltip="Hollow the master from its flat side to save plastic" />
             {params.masterHollow && sl('masterShellThickness', 'Shell (mm)', undefined, 'Printed wall thickness of the hollow master')}
@@ -559,6 +561,11 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               label="Wall set"
               value={`${handle.layout.cavW.toFixed(0)} × ${handle.layout.cavD.toFixed(0)} × ${handle.layout.wallH.toFixed(0)} mm`}
               tooltip="Wall interior size (W × D × H) — a printed wall pair fits any handle with the same numbers"
+            />
+            <StatRow
+              label="Strap section"
+              value={`${params.thickness} × ${params.width} cast → ${(params.thickness * shrinkS / 2).toFixed(1)} × ${(params.width * shrinkS).toFixed(1)} printed`}
+              tooltip="Width × Thickness of the FINISHED handle, then the half-section actually printed on the master: half the Width (the parting plane splits that direction) and the full Thickness, both scaled up by Shrink"
             />
             <StatRow label="Master size (printed)" value={`${handle.masterStats.sizeX.toFixed(0)} × ${handle.masterStats.sizeY.toFixed(0)} × ${handle.masterStats.sizeZ.toFixed(0)} mm`} tooltip="Bounding box of the printed master — bigger than the Height/Depth you designed, because it includes the well cones and the shrink upscale" />
             <StatRow label="Handle plastic" value={`${(handle.masterStats.volumeMm3 / 1000).toFixed(0)} cm³`} />
