@@ -115,7 +115,9 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   //
   // 84 x 40 gives a ~70 x 33 mm finger opening — a normal three-finger mug
   // handle. The old default (100 x 35) was a four-finger height with a
-  // two-finger depth, more stein than mug; it survives as the Classic D preset.
+  // two-finger depth, more stein than mug. (It was kept as the Classic D preset
+  // until 2026-08-01, when the presets were replaced by Gary's three poured
+  // designs — C / D / Ear — so that shape now exists only in git history.)
   spinePoints: [
     [0, 0],
     [40, 12],

@@ -1,13 +1,20 @@
 /**
  * Built-in handle spine presets. Each preset overrides the handle SHAPE (spine
- * + suggested dimensions); mold settings are left untouched.
+ * + its cross-section); mold settings are deliberately left untouched, so
+ * trying a different handle never discards a tuned flange, margin or seal.
  *
  * Spine design note: a middle 'fixed' point is tangent-smooth only when its
  * neighboring handles share its x — otherwise the curve kinks there and the
- * swept surface pinches on the inside of the bend.
+ * swept surface pinches on the inside of the bend. These three use all-'handle'
+ * middles, which is smooth everywhere by construction.
  *
  * Spine points are in mm (v1.16.0). Presets carry no drawing-area extents —
  * applyPreset fits the window to the shape on arrival.
+ *
+ * The three shapes are Gary's own designs, printed and poured 2026-08-01;
+ * the source settings files live beside their STLs in
+ * `~/Dropbox/SharedSherGary/Molds/Handles/`. Only spine + section are taken
+ * from those files — every other setting in them already matches the defaults.
  */
 
 import type { HandleParameters } from '@/engine/handle/handle-types';
@@ -21,57 +28,57 @@ export interface HandlePreset {
 
 export const HANDLE_PRESETS: HandlePreset[] = [
   {
-    id: 'classic-d',
-    name: 'Classic D',
-    description: 'Smooth D-shaped mug handle — even bulge, vertical mid-section',
+    id: 'c-handle',
+    name: 'C',
+    description: 'Round C-curve, 64 × 36 mm — even bulge, widest at mid-height',
     params: {
       spinePoints: [
         [0, 0],
-        [35, 15],
-        [35, 50],
-        [35, 85],
-        [0, 100],
+        [25.74, -9],
+        [60.95, 32.1],
+        [25.74, 73],
+        [0, 64],
       ],
-      spineTypes: ['fixed', 'handle', 'fixed', 'handle', 'fixed'],
-      width: 14,
-      thickness: 10,
+      spineTypes: ['fixed', 'handle', 'handle', 'handle', 'fixed'],
+      // Stored fields, NOT the UI labels: `thickness` is the UI's Width
+      // (across the parting plane) and `width` is the UI's Thickness.
+      width: 9,
+      thickness: 16,
+    },
+  },
+  {
+    id: 'd-handle',
+    name: 'D',
+    description: 'Squared D, 65 × 34 mm — leaves the wall flat, straight mid-section',
+    params: {
+      spinePoints: [
+        [0, 0],
+        [50, 0],
+        [30, 5],
+        [30, 60],
+        [50, 65],
+        [0, 65],
+      ],
+      spineTypes: ['fixed', 'handle', 'handle', 'handle', 'handle', 'fixed'],
+      width: 10,
+      thickness: 16,
     },
   },
   {
     id: 'ear',
     name: 'Ear',
-    description: 'Organic ear / question-mark shape — fuller at the top, tucks in below',
+    description: 'Asymmetric ear, 63 × 35 mm — fuller at the top; needs an A + B kit',
     params: {
       spinePoints: [
         [0, 0],
-        [20.9, 9],
-        [38, 40.5],
-        [38, 55.8],
-        [32.3, 81],
-        [0, 90],
+        [30.02, 11],
+        [54.04, 41],
+        [28.92, 82.5],
+        [0, 63],
       ],
-      spineTypes: ['fixed', 'handle', 'handle', 'handle', 'handle', 'fixed'],
-      width: 14,
-      thickness: 10,
-    },
-  },
-  {
-    id: 'squared',
-    name: 'Squared',
-    description: 'Angular strap handle with softened corners, like the reference video',
-    params: {
-      spinePoints: [
-        [0, 0],
-        [27, 4.4],
-        [30, 24.2],
-        [30, 55],
-        [30, 85.8],
-        [27, 105.6],
-        [0, 110],
-      ],
-      spineTypes: ['fixed', 'handle', 'fixed', 'handle', 'fixed', 'handle', 'fixed'],
-      width: 16,
-      thickness: 9,
+      spineTypes: ['fixed', 'handle', 'handle', 'handle', 'fixed'],
+      width: 9,
+      thickness: 16,
     },
   },
 ];
