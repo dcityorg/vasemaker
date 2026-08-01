@@ -107,18 +107,22 @@ export interface HandleParameters {
 export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   // Handles vertically aligned with the mid fixed point keep the curve
   // tangent-smooth there (no kink → no offset cusp) and make Depth literal.
+  //
+  // 84 x 40 gives a ~70 x 33 mm finger opening — a normal three-finger mug
+  // handle. The old default (100 x 35) was a four-finger height with a
+  // two-finger depth, more stein than mug; it survives as the Classic D preset.
   spinePoints: [
     [0, 0],
-    [35, 15],
-    [35, 50],
-    [35, 85],
-    [0, 100],
+    [40, 12],
+    [40, 42],
+    [40, 72],
+    [0, 84],
   ],
   spineTypes: ['fixed', 'handle', 'fixed', 'handle', 'fixed'],
 
   // Matches fitWindowTo() of the spine above, so the app opens already fitted.
-  winRight: 40,
-  winTop: 105,
+  winRight: 45,
+  winTop: 89,
   winBottom: -5,
 
   width: 14,
@@ -147,12 +151,17 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   flangeWidth: 14,
 
   plasterMargin: 25,
-  plasterAbove: 10,
+  // Plaster over the highest point of the strap. 10 left a 19 mm slab 180 mm
+  // long — fragile at the edges when parting the halves, and thin on
+  // absorbency over a solid-cast section. 15 makes it a 24 mm block.
+  plasterAbove: 15,
   wallThickness: 4,
   wellSealDepth: 2,
 
   spineSamples: 140,
-  sectionSegments: 24,
+  // 24 put 0.9 mm facets on the strap and the plaster records every one; 40
+  // halves that for nothing but mesh size.
+  sectionSegments: 40,
 
   material: 'pottery',
 };
