@@ -50,6 +50,10 @@ export interface HandleMeshes {
   plateB: VaseMesh | null;
 
   hasSelfIntersection: boolean;
+  /** False when the seat-lip V was skipped — a solid master has no plug to
+   *  groove, and a lip narrower than the V has nowhere to put the ridge. The
+   *  master then rests on a plain flat land, which is what leaked. */
+  hasSeatSeal: boolean;
   /** True when the silhouette is top-bottom symmetric (one plate/master kit). */
   isSymmetric: boolean;
 
@@ -337,6 +341,7 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
   return {
     master, masterBody, masterWells, plate, wall, wallB, plaster, masterB, plateB,
     hasSelfIntersection,
+    hasSeatSeal: seatVRuns.length === 2,
     isSymmetric,
     masterStats, plateStats, wallStats,
     plasterVolumeMm3,

@@ -393,6 +393,13 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
         </div>
 
         <div className="px-3 py-3">
+          {!handle.hasSeatSeal && (
+            <div className="mb-3 px-2 py-1.5 rounded border border-amber-700 bg-amber-950/40 text-xs text-amber-300">
+              No seat-lip seal: the master rests on a plain flat land and plaster
+              can run under it. Raise Lip Width (4 mm is the default) and Seat Depth,
+              and keep Hollow Master on — the groove is cut into the master&rsquo;s floor.
+            </div>
+          )}
           {handle.hasSelfIntersection && (
             <div className="mb-3 px-2 py-1.5 rounded border border-red-700 bg-red-950/40 text-xs text-red-300">
               The handle curls back over itself — the mold plate cutout would overlap.
