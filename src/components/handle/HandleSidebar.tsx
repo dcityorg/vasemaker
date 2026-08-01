@@ -538,9 +538,19 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             {/* Resolution lives HERE, not in a Settings section (Gary, 2026-08-01):
                 he printed a master and only then saw the facets, having forgotten
                 to raise it. It belongs where you are already thinking about the
-                handle's shape. */}
-            {sl('spineSamples', 'Along', undefined, 'Stations sampled along the spine — controls smoothness around the bend')}
-            {sl('sectionSegments', 'Around', undefined, 'Segments around HALF the cross-section — how round the strap prints. Also drives the well collar\u2019s bore and the registration natches, so the sealing surfaces stay as smooth as the handle')}
+                handle's shape. Sub-titled and indented so "Along"/"Around" read
+                as mesh density rather than as two more dimensions. */}
+            <div
+              className="mt-3 mb-1 px-1 text-[10px] font-semibold tracking-[0.15em] uppercase"
+              style={{ color: UI_MUTED }}
+              title="Mesh density of the exported parts — how finely the curves are faceted. Raise it for a large handle; the only cost is file size"
+            >
+              Resolution
+            </div>
+            <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
+              {sl('spineSamples', 'Along', undefined, 'Stations sampled along the spine — controls smoothness around the bend')}
+              {sl('sectionSegments', 'Around', undefined, 'Segments around HALF the cross-section — how round the strap prints. Also drives the well collar\u2019s bore and the registration natches, so the sealing surfaces stay as smooth as the handle')}
+            </div>
           </Section>
           <Section title="Wells" titleColor={GROUP_COLORS.structure}>
             {sl('openingDiameter', 'Opening', 'mm', 'Diameter of the pour opening / cylinder at each end')}
