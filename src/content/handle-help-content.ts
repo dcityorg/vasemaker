@@ -72,7 +72,7 @@ export const HANDLE_HELP_SECTIONS: HelpSection[] = [
         'Inside the lip the plate is CUT THROUGH — reach in from below and tape the master down so it can’t float when the plaster goes in. The opening runs back under both wells (stopping a lip-width short of the mold wall), so there is real surface to tape',
         'A V ridge runs the full length of the support lip on both sides of the strap and out to the mold wall under each well; the master carries the matching groove. That labyrinth is the seal — everything before it was a flat 4 mm land, which is what leaked',
         'TWO V-ridges run around the plate near the flange edge: they align the walls and form a double leak dam (plaster would have to climb over both)',
-        'Two spherical registration marks — one bump, one dimple — mold a matching natch pair into the two plaster halves',
+        'Two spherical registration marks — one bump, one dimple — mold a matching natch pair into the two plaster halves. Wide and shallow is right for plaster: a big cap locates well and releases cleanly, a tall one is a snap risk. Diameter is clamped to the plaster band between the wall and the handle pocket, so a small Plaster Margin limits it; ENGAGEMENT is limited by Seat Depth, because the plate recess that molds the mating bump is only that deep',
         'The plate border beyond the walls is the clip flange for binder clips',
       ] },
       { type: 'heading', text: 'Side Walls (one design × 2)' },

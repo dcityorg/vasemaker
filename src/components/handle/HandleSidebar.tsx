@@ -513,8 +513,8 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             {sl('lipWidth', 'Lip Width', 'mm', 'Support-lip ring the handle rests on — inside it the plate is open so you can tape the handle from below')}
             {sl('plateFloor', 'Lip Thickness', 'mm', 'Plate material under the seat pocket')}
             {sl('recessClearance', 'Fit Clearance', 'mm', 'Gap between the handle and the pocket walls — tune to your printer')}
-            {sl('domeDiameter', 'Dome Diameter', 'mm', 'Registration bump/dimple pair size')}
-            {sl('domeHeight', 'Dome Height', 'mm')}
+            {sl('domeDiameter', 'Dome Diameter', 'mm', 'Registration bump/dimple pair size — clamped to the plaster band between the wall and the handle pocket, so a small Plaster Margin limits it')}
+            {sl('domeHeight', 'Dome Height', 'mm', 'How far the registration bump stands proud. Engagement is limited by Seat Depth: the plate recess that molds the mating bump is only that deep, so raising this past Seat Depth deepens the dimple without deepening the bump')}
           </Section>
           <Section title="V Ridge" titleColor={GROUP_COLORS.surface} defaultOpen={false}>
             {sl('vWidth', 'Width', 'mm', 'Base width of the V ridge/groove (45° slopes)')}

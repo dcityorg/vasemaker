@@ -33,7 +33,7 @@ export const HANDLE_PARAMS = {
   vHeight:    { min: 0.4, max: 2, step: 0.1 } as SliderRange,
   vClearance: { min: 0, max: 0.6, step: 0.05 } as SliderRange,
 
-  domeDiameter: { min: 4, max: 14, step: 0.5 } as SliderRange,
+  domeDiameter: { min: 4, max: 30, step: 0.5 } as SliderRange,
   domeHeight:   { min: 0.5, max: 3, step: 0.1 } as SliderRange,
 
   flangeWidth: { min: 6, max: 30, step: 1 } as SliderRange,

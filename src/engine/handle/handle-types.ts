@@ -145,7 +145,14 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   vHeight: 1,
   vClearance: 0.2,
 
-  domeDiameter: 10,
+  // Registration natches. Wide and shallow beats narrow and deep in plaster:
+  // a big cap locates well and releases cleanly, a tall one is a snap risk.
+  // Diameter is clamped at build time to the plaster band it sits in, so a
+  // small Plaster Margin cannot push it into the wall or the handle pocket.
+  domeDiameter: 16,
+  // Engagement is min(domeHeight, seatDepth): the plate's recess — which molds
+  // the mating BUMP — is carved into a slab only `seatDepth` thick, so raising
+  // this past Seat Depth deepens the dimple without deepening the bump.
   domeHeight: 2,
 
   flangeWidth: 14,

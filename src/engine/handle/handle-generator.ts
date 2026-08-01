@@ -278,7 +278,13 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
     vh: p.vHeight,
     vclr: p.vClearance,
     flangeW: p.flangeWidth,
-    domeR: p.domeDiameter / 2,
+    // The natch is centred in the plaster band between the wall and the
+    // handle pocket, so its radius has to fit half that band. The 4 mm is
+    // plaster, not print clearance: a thinner wall than that between the natch
+    // and the edge of the block chips when the halves are separated. Without
+    // this clamp a generous diameter silently overlaps the wall footprint (or
+    // the pocket) as soon as Plaster Margin is reduced.
+    domeR: Math.max(2, Math.min(p.domeDiameter / 2, margin / 2 - 4)),
     domeH: p.domeHeight,
     openR: dims.openR,
     coneYA: Math.min(yA, yB),
