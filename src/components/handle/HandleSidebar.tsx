@@ -418,6 +418,41 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           <Toggle label="Wall B" checked={view.showWallB} onChange={(v) => setView({ showWallB: v })} tooltip="Second wall copy (same print, rotated 180°)" />
           <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour volume" />
           <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals. Smooth shading averages across a V ridge's three faces and renders the sharp apex as a rounded tube — flat shading gives it a crease and puts a hard shadow line in each groove" />
+          <Toggle label="Cross-section" checked={view.crossSection} onChange={(v) => setView({ crossSection: v })} tooltip="Slice everything with a movable plane. The master's hollow shell, its channel plug and the seat-lip groove are sealed voids — this is the only way to see them" />
+          {view.crossSection && (
+            <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
+              <div className="flex items-center gap-1 my-1">
+                <span className="w-28 text-xs" style={{ color: UI_MUTED }}>Cut across</span>
+                {([
+                  ['x', 'X', 'Across the strap — shows the section: outer wall, hollow channel, plug and seat groove'],
+                  ['y', 'Y', 'Along the mold the other way'],
+                  ['z', 'Z', 'Parallel to the plate — shows the channel and well plugs in plan'],
+                ] as const).map(([ax, label, tip]) => (
+                  <button
+                    key={ax}
+                    onClick={() => setView({ crossAxis: ax })}
+                    title={tip}
+                    className={`flex-1 py-1 text-[11px] rounded border transition-colors ${
+                      view.crossAxis === ax
+                        ? 'bg-[var(--border-color)] border-[var(--text-secondary)] text-[var(--text-primary)]'
+                        : 'bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <SliderRow
+                label="Position"
+                value={view.crossPos}
+                min={0}
+                max={1}
+                step={0.005}
+                onChange={(v) => setView({ crossPos: v })}
+                tooltip="Slide the cutting plane through the mold. Arrow keys step it; Alt for fine, Shift for coarse"
+              />
+            </div>
+          )}
 
           {/* Handle */}
           <GroupHeader label="Handle" color={GROUP_COLORS.structure} />

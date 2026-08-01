@@ -31,13 +31,18 @@ function useGeometry(mesh: VaseMesh | null): THREE.BufferGeometry | null {
   return geo;
 }
 
-function Part({ geometry, color, opacity, flat }: { geometry: THREE.BufferGeometry; color: string; opacity: number; flat: boolean }) {
+function Part({ geometry, color, opacity, flat, clip }: {
+  geometry: THREE.BufferGeometry; color: string; opacity: number; flat: boolean;
+  clip: THREE.Plane[] | null;
+}) {
   return (
     <mesh geometry={geometry}>
-      {/* key forces a fresh material: three.js needs a shader recompile when
-          flatShading changes, it is not a live uniform. */}
+      {/* key forces a fresh material: three.js bakes BOTH flat shading and the
+          NUMBER of clipping planes into the compiled shader — neither is a live
+          uniform, so switching either one without a new material silently does
+          nothing. (Moving an existing plane IS live, hence only the count.) */}
       <meshStandardMaterial
-        key={flat ? 'flat' : 'smooth'}
+        key={`${flat ? 'flat' : 'smooth'}-${clip ? 'clip' : 'whole'}`}
         flatShading={flat}
         color={color}
         transparent={opacity < 1}
@@ -45,6 +50,9 @@ function Part({ geometry, color, opacity, flat }: { geometry: THREE.BufferGeomet
         roughness={0.55}
         metalness={0.05}
         side={THREE.DoubleSide}
+        // NEVER undefined — three.js's WebGLClipping dereferences this every
+        // frame and throws on undefined. null is the "no clipping" value.
+        clippingPlanes={clip}
       />
     </mesh>
   );
@@ -52,6 +60,45 @@ function Part({ geometry, color, opacity, flat }: { geometry: THREE.BufferGeomet
 
 export function HandleViewport({ handle }: { handle: HandleMeshes }) {
   const view = useHandleStore((s) => s.view);
+
+  /**
+   * Cutting plane. Its travel is derived from the WHOLE assembly's bounds, not
+   * from whatever happens to be visible — otherwise toggling a part off would
+   * move the plane out from under the slider.
+   */
+  const bounds = useMemo(() => {
+    const lo = [Infinity, Infinity, Infinity];
+    const hi = [-Infinity, -Infinity, -Infinity];
+    for (const m of [handle.master, handle.plate, handle.wall, handle.wallB]) {
+      for (let i = 0; i < m.vertexCount; i++) {
+        for (let k = 0; k < 3; k++) {
+          const v = m.positions[i * 3 + k];
+          if (v < lo[k]) lo[k] = v;
+          if (v > hi[k]) hi[k] = v;
+        }
+      }
+    }
+    return { lo, hi };
+  }, [handle]);
+
+  const clip = useMemo(() => {
+    if (!view.crossSection) return null;
+    const k = view.crossAxis === 'x' ? 0 : view.crossAxis === 'y' ? 1 : 2;
+    // Clipping planes live in WORLD space, but the parts are rendered inside a
+    // group lifted by `plateThk` — so a plane placed from raw mesh bounds lands
+    // that far off. Nothing errors; the slider just addresses the wrong band,
+    // which looks like "the cut doesn't reach the handle".
+    const shift = k === 2 ? handle.layout.plateThk : 0;
+    // A hair of margin each end so the extremes still show a sliver rather
+    // than clipping the whole model away.
+    const pad = 0.02 * (bounds.hi[k] - bounds.lo[k]);
+    const at = shift + bounds.lo[k] - pad + view.crossPos * (bounds.hi[k] - bounds.lo[k] + 2 * pad);
+    // Normal points along -axis: everything ABOVE `at` is kept, so raising the
+    // slider eats into the model from the low side.
+    const n = new THREE.Vector3(k === 0 ? 1 : 0, k === 1 ? 1 : 0, k === 2 ? 1 : 0);
+    return [new THREE.Plane(n, -at)];
+  }, [view.crossSection, view.crossAxis, view.crossPos, bounds, handle.layout.plateThk]);
+
   const controlsRef = useRef<OrbitControlsImpl>(null);
 
   /**
@@ -128,10 +175,13 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
       <Canvas
         camera={{ position: [170, -170, 150], fov: 50, near: 0.1, far: 6000 }}
         gl={{ antialias: true, alpha: false }}
-        onCreated={({ camera, scene }) => {
+        onCreated={({ camera, scene, gl }) => {
           camera.up.set(0, 0, 1);
           scene.up.set(0, 0, 1);
           camera.lookAt(...target);
+          // Required for per-material `clippingPlanes`; without it the cross
+          // section silently does nothing at all.
+          gl.localClippingEnabled = true;
         }}
       >
         <ambientLight intensity={LIGHTING.ambient.intensity} />
@@ -142,12 +192,12 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
         <GroundGrid radius={gridR} height={gridR} />
 
         <group position={[0, 0, lift]}>
-          {view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.4} flat={view.flatShading} />}
-          {view.showPlate && plateGeo && <Part geometry={plateGeo} color={PLATE_COLOR} opacity={1} flat={view.flatShading} />}
-          {view.showWallA && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} />}
-          {view.showWallB && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} />}
-          {view.showHandle && bodyGeo && <Part geometry={bodyGeo} color={MASTER_COLOR} opacity={1} flat={view.flatShading} />}
-          {view.showHandle && view.showWells && wellsGeo && <Part geometry={wellsGeo} color={WELL_COLOR} opacity={1} flat={view.flatShading} />}
+          {view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.4} flat={view.flatShading} clip={clip} />}
+          {view.showPlate && plateGeo && <Part geometry={plateGeo} color={PLATE_COLOR} opacity={1} flat={view.flatShading} clip={clip} />}
+          {view.showWallA && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} clip={clip} />}
+          {view.showWallB && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} clip={clip} />}
+          {view.showHandle && bodyGeo && <Part geometry={bodyGeo} color={MASTER_COLOR} opacity={1} flat={view.flatShading} clip={clip} />}
+          {view.showHandle && view.showWells && wellsGeo && <Part geometry={wellsGeo} color={WELL_COLOR} opacity={1} flat={view.flatShading} clip={clip} />}
         </group>
 
         {/* Clickable orientation cube — snap the view square to the world.

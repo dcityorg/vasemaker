@@ -36,6 +36,16 @@ export interface HandleView {
   showPlaster: boolean;
   /** Per-face normals — creases the V ridges instead of rounding them off. */
   flatShading: boolean;
+  /** Slice everything with a movable plane, so the hollow master's shell, its
+   *  channel plug and the seat-lip groove can be seen at all (they are sealed
+   *  voids — no camera angle reaches them). */
+  crossSection: boolean;
+  /** Which way the cutting plane faces. x = across the strap (shows the
+   *  section), z = parallel to the plate (shows the channel in plan). */
+  crossAxis: 'x' | 'y' | 'z';
+  /** Plane position along that axis, as a fraction of the model's extent
+   *  (0..1). Kept normalized so it survives a resize of the handle. */
+  crossPos: number;
 }
 
 const DEFAULT_VIEW: HandleView = {
@@ -46,6 +56,9 @@ const DEFAULT_VIEW: HandleView = {
   showWallB: false,
   showPlaster: false,
   flatShading: false,
+  crossSection: false,
+  crossAxis: 'x',
+  crossPos: 0.5,
 };
 
 function freshDefaults(): HandleParameters {
