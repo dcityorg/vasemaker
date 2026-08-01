@@ -22,7 +22,7 @@ export const HANDLE_HELP_SECTIONS: HelpSection[] = [
       { type: 'paragraph', text: 'The joint between the handle and the plate is sealed the same way as the mold flanges: a V ridge runs along the plate\u2019s support lip and a matching groove runs along the handle\u2019s underside, so plaster has to climb a labyrinth instead of crossing a flat land. Both ridges now run STRAIGHT BACK TO THE MOLD WALL under the wells, so the barrier ends against the wall instead of stopping at the well openings in open plaster \u2014 and the tape hole runs back with them, stopping one lip-width short of the wall so the master still has something to sit on out there. The handle\u2019s hollow channel is also capped, which means a leak can no longer get INSIDE the master and run its length.' },
       { type: 'tip', text: 'The master is always hollow: the seat-lip groove is cut into the floor of that cavity, so a solid master would have no groove and the plate\u2019s ridge would simply hold it up off the lip. Shell sets how thick the printed walls are, and is clamped automatically so the cavity never closes on a thin strap — the Hollow cavity row in Analysis shows what you actually get.' },
       { type: 'tip', text: 'PRINTING THE WALLS \u2014 two orientations work. Flange down (the way it sits in the mold) needs no supports at all; the only steep overhang is about 20 mm\u00b2 at the crown of each well pocket, where the seal ring will sag a little. If that ring comes out poorly, print the walls UPSIDE DOWN (wall rim on the bed) instead: that makes the pocket and its ring completely self-supporting, and the only thing needing support is the clip flange, which sits outside the plaster and does not have to be pretty. The well collars run the full height of the wall so neither orientation has a ledge hanging in mid-air.' },
-      { type: 'tip', text: 'Lip Width has to hold the V plus clearances. Below about 3.5 mm there is no room and the seal is skipped \u2014 the sidebar says so. 4 mm gives a full-size V; wider is fine.' },
+      { type: 'tip', text: 'Lip Width has to hold the V plus clearances. Below 3 mm there is no room and the seal is skipped \u2014 the sidebar says so. 4 mm gives a full-size V; wider is fine.' },
       { type: 'tip', text: 'Flat Shading in the View list gives every face its own normal. Smooth shading averages across a V ridge\u2019s three faces and draws the sharp apex as a rounded tube — turn it on to see the ridges and grooves as they will actually print.' },
       { type: 'tip', text: 'Everything auto-saves in this browser — your handle design is still here after a reload. Use Save Settings to keep named design files; it writes a «name».json plus a «name».txt bench sheet with the plaster batch and printer-fit numbers, so you can size a pour without opening the app. Your browser asks for each file separately — the second dialog opens in the same folder with the name filled in.' },
     ],
@@ -61,7 +61,7 @@ export const HANDLE_HELP_SECTIONS: HelpSection[] = [
         'The transition sizes itself automatically: a steeply angled handle gets a longer funnel mouth on the side it drifts toward',
         'Turn OFF the Wells view toggle to see the finished handle with its flat-cut ends',
       ] },
-      { type: 'paragraph', text: 'Shrink % scales the handle body up so the fired handle comes out at your designed size (same idea as MoldMaker’s master scale-up). The well plumbing is not scaled. With Hollow on, the cylinder and transition are shelled like the body, so the whole master pours less plastic.' },
+      { type: 'paragraph', text: 'Shrink % scales the handle body up so the fired handle comes out at your designed size (same idea as MoldMaker’s master scale-up). The well plumbing is not scaled. The cylinder is shelled like the body (the transition lofts solid, which is what keeps the bore and the body cavity from becoming one continuous void).' },
     ],
   },
   {
@@ -70,10 +70,10 @@ export const HANDLE_HELP_SECTIONS: HelpSection[] = [
     blocks: [
       { type: 'heading', text: 'Bottom Plate' },
       { type: 'list', items: [
-        'A pocket in the handle’s silhouette registers the master: its flat skirt drops Seat Depth (default 1 mm) onto a support lip, putting the parting plane flush with the plate top',
+        'A pocket in the handle’s silhouette registers the master: its flat skirt drops Seat Depth (default 2 mm) onto a support lip, putting the parting plane flush with the plate top',
         'Inside the lip the plate is CUT THROUGH — reach in from below and tape the master down so it can’t float when the plaster goes in. The opening runs back under both wells (stopping a lip-width short of the mold wall), so there is real surface to tape',
         'A V ridge runs the full length of the support lip on both sides of the strap and out to the mold wall under each well; the master carries the matching groove. That labyrinth is the seal — everything before it was a flat 4 mm land, which is what leaked',
-        'TWO V-ridges run around the plate near the flange edge: they align the walls and form a double leak dam (plaster would have to climb over both)',
+        'THREE concentric V-ridges run around the plate near the flange edge: they align the walls and form a triple leak dam. Plaster would have to climb over all three, and a V is self-centring as the wall drops on, so a loose clamp still seals',
         'Two spherical registration marks — one bump, one dimple — mold a matching natch pair into the two plaster halves. Wide and shallow is right for plaster: a big cap locates well and releases cleanly, a tall one is a snap risk. Diameter is clamped to the plaster band between the wall and the handle pocket, so a small Plaster Margin limits it; ENGAGEMENT is limited by Seat Depth, because the plate recess that molds the mating bump is only that deep',
         'The plate border beyond the walls is the clip flange for binder clips',
       ] },
@@ -81,7 +81,7 @@ export const HANDLE_HELP_SECTIONS: HelpSection[] = [
       { type: 'list', items: [
         'Each wall covers half the box; the second copy is the same print rotated 180°',
         'Seam tabs meet mid-side with a vertical V-ridge on one tab and a V-groove on the other, so the two copies key into each other. The Vs run the full height, from the plate surface to the wall top',
-        'Two V-grooves in each wall’s clip-flange underside mate with the plate ridges. Where a ridge crosses a seam it passes through a snug tunnel in the wall foot, roofed just above its crest — the seam Vs alternate with the ridges (ridge, V, ridge, V) so every leak path crosses two barriers. Keep Flange Width at 13 mm or more so the walls between these features stay printable',
+        'Three matching V-grooves in each wall’s clip-flange underside sit over the plate ridges. At each wall-to-wall seam a solid seam block owns the last few millimetres: its underside carries the same three grooves, and its mating face carries three vertical Vs at the SAME positions — so each vertical V stands directly on the ring ridge it continues and the barrier turns the corner in one piece instead of handing off. Keep Flange Width at about 11 mm or more so the walls between these features stay printable (14 is the default)',
         'A 1 mm collar frames each well opening so the cone tip nests into it (seals the pour opening). The matching collar on the far wall is a by-product of the two-identical-walls trick — it just leaves a shallow dent in the plaster block’s back face',
       ] },
       { type: 'paragraph', text: 'Wall height = the master’s highest point + the Plaster Above setting. Each pour is independent — same setup both times.' },
