@@ -74,6 +74,10 @@ export interface MasterParts {
  *  plug — a hair BEFORE the wall plane, so by the time the body plug exists
  *  the two grooves already coincide. */
 const WELL_STEP = -0.03;
+/** Seal-line solve: converged when the strand lands this close, in mm. */
+const SEAL_SOLVE_TOL = 0.002;
+/** Secant iterations before giving up. Converged cases use 3-6. */
+const SEAL_SOLVE_ITERS = 40;
 
 
 /** Where the well plugs hand the groove over to the body plug (mm past the
@@ -631,15 +635,44 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
           // the plane at a different frame — and being a couple of tenths out
           // here puts a corner in the ridge path that the mitered sweep cannot
           // follow, which is what lifts the master.
-          let u = (target - anchor.cy) / anchor.uy;
-          for (let k = 0; k < 6; k++) {
-            const y = edgeAt(u, WELL_STEP, outerIdx, step);
-            if (y === null) break;
-            const err = y - target;
-            if (Math.abs(err) < 0.002) break;
-            u -= err / anchor.uy;
-          }
-          if (Math.abs(u) <= dims.hw - sv.gW - 0.4) uEnd[sgn] = u;
+          //
+          // The derivative is NOT `anchor.uy`. Changing u moves the crossing
+          // onto a different frame, so the true sensitivity varies along the
+          // strand; with a fixed derivative the iteration crawls on a steeply
+          // angled approach. On Gary's hook (2026-08-01) it ran out of its six
+          // steps still 1.36 mm short and the answer was used ANYWAY — which
+          // stepped the seal line sideways at the handover, so `sealY` was
+          // discontinuous at WELL_STEP and the plate's swept ridge smeared
+          // across the step (0.6 mm wide → 1.85) and stood beside its groove
+          // instead of in it: 0.57 mm of master lifted clean off the lip.
+          //
+          // Secant adapts to the real sensitivity, and — the part that
+          // actually matters — the answer is used ONLY IF IT CONVERGED. An
+          // unconverged u is worse than no u at all.
+          const solveU = (): number | null => {
+            let u0 = (target - anchor!.cy) / anchor!.uy;
+            const y0 = edgeAt(u0, WELL_STEP, outerIdx, step);
+            if (y0 === null) return null;
+            let e0 = y0 - target;
+            if (Math.abs(e0) < SEAL_SOLVE_TOL) return u0;
+            let u1 = u0 - e0 / anchor!.uy;
+            for (let k = 0; k < SEAL_SOLVE_ITERS; k++) {
+              const y1 = edgeAt(u1, WELL_STEP, outerIdx, step);
+              if (y1 === null) return null;
+              const e1 = y1 - target;
+              if (Math.abs(e1) < SEAL_SOLVE_TOL) return u1;
+              const slope = (e1 - e0) / (u1 - u0);
+              if (!Number.isFinite(slope) || Math.abs(slope) < 1e-9) return null;
+              const u2 = u1 - e1 / slope;
+              // A runaway secant step means the strand stopped behaving like a
+              // function of u (the crossing jumped to a different branch).
+              if (!Number.isFinite(u2) || Math.abs(u2) > 4 * dims.hw) return null;
+              u0 = u1; e0 = e1; u1 = u2;
+            }
+            return null;
+          };
+          const u = solveU();
+          if (u !== null && Math.abs(u) <= dims.hw - sv.gW - 0.4) uEnd[sgn] = u;
         }
       }
 
