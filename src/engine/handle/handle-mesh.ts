@@ -308,12 +308,37 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
 
   const { frames, extALen } = extendedFrames(stations, dims);
   const stationBase = extALen; // index of stations[0] in frames
+  /**
+   * Frames whose ENTIRE cross-section sits behind the wall clamp to x = 0 and
+   * enclose no volume: two of them in a row are joined by a strip that lies
+   * flat in the wall plane. Those zero-thickness sheets are the paper-thin fins
+   * at the junction — on an angled approach the extension drifts in y as it
+   * curves back into -x, so each sheet lands at a different y and the outermost
+   * ones stick out past the solid (and past the well funnel) with no thickness
+   * at all. A straight approach drifts nowhere, which is why it looks clean.
+   *
+   * Sweeping only the innermost of each buried run deletes the sheets and
+   * nothing else: a zero-volume set is not part of the solid, so the master,
+   * its volume and its silhouette are unchanged. `frames` itself is untouched —
+   * the crossing walks, the seal lines and the pocket envelope still see every
+   * frame.
+   */
+  const sweepIdx = ((): number[] => {
+    const uMax = dims.hw + 0.1; // widest u any swept profile uses (plug: hw + 0.05)
+    const buried = (i: number): boolean => frames[i].cx + Math.abs(frames[i].ux) * uMax <= 0;
+    let lo = 0, hi = frames.length - 1;
+    while (lo + 1 < hi && buried(lo) && buried(lo + 1)) lo++;
+    while (hi - 1 > lo && buried(hi) && buried(hi - 1)) hi--;
+    const out: number[] = [];
+    for (let i = lo; i <= hi; i++) out.push(i);
+    return out;
+  })();
   // ── Body: sweep the profile along the chain, clamp every vertex to x ≥ 0 ──
   const bb = new MeshBuilder();
   const M = bodyProfile.length;
   const rings: number[][] = [];
-  for (let i = 0; i < frames.length; i++) {
-    const isEnd = i === 0 || i === frames.length - 1;
+  for (const i of sweepIdx) {
+    const isEnd = i === sweepIdx[0] || i === sweepIdx[sweepIdx.length - 1];
     const ring: number[] = [];
     for (const [u, z] of bodyProfile) {
       const [x, y, zz] = framePoint(frames[i], u, z);
@@ -761,8 +786,8 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
     }
     const pb = new MeshBuilder();
     const pRings: number[][] = [];
-    for (let i = 0; i < frames.length; i++) {
-      const isEnd = i === 0 || i === frames.length - 1;
+    for (const i of sweepIdx) {
+      const isEnd = i === sweepIdx[0] || i === sweepIdx[sweepIdx.length - 1];
       const ring: number[] = [];
       for (const [u, z] of profiles[i]) {
         const [x, y, zz] = framePoint(frames[i], u, z);
@@ -777,7 +802,7 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
         pb.quad(pRings[r][k], pRings[r][kn], pRings[r + 1][kn], pRings[r + 1][k]);
       }
     }
-    const plugFace = triangulateFace(profiles[0], []);
+    const plugFace = triangulateFace(profiles[sweepIdx[0]], []);
     const pFirst = pRings[0];
     const pLast = pRings[pRings.length - 1];
     for (const [i, j, k] of plugFace.tris) {
