@@ -21,7 +21,6 @@ import {
   circlePoints,
   rectPoints,
   ensureCCW,
-  dedupeLoop,
   MAP_YZ_X,
   type P2,
 } from './mesh3';
@@ -33,7 +32,6 @@ const TAB_LIP = 0.3;    // seam-tab overlap into its own wall panel
 const TAB_T = 4;        // seam tab thickness (mm)
 const FLANGE_T = 3;     // clip flange / tab-web thickness (mm)
 const COLLAR_BAND = 4;  // collar material beyond the well opening radius (mm)
-export const SEAL_CLR = 0.25;  // collar D-hole clearance around the cone (mm)
 /** Fallback circle resolution; the layout's `seg` overrides it where it matters. */
 const DOME_RINGS = 8;
 
@@ -60,9 +58,10 @@ export interface MoldLayout {
   /** Well opening radius + cone y centers (the spine endpoint heights). */
   openR: number; coneYA: number; coneYB: number;
   sealDepth: number;
-  /** Well-collar V: a ring on the D-bore at x, dropping into the well
-   *  cylinder's matching groove. Null = plain clearance fit. */
-  collarV: { x: number; h: number; halfW: number } | null;
+  /** Fit clearance around the master — the plate pocket AND the collar's bore
+   *  (`recessClearance`). One number, because it is one physical question:
+   *  how loose the printed master sits in the printed mold parts. */
+  clr: number;
 }
 
 /** Outer ridge base stays 2 mm in from the plate/flange edge (Gary, 2026-07-26)
@@ -233,67 +232,6 @@ function buildDome(cx: number, cy: number, a: number, h: number, DOME_SEG: numbe
   return ensureOutward(b.build());
 }
 
-/**
- * Closed-POLYGON sweep (mitered) of a closed (u, z) cross-section; u+ = outward
- * from the loop. Torus topology, so one component and no caps. Used for the
- * seat-lip V ridge, which has to follow the handle silhouette rather than a
- * rectangle. The miter scale is clamped so a sharp corner in the silhouette
- * produces a blunt bevel instead of a spike.
- */
-function sweepClosedLoop(loop: P2[], cs: P2[], closed = true, maxMiter = 2.5): VaseMesh {
-  const L = closed ? ensureCCW(dedupeLoop(loop)) : dedupeLoop(loop);
-  const n = L.length;
-  const b = new MeshBuilder();
-  // Outward normal of edge i for a CCW loop is (dy, −dx).
-  const nrm: P2[] = [];
-  for (let i = 0; i < n - 1; i++) {
-    const [x1, y1] = L[i];
-    const [x2, y2] = L[i + 1];
-    const dx = x2 - x1, dy = y2 - y1;
-    const len = Math.hypot(dx, dy) || 1;
-    nrm.push([dy / len, -dx / len]);
-  }
-  if (closed) {
-    const [x1, y1] = L[n - 1];
-    const [x2, y2] = L[0];
-    const dx = x2 - x1, dy = y2 - y1;
-    const len = Math.hypot(dx, dy) || 1;
-    nrm.push([dy / len, -dx / len]);
-  } else {
-    nrm.push(nrm[n - 2]); // open path: last vertex reuses its only edge
-  }
-  const rings: number[][] = [];
-  for (let i = 0; i < n; i++) {
-    const [ax, ay] = nrm[closed ? (i - 1 + n) % n : Math.max(0, i - 1)];
-    const [bx, by] = nrm[i];
-    let mx = ax + bx, my = ay + by;
-    const ml = Math.hypot(mx, my);
-    if (ml < 1e-9) { mx = bx; my = by; } else { mx /= ml; my /= ml; }
-    const scale = Math.min(maxMiter, 1 / Math.max(0.35, mx * bx + my * by));
-    const ring: number[] = [];
-    for (const [u, z] of cs) ring.push(b.vertex(L[i][0] + mx * scale * u, L[i][1] + my * scale * u, z));
-    rings.push(ring);
-  }
-  const M = cs.length;
-  const segs = closed ? n : n - 1;
-  for (let i = 0; i < segs; i++) {
-    const iN = (i + 1) % n;
-    for (let k = 0; k < M; k++) {
-      const kn = (k + 1) % M;
-      b.quad(rings[i][k], rings[i][kn], rings[iN][kn], rings[iN][k]);
-    }
-  }
-  if (!closed) {
-    const face = triangulateFace(cs, []);
-    const first = rings[0], last = rings[n - 1];
-    for (const [i, j, k] of face.tris) {
-      b.tri(first[i], first[k], first[j]);
-      b.tri(last[i], last[j], last[k]);
-    }
-  }
-  return ensureOutward(b.build());
-}
-
 /** Closed-rect sweep (mitered corners) of a closed (u,z) cross-section — used
  * for the plate's V-ridge loop. u+ = outward from the rect. */
 function sweepRectLoop(x0: number, y0: number, x1: number, y1: number, cs: P2[]): VaseMesh {
@@ -322,19 +260,24 @@ function sweepRectLoop(x0: number, y0: number, x1: number, y1: number, cs: P2[])
 
 /**
  * Bottom plate: lip slab (through-cut tape-access hole) + top slab (seat
- * pocket + dimple) + TWO V-ridge loops near the flange edge + proud dome.
+ * pocket + dimple) + the flange-edge V-ridge loops + proud dome.
+ *
  * The master's flat skirt bottom rests on the lip ring at z = −seat; inside
  * the lip the plate is open so the master can be taped from below against
  * plaster buoyancy. Registration pair: dome near cavY1, dimple near cavY0.
+ *
+ * The lip is a PLAIN FLAT LAND. From 2026-07-31 to 2026-08-08 it carried a V
+ * ridge running the whole way round into a matching groove in the master's
+ * underside — a good seal, but it depended on the master having a solid floor
+ * to cut the groove into, and Gary wanted that floor gone (a closed-bottomed
+ * master is very hard to pry out of set plaster). Seat Depth does the sealing
+ * now: a deeper skirt is a longer path at Fit Clearance for plaster to travel.
  */
 export function buildPlate(
   layout: MoldLayout,
   pocketLoop: P2[],
   tapeHole: P2[],
   margin: number,
-  /** Centre lines of the seat-lip V ridges (one per side of the strap), and
-   *  their height. Null = no lip V (solid master: no plug to groove). */
-  seatV: { loops: P2[][]; height: number; half: number } | null,
 ): VaseMesh {
   const { px0, py0, px1, py1, seat, lipThk } = layout;
   // Registration pair sits 3/4 of the way from the well side toward the far
@@ -361,29 +304,9 @@ export function buildPlate(
   const ridges = seamBandPositions(layout).map((d) =>
     sweepRectLoop(px0 + d, py0 + d, px1 - d, py1 - d, ridgeCs));
 
-  // Seat-lip V ridge: the barrier between the plaster and the master's
-  // underside. Before 2026-07-31 this joint was a plain flat land, which is
-  // exactly the geometry that leaked — the master's skirt bottom now carries
-  // the matching groove, cut into its channel plug.
-  // Open path, not a loop: the master's groove lives in its body plug, which
-  // stops at the wall plane (x = 0) — the wells past it have no groove, and a
-  // ridge running under them would jack the master up off the lip.
-  const lipRidge = (seatV?.loops ?? [])
-    .filter((l) => l.length > 2)
-    .map((l) => sweepClosedLoop(l, [
-      [-seatV!.half, -seat - EMBED],
-      [seatV!.half, -seat - EMBED],
-      [0, -seat + seatV!.height],
-    ], false, 1.1));
-  // Miter clamped hard (1.1, not the default 2.5): this ridge has to stay
-  // inside a groove only `vWidth/2 + clearance` wide, and a mitered corner
-  // widens the swept section — at the turn onto the wells that alone put the
-  // ridge's flank 0.2 mm proud of the groove floor and lifted the master. The
-  // crest is at u = 0 so it is unaffected; only the base corner under-fills.
-
   const dome = buildDome(domeC[0], domeC[1], layout.domeR, layout.domeH, domeSeg(layout));
 
-  return mergeMeshes([base, top, ...ridges, ...lipRidge, dome]);
+  return mergeMeshes([base, top, ...ridges, dome]);
 }
 
 // ── Side wall ─────────────────────────────────────────────────────────────────
@@ -449,21 +372,19 @@ function sweepOpenPath(path: P2[], outward: P2[], cs: P2[]): VaseMesh {
   return ensureOutward(b.build());
 }
 
-/** Collar around a well opening: 1 mm-proud face frame with a half-circle bite
- * that the cone's last millimeter nests into (labyrinth seal, zero cutting).
- * The half-master's opening is a half-disc sitting ON the parting plane, so
- * the bite is a half-circle arc centered at z = 0.
- * Extruded along x from xFace−EMBED (into the panel) to xFace+sealDepth·dir. */
 /**
- * The collar boss's x span for a wall face. Exported so the generator can place
- * the bore V strictly inside it without duplicating EMBED.
+ * Collar around a well opening: a boss standing `sealDepth` proud of the wall
+ * face with a half-circle bite that the well cylinder nests into. The
+ * half-master's opening is a half-disc sitting ON the parting plane, so the
+ * bite is a half-circle arc centered at z = 0.
+ *
+ * The bore is a PLAIN CLEARANCE FIT. Until 2026-08-08 it carried a V ring that
+ * seated into a matching groove around the cylinder; it sealed, but plaster got
+ * into it and was very hard to clean out (Gary, after pouring). What seals now
+ * is depth of engagement — Well Seal — at a tight Fit Clearance.
  */
-export function collarXSpan(xFace: number, sealDepth: number): [number, number] {
-  return [xFace - EMBED, xFace + sealDepth];
-}
-
 function buildCollar(layout: MoldLayout, coneY: number, xFace: number, dir: 1 | -1): VaseMesh {
-  const Rc = layout.openR + SEAL_CLR;
+  const Rc = layout.openR + layout.clr;
   // Full wall height, not `Rc + COLLAR_BAND` (Gary, 2026-07-31). A boss that
   // stops part-way up leaves a horizontal top ledge, and that ledge is a
   // mid-air overhang when the wall is printed UPSIDE DOWN — which is the
@@ -487,34 +408,7 @@ function buildCollar(layout: MoldLayout, coneY: number, xFace: number, dir: 1 | 
   };
   const x0 = dir === 1 ? xFace - EMBED : xFace - layout.sealDepth;
   const x1 = dir === 1 ? xFace + layout.sealDepth : xFace + EMBED;
-
-  const v = layout.collarV;
-  if (!v || v.x - v.halfW <= x0 || v.x + v.halfW >= x1) {
-    return extrudeSolid(polyAt(Rc), [], x0, x1, MAP_YZ_X);
-  }
-
-  // V ring in the D-bore: the bore necks in by `h` at x = v.x. The wall drops
-  // straight down onto a horizontal cylinder, so the ring simply seats into the
-  // cylinder's matching groove — no sliding fit, nothing to scrape past.
-  const xs = [x0, v.x - v.halfW, v.x, v.x + v.halfW, x1];
-  const rAt = (x: number) => Rc - v.h * Math.max(0, 1 - Math.abs(x - v.x) / v.halfW);
-  const b = new MeshBuilder();
-  const rings = xs.map((x) => polyAt(rAt(x)).map(([y, z]) => b.vertex(x, y, z)));
-  const M = rings[0].length;
-  for (let i = 0; i + 1 < rings.length; i++) {
-    for (let k = 0; k < M; k++) {
-      const kn = (k + 1) % M;
-      b.quad(rings[i][k], rings[i][kn], rings[i + 1][kn], rings[i + 1][k]);
-    }
-  }
-  // Caps: both ends are at the nominal radius, so one triangulation serves.
-  const face = triangulateFace(polyAt(Rc), []);
-  const first = rings[0], last = rings[rings.length - 1];
-  for (const [i, j, k] of face.tris) {
-    b.tri(first[i], first[k], first[j]);
-    b.tri(last[i], last[j], last[k]);
-  }
-  return ensureOutward(b.build());
+  return extrudeSolid(polyAt(Rc), [], x0, x1, MAP_YZ_X);
 }
 
 /**

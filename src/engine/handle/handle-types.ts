@@ -63,6 +63,13 @@ export interface HandleParameters {
   masterHollow: boolean;
   /** Printed shell wall thickness when hollow (mm). */
   masterShellThickness: number;
+  /** Width along the handle of the solid pull-ribs bridging the open channel —
+   *  something to grip with long-nose pliers when levering the master out of
+   *  the set plaster. 0 = no ribs. */
+  ribWidth: number;
+  /** Pull-ribs spaced evenly along the strap. Each well always gets one too
+   *  (just inside its open end) whenever ribWidth > 0. */
+  ribCount: number;
 
   // ── Bottom plate ──
   /** Depth of the seat pocket — the master's flat-bottomed skirt sits this far
@@ -142,10 +149,26 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
 
   masterHollow: true,
   masterShellThickness: 2,
+  // Gary, 2026-08-09, after pouring the v1.29 mold: "I really had to tug and
+  // wiggle the plastic a lot to get it out." The channel is open along the
+  // whole underside, so a short solid slice across it gives plier jaws
+  // something to close on — 4 along the strap plus one in each well.
+  ribWidth: 3,
+  ribCount: 4,
 
-  seatDepth: 2,
-  plateFloor: 1,
-  recessClearance: 0.15,
+  // 3, not 2 (Gary, 2026-08-08, after pouring): with the seat-lip V gone this
+  // skirt IS the seal — a deeper one is a longer path at Fit Clearance for
+  // plaster to creep along — and it is also the lip you grip with long-nose
+  // pliers to lift the master out of the set plaster.
+  seatDepth: 3,
+  // 1.5, so the plate is 4.5 mm rather than 3. The plate is the biggest part
+  // (roughly 110 x 200 mm on the default handle) and stiffness goes as the
+  // cube of thickness; a deeper seat pays for most of that on its own.
+  plateFloor: 1.5,
+  // 0.10. Applies to the plate pocket AND the wall's well-collar bore (that
+  // bore was a separate hard-coded 0.25 until 2026-08-08). Tighter holds the
+  // master put and starves the leak path that the removed V rings used to dam.
+  recessClearance: 0.1,
   lipWidth: 4,
 
   vWidth: 2,
@@ -170,7 +193,10 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   // absorbency over a solid-cast section. 15 makes it a 24 mm block.
   plasterAbove: 15,
   wallThickness: 4,
-  wellSealDepth: 2,
+  // 3, not 2 (Gary, 2026-08-08). The collar bore no longer carries a sealing
+  // ring, so what keeps plaster out from under the handle at the wells is depth
+  // of engagement over the well cylinder. Clamped to the Cylinder length.
+  wellSealDepth: 3,
 
   spineSamples: 140,
   // 80 (Gary, 2026-08-01, after printing a master at 24 and seeing the facets).

@@ -395,13 +395,6 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
         </div>
 
         <div className="px-3 py-3">
-          {!handle.hasSeatSeal && (
-            <div className="mb-3 px-2 py-1.5 rounded border border-amber-700 bg-amber-950/40 text-xs text-amber-300">
-              No seat-lip seal: the master rests on a plain flat land and plaster
-              can run under it. Raise Lip Width (4 mm is the default) and Seat Depth,
-              and keep Hollow Master on — the groove is cut into the master&rsquo;s floor.
-            </div>
-          )}
           {handle.hasSelfIntersection && (
             <div className="mb-3 px-2 py-1.5 rounded border border-red-700 bg-red-950/40 text-xs text-red-300">
               The handle curls back over itself — the mold plate cutout would overlap.
@@ -418,15 +411,15 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           <Toggle label="Wall B" checked={view.showWallB} onChange={(v) => setView({ showWallB: v })} tooltip="Second wall copy (same print, rotated 180°)" />
           <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour volume" />
           <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals. Smooth shading averages across a V ridge's three faces and renders the sharp apex as a rounded tube — flat shading gives it a crease and puts a hard shadow line in each groove" />
-          <Toggle label="Cross-section" checked={view.crossSection} onChange={(v) => setView({ crossSection: v })} tooltip="Slice everything with a movable plane. The master's hollow shell, its channel plug and the seat-lip groove are sealed voids — this is the only way to see them" />
+          <Toggle label="Cross-section" checked={view.crossSection} onChange={(v) => setView({ crossSection: v })} tooltip="Slice everything with a movable plane — the clearest way to read the master's shell thickness and the open channel inside it" />
           {view.crossSection && (
             <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
               <div className="flex items-center gap-1 my-1">
                 <span className="w-28 text-xs" style={{ color: UI_MUTED }}>Cut across</span>
                 {([
-                  ['x', 'X', 'Across the strap — shows the section: outer wall, hollow channel, plug and seat groove'],
+                  ['x', 'X', 'Across the strap — shows the section: shell wall and the open channel between'],
                   ['y', 'Y', 'Along the mold the other way'],
-                  ['z', 'Z', 'Parallel to the plate — shows the channel and well plugs in plan'],
+                  ['z', 'Z', 'Parallel to the plate — shows the channel running the length of the master in plan'],
                 ] as const).map(([ax, label, tip]) => (
                   <button
                     key={ax}
@@ -534,7 +527,10 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             {sl('thickness', 'Width (mm)', undefined, 'FINISHED handle width — both halves together, after shrink. The dimension you see looking at the mug head-on. The printed master carries HALF of it, because the parting plane splits this direction')}
             {sl('width', 'Thickness (mm)', undefined, 'FINISHED handle thickness, after shrink — measured IN the parting plane, so the master carries ALL of it. How thick the strap looks in the profile view')}
             {sl('shrinkPercent', 'Shrink (%)', undefined, 'Clay shrinkage — the master prints this much larger than the designed size')}
-            {sl('masterShellThickness', 'Shell (mm)', undefined, 'Printed wall thickness of the hollow master. The master is always hollow — the seat-lip groove is cut into the floor of that cavity, so a solid master would have no groove and the plate\u2019s ridge would hold it up off the lip. Clamped automatically so the cavity stays open on a thin strap')}
+            {sl('masterShellThickness', 'Shell (mm)', undefined, 'Printed wall thickness of the master. The master is always hollow and OPEN along its underside — the shell is all there is — so you can get a tool into the channel to pry it out of the set plaster. Clamped automatically so the cavity stays open on a thin strap')}
+            {sl('ribWidth', 'Pull Ribs (mm)', undefined, 'Width of the solid ribs bridging the open channel. The channel is open either side of one, so long-nose jaws drop in and close on it — that is what you pull on to lever the master out of the set plaster. 0 turns them off. They sit inside the shell, so the cast handle never sees them')}
+            {params.ribWidth > 0.2 &&
+              sl('ribCount', 'Rib Count', undefined, 'How many along the strap, evenly spaced by distance along the handle. Each well gets one as well, just inside its open end — those are the stiffest things on the master to pull against')}
             {/* Resolution lives HERE, not in a Settings section (Gary, 2026-08-01):
                 he printed a master and only then saw the facets, having forgotten
                 to raise it. It belongs where you are already thinking about the
@@ -561,10 +557,10 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           {/* Mold */}
           <GroupHeader label="Mold" color={GROUP_COLORS.surface} />
           <Section title="Plate" titleColor={GROUP_COLORS.surface} defaultOpen={false}>
-            {sl('seatDepth', 'Seat Depth', 'mm', 'How deep the half-handle’s flat skirt sits into the plate (the parting plane stays at the plate top)')}
+            {sl('seatDepth', 'Seat Depth', 'mm', 'How deep the half-handle’s flat skirt sits into the plate (the parting plane stays at the plate top). This IS the seal: a deeper skirt is a longer path at Fit Clearance for plaster to travel. It is also the lip you grab with long-nose pliers to lift the master out of the set plaster, so do not go shallow')}
             {sl('lipWidth', 'Lip Width', 'mm', 'Support-lip ring the handle rests on — inside it the plate is open so you can tape the handle from below')}
-            {sl('plateFloor', 'Lip Thickness', 'mm', 'Plate material under the seat pocket')}
-            {sl('recessClearance', 'Fit Clearance', 'mm', 'Gap between the handle and the pocket walls — tune to your printer')}
+            {sl('plateFloor', 'Lip Thickness', 'mm', 'Plate material under the seat pocket. Added to Seat Depth it is the plate’s total thickness — raise it if a big plate flexes')}
+            {sl('recessClearance', 'Fit Clearance', 'mm', 'Gap around the master everywhere it meets a printed part: the plate pocket AND the wall’s well-collar bore. Tighter holds the master in place and gives plaster less to creep through; too tight and the parts will not go together. Tune to your printer')}
             {sl('domeDiameter', 'Dome Diameter', 'mm', 'Registration bump/dimple pair size — clamped to the plaster band between the wall and the handle pocket, so a small Plaster Margin limits it')}
             {sl('domeHeight', 'Dome Height', 'mm', 'How far the registration bump stands proud. Engagement is limited by Seat Depth: the plate recess that molds the mating bump is only that deep, so raising this past Seat Depth deepens the dimple without deepening the bump')}
           </Section>
@@ -577,7 +573,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             {sl('plasterMargin', 'Plaster Margin', 'mm', 'Plaster between the handle and the walls')}
             {sl('plasterAbove', 'Plaster Above', 'mm', 'Plaster above the highest point of the handle — sets the wall height')}
             {sl('wallThickness', 'Wall Thickness', 'mm')}
-            {sl('wellSealDepth', 'Well Seal', 'mm', 'How far the collar around each well opening stands proud of the wall (leak seal)')}
+            {sl('wellSealDepth', 'Well Seal', 'mm', 'How far the collar around each well opening stands proud of the wall — that depth of engagement over the well cylinder is what keeps plaster out from under the handle. Clamped to the Cylinder length')}
             {sl('flangeWidth', 'Clip Flange', 'mm', 'Binder-clip flange width — plate border and wall seam tabs')}
           </Section>
 
@@ -617,7 +613,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               label="Hollow cavity"
               value={`${handle.channel[0].toFixed(1)} × ${handle.channel[1].toFixed(1)} mm`
                 + (handle.shellUsed < params.masterShellThickness - 0.01 ? `  (shell clamped to ${handle.shellUsed.toFixed(2)})` : '')}
-              tooltip="Open void inside the master. Its floor is what the seat-lip groove is cut into, so the cavity is never allowed to close — Shell is clamped down on a thin strap rather than filling it in"
+              tooltip="Open void inside the master, measured from the flat bottom up. It runs the whole underside — deliberately, so you can get a tool in to pry the master out of the plaster. Never allowed to close: Shell is clamped down on a thin strap rather than filling it in"
             />
             <StatRow label="Master size (printed)" value={`${handle.masterStats.sizeX.toFixed(0)} × ${handle.masterStats.sizeY.toFixed(0)} × ${handle.masterStats.sizeZ.toFixed(0)} mm`} tooltip="Bounding box of the printed master — bigger than the Height/Depth you designed, because it includes the well cones and the shrink upscale" />
             <StatRow label="Handle plastic" value={`${(handle.masterStats.volumeMm3 / 1000).toFixed(0)} cm³`} />

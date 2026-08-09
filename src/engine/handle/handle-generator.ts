@@ -18,8 +18,8 @@
  */
 
 import { sampleSpine } from './spine';
-import { buildMasterParts, capThickness, loopSelfIntersects, setSectionSegments, type HandleBodyDims } from './handle-mesh';
-import { buildPlate, buildWall, seamMaxVWidth, collarXSpan, SEAL_CLR, type MoldLayout } from './mold-parts';
+import { buildMasterParts, loopSelfIntersects, setSectionSegments, type HandleBodyDims } from './handle-mesh';
+import { buildPlate, buildWall, seamMaxVWidth, type MoldLayout } from './mold-parts';
 import { boxSolid, extrudeSolid, rectPoints, translateMesh, rotate180Z, flipWinding, signedArea, type P2 } from './mesh3';
 import { mergeMeshes } from '../mold/ring-mesh';
 import { computeMeshStats, type MeshStats } from '../mesh-stats';
@@ -50,15 +50,13 @@ export interface HandleMeshes {
   plateB: VaseMesh | null;
 
   hasSelfIntersection: boolean;
-  /** False when the seat-lip V was skipped — a solid master has no plug to
-   *  groove, and a lip narrower than the V has nowhere to put the ridge. The
-   *  master then rests on a plain flat land, which is what leaked. */
-  hasSeatSeal: boolean;
   /** Shell thickness actually used — clamped below the slider on a thin strap
    *  so the channel stays open (and so the master stays hollowable at all). */
   shellUsed: number;
-  /** Open channel inside the master, mm — width × height. Zero-ish means the
-   *  cavity has closed and the shell is doing nothing but adding plastic. */
+  /** Open channel inside the master, mm — width × height, measured from the
+   *  flat bottom up to the crown of the inner surface. It is open along the
+   *  whole underside: that is what you get a tool into to pry the master out
+   *  of the set plaster. */
   channel: [number, number];
   /** True when the silhouette is top-bottom symmetric (one plate/master kit). */
   isSymmetric: boolean;
@@ -98,6 +96,29 @@ function mirrorY(mesh: VaseMesh): VaseMesh {
   return out;
 }
 
+/**
+ * Sutherland–Hodgman clip of a simple polygon to the half-plane x ≥ xMin.
+ * Used for the tape hole, which follows the master's outline but has to stop a
+ * lip-width short of the mold wall. A plain filter would drop the crossing
+ * points and chord across the gap, pulling the boundary inside the lip.
+ */
+function clipToXMin(loop: P2[], xMin: number): P2[] {
+  const out: P2[] = [];
+  const n = loop.length;
+  for (let i = 0; i < n; i++) {
+    const a = loop[i];
+    const b = loop[(i + 1) % n];
+    const ain = a[0] >= xMin;
+    const bin = b[0] >= xMin;
+    if (ain) out.push(a);
+    if (ain !== bin) {
+      const t = (xMin - a[0]) / (b[0] - a[0]);
+      out.push([xMin, a[1] + (b[1] - a[1]) * t]);
+    }
+  }
+  return out;
+}
+
 /** Is the loop symmetric about y = yc (within tol)? Nearest-point check both ways. */
 function isLoopSymmetric(loop: P2[], yc: number, tol: number): boolean {
   const mirrored = loop.map(([x, y]) => [x, 2 * yc - y] as P2);
@@ -131,20 +152,12 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
   const lipW = Math.min(p.lipWidth, Math.min(dims.hw, dims.openR) + p.recessClearance - 1);
 
   /**
-   * Shell thickness, clamped so the channel stays a genuinely open void.
-   *
-   * The plug floors the channel `capT` above the master's bottom, so the void
-   * left is `ht − shellT − (capT − 0.3)`. At the old slider max of 4 on a 10 mm
-   * strap that came to 0.3 mm — the cavity was closed, the master weighed 32%
-   * more than it needed to, and the render looked solid (Gary, 2026-07-31; the
-   * seat groove DID survive, it just wasn't visible any more). Clamping keeps
-   * at least 1 mm of void, and keeps `canHollow` true on thin straps, which is
-   * what the seat-lip seal depends on.
+   * Shell thickness, clamped so the channel stays a genuinely open void — the
+   * master is what the shell encloses, and a shell that meets itself is just a
+   * solid bar with extra print time. `canHollow` needs the same headroom.
    */
-  const capTMax = Math.max(0.8, seat - 0.4);
   const shellT = Math.max(1, Math.min(
     p.masterShellThickness,
-    dims.ht - capTMax - 0.7,
     Math.min(dims.hw, dims.ht) - 0.55,
   ));
   // Spine points are already in mm; S is the clay-shrinkage upscale.
@@ -152,117 +165,25 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
   const stations = sampleSpine(p.spinePoints, p.spineTypes, Math.round(p.spineSamples), S);
   const yA = stations[0].y;
   const yB = stations[stations.length - 1].y;
-  /**
-   * Seat-lip V — the labyrinth between the plaster and the master's underside.
-   * ONE definition drives both sides: the plate's lip ridge and the master's
-   * skirt groove, so they mate by construction the way the flange Vs do.
-   *
-   * Centred in the lip band (which runs from `recessClearance` outside the
-   * silhouette to `lipW` inside it), and its height is clamped so the groove
-   * can never eat through the channel plug it is cut into.
-   */
-  // The groove must sit entirely INBOARD of the body's shell wall. That wall's
-  // own bottom reaches z = -seat too, so a notch overlapping it is simply
-  // filled by wall material — the groove then exists in the mesh and NOT in the
-  // solid (Gary spotted this on 2026-07-31; a vertex-position probe cannot see
-  // it, only a ray from below can). Width is whatever the lip band can spare.
-  // Two constraints bracket the groove's depth `d` (inward from the outline):
-  //   clear of the shell wall   d >= shellT + gW + SEAT_M
-  //   ridge inside the lip band d <= lipW - recessClearance - vw/2 - SEAT_M
-  // Taking vw at the value that makes those meet collapses the bracket to a
-  // point, which then fails a floating-point <= by one ulp and switches the
-  // whole seat V off silently. Back the width off so the bracket has real
-  // width, and compare with a tolerance.
-  const SEAT_M = 0.15;
-  // The body's skirt now stops above the plug, so the ONLY constraint left is
-  // the lip band itself — the V can be full width and centred, instead of being
-  // squeezed inboard of the shell wall and jammed against the tape hole.
-  const seatVw = Math.min(p.vWidth, lipW - 2 * SEAT_M);
-  const seatGW = seatVw / 2 + p.vClearance;
-  // The RIDGE is narrower than its groove by a further clearance on each side.
-  // Vertical clearance alone is not enough: the ridge is a mitered sweep and
-  // the groove is a per-frame notch, so where the seal line turns (at the
-  // wells) the two disagree laterally by a tenth or two, and without side
-  // clearance that lands the ridge's flank on the groove's floor.
-  const seatRidgeHalf = Math.max(0.3, seatVw / 2 - p.vClearance);
-  const seatVDepth = lipW / 2 - p.recessClearance;
-  const seatVFits = seatVw >= 0.6
-    && seatVDepth - seatVw / 2 > SEAT_M
-    && seatVDepth + seatVw / 2 < lipW - p.recessClearance - SEAT_M + 1e-6;
-  /**
-   * Well-collar V — the second leak path, where the wall's D-bore meets the
-   * well cylinder. `cavX0` depends only on params, so it can be computed here,
-   * before the master, and drive BOTH sides from one definition.
-   *
-   * The ring necks the bore in by `vHeight`; the cylinder's groove is deeper by
-   * `vClearance` less the standing `SEAL_CLR`, so the apex gap is vClearance
-   * while the rest of the annulus keeps its normal clearance.
-   */
+  /** The mold wall's inner face — also the well openings' plane. */
   const cavX0 = -(p.coneLength + p.cylinderLength);
-  // The V has to sit inside BOTH the collar boss and the well cylinder. The
-  // cylinder's open end is flush with the wall face (cylLen/coneLen are NOT
-  // shrink-scaled), so the usable span is just the boss length — size the pair
-  // from that intersection, widest-first, or one of them silently falls back to
-  // a plain clearance fit when it runs past an end.
-  const [collarX0, collarX1] = collarXSpan(cavX0, p.wellSealDepth);
-  const vLo = Math.max(collarX0, cavX0);
-  const vHi = Math.min(collarX1, -p.coneLength);
-  const collarVx = (vLo + vHi) / 2;
-  const grooveHalfW = Math.min(p.vWidth / 2 + p.vClearance, (vHi - vLo) / 2 - 0.2);
-  const collarHalfW = Math.max(0.2, grooveHalfW - p.vClearance);
-  // Keep the ring wider than it is tall — a tall thin fin standing off a curved
-  // bore prints poorly and snaps (Gary, 2026-07-31).
-  const collarVh = Math.max(0.3, Math.min(p.vHeight, collarHalfW * 1.2, shellT - p.vClearance - 0.5));
-  const collarV = { x: collarVx, h: collarVh, halfW: collarHalfW };
-  // Ridge height leaves TWICE the nominal clearance under the groove's apex.
-  // The extra is not slop: ridge and groove are built by different machinery (a
-  // mitered sweep along a path vs. a notch in a per-frame profile), and where
-  // the seal line turns onto the wells they disagree by up to ~0.1 mm. A dam
-  // 0.2 mm shorter costs nothing; a master held 0.1 mm off its lip leaks.
-  const seatVh = Math.max(0.3, Math.min(p.vHeight, capThickness(shellT, seat) - 2 * p.vClearance - 0.4));
   const parts = buildMasterParts(stations, dims, {
-    seat,
-    // Always hollow — a solid master has no plug, so it has no seat groove and
-    // the plate's ridge simply holds it up off the lip.
-    hollow: true,
-    shellT,
-    // Groove depth is TWO clearances over the ridge crest (capped by the plug's
-    // own thickness) — the ridge was lowered, the groove was not.
-    seatV: seatVFits ? { depth: seatVDepth, gW: seatGW, gH: seatVh + 2 * p.vClearance } : null,
-    collarV: {
-      x: collarVx,
-      halfW: grooveHalfW,
-      depth: collarVh + p.vClearance - SEAL_CLR,
-    },
+    seat, hollow: true, shellT,
+    ribWidth: p.ribWidth, ribCount: p.ribCount,
   });
-  // Seat-lip seal. Both ridge lines now run STRAIGHT BACK TO THE MOLD WALL
-  // under the wells instead of stopping at the transition tip, so the barrier
-  // terminates against the wall rather than at a chord sitting in open plaster
-  // (Gary, 2026-07-31 — the 4 mm of plain flat land left at each end was the
-  // same geometry that leaked, just localised). The master carries the matching
-  // groove the whole way: the body plug along the strap, the well plugs from
-  // the wall to the join plane.
-  //
-  // The ridge stops 0.5 mm PAST the pocket wall so its end is buried in plate
-  // material rather than coplanar with the pocket face.
-  const xSealEnd = cavX0 - 0.5;
-  const seatVRuns = parts.hollowed && seatVFits && parts.seatSealPaths
-    ? parts.seatSealPaths(xSealEnd, 0)
-    : [];
   const silhouette = parts.silhouetteAt(0);
   const pocketLoop = parts.silhouetteAt(p.recessClearance);
-  // Tape hole: the region INSIDE both ridge lines, carried back under the wells
-  // with them so there is real surface to tape the master down (Gary's second
-  // ask). It stops `lipW` short of the wall — the master needs a lip to sit on
-  // at the well end too — and is inset from the ridge by half its base plus a
-  // margin so the ridge always stands on solid plate.
-  const tapeInset = seatGW + 0.5;
-  const wellTape = seatVRuns.length === 2
-    ? parts.seatSealPaths!(cavX0 + lipW, tapeInset)
-    : [];
-  const tapeHole = wellTape.length === 2
-    ? [...wellTape[0], ...wellTape[1].slice().reverse()]
-    : parts.silhouetteAt(p.recessClearance - lipW).filter(([x]) => x >= 0);
+  /**
+   * Tape hole: the pocket floor cut through, `lipW` inside the master's own
+   * outline so a support lip of that width is left all the way round. It runs
+   * back under the wells with the rest of the outline but stops `lipW` short of
+   * the mold wall, so the master has something to sit on out there too.
+   *
+   * Before 2026-08-08 this was derived from the seat-lip seal lines (inset past
+   * the ridge). With the ridge gone the outline offset IS the boundary, and the
+   * two land within ~0.3 mm of each other on the default handle.
+   */
+  const tapeHole = clipToXMin(parts.silhouetteAt(p.recessClearance - lipW), cavX0 + lipW);
   const hasSelfIntersection = loopSelfIntersects(silhouette);
 
   // ── Box layout (y-centered on the cone midpoint so one wall design serves
@@ -292,7 +213,6 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
     px1: cavX1 + border,
     py0: cavY0 - border,
     py1: cavY1 + border,
-    collarV,
     seat,
     lipThk,
     plateThk,
@@ -315,14 +235,18 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
     openR: dims.openR,
     coneYA: Math.min(yA, yB),
     coneYB: Math.max(yA, yB),
-    sealDepth: p.wellSealDepth,
+    // Engagement of the well cylinder into the wall's collar bore. Clamped to
+    // the cylinder: the bore has to stay a straight run past the collar, and
+    // past the cylinder's end it would be biting into the transition's taper.
+    sealDepth: Math.max(0, Math.min(p.wellSealDepth, p.cylinderLength - 2)),
+    clr: p.recessClearance,
   };
 
   // ── Build parts (raw coords), then center on the box ──
   const bcx = (cavX0 + cavX1) / 2;
   const bcy = yc;
 
-  const plateRaw = buildPlate(layout, pocketLoop, tapeHole, margin, seatVRuns.length ? { loops: seatVRuns, height: seatVh, half: seatRidgeHalf } : null);
+  const plateRaw = buildPlate(layout, pocketLoop, tapeHole, margin);
   const wallRaw = buildWall(layout);
   // Plaster display block: the pour with the handle's footprint cut out up to
   // the master's height, solid plaster above it (display-only approximation —
@@ -354,7 +278,7 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
     // positions/types (that's what makes bump meet dimple when block B is
     // flipped onto block A) — so it's rebuilt, not mesh-mirrored.
     const mirrorLoop = (loop: P2[]): P2[] => loop.map(([x, y]) => [x, 2 * yc - y] as P2);
-    const plateBRaw = buildPlate(layout, mirrorLoop(pocketLoop), mirrorLoop(tapeHole), margin, seatVRuns.length ? { loops: seatVRuns.map(mirrorLoop), height: seatVh, half: seatRidgeHalf } : null);
+    const plateBRaw = buildPlate(layout, mirrorLoop(pocketLoop), mirrorLoop(tapeHole), margin);
     plateB = translateMesh(plateBRaw, -bcx, -bcy, 0);
   }
 
@@ -365,19 +289,23 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
   const cavW = cavX1 - cavX0;
   const cavD = cavY1 - cavY0;
   // Each pour fills the box to the wall top minus the master's above-plate
-  // volume (master volume minus its skirt, which sits inside the plate).
-  const skirtVol = Math.abs(signedArea(silhouette)) * seat;
+  // volume (master volume minus its skirt, which sits inside the plate). The
+  // skirt is a `seat`-tall prism on the SHELL RAILS, not on the whole
+  // silhouette — the channel between them is open now, so the footprint is the
+  // outline less its inward offset by the shell thickness.
+  const skirtArea = Math.abs(signedArea(silhouette))
+    - (parts.hollowed ? Math.abs(signedArea(parts.silhouetteAt(-shellT))) : 0);
+  const skirtVol = skirtArea * seat;
   const masterAbove = Math.max(0, masterStats.volumeMm3 - skirtVol);
   const plasterVolumeMm3 = 2 * (cavW * cavD * wallH - masterAbove);
 
   return {
     master, masterBody, masterWells, plate, wall, wallB, plaster, masterB, plateB,
     hasSelfIntersection,
-    hasSeatSeal: seatVRuns.length === 2,
     shellUsed: shellT,
     channel: [
       Math.max(0, 2 * (dims.hw - shellT)),
-      Math.max(0, dims.ht - shellT - (capThickness(shellT, seat) - 0.3)),
+      Math.max(0, dims.ht - shellT + seat),
     ],
     isSymmetric,
     masterStats, plateStats, wallStats,

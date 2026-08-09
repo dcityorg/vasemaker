@@ -49,6 +49,59 @@ export class MeshBuilder {
   }
 }
 
+/**
+ * Weld coincident vertices and drop the triangles that collapse as a result.
+ *
+ * Needed wherever a sweep deliberately COLLAPSES part of a ring onto a single
+ * point — the body master's cut at the vase-wall plane pins every buried strand
+ * to its own crossing, so consecutive rings share those points exactly and the
+ * quads between them have no area. Emitting them would leave zero-area
+ * triangles (and, before the pin, zero-VOLUME sheets, which render as fins).
+ *
+ * Welding by rounded position rather than by construction, because the same
+ * point is reached from several rings independently.
+ *
+ * `eps` deliberately matches the 4-decimal snap the verification scripts use.
+ * At 1e-6 the transition's tucked rim left 4 triangles that those scripts
+ * called degenerate and this did not — a weld tolerance looser than the
+ * checker's is the same class of bug as a checker looser than the geometry.
+ * Nothing in this app places two distinct points closer than 0.05 mm, which is
+ * 500x this.
+ */
+export function weldMesh(mesh: VaseMesh, eps = 1e-4): VaseMesh {
+  const { positions, indices } = mesh;
+  const key = new Map<string, number>();
+  const remap = new Int32Array(positions.length / 3);
+  const pos: number[] = [];
+  const q = (v: number) => Math.round(v / eps);
+  for (let i = 0; i < remap.length; i++) {
+    const k = `${q(positions[i * 3])},${q(positions[i * 3 + 1])},${q(positions[i * 3 + 2])}`;
+    const seen = key.get(k);
+    if (seen !== undefined) { remap[i] = seen; continue; }
+    const n = pos.length / 3;
+    key.set(k, n);
+    remap[i] = n;
+    pos.push(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+  }
+  const idx: number[] = [];
+  for (let t = 0; t < indices.length; t += 3) {
+    const a = remap[indices[t]], b = remap[indices[t + 1]], c = remap[indices[t + 2]];
+    if (a === b || b === c || a === c) continue;
+    idx.push(a, b, c);
+  }
+  const outPos = new Float32Array(pos);
+  const outIdx = new Uint32Array(idx);
+  const normals = new Float32Array(outPos.length);
+  computeNormals(outPos, outIdx, normals);
+  return {
+    positions: outPos,
+    normals,
+    indices: outIdx,
+    vertexCount: outPos.length / 3,
+    triangleCount: outIdx.length / 3,
+  };
+}
+
 /** Signed volume of a closed mesh (positive = outward-wound). */
 export function signedVolume(mesh: VaseMesh): number {
   const { positions, indices } = mesh;
