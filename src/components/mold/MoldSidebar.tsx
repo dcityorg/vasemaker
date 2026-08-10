@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
-import { useMoldStore, DEFAULT_SETTINGS_NAME } from '@/store/mold-store';
+import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_SETTINGS_NAME } from '@/store/mold-store';
 import { useVaseStore } from '@/store/vase-store';
+import { applyPreset } from '@/presets';
+import type { VaseParameters } from '@/engine/types';
 import { MOLD_PARAMS, PLASTER_MATERIALS } from '@/config/mold-params';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import { generateSTL } from '@/engine/stl-export';
@@ -31,6 +33,31 @@ const MOLD_STYLE_TABS: { value: MoldStyle; label: string; tooltip: string }[] = 
 
 export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMeshes; helpOpen: boolean; onToggleHelp: () => void }) {
   const designName = useVaseStore((s) => s.designName);
+  const vaseParams = useVaseStore((s) => s.params);
+  const vaseDirty = useVaseStore((s) => s.isDirty);
+  const loadVaseDesign = useVaseStore((s) => s.loadDesign);
+  const markSaved = useMoldStore((s) => s.markSaved);
+  const savedParams = useMoldStore((s) => s.savedParams);
+  const revertToSaved = useMoldStore((s) => s.revertToSaved);
+  const doUndo = useMoldStore((s) => s.undo);
+  const doRedo = useMoldStore((s) => s.redo);
+  const { canUndo, canRedo } = useMoldHistory();
+
+  const onKey = useCallback((e: KeyboardEvent) => {
+    if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    e.preventDefault();
+    if (e.shiftKey) doRedo(); else doUndo();
+  }, [doUndo, doRedo]);
+  useEffect(() => {
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onKey]);
+  /** Pending "this mold was saved with a different vase" decision. */
+  const [vaseChoice, setVaseChoice] = useState<{
+    settings: unknown; vase: unknown; vaseName: string | null; fileName: string;
+  } | null>(null);
   const vaseRes = useVaseStore((s) => s.params.resolution);
   const params = useMoldStore((s) => s.params);
   const view = useMoldStore((s) => s.view);
@@ -114,10 +141,22 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   };
 
   const handleSaveSettings = async () => {
-    const json = JSON.stringify({ app: 'VaseMaker', type: 'mold-settings', settings: params }, null, 2);
+    // The vase is EMBEDDED, not referenced (2026-08-09). A mold is derived from
+    // a vase — the master IS the vase, scaled — so mold settings alone can never
+    // reproduce a mold. Before this, reopening a mold file a day later silently
+    // wrapped your numbers around whatever vase happened to be loaded, which
+    // after a reload was the default Classic Vase. Old files have no `vase` key
+    // and still load settings-only.
+    const json = JSON.stringify({
+      app: 'VaseMaker',
+      type: 'mold-settings',
+      settings: params,
+      vase: vaseParams,
+      vaseName: designName,
+    }, null, 2);
     const chosenName = await saveDesignFile(json, fileName);
     if (chosenName === null) return; // cancelled — don't offer the text file either
-    setSettingsName(chosenName);
+    markSaved(params, chosenName);
     // Companion bench sheet: plaster batch + printer fit, so the numbers are at
     // hand without opening the app. Second dialog is unavoidable — see saveTextFile.
     await saveTextFile(buildPrintReport({
@@ -140,6 +179,30 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     }), chosenName);
   };
 
+  /** Apply the mold half of a settings file. */
+  const applyMoldOnly = (settings: unknown, baseName: string) => {
+    const loaded = mergeMoldParameters(settings);
+    moldHistory.skipNextRecord();
+    useMoldHistory.getState().clear();
+    useMoldStore.setState({ params: loaded, savedParams: loaded, settingsName: baseName });
+  };
+
+  /** Save the CURRENT vase design to a file (same format as the Vase tab's
+   *  Save Design — a bare params object) before it is replaced. */
+  const saveCurrentVase = async (): Promise<boolean> => {
+    const chosen = await saveDesignFile(JSON.stringify(vaseParams, null, 2), designName || 'vase-design');
+    if (chosen === null) return false;
+    useVaseStore.setState({ designName: chosen, isDirty: false });
+    return true;
+  };
+
+  /** Take the file's vase as well as its mold settings. */
+  const takeFileVase = (c: NonNullable<typeof vaseChoice>) => {
+    loadVaseDesign(c.vase, c.vaseName);
+    applyMoldOnly(c.settings, c.fileName);
+    setVaseChoice(null);
+  };
+
   const applySettingsText = (text: string, baseName: string) => {
     try {
       const parsed = JSON.parse(text);
@@ -151,8 +214,24 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
         }
         return;
       }
-      useMoldStore.setState({ params: mergeMoldParameters(parsed.settings) });
-      setSettingsName(baseName);
+      // Only ask when there is genuinely something to decide: no embedded vase
+      // (an old file), or one that already matches what is open, both load
+      // straight through. Comparison runs both sides through the same merge so
+      // a file written by an older version isn't reported as "different" purely
+      // for missing a parameter added since.
+      const fileVase = parsed.vase;
+      const sameVase = !!fileVase && typeof fileVase === 'object' &&
+        JSON.stringify(applyPreset({ parameters: fileVase as Partial<VaseParameters> })) === JSON.stringify(vaseParams);
+      if (!fileVase || typeof fileVase !== 'object' || sameVase) {
+        applyMoldOnly(parsed.settings, baseName);
+        return;
+      }
+      setVaseChoice({
+        settings: parsed.settings,
+        vase: fileVase,
+        vaseName: typeof parsed.vaseName === 'string' ? parsed.vaseName : null,
+        fileName: baseName,
+      });
     } catch {
       alert('Invalid mold settings file.');
     }
@@ -213,6 +292,22 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           >
             ◂ Vase
           </Link>
+          <button
+            onClick={doUndo}
+            disabled={!canUndo}
+            className="text-sm leading-none w-6 h-6 rounded flex items-center justify-center transition-colors text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] disabled:opacity-30 disabled:hover:bg-transparent"
+            title="Undo (Cmd/Ctrl+Z) — mold settings only; the vase has its own undo on the Vase tab"
+          >
+            ↶
+          </button>
+          <button
+            onClick={doRedo}
+            disabled={!canRedo}
+            className="text-sm leading-none w-6 h-6 rounded flex items-center justify-center transition-colors text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] disabled:opacity-30 disabled:hover:bg-transparent"
+            title="Redo (Cmd/Ctrl+Shift+Z)"
+          >
+            ↷
+          </button>
           <button
             onClick={onToggleHelp}
             className={`text-sm font-bold leading-none w-6 h-6 rounded-full flex items-center justify-center transition-colors ${helpOpen ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}
@@ -583,6 +678,16 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             )}
           </Section>
 
+          {savedParams && savedParams !== params && (
+            <button
+              onClick={revertToSaved}
+              className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
+              style={{ color: UI_MUTED }}
+              title="Put the mold settings back to the last Save/Load Settings"
+            >
+              Revert to Saved
+            </button>
+          )}
           <button
             onClick={reset}
             className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
@@ -594,6 +699,66 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       </div>
 
       {/* Undercut warning dialog */}
+      {/* "This mold was saved with a different vase" — only ever shown when the
+          file carries a vase that differs from the one open, so the common path
+          (your own mold, your own vase) has no dialog at all. */}
+      {vaseChoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg p-5 max-w-md mx-4 shadow-xl">
+            <p className="text-sm text-[var(--text-primary)] mb-2 font-medium">
+              This mold was saved with a different vase
+            </p>
+            <p className="text-xs text-[var(--text-secondary)] mb-1">
+              Mold file: <span className="text-[var(--text-primary)]">{vaseChoice.vaseName || '(unnamed)'}</span>
+            </p>
+            <p className="text-xs text-[var(--text-secondary)] mb-3">
+              Currently open: <span className="text-[var(--text-primary)]">{designName || '(unnamed)'}</span>
+            </p>
+            {vaseDirty && (
+              <p className="text-xs text-amber-300 mb-3">
+                Your current vase has unsaved changes.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {vaseDirty && (
+                <button
+                  onClick={async () => {
+                    const c = vaseChoice;
+                    if (await saveCurrentVase()) takeFileVase(c);
+                  }}
+                  className="flex-1 px-3 py-1.5 text-xs bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded transition-colors"
+                >
+                  Save mine, then load
+                </button>
+              )}
+              <button
+                onClick={() => takeFileVase(vaseChoice)}
+                className={`flex-1 px-3 py-1.5 text-xs rounded transition-colors ${
+                  vaseDirty
+                    ? 'bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-primary)]'
+                    : 'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white'
+                }`}
+              >
+                {vaseDirty ? 'Load anyway' : 'Load that vase too'}
+              </button>
+              <button
+                onClick={() => { applyMoldOnly(vaseChoice.settings, vaseChoice.fileName); setVaseChoice(null); }}
+                className="flex-1 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
+                title="Use this mold's numbers on the vase you already have open"
+              >
+                Settings only
+              </button>
+              <button
+                onClick={() => setVaseChoice(null)}
+                className="flex-1 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] text-[var(--text-secondary)] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {warnExport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg p-5 max-w-sm mx-4 shadow-xl">

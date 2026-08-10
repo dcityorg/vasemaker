@@ -15,6 +15,7 @@
 import { create } from 'zustand';
 import type { MoldParameters } from '@/engine/mold/mold-types';
 import { DEFAULT_MOLD_PARAMETERS, mergeMoldParameters } from '@/engine/mold/mold-types';
+import { createHistory } from './history';
 
 export const DEFAULT_SETTINGS_NAME = 'mold settings';
 const STORAGE_KEY = 'vasemaker-mold-settings';
@@ -54,9 +55,23 @@ interface MoldStore {
   setView: (update: Partial<MoldView>) => void;
   setSettingsName: (name: string) => void;
   reset: () => void;
+  undo: () => void;
+  redo: () => void;
+  /** Params as of the last Save/Load Settings — the baseline Revert returns to. */
+  savedParams: MoldParameters | null;
+  markSaved: (params: MoldParameters, name: string) => void;
+  revertToSaved: () => void;
 }
 
-export const useMoldStore = create<MoldStore>((set) => ({
+/** Undo/redo for the mold settings. Params only — the view toggles and the
+ *  settings-file name are not part of the design, same rule as the handle. The
+ *  VASE is deliberately out of scope: it has its own history, and two histories
+ *  that can both restore vase params would disagree about the past the moment
+ *  you switch tabs. */
+export const moldHistory = createHistory<MoldParameters>(() => ({ ...DEFAULT_MOLD_PARAMETERS }));
+export const useMoldHistory = moldHistory.useHistoryStore;
+
+export const useMoldStore = create<MoldStore>((set, get) => ({
   params: { ...DEFAULT_MOLD_PARAMETERS },
   view: { ...DEFAULT_VIEW },
   settingsName: DEFAULT_SETTINGS_NAME,
@@ -73,6 +88,19 @@ export const useMoldStore = create<MoldStore>((set) => ({
     params: { ...DEFAULT_MOLD_PARAMETERS, moldStyle: state.params.moldStyle },
     settingsName: DEFAULT_SETTINGS_NAME,
   })),
+
+  undo: () => {
+    const restored = moldHistory.undo(get().params);
+    if (restored) { moldHistory.skipNextRecord(); set({ params: restored }); }
+  },
+  redo: () => {
+    const restored = moldHistory.redo(get().params);
+    if (restored) { moldHistory.skipNextRecord(); set({ params: restored }); }
+  },
+
+  savedParams: null,
+  markSaved: (params, name) => set({ savedParams: params, settingsName: name }),
+  revertToSaved: () => set((state) => (state.savedParams ? { params: state.savedParams } : {})),
 }));
 
 // ── localStorage persistence ──
@@ -90,13 +118,20 @@ export function hydrateMoldSettingsFromStorage(): void {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
-    const data = JSON.parse(raw) as { settingsName?: unknown; params?: unknown };
+    const data = JSON.parse(raw) as { settingsName?: unknown; params?: unknown; savedParams?: unknown };
+    // Restoring is not an edit — skip and clear, or the first undo would step
+    // back to the bare defaults.
+    moldHistory.skipNextRecord();
+    useMoldHistory.getState().clear();
     useMoldStore.setState({
       params: mergeMoldParameters(data.params),
       settingsName:
         typeof data.settingsName === 'string' && data.settingsName.trim()
           ? data.settingsName
           : DEFAULT_SETTINGS_NAME,
+      savedParams: data.savedParams && typeof data.savedParams === 'object'
+        ? mergeMoldParameters(data.savedParams)
+        : null,
     });
   } catch {
     // Corrupted entry — keep defaults; the next change overwrites it.
@@ -106,15 +141,18 @@ export function hydrateMoldSettingsFromStorage(): void {
 // Auto-save on every params/name change (view changes don't trigger a write).
 let prevParams = useMoldStore.getState().params;
 let prevName = useMoldStore.getState().settingsName;
+let prevSaved = useMoldStore.getState().savedParams;
 useMoldStore.subscribe((state) => {
-  if (state.params === prevParams && state.settingsName === prevName) return;
+  if (state.params !== prevParams) moldHistory.recordChange(state.params);
+  if (state.params === prevParams && state.settingsName === prevName && state.savedParams === prevSaved) return;
   prevParams = state.params;
   prevName = state.settingsName;
+  prevSaved = state.savedParams;
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ settingsName: state.settingsName, params: state.params })
+      JSON.stringify({ settingsName: state.settingsName, params: state.params, savedParams: state.savedParams })
     );
   } catch {
     // Storage full/blocked — settings just won't persist this session.

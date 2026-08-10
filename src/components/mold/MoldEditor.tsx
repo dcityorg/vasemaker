@@ -7,6 +7,7 @@ import { HelpPanel } from '@/components/editor/HelpPanel';
 import { MOLD_HELP_SECTIONS } from '@/content/mold-help-content';
 import { useMoldMeshes } from '@/hooks/use-mold-meshes';
 import { hydrateMoldSettingsFromStorage } from '@/store/mold-store';
+import { hydrateVaseDesignFromStorage } from '@/store/vase-store';
 
 /** MoldMaker layout — settings sidebar on the left, 3D mold preview in the
  * middle, optional help panel on the right (mirrors the vase Editor). */
@@ -14,7 +15,10 @@ export function MoldEditor() {
   const mold = useMoldMeshes();
   const [helpOpen, setHelpOpen] = useState(false);
   // Restore persisted mold settings after mount (post-hydration, client only).
-  useEffect(() => { hydrateMoldSettingsFromStorage(); }, []);
+  // The mold is DERIVED from the vase, so this route needs the design restored
+  // just as much as the vase route does — landing here on a reload used to show
+  // your mold settings wrapped around the default Classic Vase.
+  useEffect(() => { hydrateVaseDesignFromStorage(); hydrateMoldSettingsFromStorage(); }, []);
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <MoldSidebar mold={mold} helpOpen={helpOpen} onToggleHelp={() => setHelpOpen((v) => !v)} />

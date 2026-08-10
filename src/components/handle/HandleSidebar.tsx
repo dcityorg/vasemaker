@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
 import { BezierCurveEditor, EDITOR_CHROME } from '@/components/parameters/BezierCurveEditor';
 import { evaluatePiecewiseBezier } from '@/engine/bezier';
-import { useHandleStore, DEFAULT_HANDLE_SETTINGS_NAME } from '@/store/handle-store';
+import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME } from '@/store/handle-store';
 import { HANDLE_PARAMS } from '@/config/handle-params';
 import { HANDLE_PRESETS } from '@/config/handle-presets';
 import { PLASTER_MATERIALS } from '@/config/mold-params';
@@ -62,6 +62,25 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   const toggleSpineType = useHandleStore((s) => s.toggleSpineType);
   const applyPreset = useHandleStore((s) => s.applyPreset);
   const reset = useHandleStore((s) => s.reset);
+  const markSaved = useHandleStore((s) => s.markSaved);
+  const savedParams = useHandleStore((s) => s.savedParams);
+  const revertToSaved = useHandleStore((s) => s.revertToSaved);
+  const doUndo = useHandleStore((s) => s.undo);
+  const doRedo = useHandleStore((s) => s.redo);
+  const { canUndo, canRedo } = useHandleHistory();
+
+  // Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z, matching the Vase tab.
+  const onKey = useCallback((e: KeyboardEvent) => {
+    if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    e.preventDefault();
+    if (e.shiftKey) doRedo(); else doUndo();
+  }, [doUndo, doRedo]);
+  useEffect(() => {
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onKey]);
 
   const [presetId, setPresetId] = useState('');
   const [editingName, setEditingName] = useState(false);
@@ -80,7 +99,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
     const json = JSON.stringify({ app: 'VaseMaker', type: 'handle-settings', settings: params }, null, 2);
     const chosenName = await saveDesignFile(json, settingsName || DEFAULT_HANDLE_SETTINGS_NAME);
     if (chosenName === null) return; // cancelled — don't offer the text file either
-    setSettingsName(chosenName);
+    markSaved(params, chosenName);
     // Companion bench sheet, same as MoldMaker: plaster batch + printer fit so
     // the numbers are at hand without opening the app.
     const L = handle.layout;
@@ -134,8 +153,10 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
         }
         return;
       }
-      useHandleStore.setState({ params: mergeHandleParameters(parsed.settings) });
-      setSettingsName(baseName);
+      const loaded = mergeHandleParameters(parsed.settings);
+      handleHistory.skipNextRecord();
+      useHandleHistory.getState().clear();
+      useHandleStore.setState({ params: loaded, savedParams: loaded, settingsName: baseName });
     } catch {
       alert('Invalid handle settings file.');
     }
@@ -241,6 +262,22 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           >
             ◂ Vase
           </Link>
+          <button
+            onClick={doUndo}
+            disabled={!canUndo}
+            className="text-sm leading-none w-6 h-6 rounded flex items-center justify-center transition-colors text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] disabled:opacity-30 disabled:hover:bg-transparent"
+            title="Undo (Cmd/Ctrl+Z)"
+          >
+            ↶
+          </button>
+          <button
+            onClick={doRedo}
+            disabled={!canRedo}
+            className="text-sm leading-none w-6 h-6 rounded flex items-center justify-center transition-colors text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] disabled:opacity-30 disabled:hover:bg-transparent"
+            title="Redo (Cmd/Ctrl+Shift+Z)"
+          >
+            ↷
+          </button>
           <button
             onClick={onToggleHelp}
             className={`text-sm font-bold leading-none w-6 h-6 rounded-full flex items-center justify-center transition-colors ${helpOpen ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}
@@ -623,13 +660,27 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             <StatRow label="Wall STL" value={stlSize(handle.wallStats.triangleCount)} />
           </Section>
 
+          {savedParams && savedParams !== params && (
+            <button
+              onClick={revertToSaved}
+              className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
+              style={{ color: UI_MUTED }}
+              title="Put everything back to the last Save/Load Settings — the whole design, shape included"
+            >
+              Revert to Saved
+            </button>
+          )}
           <button
             onClick={reset}
             className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
             style={{ color: UI_MUTED }}
+            title="Restore the default mold settings. Your handle shape is not touched"
           >
             Reset Handle Settings
           </button>
+          <p className="mt-1 text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
+            Keeps your handle shape — pick a preset to change that. Undoable with ↶.
+          </p>
         </div>
       </div>
     </div>

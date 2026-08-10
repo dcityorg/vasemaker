@@ -8,6 +8,7 @@ export type HelpBlock =
   | { type: 'heading'; text: string }
   | { type: 'list'; items: string[] }
   | { type: 'tip'; text: string }
+  | { type: 'warning'; text: string }
   | { type: 'table'; headers: string[]; rows: string[][] }
   | { type: 'keyvalue'; items: { key: string; value: string }[] };
 
@@ -54,9 +55,9 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'paragraph', text: 'The name updates automatically when you load a design file, save a design, or select a preset. You can also click the name to type a new one at any time.' },
       { type: 'tip', text: 'Some browsers (e.g. Brave) don\'t support reading back renamed filenames from the save dialog. Set your design name by clicking it in the header before saving.' },
       { type: 'heading', text: 'Save & Load' },
-      { type: 'paragraph', text: 'Save Design exports your parameters as a JSON file. Load Design imports a previously saved file. Your design is fully described by the parameters \u2014 no mesh data is stored, so files are tiny.' },
+      { type: 'paragraph', text: 'Save Design exports your parameters as a JSON file. Load Design imports a previously saved file. Your design is fully described by the parameters \u2014 no mesh data is stored, so files are tiny. A mold settings file saved on the Mold tab carries a COPY of the vase it was designed for, so a mold can always be reopened complete.' },
       { type: 'paragraph', text: 'If you have unsaved changes and try to load a design or select a preset, you\'ll see a confirmation dialog with options to Save & Continue, Don\'t Save, or Cancel. This prevents accidentally losing your work.' },
-      { type: 'tip', text: 'Save frequently! There\'s no auto-save. If you refresh the page, unsaved changes are lost.' },
+      { type: 'tip', text: 'Your design is kept in this browser automatically, so a reload brings back what you were working on \u2014 the Mold tab depends on that too, since it builds from whatever vase is loaded. That is a safety net, not a filing system: it holds ONE design, and the next one replaces it. Save Design is still how you keep a design you want to come back to, and the asterisk still means "not written to a file".' },
       { type: 'tip', text: 'Chrome and Edge provide the best file management experience \u2014 save dialogs remember the last folder you used, and filenames carry over between Load, Save, and Export. Other browsers (Brave, Firefox, Safari) may not remember directories or read back renamed filenames.' },
       { type: 'heading', text: 'Image Capture' },
       { type: 'paragraph', text: 'Capture Image saves a screenshot of your vase design as a PNG or JPG file. A resizable frame appears on the viewport showing exactly what will be captured.' },

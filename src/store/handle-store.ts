@@ -17,6 +17,7 @@ import {
 } from '@/engine/handle/handle-types';
 import { measureSpine } from '@/engine/handle/spine';
 import type { HandlePreset } from '@/config/handle-presets';
+import { createHistory } from './history';
 
 export const DEFAULT_HANDLE_SETTINGS_NAME = 'handle design';
 const STORAGE_KEY = 'vasemaker-handle-settings';
@@ -65,6 +66,34 @@ function freshDefaults(): HandleParameters {
   return mergeHandleParameters(DEFAULT_HANDLE_PARAMETERS);
 }
 
+/**
+ * The handle SHAPE — what a preset carries, plus the drawing window that frames
+ * it. Reset restores the settings around this and leaves it alone: the app
+ * already splits shape from settings everywhere else (presets are shape-only,
+ * so trying another handle never discards tuned mold numbers) and Reset was the
+ * one place that ignored the split. It is also what makes Reset the right button
+ * after a defaults change — you get the new numbers, not a new handle.
+ *
+ * Height and Depth are NOT here because they are not stored: they are
+ * measurements of the spine that their sliders scale it to hit, so keeping the
+ * spine keeps them by construction.
+ */
+function keepShape(p: HandleParameters): Partial<HandleParameters> {
+  return {
+    spinePoints: p.spinePoints.map((pt) => [...pt] as BezierPoint),
+    spineTypes: [...p.spineTypes],
+    width: p.width,
+    thickness: p.thickness,
+    winRight: p.winRight,
+    winTop: p.winTop,
+    winBottom: p.winBottom,
+  };
+}
+
+/** Undo/redo for the handle design — same machinery as the vase's. */
+export const handleHistory = createHistory<HandleParameters>(() => freshDefaults());
+export const useHandleHistory = handleHistory.useHistoryStore;
+
 interface HandleStore {
   params: HandleParameters;
   view: HandleView;
@@ -87,7 +116,16 @@ interface HandleStore {
   /** Slide the whole design so the lower attachment end sits at y = 0. */
   reOriginSpine: () => void;
   applyPreset: (preset: HandlePreset) => void;
+  /** Restore default SETTINGS; the handle shape is kept (see `keepShape`). */
   reset: () => void;
+  undo: () => void;
+  redo: () => void;
+  /** Params as of the last Save/Load Settings — the baseline "Revert" returns
+   *  to. Null until this design has been saved or loaded once. */
+  savedParams: HandleParameters | null;
+  /** Called by Save/Load Settings to re-baseline. */
+  markSaved: (params: HandleParameters, name: string) => void;
+  revertToSaved: () => void;
 }
 
 /** Rescale the spine about an anchor and re-open the window if it grew past it. */
@@ -106,7 +144,7 @@ function scaledParams(
   return { ...params, spinePoints: pts, ...growWindowFor(pts, params) };
 }
 
-export const useHandleStore = create<HandleStore>((set) => ({
+export const useHandleStore = create<HandleStore>((set, get) => ({
   params: freshDefaults(),
   view: { ...DEFAULT_VIEW },
   settingsName: DEFAULT_HANDLE_SETTINGS_NAME,
@@ -244,27 +282,56 @@ export const useHandleStore = create<HandleStore>((set) => ({
       };
     }),
 
-  reset: () => set({ params: freshDefaults(), settingsName: DEFAULT_HANDLE_SETTINGS_NAME }),
+  // Settings only — the shape survives. The settings-file NAME survives too:
+  // the design is still the same handle, you have just re-baselined its numbers.
+  reset: () => set((state) => ({ params: { ...freshDefaults(), ...keepShape(state.params) } })),
+
+  undo: () => {
+    const restored = handleHistory.undo(get().params);
+    if (restored) {
+      handleHistory.skipNextRecord();
+      set({ params: restored });
+    }
+  },
+  redo: () => {
+    const restored = handleHistory.redo(get().params);
+    if (restored) {
+      handleHistory.skipNextRecord();
+      set({ params: restored });
+    }
+  },
+
+  savedParams: null,
+  markSaved: (params, name) => set({ savedParams: params, settingsName: name }),
+  revertToSaved: () =>
+    set((state) => (state.savedParams ? { params: state.savedParams } : {})),
 }));
 
 // ── localStorage persistence (mirrors mold-store) ──
 
 let hydrated = false;
 
-/** Restore persisted params + name (once per session, from a client mount effect). */
+/** Restore persisted params + name + saved baseline (once per session, from a
+ *  client mount effect). Restoring is not an edit, so history is skipped and
+ *  cleared — otherwise the first undo would step back to the bare defaults. */
 export function hydrateHandleSettingsFromStorage(): void {
   if (hydrated || typeof window === 'undefined') return;
   hydrated = true;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
-    const data = JSON.parse(raw) as { settingsName?: unknown; params?: unknown };
+    const data = JSON.parse(raw) as { settingsName?: unknown; params?: unknown; savedParams?: unknown };
+    handleHistory.skipNextRecord();
+    useHandleHistory.getState().clear();
     useHandleStore.setState({
       params: mergeHandleParameters(data.params),
       settingsName:
         typeof data.settingsName === 'string' && data.settingsName.trim()
           ? data.settingsName
           : DEFAULT_HANDLE_SETTINGS_NAME,
+      savedParams: data.savedParams && typeof data.savedParams === 'object'
+        ? mergeHandleParameters(data.savedParams)
+        : null,
     });
   } catch {
     // Corrupted entry — keep defaults; the next change overwrites it.
@@ -273,15 +340,19 @@ export function hydrateHandleSettingsFromStorage(): void {
 
 let prevParams = useHandleStore.getState().params;
 let prevName = useHandleStore.getState().settingsName;
+let prevSaved = useHandleStore.getState().savedParams;
 useHandleStore.subscribe((state) => {
-  if (state.params === prevParams && state.settingsName === prevName) return;
+  // Undo history first: every params change is a step unless a caller skipped it.
+  if (state.params !== prevParams) handleHistory.recordChange(state.params);
+  if (state.params === prevParams && state.settingsName === prevName && state.savedParams === prevSaved) return;
   prevParams = state.params;
   prevName = state.settingsName;
+  prevSaved = state.savedParams;
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ settingsName: state.settingsName, params: state.params })
+      JSON.stringify({ settingsName: state.settingsName, params: state.params, savedParams: state.savedParams })
     );
   } catch {
     // Storage full/blocked — settings just won't persist this session.

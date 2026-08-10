@@ -671,6 +671,15 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
    */
   const wellFlank = (px: number, ys: 1 | -1, w: WellBuild): number => {
     if (px > CONE_TIP_X) return -Infinity; // the transition ends at the tip plane
+    // The transition STARTS 0.3 mm inside the cylinder, so over that overlap the
+    // cylinder is the wider solid and its radius is the answer. Without this the
+    // taper has already begun at the plane where `silhouetteAt` hands over from
+    // the straight cylinder edge to this envelope, and the pocket is cut a
+    // fraction narrower than the cylinder it has to clear. Harmless while the
+    // funnel is shallow; at openR 11 into a 5.6 mm strap it is ~0.1 mm and the
+    // master lands on the plate's top slab (found 2026-08-09 via the new
+    // defaults, whose bigger well made the taper nearly twice as steep).
+    if (px <= xCyl) return dims.openR;
     const span = CONE_TIP_X - (xCyl - 0.3);
     const t = Math.min(1, Math.max(0, (px - (xCyl - 0.3)) / span));
     return dims.openR + t * ((ys > 0 ? w.extPos : w.extNeg) - dims.openR);

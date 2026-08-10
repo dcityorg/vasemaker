@@ -27,6 +27,13 @@ function renderBlock(block: HelpBlock, index: number) {
         </div>
       );
 
+    case 'warning':
+      return (
+        <div key={index} className="text-sm mb-3 px-3 py-2 rounded bg-amber-950/40 border border-amber-700/60 text-amber-200 leading-relaxed">
+          <span className="font-medium text-amber-300">Note: </span>{block.text}
+        </div>
+      );
+
     case 'table':
       return (
         <div key={index} className="mb-3 overflow-x-auto">

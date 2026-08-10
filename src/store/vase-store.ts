@@ -115,6 +115,15 @@ interface VaseStore {
 
   // Actions — get full params (for export)
   getParams: () => VaseParameters;
+
+  /**
+   * Apply a design loaded from a file: merge onto the defaults, clear undo
+   * history, and set the name — all the bookkeeping a raw `setState` would
+   * miss. One place, because there are now three callers (Load Design's two
+   * paths and the Mold tab's settings load) and forgetting
+   * `skipNextHistoryRecord` here makes the load itself undoable.
+   */
+  loadDesign: (raw: unknown, name: string | null) => void;
 }
 
 export const useVaseStore = create<VaseStore>((set, get) => ({
@@ -577,6 +586,14 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
 
   // Export
   getParams: () => get().params,
+
+  loadDesign: (raw, name) => {
+    const params = applyPreset({ parameters: (raw ?? {}) as Partial<VaseParameters> });
+    skipNextHistoryRecord();
+    skipNextDirtyMark();
+    useHistoryStore.getState().clear();
+    set({ params, isDirty: false, designName: name });
+  },
 }));
 
 // Skip flag — set before load/preset/save/reset to prevent subscriber from marking dirty
@@ -596,3 +613,74 @@ useVaseStore.subscribe(
     }
   },
 );
+
+// ── localStorage persistence (mirrors mold-store / handle-store) ──────────────
+//
+// Until 2026-08-09 the vase was the ONLY one of the three tools that did not
+// persist: every reload dropped you back on the Classic Vase preset while the
+// mold and handle settings restored themselves. That asymmetry is what made
+// the Mold tab quietly wrong a day later — your mold numbers came back, the
+// vase they were designed around did not, and nothing said so (Gary, 2026-08-09).
+//
+// The dirty flag is persisted too, so the `*` still means "not written to a
+// .json file" rather than silently going clean across a reload.
+const STORAGE_KEY = 'vasemaker-vase-design';
+
+let hydrated = false;
+
+/**
+ * Restore the persisted design (once per session). Call from a client effect
+ * after mount — during render the first client pass would differ from the
+ * server-rendered HTML. Both /  and /mold call it: the mold route needs the
+ * vase just as much, and this is idempotent.
+ */
+export function hydrateVaseDesignFromStorage(): void {
+  if (hydrated || typeof window === 'undefined') return;
+  hydrated = true;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw) as { params?: unknown; designName?: unknown; isDirty?: unknown };
+    if (!data.params || typeof data.params !== 'object') return;
+    // Same merge as Load Design, so an entry written by an older version gains
+    // any parameters added since instead of loading half-formed.
+    const params = applyPreset({ parameters: data.params as Partial<VaseParameters> });
+    skipNextHistoryRecord();
+    skipNextDirtyMark();
+    useHistoryStore.getState().clear();
+    useVaseStore.setState({
+      params,
+      designName: typeof data.designName === 'string' ? data.designName : null,
+      isDirty: data.isDirty === true,
+    });
+  } catch {
+    // Corrupted entry — keep the default preset; the next change overwrites it.
+  }
+}
+
+// Debounced: a vase design can carry an embedded SVG pattern (`textures.svgPattern.svgText`),
+// and stringifying that on every frame of a slider drag is real work for no gain.
+const SAVE_DEBOUNCE_MS = 500;
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let prevParams = useVaseStore.getState().params;
+let prevName = useVaseStore.getState().designName;
+let prevDirty = useVaseStore.getState().isDirty;
+useVaseStore.subscribe((state) => {
+  if (state.params === prevParams && state.designName === prevName && state.isDirty === prevDirty) return;
+  prevParams = state.params;
+  prevName = state.designName;
+  prevDirty = state.isDirty;
+  if (typeof window === 'undefined') return;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ params: prevParams, designName: prevName, isDirty: prevDirty })
+      );
+    } catch {
+      // Storage full/blocked — the design just won't persist this session.
+    }
+  }, SAVE_DEBOUNCE_MS);
+});

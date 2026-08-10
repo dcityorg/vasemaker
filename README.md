@@ -93,6 +93,12 @@ VaseMesh.tsx updates BufferGeometry → Three.js renders
 
 The engine uses polar cross-section shapes swept along a Bezier vertical profile. Each vertex is computed from: shape function × profile radius + texture offsets, then converted from polar to cartesian coordinates with twist rotation applied.
 
+## Acknowledgements
+
+**MoldMaker** and **HandleMaker** were inspired by Kent at
+[shapecastmolds.com](https://shapecastmolds.com) — thank you for showing what a
+well-made plaster slip-casting mold system looks like.
+
 ## License
 
 [MIT](./LICENSE)

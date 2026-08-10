@@ -4,9 +4,8 @@ import Link from 'next/link';
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
-import { useHistoryStore, skipNextHistoryRecord } from '@/store/history';
-import { skipNextDirtyMark } from '@/store/vase-store';
-import { BUILT_IN_PRESETS, applyPreset } from '@/presets';
+import { useHistoryStore } from '@/store/history';
+import { BUILT_IN_PRESETS } from '@/presets';
 import { generateSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
 import { UI_MUTED } from '@/config/colors';
@@ -40,7 +39,7 @@ export function Sidebar({
   onCaptureSizeIndexChange, onCustomWidthChange, onCustomHeightChange, onCaptureFormatChange,
   onStartCapture, onSaveCapture, onCancelCapture,
 }: SidebarProps) {
-  const { loadPreset, getParams, isDirty, markClean, undo: doUndo, redo: doRedo } = useVaseStore();
+  const { loadPreset, getParams, isDirty, markClean, loadDesign, undo: doUndo, redo: doRedo } = useVaseStore();
   const { canUndo, canRedo } = useHistoryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -121,13 +120,7 @@ export function Sidebar({
       const result = await openDesignFile();
       if (result) {
         try {
-          const loaded = JSON.parse(result.text);
-          const params = applyPreset({ parameters: loaded });
-          skipNextHistoryRecord();
-          skipNextDirtyMark();
-          useHistoryStore.getState().clear();
-          useVaseStore.setState({ params, isDirty: false });
-          onDesignNameChange(result.name);
+          loadDesign(JSON.parse(result.text), result.name);
         } catch {
           alert('Invalid design file.');
         }
@@ -147,12 +140,7 @@ export function Sidebar({
     reader.onload = () => {
       try {
         const loaded = JSON.parse(reader.result as string);
-        const params = applyPreset({ parameters: loaded });
-        skipNextHistoryRecord();
-        skipNextDirtyMark();
-        useHistoryStore.getState().clear();
-        useVaseStore.setState({ params, isDirty: false });
-        onDesignNameChange(baseName);
+        loadDesign(loaded, baseName);
       } catch {
         alert('Invalid design file.');
       }
@@ -215,7 +203,7 @@ export function Sidebar({
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.30.0</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.32.0</p>
         <div className="flex items-center gap-1 mt-0.5">
           <span className="text-xs text-[var(--text-secondary)] shrink-0">Design Name:</span>
           {editingName ? (

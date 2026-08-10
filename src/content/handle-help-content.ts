@@ -10,9 +10,10 @@ export const HANDLE_HELP_SECTIONS: HelpSection[] = [
     title: 'Quick Start',
     blocks: [
       { type: 'paragraph', text: 'HandleMaker designs a mug/vase handle and generates the 3D-printable parts for a two-part plaster slip-casting mold of it: a HALF-handle master (flat side down), a bottom plate, and one side wall you print twice. Each plaster pour molds one half of the handle; two pours make the working pair.' },
+      { type: 'paragraph', text: 'MoldMaker and HandleMaker were inspired by Kent at shapecastmolds.com (https://shapecastmolds.com) — thank you.' },
       { type: 'heading', text: 'Basic Workflow' },
       { type: 'list', items: [
-        'Pick a preset spine shape from the dropdown, or draw your own',
+        'Pick a preset from the dropdown, or draw your own — a preset sets the shape AND the mold settings behind the handles that have printed and poured well here',
         'Set Height and Depth — measured on the handle itself, shrinkage compensated automatically',
         'Set the cross-section Width and Thickness',
         'Size the well cones (opening + length) for pouring slip',
@@ -26,6 +27,8 @@ export const HANDLE_HELP_SECTIONS: HelpSection[] = [
       { type: 'tip', text: 'PRINTING THE WALLS \u2014 two orientations work. Flange down (the way it sits in the mold) needs no supports at all; the only steep overhang is about 20 mm\u00b2 at the crown of each well pocket, which will sag a little. If that comes out poorly, print the walls UPSIDE DOWN (wall rim on the bed) instead: that makes the well pocket completely self-supporting, and the only thing needing support is the clip flange, which sits outside the plaster and does not have to be pretty. The well collars run the full height of the wall so neither orientation has a ledge hanging in mid-air.' },
       { type: 'tip', text: 'FIT CLEARANCE is one number for everywhere the master meets a printed part \u2014 the plate pocket AND the wall\u2019s well-collar bore. 0.10 mm is the default: tight enough to hold the master put and to starve the leak path, loose enough to assemble on a well-calibrated printer. If a printed master will not drop into its pocket, or a wall will not seat over a well, raise it a step at a time rather than sanding.' },
       { type: 'tip', text: 'Flat Shading in the View list gives every face its own normal. Smooth shading averages across a V ridge\u2019s three faces and draws the sharp apex as a rounded tube — turn it on to see the ridges and grooves as they will actually print.' },
+      { type: 'tip', text: 'PRESETS carry a known-good setup, not just a silhouette: picking one sets the shape and overwrites the mold settings with the proven numbers. That is deliberate — but it means a preset will replace settings you have tuned. Undo takes it back in one step, and Revert to Saved returns to your own file. RESET HANDLE SETTINGS restores the default mold numbers and leaves your handle SHAPE alone — the profile, Width and Thickness stay put. That makes it the button to press after an app update changes a default: you get the new numbers without redrawing your handle. To change the shape instead, pick a preset — Basic is the one the app starts with. Both are undoable. REVERT TO SAVED appears once a design has been saved or loaded, and puts everything back to that file in one click, shape included.' },
+      { type: 'tip', text: 'Undo and redo (↶ ↷ in the header, or Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z) cover the whole handle design, shape included. One slider drag is one step. Loading a settings file starts fresh and clears the history.' },
       { type: 'tip', text: 'Everything auto-saves in this browser — your handle design is still here after a reload. Use Save Settings to keep named design files; it writes a «name».json plus a «name».txt bench sheet with the plaster batch and printer-fit numbers, so you can size a pour without opening the app. Your browser asks for each file separately — the second dialog opens in the same folder with the name filled in.' },
     ],
   },

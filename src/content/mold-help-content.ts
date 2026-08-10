@@ -28,9 +28,20 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
         'Once the plaster sets, release both plastic parts — your plaster mold is ready for slip',
       ] },
       { type: 'heading', text: 'Live Handoff' },
-      { type: 'paragraph', text: 'The Mold tab always works from the live vase design in the Vase tab. Use ◂ Vase to go back and tweak the design — the mold regenerates when you return. A full browser reload resets the vase to the default preset (your mold settings survive — see below), so save your vase design on the Vase tab before closing the browser.' },
+      { type: 'paragraph', text: 'The Mold tab always works from the live vase design in the Vase tab. Use ◂ Vase to go back and tweak the design — the mold regenerates when you return. The vase is kept in your browser along with the mold settings, so a reload brings both back together — landing here after a restart no longer shows your mold numbers wrapped around the default vase.' },
       { type: 'heading', text: 'Saving Your Settings' },
-      { type: 'paragraph', text: 'Mold settings save themselves: every change is stored in your browser automatically and restored next time — no action needed. Save Settings and Load Settings are for named profiles on top of that: keep one file per clay body or mold style (say "porcelain 14" or "big molds 25mm plaster") and load the right one before exporting.' },
+      { type: 'paragraph', text: 'Mold settings save themselves: every change is stored in your browser automatically and restored next time — no action needed. Save Settings and Load Settings are for named profiles on top of that: keep one file per clay body or mold style (say "porcelain 14" or "big molds 25mm plaster") and load the right one before exporting. This applies to all four mold styles — the style itself is just another setting, saved and restored with the rest.' },
+      { type: 'paragraph', text: 'MoldMaker and HandleMaker were inspired by Kent at shapecastmolds.com (https://shapecastmolds.com) — thank you.' },
+      { type: 'tip', text: 'Undo and redo (↶ ↷ in the header, or Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z) cover the mold SETTINGS — including the mold style, so switching tabs is one step back. The vase has its own undo on the Vase tab; the two are kept separate on purpose, because one shared history would disagree with itself the moment you switched tabs. Revert to Saved appears once you have saved or loaded a settings file, and puts the numbers back to it. Reset is undoable too, and keeps the current mold style.' },
+      { type: 'heading', text: 'The Vase Travels With the Mold' },
+      { type: 'paragraph', text: 'A mold is DERIVED from your vase — the master IS the vase, scaled up — so mold settings on their own can never reproduce a mold. A settings file therefore carries a COPY of the vase design it was saved with, and the Mold tab remembers your vase between sessions along with the settings. Come back a day later and you get both back together, instead of your mold numbers wrapped around whatever vase happened to load.' },
+      { type: 'list', items: [
+        'Load a mold file whose vase matches the one already open, and it simply loads — no questions',
+        'Load one saved with a DIFFERENT vase and you are asked: take its vase too, or keep yours and use the numbers only',
+        'That same question catches a stale file — if you have edited the vase since saving the mold, the two no longer match and you get to choose which one wins',
+        'Files saved before this still work; they carry no vase, so they load the settings and leave your vase alone',
+      ] },
+      { type: 'tip', text: 'The choice is there because both answers are useful: taking the vase reopens a mold exactly as you left it, while "settings only" is how you put a mold you like onto a different vase. Your vase design file is unaffected either way — it is the one that a mold file copies FROM, never the other way round.' },
       { type: 'paragraph', text: 'Save Settings writes two files: the «name».json profile, and a «name».txt bench sheet with the plaster batch (powder, water, mix ratio) and the printer-fit numbers, so you can size a batch at the bench without opening the app. Your browser asks for each file separately — the second dialog opens in the same folder with the name already filled in, so it is one extra Save click. Skipping it costs nothing; the settings are already written. HandleMaker saves the same pair.' },
       { type: 'paragraph', text: 'Until you name the profile yourself, the Settings File name follows your VASE design name, so the .json and .txt land beside the STL exports rather than under a generic name. Click it to rename whenever you want a profile that outlives one design.' },
       { type: 'paragraph', text: 'Reset Mold Settings returns every setting to its default but keeps you on the mold style you are working in.' },
@@ -66,9 +77,33 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
 
   // ─── 3. One-Piece Mold ────────────────────────────────────────
   {
+    id: 'mold-press-two-piece',
+    title: 'Press 2-Pc Mold',
+    blocks: [
+      { type: 'warning', text: 'Getting the set plaster to release from the printed plastic can be very hard with this style. We recommend the Pour 3-Pc mold instead — its shell parts sideways in two halves, so nothing has to be dragged off the plaster.' },
+      { type: 'paragraph', text: 'Press 2-Pc is the original style, and the one the Anatomy section above describes. The master is a hollow positive of your vase standing the right way up, with a well collar and a flanged lid on top. It is pressed down into the cottle, and plaster is poured through arc-shaped slots in that lid to fill the gap between the two.' },
+      { type: 'heading', text: 'How it differs' },
+      { type: 'list', items: [
+        'The vase stands UPRIGHT — the other three styles turn it upside down',
+        'Plaster goes in through slots in the lid rather than into an open top, so the mold fills from above around a closed assembly',
+        'The lid\u2019s lip self-centers on the cottle rim, and its grip edge is what you pull on to lift the master out',
+        'Two STLs: Export Master and Export Cottle',
+      ] },
+      { type: 'heading', text: 'Releasing' },
+      { type: 'list', items: [
+        'Apply mold release generously to the cottle before pouring — this is the style that most rewards it',
+        'Pour ice-cold water into the hollow master to shrink the plastic away from the plaster',
+        'Warm water on the outside of the cottle helps it let go the same way',
+        'The plaster block has to come away from BOTH parts, and neither of them can part sideways, which is why this style is the hardest to release',
+      ] },
+      { type: 'tip', text: 'If you have printed this style and fought it, you do not need to redesign anything — switch the tab to Pour 3-Pc and re-export. The vase, the shrink compensation and most settings carry straight over.' },
+    ],
+  },
+  {
     id: 'mold-one-piece',
     title: 'Pour 1-Pc Mold',
     blocks: [
+      { type: 'warning', text: 'Getting the set plaster to release from the printed plastic can be very hard with this style. We recommend the Pour 3-Pc mold instead — its shell parts sideways in two halves, so nothing has to be dragged off the plaster.' },
       { type: 'paragraph', text: 'The Press 2-Pc / Pour 1-Pc / Pour 2-Pc / Pour 3-Pc tabs at the top of the sidebar switch between four ways of building the same plaster mold. Pour 1-Pc replaces the master and cottle with a SINGLE print: the vase sits upside-down in the center, fused to the cottle at the well, and you pour plaster in through the fully open top. The plaster fills the gap around the vase and covers its bottom, forming the solid base of the mold. Released and flipped over, it\'s the identical finished mold — cavity, well funnel, razor edge, and foot boss.' },
       { type: 'heading', text: 'Why choose it' },
       { type: 'list', items: [
@@ -100,6 +135,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     id: 'mold-pour-two-piece',
     title: 'Pour 2-Pc Mold',
     blocks: [
+      { type: 'warning', text: 'Getting the set plaster to release from the printed plastic can be very hard with this style. We recommend the Pour 3-Pc mold instead — its shell parts sideways in two halves, so nothing has to be dragged off the plaster.' },
       { type: 'paragraph', text: 'Pour 2-Pc is the pour mold split into two prints that binder-clip together: a CENTER piece (the upside-down vase and well, whose floor spreads out into a flat foot flange) and a removable outer SHELL (an open-topped wall with a matching flange). You pour the same way — plaster in the open top — but at release time the shell unclips and lifts off first, leaving the plaster block standing free on the center. Only the center form is left to release, which makes this the easiest-releasing style.' },
       { type: 'heading', text: 'The foot flange' },
       { type: 'list', items: [
@@ -131,6 +167,14 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
       { type: 'paragraph', text: 'Both the flange rings and the vertical seams use the same V ridge-and-groove profile as the handle mold, which poured completely leak-free. There are three of each, and — this is the important part — the vertical Vs sit at exactly the SAME radii as the flange rings, so every vertical V stands directly on top of the ring ridge it continues. The barrier turns the corner in one piece instead of handing off to a different radius where the seam crosses the flange. Plaster escaping in any direction has to climb three barriers, whether it runs under the flange, through the wall seam, or up the seam itself. A loose fit still seals; the clips do not need to be tight.' },
       { type: 'paragraph', text: 'Each half is solid for the last few millimetres before the split (the Seam Block setting, 4 mm by default) and carries its Vs on that face over the full height. Clips grab both blocks, so they clamp twice that thickness.' },
       { type: 'paragraph', text: 'Overlap sets the spacing between the three rings; the material left outboard of the outermost one always matches the shell Wall thickness, so the flange edge never thins to a sliver. If you set Overlap so small that the rings would run into each other, the V shrinks rather than the grooves merging — widen Overlap instead.' },
+      { type: 'heading', text: 'Releasing' },
+      { type: 'list', items: [
+        'Unclip and part the two shell halves sideways — the plaster block is left standing on the center',
+        'Then flip the whole thing over, so the center piece is on top and its hollow interior faces up',
+        'Pour VERY COLD water into the center — the plastic shrinks away from the plaster, and the center lifts off easily',
+        'That flip is what makes it easy: the water sits in the hollow and stays against the plastic instead of running out',
+      ] },
+      { type: 'tip', text: 'This is why we recommend Pour 3-Pc over the other styles. Nothing is ever dragged along the plaster — the shell parts sideways, and the center is shrunk off it rather than pulled.' },
       { type: 'heading', text: 'Round vs shaped shell' },
       { type: 'paragraph', text: 'The shell follows your cross-section by default, which keeps the plaster block close to the vase and saves material. A half-shell can only part sideways if the cross-section is convex, so a concave one — heart, rose, butterfly, gear — makes the shell fall back to round automatically, and the sidebar says so. No seam angle fixes that: the shell reaches into the notch between lobes and locks. Round Shell forces round on any vase, which costs plaster but lets one printed shell serve several designs.' },
       { type: 'heading', text: 'Printing' },

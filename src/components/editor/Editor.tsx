@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { HelpPanel } from './HelpPanel';
 import { Viewport } from '@/components/viewport/Viewport';
-import { useVaseStore } from '@/store/vase-store';
+import { useVaseStore, hydrateVaseDesignFromStorage } from '@/store/vase-store';
 import { CAPTURE_SIZE_PRESETS, CUSTOM_SIZE_INDEX } from '@/config/capture';
 import type { CaptureFormat } from '@/config/capture';
 
@@ -14,6 +14,10 @@ import type { CaptureFormat } from '@/config/capture';
  */
 export function Editor() {
   const [helpOpen, setHelpOpen] = useState(false);
+
+  // Restore the design you were last working on. On mount, never at module
+  // init — during render the first client pass would differ from the SSR HTML.
+  useEffect(() => { hydrateVaseDesignFromStorage(); }, []);
 
   // Design name — lives in the vase store so capture, exports, and the /mold
   // route all share it (and it survives Vase ↔ Mold navigation)

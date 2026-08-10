@@ -116,6 +116,13 @@ export interface HandleParameters {
   material: PlasterType;
 }
 
+/**
+ * The defaults ARE Gary's proven numbers (2026-08-09): the settings behind the
+ * handles he has printed and poured successfully. Every built-in preset carries
+ * this same block explicitly, so picking one restores the proven setup rather
+ * than inheriting whatever you had tuned. Change these only with a print behind
+ * the change.
+ */
 export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   // Handles vertically aligned with the mid fixed point keep the curve
   // tangent-smooth there (no kink → no offset cusp) and make Depth literal.
@@ -139,11 +146,11 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   winTop: 89,
   winBottom: -5,
 
-  width: 14,
-  thickness: 10,
+  width: 10,
+  thickness: 16,
 
-  openingDiameter: 18,
-  cylinderLength: 8,
+  openingDiameter: 22,
+  cylinderLength: 10,
   coneLength: 12,
   shrinkPercent: 12,
 
@@ -164,15 +171,15 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   // 1.5, so the plate is 4.5 mm rather than 3. The plate is the biggest part
   // (roughly 110 x 200 mm on the default handle) and stiffness goes as the
   // cube of thickness; a deeper seat pays for most of that on its own.
-  plateFloor: 1.5,
+  plateFloor: 2,
   // 0.10. Applies to the plate pocket AND the wall's well-collar bore (that
   // bore was a separate hard-coded 0.25 until 2026-08-08). Tighter holds the
   // master put and starves the leak path that the removed V rings used to dam.
   recessClearance: 0.1,
-  lipWidth: 4,
+  lipWidth: 2,
 
   vWidth: 2,
-  vHeight: 1,
+  vHeight: 1.4,
   vClearance: 0.2,
 
   // Registration natches. Wide and shallow beats narrow and deep in plaster:
@@ -198,7 +205,7 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   // of engagement over the well cylinder. Clamped to the Cylinder length.
   wellSealDepth: 3,
 
-  spineSamples: 140,
+  spineSamples: 300,
   // 80 (Gary, 2026-08-01, after printing a master at 24 and seeing the facets).
   // Chord deviation from a true ellipse: 24 → 0.017 mm, 40 → 0.006, 80 → 0.0015.
   // All of those are under a layer height, so this is bought for confidence and
