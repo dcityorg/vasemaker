@@ -57,6 +57,45 @@ export interface MasterParts {
   wellB: VaseMesh;
   /** Mid-plane silhouette of body + wells, offset outward by `clearance` mm. */
   silhouetteAt: (clearance: number) => P2[];
+  /** Arc length along the spine of each pull-rib actually built (the margin
+   *  check drops any that would straddle an end). The plate's tie bars are
+   *  placed clear of these, so pliers can still reach a rib from below. */
+  ribArcs: number[];
+}
+
+/**
+ * Cumulative arc length along the stations, plus the inverse lookup: which
+ * (fractional) station index sits at a given distance along the handle.
+ *
+ * Everything spaced "along the handle" uses this rather than the station index,
+ * because the stations are uniform in the Bezier PARAMETER, which bunches them
+ * up where the curve is slow. Shared by the pull-ribs (which sweep between two
+ * fractional indices) and by the plate's tie bars (which only need a point and
+ * a direction), so the two can be placed relative to each other.
+ */
+export function spineArcTable(stations: SpineStation[]): {
+  total: number;
+  /** Fractional station index at arc length `s`. */
+  indexAt: (s: number) => number;
+} {
+  const arc: number[] = [0];
+  for (let i = 1; i < stations.length; i++) {
+    arc.push(arc[i - 1] + Math.hypot(stations[i].x - stations[i - 1].x, stations[i].y - stations[i - 1].y));
+  }
+  const total = arc[arc.length - 1];
+  return {
+    total,
+    indexAt: (s: number): number => {
+      if (s <= 0) return 0;
+      if (s >= total) return stations.length - 1;
+      let lo = 0, hi = arc.length - 1;
+      while (lo + 1 < hi) {
+        const m = (lo + hi) >> 1;
+        if (arc[m] <= s) lo = m; else hi = m;
+      }
+      return lo + (s - arc[lo]) / Math.max(1e-9, arc[lo + 1] - arc[lo]);
+    },
+  };
 }
 
 let HALF_SEG = 24;
@@ -546,26 +585,9 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
   // They live INSIDE the shell, so the plaster cavity — and therefore the cast
   // handle — is untouched by them.
   const ribW = Math.max(0, opts.ribWidth);
+  const ribArcs: number[] = [];
   if (ribW > 0.2) {
-    /** Cumulative arc length along the stations — ribs are spaced by real
-     *  distance along the handle, not by Bezier parameter (the stations are
-     *  uniform in the parameter, which bunches them where the curve is slow). */
-    const arc: number[] = [0];
-    for (let i = 1; i < stations.length; i++) {
-      arc.push(arc[i - 1] + Math.hypot(stations[i].x - stations[i - 1].x, stations[i].y - stations[i - 1].y));
-    }
-    const total = arc[arc.length - 1];
-    /** Fractional station index at arc length `s`. */
-    const stationAt = (s: number): number => {
-      if (s <= 0) return 0;
-      if (s >= total) return stations.length - 1;
-      let lo = 0, hi = arc.length - 1;
-      while (lo + 1 < hi) {
-        const m = (lo + hi) >> 1;
-        if (arc[m] <= s) lo = m; else hi = m;
-      }
-      return lo + (s - arc[lo]) / Math.max(1e-9, arc[lo + 1] - arc[lo]);
-    };
+    const { total, indexAt: stationAt } = spineArcTable(stations);
     /** Frame at a fractional index; the u-axis is renormalised after the lerp. */
     const frameAtIdx = (fi: number): RingFrame => {
       const i0 = Math.max(0, Math.min(frames.length - 1, Math.floor(fi)));
@@ -619,6 +641,7 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
       for (let i = Math.ceil(f0 + 1e-6); i < f1 - 1e-6; i++) idx.push(i);
       idx.push(f1);
       ribs.push(ribSolid(idx, ribProf));
+      ribArcs.push(sc);
     }
     if (ribs.length) body = mergeMeshesLocal([body, ...ribs]);
 
@@ -778,7 +801,7 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
     return removeLocalCusps(dedupeLoop([...side(-1), ...side(1).reverse()]));
   };
 
-  return { hollowed: canHollow, body, wellA, wellB, silhouetteAt };
+  return { hollowed: canHollow, body, wellA, wellB, silhouetteAt, ribArcs };
 }
 
 /**

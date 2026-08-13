@@ -29,9 +29,13 @@ export const HANDLE_PARAMS = {
   // Seat Depth is the master's seal AND the lip you grip to pull it out of the
   // plaster, so the range runs well past the 3 mm default.
   seatDepth:       { min: 0.5, max: 6, step: 0.1 } as SliderRange,
-  plateFloor:      { min: 1, max: 4, step: 0.5 } as SliderRange,
+  // Stepped in 0.2 mm — one layer at the usual layer height, so the plate is
+  // always a whole number of layers and the default (3.6) is reachable.
+  plateFloor:      { min: 1, max: 8, step: 0.2 } as SliderRange,
   recessClearance: { min: 0, max: 0.6, step: 0.05 } as SliderRange,
   lipWidth:        { min: 1, max: 5, step: 0.5 } as SliderRange,
+  tieBarWidth:     { min: 0, max: 12, step: 0.5 } as SliderRange,
+  tieBarCount:     { min: 0, max: 6, step: 1 } as SliderRange,
 
   vWidth:     { min: 1, max: 4, step: 0.1 } as SliderRange,
   vHeight:    { min: 0.4, max: 2, step: 0.1 } as SliderRange,

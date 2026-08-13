@@ -17,8 +17,14 @@
  * the origin, plate top at z = 0. Export lifts put each part's bottom at z = 0.
  */
 
-import { sampleSpine } from './spine';
-import { buildMasterParts, loopSelfIntersects, setSectionSegments, type HandleBodyDims } from './handle-mesh';
+import { sampleSpine, type SpineStation } from './spine';
+import {
+  buildMasterParts,
+  loopSelfIntersects,
+  setSectionSegments,
+  spineArcTable,
+  type HandleBodyDims,
+} from './handle-mesh';
 import { buildPlate, buildWall, seamMaxVWidth, type MoldLayout } from './mold-parts';
 import { boxSolid, extrudeSolid, rectPoints, translateMesh, rotate180Z, flipWinding, signedArea, type P2 } from './mesh3';
 import { mergeMeshes } from '../mold/ring-mesh';
@@ -60,6 +66,10 @@ export interface HandleMeshes {
   channel: [number, number];
   /** True when the silhouette is top-bottom symmetric (one plate/master kit). */
   isSymmetric: boolean;
+  /** Tie bars actually placed across the tape hole, as rectangles in the same
+   *  centered coordinates as the plate mesh. Fewer than asked for when the
+   *  spine leaves no room clear of the wells and the pull-ribs. */
+  tieBars: P2[][];
 
   masterStats: MeshStats;
   plateStats: MeshStats;
@@ -117,6 +127,60 @@ function clipToXMin(loop: P2[], xMin: number): P2[] {
     }
   }
   return out;
+}
+
+/** How far past the pocket wall a tie bar buries each of its ends, mm. */
+const TIE_REACH = 2;
+
+/**
+ * Tie bars across the tape hole — rectangles in the plate plane, centred on the
+ * spine and running across the strap.
+ *
+ * Placed evenly by arc length and then pushed clear of the pull-ribs: a rib is
+ * what long-nose jaws close on, and they come at it from below, so a bar parked
+ * directly under one is in the way. (`ribArcs` is what the master actually
+ * built, not what was asked for.)
+ *
+ * Both ends are kept well away from the wells, where the tape hole is as wide
+ * as the pour opening rather than as wide as the strap — a bar sized to the
+ * strap would end inside the hole out there and tie nothing to anything.
+ */
+function tieBarLoops(
+  stations: SpineStation[],
+  ribArcs: number[],
+  ribW: number,
+  dims: HandleBodyDims,
+  tieW: number,
+  tieN: number,
+  clr: number,
+): P2[][] {
+  if (tieW <= 0.2 || tieN <= 0) return [];
+  const { total, indexAt } = spineArcTable(stations);
+  const halfLen = dims.hw + clr + TIE_REACH;
+  const endMargin = tieW / 2 + Math.max(dims.hw, dims.openR) + 4;
+  /** Gap between a bar's centre and a rib's that leaves the rib's flanks free. */
+  const ribClear = (tieW + ribW) / 2 + 1;
+  const loops: P2[][] = [];
+  for (let k = 1; k <= tieN; k++) {
+    let s = (total * k) / (tieN + 1);
+    // One pass: with sane counts the bars and ribs interleave, and a bar that
+    // still can't find room is dropped by the margin test below rather than
+    // chasing its neighbours around the curve.
+    for (const r of ribArcs) {
+      const d = s - r;
+      if (Math.abs(d) < ribClear) s = r + (d >= 0 ? ribClear : -ribClear);
+    }
+    if (s < endMargin || s > total - endMargin) continue;
+    const st = stations[Math.max(0, Math.min(stations.length - 1, Math.round(indexAt(s))))];
+    const hw = tieW / 2;
+    loops.push([
+      [st.x + st.nx * halfLen + st.tx * hw, st.y + st.ny * halfLen + st.ty * hw],
+      [st.x - st.nx * halfLen + st.tx * hw, st.y - st.ny * halfLen + st.ty * hw],
+      [st.x - st.nx * halfLen - st.tx * hw, st.y - st.ny * halfLen - st.ty * hw],
+      [st.x + st.nx * halfLen - st.tx * hw, st.y + st.ny * halfLen - st.ty * hw],
+    ]);
+  }
+  return loops;
 }
 
 /** Is the loop symmetric about y = yc (within tol)? Nearest-point check both ways. */
@@ -246,7 +310,10 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
   const bcx = (cavX0 + cavX1) / 2;
   const bcy = yc;
 
-  const plateRaw = buildPlate(layout, pocketLoop, tapeHole, margin);
+  const tieBars = tieBarLoops(
+    stations, parts.ribArcs, p.ribWidth, dims, p.tieBarWidth, Math.round(p.tieBarCount), p.recessClearance,
+  );
+  const plateRaw = buildPlate(layout, pocketLoop, tapeHole, margin, tieBars);
   const wallRaw = buildWall(layout);
   // Plaster display block: the pour with the handle's footprint cut out up to
   // the master's height, solid plaster above it (display-only approximation —
@@ -278,7 +345,9 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
     // positions/types (that's what makes bump meet dimple when block B is
     // flipped onto block A) — so it's rebuilt, not mesh-mirrored.
     const mirrorLoop = (loop: P2[]): P2[] => loop.map(([x, y]) => [x, 2 * yc - y] as P2);
-    const plateBRaw = buildPlate(layout, mirrorLoop(pocketLoop), mirrorLoop(tapeHole), margin);
+    const plateBRaw = buildPlate(
+      layout, mirrorLoop(pocketLoop), mirrorLoop(tapeHole), margin, tieBars.map(mirrorLoop),
+    );
     plateB = translateMesh(plateBRaw, -bcx, -bcy, 0);
   }
 
@@ -302,6 +371,7 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
   return {
     master, masterBody, masterWells, plate, wall, wallB, plaster, masterB, plateB,
     hasSelfIntersection,
+    tieBars: tieBars.map((loop) => loop.map(([x, y]) => [x - bcx, y - bcy] as P2)),
     shellUsed: shellT,
     channel: [
       Math.max(0, 2 * (dims.hw - shellT)),

@@ -51,7 +51,13 @@ const SHARED: Partial<HandleParameters> = {
   coneLength: 12,
   seatDepth: 3,
   lipWidth: 2,
-  plateFloor: 2,
+  // 2026-08-12: the plate these three were poured on was 5 mm thick with an
+  // unbroken tape slot, and its halves would not mesh — so "proven" here means
+  // proven-with-the-plate-fix, not literally what was on the bench that day.
+  // A preset that asserted the old numbers would quietly undo the fix.
+  plateFloor: 3.6,
+  tieBarWidth: 6,
+  tieBarCount: 3,
   recessClearance: 0.1,
   domeDiameter: 16,
   domeHeight: 2,

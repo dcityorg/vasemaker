@@ -259,12 +259,35 @@ function sweepRectLoop(x0: number, y0: number, x1: number, y1: number, cs: P2[])
 }
 
 /**
+ * How far a tie bar's top sits BELOW the lip plane, mm — one layer at the usual
+ * layer height.
+ *
+ * The lip, and only the lip, defines where the master sits, and therefore where
+ * the parting plane is. A bar level with it would be a second seating surface
+ * printed as a small island of top skin in the middle of the tape hole; if it
+ * came out even slightly proud it would lift the master off its lip and destroy
+ * the exact flatness the bars exist to protect. So the bar carries no load from
+ * the master at all — it ties the plate to itself and nothing else.
+ */
+const TIE_DROP = 0.2;
+
+/**
  * Bottom plate: lip slab (through-cut tape-access hole) + top slab (seat
- * pocket + dimple) + the flange-edge V-ridge loops + proud dome.
+ * pocket + dimple) + tie bars + the flange-edge V-ridge loops + proud dome.
  *
  * The master's flat skirt bottom rests on the lip ring at z = −seat; inside
  * the lip the plate is open so the master can be taped from below against
  * plaster buoyancy. Registration pair: dome near cavY1, dimple near cavY0.
+ *
+ * `tieBars` are rectangles across the tape hole (built by the generator, which
+ * is where the spine lives). They turn the tape hole from a continuous slot
+ * into a ladder: without them the plate material inside the handle's C is a
+ * tongue tens of mm long joined to the rest of the plate only at its root, and
+ * setting plaster — which expands, hot — has nothing else to push against
+ * there. Gary poured a mold on 2026-08-12 whose halves would not mesh and
+ * traced it to exactly that region. They are buried in the sealed void under
+ * the master, so the plaster cavity, the parting face and the cast handle are
+ * all untouched by them.
  *
  * The lip is a PLAIN FLAT LAND. From 2026-07-31 to 2026-08-08 it carried a V
  * ridge running the whole way round into a matching groove in the master's
@@ -278,6 +301,7 @@ export function buildPlate(
   pocketLoop: P2[],
   tapeHole: P2[],
   margin: number,
+  tieBars: P2[][] = [],
 ): VaseMesh {
   const { px0, py0, px1, py1, seat, lipThk } = layout;
   // Registration pair sits 3/4 of the way from the well side toward the far
@@ -290,6 +314,12 @@ export function buildPlate(
 
   // Lip slab: full plate footprint with the tape-access hole cut through.
   const base = extrudeSolid(rectPoints(px0, py0, px1, py1), [tapeHole], -seat - lipThk, -seat);
+  // Tie bars: separate solids rather than a split hole, because they are
+  // recessed below the lip plane and so are not part of the lip slab's profile.
+  // Each overruns the pocket wall at both ends, burying itself in full-thickness
+  // plate; the shared bottom face is the plate's own, which the tape lies on.
+  const ties = tieBars.map((loop) =>
+    extrudeSolid(loop, [], -seat - lipThk, -seat - TIE_DROP));
   // Seat slab: pocket hole through it, overlapping the lip slab by EMBED.
   const top = buildTopSlab(layout, pocketLoop, dimpleC, -seat - EMBED);
 
@@ -306,7 +336,7 @@ export function buildPlate(
 
   const dome = buildDome(domeC[0], domeC[1], layout.domeR, layout.domeH, domeSeg(layout));
 
-  return mergeMeshes([base, top, ...ridges, dome]);
+  return mergeMeshes([base, top, ...ties, ...ridges, dome]);
 }
 
 // ── Side wall ─────────────────────────────────────────────────────────────────

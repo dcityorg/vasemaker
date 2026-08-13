@@ -596,7 +596,10 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           <Section title="Plate" titleColor={GROUP_COLORS.surface} defaultOpen={false}>
             {sl('seatDepth', 'Seat Depth', 'mm', 'How deep the half-handle’s flat skirt sits into the plate (the parting plane stays at the plate top). This IS the seal: a deeper skirt is a longer path at Fit Clearance for plaster to travel. It is also the lip you grab with long-nose pliers to lift the master out of the set plaster, so do not go shallow')}
             {sl('lipWidth', 'Lip Width', 'mm', 'Support-lip ring the handle rests on — inside it the plate is open so you can tape the handle from below')}
-            {sl('plateFloor', 'Lip Thickness', 'mm', 'Plate material under the seat pocket. Added to Seat Depth it is the plate’s total thickness — raise it if a big plate flexes')}
+            {sl('plateFloor', 'Lip Thickness', 'mm', 'Plate material under the seat pocket. Added to Seat Depth it is the plate’s total thickness, and stiffness goes as the CUBE of that — this is the first slider to raise if a plate flexes during the pour. Stepped in 0.2 mm so it stays a whole number of layers')}
+            {sl('tieBarWidth', 'Tie Bars', 'mm', 'Width of the bars that bridge the tape hole, turning it from a continuous slot into a ladder. Without them the plate inside the handle’s curve is a long tongue joined to the rest only at the mold wall, and setting plaster — which expands, hot — has nothing else to push against there. They sit below the master in a space the plaster never reaches, so they cost the casting nothing. 0 turns them off')}
+            {params.tieBarWidth > 0.2 &&
+              sl('tieBarCount', 'Bar Count', undefined, 'How many along the strap, evenly spaced by distance along the handle and nudged clear of the pull-ribs. Bars too near a well are dropped — the hole is as wide as the pour opening out there')}
             {sl('recessClearance', 'Fit Clearance', 'mm', 'Gap around the master everywhere it meets a printed part: the plate pocket AND the wall’s well-collar bore. Tighter holds the master in place and gives plaster less to creep through; too tight and the parts will not go together. Tune to your printer')}
             {sl('domeDiameter', 'Dome Diameter', 'mm', 'Registration bump/dimple pair size — clamped to the plaster band between the wall and the handle pocket, so a small Plaster Margin limits it')}
             {sl('domeHeight', 'Dome Height', 'mm', 'How far the registration bump stands proud. Engagement is limited by Seat Depth: the plate recess that molds the mating bump is only that deep, so raising this past Seat Depth deepens the dimple without deepening the bump')}
@@ -636,6 +639,15 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           </Section>
           <Section title="Printer Fit" titleColor={GROUP_COLORS.settings}>
             <StatRow label="Plate" value={`${handle.layout.plateW.toFixed(0)} × ${handle.layout.plateD.toFixed(0)} mm`} tooltip="Plate footprint — the biggest part; compare to your printer bed" />
+            <StatRow
+              label="Plate thickness"
+              value={`${handle.layout.plateThk.toFixed(1)} mm`
+                + (params.tieBarWidth > 0.2
+                  ? `, ${handle.tieBars.length} tie bar${handle.tieBars.length === 1 ? '' : 's'}`
+                    + (handle.tieBars.length < Math.round(params.tieBarCount) ? ` of ${Math.round(params.tieBarCount)} — no room for the rest` : '')
+                  : ', no tie bars')}
+              tooltip="Seat Depth + Lip Thickness, and how many tie bars actually landed. A bar too near a well is dropped: the tape hole is as wide as the pour opening out there, so a bar sized to the strap would end inside it"
+            />
             <StatRow
               label="Wall set"
               value={`${handle.layout.cavW.toFixed(0)} × ${handle.layout.cavD.toFixed(0)} × ${handle.layout.wallH.toFixed(0)} mm`}

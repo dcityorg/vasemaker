@@ -83,6 +83,11 @@ export interface HandleParameters {
   /** Width of the support lip ring the master rests on — inside it, the plate
    * is cut through so the master can be taped from below (mm). */
   lipWidth: number;
+  /** Width along the handle of the solid tie bars that bridge the tape hole,
+   *  turning a continuous slot into a ladder. 0 = none. */
+  tieBarWidth: number;
+  /** How many tie bars along the strap. */
+  tieBarCount: number;
 
   // ── V ridge/groove (plate↔wall alignment + leak dam; also the seam Vs) ──
   vWidth: number;
@@ -168,15 +173,27 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   // plaster to creep along — and it is also the lip you grip with long-nose
   // pliers to lift the master out of the set plaster.
   seatDepth: 3,
-  // 1.5, so the plate is 4.5 mm rather than 3. The plate is the biggest part
-  // (roughly 110 x 200 mm on the default handle) and stiffness goes as the
-  // cube of thickness; a deeper seat pays for most of that on its own.
-  plateFloor: 2,
+  // 3.6 (Gary, 2026-08-12, after the halves of a poured mold would not mesh):
+  // the plate is the biggest part — roughly 110 x 200 mm on the default handle
+  // — it is the template the parting plane is copied from, and it spends the
+  // pour hot. Stiffness goes as the CUBE of thickness, so 2 -> 3.6 is about 6x
+  // on the lip band around the tape hole, which is the thinnest thing in the
+  // part. 3.6 rather than 3.5 because it is a whole number of 0.2 mm layers.
+  plateFloor: 3.6,
   // 0.10. Applies to the plate pocket AND the wall's well-collar bore (that
   // bore was a separate hard-coded 0.25 until 2026-08-08). Tighter holds the
   // master put and starves the leak path that the removed V rings used to dam.
   recessClearance: 0.1,
   lipWidth: 2,
+  // Tie bars (Gary, 2026-08-12). The tape hole leaves the plate material inside
+  // the handle's C as a tongue 55–61 mm long, joined to the rest of the plate
+  // only at its root by the mold wall — and expanding plaster has nothing else
+  // to push against there. A bar across the slot makes that tongue part of a
+  // closed frame. The slot is only 6–7 mm wide over the strap, so a bar is
+  // short, stiff and cheap; it lives in the sealed void under the master, which
+  // is why it costs the casting nothing.
+  tieBarWidth: 6,
+  tieBarCount: 3,
 
   vWidth: 2,
   vHeight: 1.4,
