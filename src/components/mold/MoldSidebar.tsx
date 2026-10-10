@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
 import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_SETTINGS_NAME } from '@/store/mold-store';
 import { useVaseStore } from '@/store/vase-store';
+import { useHandleStore } from '@/store/handle-store';
+import { SplitTopView } from './SplitTopView';
 import { applyPreset } from '@/presets';
 import type { VaseParameters } from '@/engine/types';
 import { MOLD_PARAMS, PLASTER_MATERIALS } from '@/config/mold-params';
@@ -66,6 +68,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   const setParam = useMoldStore((s) => s.setParam);
   const setView = useMoldStore((s) => s.setView);
   const setSettingsName = useMoldStore((s) => s.setSettingsName);
+  const handleName = useHandleStore((s) => s.settingsName);
   const reset = useMoldStore((s) => s.reset);
   const [warnExport, setWarnExport] = useState(false);
   /** Split 2-Pc has two gated exports; which one the warning dialog continues. */
@@ -605,7 +608,17 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               <GroupHeader label="Trays" color={GROUP_COLORS.smoothing} />
               <Section title="Trays" titleColor={GROUP_COLORS.smoothing} tooltip="One throwaway printed tray per plaster half. Pour plaster into each, let it set, then soften the plastic with a heat gun and peel it off">
                 {sl('plasterThickness', 'Plaster', 'mm', 'Plaster around the vase: the margin each side of it, below its base, and behind it')}
-                {sl('seamAngle', 'Split Angle', '°', 'Where the split plane runs through the vase. On a square or polygon it decides where the seam lines fall — watch the Undercuts view. In Phase 2 it also decides which side the handle is on')}
+                {sl('seamAngle', 'Split Angle', '°', 'Where the split plane runs through the vase. On a square or polygon it decides where the seam lines fall — watch the Undercuts view. It also decides which side the handle is on')}
+                <SplitTopView
+                  vase={vaseParams}
+                  keepTexture={params.keepTexture}
+                  seamAngle={params.seamAngle}
+                  handleOn={params.splitHandle}
+                  zFrac={params.splitHandle ? Math.max(0, 1 - params.handleTopDrop / Math.max(1, vaseParams.height)) : 0.5}
+                />
+                <p className="text-[11px] text-[var(--text-secondary)] mb-1 leading-snug">
+                  Looking down{params.splitHandle ? ', sliced where the handle\'s top attaches' : ', sliced half way up'}. Dashed = the split{params.splitHandle ? '; red = the handle' : ''}.
+                </p>
                 {sl('trayWallThickness', 'Skin', 'mm', 'Printed thickness of the half-vase relief and the tray walls. Thin on purpose: the tray is peeled off and thrown away')}
                 {sl('trayFloorThickness', 'Floor', 'mm', 'Thickness of the tray floor, which is the parting face. Never thinner than Natch Height + 0.8, so a natch pocket can\'t reach the print bed')}
               </Section>
@@ -616,6 +629,31 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                   <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug">
                     Clamped to {(mold.natchRadius * 2).toFixed(1)} mm by the plaster margin — raise Plaster to allow bigger natches.
                   </p>
+                )}
+              </Section>
+              <Section
+                title="Handle"
+                titleColor={GROUP_COLORS.smoothing}
+                checked={params.splitHandle}
+                onToggle={(v) => setParam('splitHandle', v)}
+                tooltip="Cast the handle with the vase: the current HandleMaker design, turned so both ends sit on the vase. It goes on the Split Angle side — add 180° to move it to the other side"
+              >
+                <p className="text-[11px] text-[var(--text-secondary)] mb-1 leading-snug">
+                  From HandleMaker: <span className="text-[var(--text-primary)]">{handleName}</span>{' '}
+                  <Link href="/handle" className="underline hover:text-[var(--text-primary)]">edit ▸</Link>
+                </p>
+                {sl('handleTopDrop', 'Top Below Rim', 'mm', 'Where the top of the handle meets the vase, measured down from the rim (finished size). The bottom end lands wherever the handle\'s span reaches the vase below it')}
+                {sl('castWallThickness', 'Cast Wall', 'mm', 'Your usual fired wall thickness. A handle much thicker than twice this may not fill solid before you drain the mold')}
+                {mold.style === 'splitTwoPiece' && mold.handleError && (
+                  <p className="text-[11px] text-red-400 mt-1 leading-snug">{mold.handleError} The trays are built without the handle.</p>
+                )}
+                {mold.style === 'splitTwoPiece' && mold.handle && (
+                  <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug">
+                    Strap {mold.handle.sectionMm[0].toFixed(1)} × {mold.handle.sectionMm[1].toFixed(1)} mm finished; ends {(mold.handle.placement.span / (1 + params.shrinkPercent / 100)).toFixed(0)} mm apart.
+                  </p>
+                )}
+                {mold.style === 'splitTwoPiece' && mold.handleWarning && (
+                  <p className="text-[11px] text-amber-400 mt-1 leading-snug">{mold.handleWarning}</p>
                 )}
               </Section>
             </>

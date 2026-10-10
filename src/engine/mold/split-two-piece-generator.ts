@@ -36,6 +36,9 @@ import { ShapeUtils, Vector2 } from 'three';
 import { MeshBuilder, ensureOutward, triangulateFace, translateMesh, boxSolid, circlePoints, weldMesh, type P2 } from '../handle/mesh3';
 import { buildDome } from '../handle/mold-parts';
 import type { MoldParameters } from './mold-types';
+import type { HandleParameters } from '../handle/handle-types';
+import { sampleSpine } from '../handle/spine';
+import { splitSilhouette, placeHandle, surfaceLookup, sweepHandle, meshSweep, type HandlePlacement, type HandleSweep } from './split-handle';
 
 /** How far the relief pokes into the end wall, mm. */
 const EMBED = 0.3;
@@ -47,6 +50,12 @@ const NATCH_EDGE = 4;
 const LAYOUT_GAP = 20;
 const DOME_SEG = 48;
 const DOME_RINGS = 8;
+/** Handle skirt depth into the floor slab, mm. */
+const HANDLE_SEAT = 0.6;
+/** How far past the vase surface each handle end is buried, beyond the skin, mm. */
+const HANDLE_BURY_EXTRA = 0.5;
+/** Half-ellipse segments for the handle section (it is moulded, so fine). */
+const HANDLE_SEG = 48;
 
 export interface SplitTwoPieceMoldMeshes {
   style: 'splitTwoPiece';
@@ -76,6 +85,19 @@ export interface SplitTwoPieceMoldMeshes {
   /** Natch centres in world split-plane coords (z along the vase, u along the split line). */
   bumpsA: P2[];
   dimplesA: P2[];
+  /** Phase 2: the cast handle. Null when off or not built (see handleError). */
+  handle: {
+    placement: HandlePlacement;
+    /** Handle half-solid per tray, print space (also merged into trayA/trayB). */
+    meshA: VaseMesh;
+    meshB: VaseMesh;
+    /** Finished (fired) strap dimensions, mm: [smaller, larger]. */
+    sectionMm: [number, number];
+  } | null;
+  /** Why the handle was requested but not built — the mold is built without it. */
+  handleError: string | null;
+  /** Non-null when the handle's section is too thick to cast solid. */
+  handleWarning: string | null;
 }
 
 /** One half-ring: N+1 points from split plane to split plane, in print space. */
@@ -182,9 +204,15 @@ function buildRelief(outer: Arc[], inner: Arc[]): VaseMesh {
       return s;
     };
     const loopSign = Math.sign(area(pts));
-    const tris = ShapeUtils.triangulateShape(pts.map(([x, y]) => new Vector2(x, y)), []);
+    // Earcut DROPS exactly-collinear points (its filterPoints), which leaves a
+    // T-junction against the strip that owns them — a rectangle's flat side at
+    // a non-zero split angle produced 65 open edges (found 2026-10-09 by the
+    // handle verify). Jitter the 2-D PROJECTION a hundredth of a micron so
+    // every point survives; the 3-D positions are untouched.
+    const jit = pts.map(([x, y], k): P2 => [x + 1e-5 * Math.cos(k * 2.39996), y + 1e-5 * Math.sin(k * 2.39996)]);
+    const tris = ShapeUtils.triangulateShape(jit.map(([x, y]) => new Vector2(x, y)), []);
     for (const [i, j, k] of tris) {
-      const s = Math.sign(area([pts[i], pts[j], pts[k]]));
+      const s = Math.sign(area([jit[i], jit[j], jit[k]]));
       if (s === 0) continue;
       if (s === loopSign) b.tri(ids[i], ids[j], ids[k]);
       else b.tri(ids[i], ids[k], ids[j]);
@@ -323,10 +351,13 @@ function emptyResult(error: string): SplitTwoPieceMoldMeshes {
     style: 'splitTwoPiece', trayA: empty, trayB: empty, trays: empty, plaster: empty,
     undercutFlags: new Float32Array(0), hasUndercuts: false, plasterVolumeMm3: 0,
     trayStats: computeMeshStats(empty), natchRadius: 0, error, partsA: [], partsB: [], floorTop: 0, bumpsA: [], dimplesA: [],
+    handle: null, handleError: null, handleWarning: null,
   };
 }
 
-export function generateSplitTwoPieceMold(vase: VaseParameters, mold: MoldParameters): SplitTwoPieceMoldMeshes {
+export function generateSplitTwoPieceMold(
+  vase: VaseParameters, mold: MoldParameters, handleParams: HandleParameters | null = null,
+): SplitTwoPieceMoldMeshes {
   const rRes = vase.resolution.radial;
   const scale = 1 + mold.shrinkPercent / 100;
   const skin = mold.trayWallThickness;
@@ -390,6 +421,42 @@ export function generateSplitTwoPieceMold(vase: VaseParameters, mold: MoldParame
     return emptyResult('The split plane misses part of the vase at this Split Angle (XY Sway can carry it entirely to one side). Try another angle or less sway.');
   }
 
+  // ── Phase 2: the handle, rotated onto the vase outline on the +s side. ──
+  let handleSweep: HandleSweep | null = null;
+  let placement: HandlePlacement | null = null;
+  let handleError: string | null = null;
+  let handleWarning: string | null = null;
+  let sectionMm: [number, number] = [0, 0];
+  if (mold.splitHandle && handleParams) {
+    const nBody = outerStack.rings.length;
+    const sil = splitSilhouette(outerStack.rings, rRes, c0x, c0y, sx, sy);
+    const stations = sampleSpine(handleParams.spinePoints, handleParams.spineTypes, Math.round(handleParams.spineSamples), scale);
+    const pl = placeHandle(sil, stations, hTop - mold.handleTopDrop * scale);
+    if (typeof pl === 'string') handleError = pl;
+    else {
+      const lookA = surfaceLookup(outA.slice(0, nBody), F, 1);
+      const lookB = surfaceLookup(outB.slice(0, nBody), F, -1);
+      const depth = (z: number, u: number, h: number) => Math.min(lookA(z, h), lookB(z, h)) - u;
+      // Stored width is IN the parting plane, thickness across it (the UI labels are swapped).
+      const hw = (handleParams.width * scale) / 2, ht = (handleParams.thickness * scale) / 2;
+      const sw = sweepHandle(stations, pl, hw, ht, HANDLE_SEAT, HANDLE_SEG, depth, skin + HANDLE_BURY_EXTRA);
+      if (typeof sw === 'string') handleError = sw;
+      else {
+        let zLo = Infinity, zHi = -Infinity;
+        for (const r of sw.rings) for (const [z] of r) { zLo = Math.min(zLo, z); zHi = Math.max(zHi, z); }
+        if (zLo < skin) handleError = 'The bottom of the handle reaches the base of the vase — raise the top attachment or shorten the handle.';
+        else if (zHi > hTop) handleError = 'The handle reaches above the rim — lower the top attachment (Top Below Rim).';
+        else { handleSweep = sw; placement = pl; }
+      }
+    }
+    const lo = Math.min(handleParams.width, handleParams.thickness), hi = Math.max(handleParams.width, handleParams.thickness);
+    sectionMm = [lo, hi];
+    const fill = 2 * mold.castWallThickness;
+    if (handleSweep && lo > fill + 1e-9) {
+      handleWarning = `The handle is ${lo.toFixed(1)} mm at its thinnest. Walls of ${mold.castWallThickness.toFixed(1)} mm cast from both sides meet at about ${fill.toFixed(1)} mm, so the middle may still be liquid when the mug is drained. Thin it in HandleMaker, or expect a hollow handle.`;
+    }
+  }
+
   // ── Block outline in world split-plane coords (u along s, z up), shared by
   // both halves so their parting faces coincide when assembled. ──
   let uMin = Infinity, uMax = -Infinity, hMaxA = 0, hMaxB = 0;
@@ -399,6 +466,11 @@ export function generateSplitTwoPieceMold(vase: VaseParameters, mold: MoldParame
       const u = dx * sx + dy * sy, h = dx * frameA.px + dy * frameA.py;
       uMin = Math.min(uMin, u); uMax = Math.max(uMax, u);
       hMaxA = Math.max(hMaxA, h); hMaxB = Math.max(hMaxB, -h);
+    }
+  }
+  if (handleSweep) {
+    for (const r of handleSweep.rings) {
+      for (const [, u, h] of r) { uMax = Math.max(uMax, u); hMaxA = Math.max(hMaxA, h); hMaxB = Math.max(hMaxB, h); }
     }
   }
   const xa = -m, xb = wellTopZ;                       // plaster block, along the vase
@@ -444,7 +516,8 @@ export function generateSplitTwoPieceMold(vase: VaseParameters, mold: MoldParame
       boxSolid(xa - tw, yB, xb + tw, yB + tw, 0, zTop),
     ];
     const domes = domesW.map(([z, u]) => translateMesh(buildDome(z, ySign * u, natchR, natchH, DOME_SEG), 0, 0, F));
-    const parts = [relief, floor, ...walls, ...domes];
+    const handleMesh = handleSweep ? meshSweep(handleSweep, (z, u, h) => [z, ySign * u, F + h]) : null;
+    const parts = [relief, floor, ...walls, ...domes, ...(handleMesh ? [handleMesh] : [])];
     const tray = mergeMeshes(parts);
 
     // Undercut flags: the relief's first vertices are the outer arcs, row-major.
@@ -457,9 +530,10 @@ export function generateSplitTwoPieceMold(vase: VaseParameters, mold: MoldParame
       const dx = outer[i + 1][0][0] - outer[i][0][0];
       envelope += (dx * (halfSectionArea(outer[i], F) + halfSectionArea(outer[i + 1], F))) / 2;
     }
+    if (handleSweep) envelope += handleSweep.volume;
     const blockVol = (xb - xa) * (yB - yA) * (zTop - F);
     const plaster = boxSolid(xa, yA, xb, yB, F, zTop);
-    return { tray, parts, flags, plasterVol: Math.max(0, blockVol - envelope), plaster, yA, yB };
+    return { tray, parts, flags, plasterVol: Math.max(0, blockVol - envelope), plaster, yA, yB, handleMesh };
   };
 
   const A = buildTray(outA, inA, frameA, hMaxA, bumpsA, dimplesA);
@@ -493,6 +567,11 @@ export function generateSplitTwoPieceMold(vase: VaseParameters, mold: MoldParame
     floorTop: F,
     bumpsA,
     dimplesA,
+    handle: placement && A.handleMesh && B.handleMesh
+      ? { placement, meshA: A.handleMesh, meshB: B.handleMesh, sectionMm }
+      : null,
+    handleError,
+    handleWarning,
   };
 }
 

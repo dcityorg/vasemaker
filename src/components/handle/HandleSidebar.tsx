@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
 import { BezierCurveEditor, EDITOR_CHROME } from '@/components/parameters/BezierCurveEditor';
@@ -15,7 +15,11 @@ import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
 import { mergeHandleParameters } from '@/engine/handle/handle-types';
-import { measureSpine } from '@/engine/handle/spine';
+import { measureSpine, sampleSpine } from '@/engine/handle/spine';
+import { useVaseStore } from '@/store/vase-store';
+import { useMoldStore } from '@/store/mold-store';
+import { MOLD_PARAMS } from '@/config/mold-params';
+import { vaseOutlineForHandle, placeHandle, worldToHandle, clipPolyline } from '@/engine/mold/split-handle';
 import { translateMesh } from '@/engine/handle/mesh3';
 import type { HandleMeshes } from '@/engine/handle/handle-generator';
 import type { HandleParameters, WindowExtents } from '@/engine/handle/handle-types';
@@ -217,7 +221,31 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   // out of proportion is worse than one drawn small — so the box follows the
   // window's ratio, and a tall narrow window grows the box's height rather
   // than stretching its width.
-  const winW = params.winRight;
+  // ── Mug overlay (Split 2-Pc Phase 2) ──
+  // The vase from VaseMaker, placed exactly as the Split 2-Pc mold will place
+  // this handle (same function), so Sher draws against the real mug. The view
+  // opens MUG_MARGIN mm left of the wall so the body shows; points still can't
+  // go there (the store clamps x ≥ 0).
+  const vaseParams = useVaseStore((s) => s.params);
+  const moldParams = useMoldStore((s) => s.params);
+  const setMoldParam = useMoldStore((s) => s.setParam);
+  const [mugPref, setMugPref] = useState<boolean | null>(null);
+  const showMug = mugPref ?? (moldParams.moldStyle === 'splitTwoPiece' && moldParams.splitHandle);
+  const mugOutline = useMemo(
+    () => (showMug ? vaseOutlineForHandle(vaseParams, moldParams.seamAngle, moldParams.keepTexture) : null),
+    [showMug, vaseParams, moldParams.seamAngle, moldParams.keepTexture],
+  );
+  const MUG_MARGIN = showMug ? 20 : 0;
+  const mug = (() => {
+    if (!mugOutline) return null;
+    const stations = sampleSpine(params.spinePoints, params.spineTypes, 8, 1);
+    const pl = placeHandle(mugOutline.sil, stations, mugOutline.rimZ - moldParams.handleTopDrop);
+    if (typeof pl === 'string') return { error: pl, paths: [] as [number, number][][] };
+    const local = mugOutline.sil.map(([z, u]) => worldToHandle(pl, z, u));
+    return { error: null, paths: clipPolyline(local, -MUG_MARGIN, params.winRight, params.winBottom, params.winTop) };
+  })();
+
+  const winW = params.winRight + MUG_MARGIN;
   const winH = params.winTop - params.winBottom;
   const ratio = winW / winH;
   const MAX_PLOT_W = 215; // keeps the whole editor inside the sidebar
@@ -503,7 +531,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               onPointRemove={removeSpinePoint}
               onPointTypeToggle={toggleSpineType}
               minPoints={3}
-              xRange={[0, params.winRight]}
+              xRange={[-MUG_MARGIN, params.winRight]}
               yRange={[params.winBottom, params.winTop]}
               showUnitRefLine={false}
               arrowStepX={1}
@@ -519,8 +547,30 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               height={spineH}
               showReadout
               freeEndpointY
-              overlayPaths={outlinePaths}
+              overlayPaths={[...outlinePaths, ...(mug?.paths ?? [])]}
+              overlayColors={[...outlinePaths.map(() => '#e05555'), ...(mug?.paths ?? []).map(() => '#9fb3c8')]}
             />
+            <Toggle
+              label="Show Mug"
+              checked={showMug}
+              onChange={(v) => setMugPref(v)}
+              tooltip="Draw the vase from VaseMaker behind the handle (grey), placed the way the Split 2-Pc mold will put it: the top end at Top Below Rim, the bottom end where the handle's span meets the vase"
+            />
+            {showMug && (
+              <>
+                <SliderRow
+                  label="Top Below Rim"
+                  value={moldParams.handleTopDrop}
+                  min={MOLD_PARAMS.handleTopDrop.min}
+                  max={MOLD_PARAMS.handleTopDrop.max}
+                  step={MOLD_PARAMS.handleTopDrop.step}
+                  suffix="mm"
+                  tooltip="Where the top of the handle meets the vase, down from the rim. Shared with the Mold tab's Split 2-Pc Handle section"
+                  onChange={(v) => setMoldParam('handleTopDrop', v)}
+                />
+                {mug?.error && <p className="text-[11px] text-red-400 mt-1 leading-snug">{mug.error}</p>}
+              </>
+            )}
             <div className="flex gap-1 mt-1">
               <button className={miniBtn} onClick={reOriginSpine}
                 title="Slide the whole design so the lower attachment end sits at 0 — the drawing doesn't move, only the numbers on the axis">

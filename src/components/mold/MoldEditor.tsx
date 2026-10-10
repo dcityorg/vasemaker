@@ -8,6 +8,7 @@ import { MOLD_HELP_SECTIONS } from '@/content/mold-help-content';
 import { useMoldMeshes } from '@/hooks/use-mold-meshes';
 import { hydrateMoldSettingsFromStorage } from '@/store/mold-store';
 import { hydrateVaseDesignFromStorage } from '@/store/vase-store';
+import { hydrateHandleSettingsFromStorage } from '@/store/handle-store';
 
 /** MoldMaker layout — settings sidebar on the left, 3D mold preview in the
  * middle, optional help panel on the right (mirrors the vase Editor). */
@@ -18,7 +19,7 @@ export function MoldEditor() {
   // The mold is DERIVED from the vase, so this route needs the design restored
   // just as much as the vase route does — landing here on a reload used to show
   // your mold settings wrapped around the default Classic Vase.
-  useEffect(() => { hydrateVaseDesignFromStorage(); hydrateMoldSettingsFromStorage(); }, []);
+  useEffect(() => { hydrateVaseDesignFromStorage(); hydrateMoldSettingsFromStorage(); hydrateHandleSettingsFromStorage(); }, []);
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <MoldSidebar mold={mold} helpOpen={helpOpen} onToggleHelp={() => setHelpOpen((v) => !v)} />

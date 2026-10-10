@@ -7,6 +7,7 @@
 import { useMemo } from 'react';
 import { useVaseStore } from '@/store/vase-store';
 import { useMoldStore } from '@/store/mold-store';
+import { useHandleStore } from '@/store/handle-store';
 import { generateMoldMeshes } from '@/engine/mold/mold-generator';
 import { generateOnePieceMold } from '@/engine/mold/one-piece-generator';
 import { generatePourTwoPieceMold } from '@/engine/mold/pour-two-piece-generator';
@@ -24,6 +25,10 @@ export type AnyMoldMeshes = MoldMeshes | OnePieceMoldMeshes | PourTwoPieceMoldMe
 export function useMoldMeshes(): AnyMoldMeshes {
   const vaseParams = useVaseStore((s) => s.params);
   const moldParams = useMoldStore((s) => s.params);
+  // The Split 2-Pc handle is HandleMaker's live design. Only depend on it when
+  // it is used, so editing a handle doesn't rebuild every other style.
+  const handleParams = useHandleStore((s) => s.params);
+  const handleDep = moldParams.moldStyle === 'splitTwoPiece' && moldParams.splitHandle ? handleParams : null;
   return useMemo(() => {
     switch (moldParams.moldStyle) {
       case 'onePiece':
@@ -33,9 +38,9 @@ export function useMoldMeshes(): AnyMoldMeshes {
       case 'pourThreePiece':
         return generatePourThreePieceMold(vaseParams, moldParams);
       case 'splitTwoPiece':
-        return generateSplitTwoPieceMold(vaseParams, moldParams);
+        return generateSplitTwoPieceMold(vaseParams, moldParams, handleDep);
       default:
         return generateMoldMeshes(vaseParams, moldParams);
     }
-  }, [vaseParams, moldParams]);
+  }, [vaseParams, moldParams, handleDep]);
 }

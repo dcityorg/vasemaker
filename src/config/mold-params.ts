@@ -44,6 +44,8 @@ export const MOLD_PARAMS = {
   trayFloorThickness:  { min: 1.2, max: 6, step: 0.2 } as SliderRange,
   natchDiameter:       { min: 6, max: 30, step: 0.5 } as SliderRange,
   natchHeight:         { min: 0.5, max: 3, step: 0.1 } as SliderRange,
+  handleTopDrop:       { min: 0, max: 80, step: 0.5 } as SliderRange,
+  castWallThickness:   { min: 1.5, max: 8, step: 0.1 } as SliderRange,
 } as const;
 
 /**

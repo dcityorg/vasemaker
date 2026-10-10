@@ -48,6 +48,8 @@ interface BezierCurveEditorProps {
    * outline in HandleMaker). Render-only.
    */
   overlayPaths?: [number, number][][];
+  /** Per-path stroke colour for `overlayPaths` (default the red guide). */
+  overlayColors?: string[];
   /**
    * Allow the first/last points to move in y (they stay draggable in x as
    * usual). Default false: endpoints are locked to yRange[0]/yRange[1] (the
@@ -168,6 +170,7 @@ export function BezierCurveEditor({
   height = 180,
   showReadout = false,
   overlayPaths,
+  overlayColors,
   freeEndpointY = false,
   showUnitRefLine = true,
 }: BezierCurveEditorProps) {
@@ -456,7 +459,10 @@ export function BezierCurveEditor({
     const ticks: number[] = [];
     const range = xRange[1] - xRange[0];
     const step = range <= 3 ? 0.5 : range <= 10 ? 1 : range <= 50 ? 5 : range <= 200 ? 25 : range <= 1000 ? 100 : 500;
-    for (let v = xRange[0]; v <= xRange[1] + 0.001; v += step) {
+    // Start on a multiple of the step (HandleMaker's mug view opens left of 0;
+    // ranges that start at 0 are unchanged).
+    const first = Math.ceil(xRange[0] / step - 1e-6) * step;
+    for (let v = first; v <= xRange[1] + 0.001; v += step) {
       ticks.push(Math.round(v * 10) / 10);
     }
     return ticks;
@@ -616,8 +622,8 @@ export function BezierCurveEditor({
           key={`ov-${i}`}
           d={pts.map(([px, py], j) => `${j === 0 ? 'M' : 'L'}${toSvgX(px).toFixed(1)},${toSvgY(py).toFixed(1)}`).join(' ')}
           fill="none"
-          stroke="#e05555"
-          strokeWidth={1}
+          stroke={overlayColors?.[i] ?? '#e05555'}
+          strokeWidth={overlayColors?.[i] ? 1.5 : 1}
           opacity={0.85}
           pointerEvents="none"
         />

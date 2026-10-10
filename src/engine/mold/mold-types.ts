@@ -119,6 +119,14 @@ export interface MoldParameters {
   natchDiameter: number;
   /** How far each plaster bump stands proud / each dimple sinks (mm). */
   natchHeight: number;
+  /** Cast a HandleMaker handle onto the vase (Phase 2). The handle is the
+   *  current HandleMaker design, rotated so both ends sit on the vase. */
+  splitHandle: boolean;
+  /** Top attachment, measured down from the rim on the finished vase (mm). */
+  handleTopDrop: number;
+  /** Sher's fired cast wall — the handle's smaller dimension past 2× this
+   *  won't fill solid before the walls are done (mm). */
+  castWallThickness: number;
 
   // ── Analysis ──
   /** Plaster material for the weight estimate. */
@@ -194,6 +202,10 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   // HandleMaker's proven natch is 16 x 2; 1.5 keeps the floor at 2.4.
   natchDiameter: 16,
   natchHeight: 1.5,
+  splitHandle: false,
+  handleTopDrop: 15,
+  // Gary measured their own mugs, 2026-10-09: about 3.5 mm after firing.
+  castWallThickness: 3.5,
 
   material: 'pottery',
 };
