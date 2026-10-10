@@ -39,7 +39,7 @@ export const HANDLE_HELP_SECTIONS: HelpSection[] = [
       { type: 'paragraph', text: 'The spine is the handle’s centerline, drawn in side view: the left edge is the vase wall, right is stick-out, up is height. Both ends are anchored to the wall. The curve editor works exactly like the vase Profile editor:' },
       { type: 'keyvalue', items: [
         { key: 'Drag', value: 'Move a control point' },
-        { key: 'Double-click', value: 'Add a point (max 8)' },
+        { key: 'Double-click', value: 'Add a point (max 16)' },
         { key: 'Right-click', value: 'Remove a point' },
         { key: 'Shift-click', value: 'Toggle Fixed (square, curve passes through) vs Handle (circle, pulls the curve)' },
         { key: 'Arrow keys', value: 'Nudge the selected point 1 mm (Shift = 5 mm, Alt = 0.2 mm)' },

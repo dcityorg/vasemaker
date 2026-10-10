@@ -18,8 +18,12 @@ export type PlasterType = 'pottery' | 'hydrocal' | 'hydrostone';
  * - 'pourTwoPiece' — "Pour 2-Pc": the one-piece split into a center piece
  *   (vase + well + notched foot flange) and a removable outer shell that
  *   binder-clips to it; plaster poured in the open top, shell lifts off first.
+ * - 'pourThreePiece' — "Pour 3-Pc": Pour 2-Pc with the shell split vertically.
+ * - 'splitTwoPiece' — "Split 2-Pc": TWO plaster halves split through the vase
+ *   axis, each poured in its own throwaway printed tray. The halves pull
+ *   sideways, so the vase may narrow going up (necks, bellies, rolled rims).
  */
-export type MoldStyle = 'twoPart' | 'onePiece' | 'pourTwoPiece' | 'pourThreePiece';
+export type MoldStyle = 'twoPart' | 'onePiece' | 'pourTwoPiece' | 'pourThreePiece' | 'splitTwoPiece';
 
 export interface MoldParameters {
   /** Mold construction style — see MoldStyle. */
@@ -105,6 +109,17 @@ export interface MoldParameters {
    * the shell off (mm). */
   shellGrabHeight: number;
 
+  // ── Split 2-Pc only: the throwaway trays (seamAngle is shared with Pour 3-Pc) ──
+  /** Printed skin of each tray — the half-vase relief and the walls (mm). */
+  trayWallThickness: number;
+  /** Tray floor = the parting face. Clamped to ≥ natchHeight + 0.8 so a natch
+   *  pocket never reaches the bed (mm). */
+  trayFloorThickness: number;
+  /** Diameter of each natch bump/dimple, clamped to the plaster margin (mm). */
+  natchDiameter: number;
+  /** How far each plaster bump stands proud / each dimple sinks (mm). */
+  natchHeight: number;
+
   // ── Analysis ──
   /** Plaster material for the weight estimate. */
   material: PlasterType;
@@ -125,7 +140,7 @@ export function mergeMoldParameters(loaded: unknown): MoldParameters {
       if (key === 'material') {
         if (v === 'pottery' || v === 'hydrocal' || v === 'hydrostone') out.material = v;
       } else if (key === 'moldStyle') {
-        if (v === 'twoPart' || v === 'onePiece' || v === 'pourTwoPiece' || v === 'pourThreePiece') out.moldStyle = v;
+        if (v === 'twoPart' || v === 'onePiece' || v === 'pourTwoPiece' || v === 'pourThreePiece' || v === 'splitTwoPiece') out.moldStyle = v;
       } else if (typeof v === typeof DEFAULT_MOLD_PARAMETERS[key]) {
         (out as unknown as Record<string, unknown>)[key] = v;
       }
@@ -172,6 +187,13 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   roundShell: false,
   flangeLip: 0,
   shellGrabHeight: 10,
+
+  // Hansen's file measures a 1.2–1.4 mm skin (his write-up says 0.8).
+  trayWallThickness: 1.2,
+  trayFloorThickness: 2.4,
+  // HandleMaker's proven natch is 16 x 2; 1.5 keeps the floor at 2.4.
+  natchDiameter: 16,
+  natchHeight: 1.5,
 
   material: 'pottery',
 };

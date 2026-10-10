@@ -502,7 +502,6 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               onPointAdd={addSpinePoint}
               onPointRemove={removeSpinePoint}
               onPointTypeToggle={toggleSpineType}
-              maxPoints={8}
               minPoints={3}
               xRange={[0, params.winRight]}
               yRange={[params.winBottom, params.winTop]}

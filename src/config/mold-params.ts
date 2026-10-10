@@ -39,6 +39,11 @@ export const MOLD_PARAMS = {
   seamFinWidth:        { min: 2, max: 8, step: 0.5 } as SliderRange,
   flangeLip:           { min: 0, max: 10, step: 0.5 } as SliderRange,
   shellGrabHeight:     { min: 0, max: 30, step: 1 } as SliderRange,
+
+  trayWallThickness:   { min: 0.8, max: 3, step: 0.1 } as SliderRange,
+  trayFloorThickness:  { min: 1.2, max: 6, step: 0.2 } as SliderRange,
+  natchDiameter:       { min: 6, max: 30, step: 0.5 } as SliderRange,
+  natchHeight:         { min: 0.5, max: 3, step: 0.1 } as SliderRange,
 } as const;
 
 /**

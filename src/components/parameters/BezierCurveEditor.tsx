@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
+import { MAX_CURVE_POINTS } from '@/lib/constants';
 import { evaluatePiecewiseBezier } from '@/engine/bezier';
 import { FINE_FACTOR, COARSE_FACTOR, snapToGrid } from './ui';
 import type { BezierPoint, CurvePointType } from '@/engine/types';
@@ -153,7 +154,7 @@ export function BezierCurveEditor({
   onPointRemove,
   pointTypes,
   onPointTypeToggle,
-  maxPoints = 8,
+  maxPoints = MAX_CURVE_POINTS,
   minPoints = 2,
   xRange,
   yRange,

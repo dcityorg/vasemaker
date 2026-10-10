@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+import { MAX_CURVE_POINTS } from '@/lib/constants';
 import type { VaseParameters, ShapeType, ShapeParams, BezierPoint, CurvePointType } from '@/engine/types';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import type { Preset } from '@/presets';
@@ -153,7 +154,7 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     set((state) => {
       const points = [...state.params.profilePoints];
       const types = [...state.params.profilePointTypes];
-      if (points.length >= 8) return state; // max 8 control points
+      if (points.length >= MAX_CURVE_POINTS) return state;
       // Insert sorted by height fraction (index 1)
       const insertIdx = points.findIndex(p => p[1] > point[1]);
       if (insertIdx === -1) {
@@ -228,7 +229,7 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     set((state) => {
       const points = state.params.bezierTwist.points.map(p => [...p] as BezierPoint);
       const types = [...state.params.bezierTwist.pointTypes];
-      if (points.length >= 8) return state;
+      if (points.length >= MAX_CURVE_POINTS) return state;
       const insertIdx = points.findIndex(p => p[1] > point[1]);
       const idx = insertIdx === -1 ? points.length : insertIdx;
       points.splice(idx, 0, point);
@@ -304,7 +305,7 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     set((state) => {
       const pointsX = state.params.bezierOffset.pointsX.map(p => [...p] as BezierPoint);
       const typesX = [...state.params.bezierOffset.pointTypesX];
-      if (pointsX.length >= 8) return state;
+      if (pointsX.length >= MAX_CURVE_POINTS) return state;
       const insertIdx = pointsX.findIndex(p => p[1] > point[1]);
       const idx = insertIdx === -1 ? pointsX.length : insertIdx;
       pointsX.splice(idx, 0, point);
@@ -317,7 +318,7 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     set((state) => {
       const pointsY = state.params.bezierOffset.pointsY.map(p => [...p] as BezierPoint);
       const typesY = [...state.params.bezierOffset.pointTypesY];
-      if (pointsY.length >= 8) return state;
+      if (pointsY.length >= MAX_CURVE_POINTS) return state;
       const insertIdx = pointsY.findIndex(p => p[1] > point[1]);
       const idx = insertIdx === -1 ? pointsY.length : insertIdx;
       pointsY.splice(idx, 0, point);

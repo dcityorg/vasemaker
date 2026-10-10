@@ -2,7 +2,7 @@
 
 import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { GroundGrid } from '@/components/viewport/SceneHelpers';
 import { LIGHTING } from '@/config/viewport';
@@ -84,6 +84,32 @@ function CameraRakes() {
   );
 }
 
+/**
+ * Re-frame the camera when switching INTO or OUT OF Split 2-Pc. Its trays lie
+ * flat on the bed side by side, so the upright-mold framing (looking at
+ * z = 110 from one corner) left them small in the bottom corner. Only fires on
+ * that transition, so orbiting within a style is never overridden.
+ */
+function FrameForSplit({ split }: { split: boolean }) {
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update: () => void } | null;
+  const prev = useRef<boolean | null>(null);
+  useEffect(() => {
+    // Wait for OrbitControls to register, or its own target prop would win.
+    if (!controls || prev.current === split) return;
+    const first = prev.current === null;
+    prev.current = split;
+    if (first && !split) return; // initial upright framing comes from the Canvas props
+    const target = split ? new THREE.Vector3(0, 0, 0) : new THREE.Vector3(...MOLD_CAMERA.target);
+    const pos = split ? new THREE.Vector3(0, -230, 480) : new THREE.Vector3(...MOLD_CAMERA.position);
+    camera.position.copy(pos);
+    camera.lookAt(target);
+    controls.target.copy(target);
+    controls.update();
+  }, [split, camera, controls]);
+  return null;
+}
+
 function Part({ geometry, color, opacity, clip, positionZ, vertexColors, flat }: {
   geometry: THREE.BufferGeometry;
   color: string;
@@ -119,13 +145,15 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
   const view = useMoldStore((s) => s.view);
 
   const clipPlanes = useMemo(() => [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)], []);
-  const clip = view.crossSection ? clipPlanes : null;
+  // Split 2-Pc lays its trays out side by side, so a slice through y = 0 cuts nothing.
+  const clip = view.crossSection && mold.style !== 'splitTwoPiece' ? clipPlanes : null;
 
   // The master slot renders whichever part carries the vase form (master /
   // one-piece mold / pour-2pc center) with the undercut tint; the cottle slot
   // renders the container part (cottle / — / shell).
   const mainMesh = mold.style === 'twoPart' ? mold.master
     : mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece' ? mold.center
+    : mold.style === 'splitTwoPiece' ? mold.trays
     : mold.mold;
   const masterGeo = useGeometry(mainMesh, view.showUndercuts ? mold.undercutFlags : undefined, view.showUndercuts ? MASTER_COLOR : undefined);
   const cottleGeo = useGeometry(
@@ -186,6 +214,7 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
           />
         )}
 
+        <FrameForSplit split={mold.style === 'splitTwoPiece'} />
         <OrbitControls
           makeDefault
           enableDamping

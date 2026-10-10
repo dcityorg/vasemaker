@@ -2,7 +2,8 @@
  * Bezier curve evaluation using de Casteljau's algorithm.
  * Replaces the BezierScad.scad library from the OpenSCAD version.
  *
- * Supports 2–8 control points, matching the OpenSCAD version's capability.
+ * Any number of control points (≥ 2). The editors cap it at MAX_CURVE_POINTS
+ * (lib/constants.ts) — 16 since 2026-10-09, 8 before, inherited from OpenSCAD.
  */
 
 import type { BezierPoint, CurvePointType } from './types';

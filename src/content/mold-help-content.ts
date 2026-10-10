@@ -183,6 +183,21 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    id: 'mold-split-two',
+    title: 'Split 2-Pc Mold',
+    blocks: [
+      { type: 'paragraph', text: 'Every other style casts ONE plaster block and pulls the vase straight out of the top, so the vase may never get narrower going up. Split 2-Pc casts TWO plaster halves that split down the middle of the vase, and each half pulls off sideways. For a round vase that always comes apart — necks, bellies, waists and rolled rims are all fine. That is what makes mugs and shaped vases castable.' },
+      { type: 'heading', text: 'The two trays' },
+      { type: 'paragraph', text: 'Each plaster half is poured in its own printed tray: an open box whose floor is the parting face, with half of your vase (and its well) standing up off the floor. Export Tray A and Tray B and print both, floor down. The half-vase is hollow underneath and open to the bed, so let the slicer put tree supports inside it — they pull out from below.' },
+      { type: 'paragraph', text: 'The trays are throwaway. Pour plaster into each, let it set, then soften the plastic with a heat gun and peel it off with pliers. (This is Tony Hansen\'s method from digitalfire.com.) That is why the Skin is thin.' },
+      { type: 'heading', text: 'Natches' },
+      { type: 'paragraph', text: 'Each plaster half gets two bumps and two dimples on diagonal corners, and the other half gets the opposite, so the halves only go together one way. That is why Tray A and Tray B are different parts even for a perfectly round vase. The tray Floor is never thinner than Natch Height + 0.8 mm, because the pocket that moulds each bump is carved into it.' },
+      { type: 'heading', text: 'Split Angle and undercuts' },
+      { type: 'paragraph', text: 'Split Angle sets where the split runs through the vase. On a round vase it only matters for where the seam line lands. On a square or polygon it decides whether the seams fall on corners or faces. Red in the Undercuts view means a surface that faces back toward the split line — flutes or ripples crossing the seam, twist, or a concave shape like a heart — and the plaster half would lock onto it. Try another Split Angle, or turn off Keep Texture.' },
+      { type: 'tip', text: 'The bottom is flat in this style for now: a foot recess would lock into both halves. A separate foot piece is planned.' },
+    ],
+  },
+  {
     id: 'mold-mesh-quality',
     title: 'Mesh Quality & File Size',
     blocks: [

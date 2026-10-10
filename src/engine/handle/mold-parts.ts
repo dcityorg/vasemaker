@@ -195,7 +195,7 @@ function sgn(loop: P2[]): number {
 }
 
 /** Proud registration dome: base disc (embedded), short cylinder, spherical cap. */
-function buildDome(cx: number, cy: number, a: number, h: number, DOME_SEG: number): VaseMesh {
+export function buildDome(cx: number, cy: number, a: number, h: number, DOME_SEG: number): VaseMesh {
   const b = new MeshBuilder();
   const R = (a * a + h * h) / (2 * h);
   const phiMax = Math.asin(Math.min(1, a / R));

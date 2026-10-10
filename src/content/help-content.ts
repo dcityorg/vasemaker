@@ -146,7 +146,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Drag point', value: 'Move a control point' },
         { key: 'Alt-drag', value: 'Drag with finer rounding (5× more precision)' },
         { key: 'Shift-drag', value: 'Lock movement to one axis (horizontal or vertical only)' },
-        { key: 'Double-click', value: 'Add a new point (max 8 total)' },
+        { key: 'Double-click', value: 'Add a new point (max 16 total)' },
         { key: 'Right-click', value: 'Remove a point (min 2 remain)' },
         { key: 'Shift-click', value: 'Toggle a point between Fixed (□) and Handle (○)' },
         { key: 'Click point', value: 'Select it (a ring appears), then use arrow keys' },

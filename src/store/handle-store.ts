@@ -6,6 +6,7 @@
  */
 
 import { create } from 'zustand';
+import { MAX_CURVE_POINTS } from '@/lib/constants';
 import type { BezierPoint } from '@/engine/types';
 import type { HandleParameters, WindowExtents } from '@/engine/handle/handle-types';
 import {
@@ -21,7 +22,7 @@ import { createHistory } from './history';
 
 export const DEFAULT_HANDLE_SETTINGS_NAME = 'handle design';
 const STORAGE_KEY = 'vasemaker-handle-settings';
-const MAX_SPINE_POINTS = 8;
+const MAX_SPINE_POINTS = MAX_CURVE_POINTS;
 const MIN_SPINE_POINTS = 3;
 /** Smallest drawing area a window edge may be dragged down to, mm. */
 const MIN_WINDOW_SEP = 10;

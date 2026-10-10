@@ -11,13 +11,15 @@ import { generateMoldMeshes } from '@/engine/mold/mold-generator';
 import { generateOnePieceMold } from '@/engine/mold/one-piece-generator';
 import { generatePourTwoPieceMold } from '@/engine/mold/pour-two-piece-generator';
 import { generatePourThreePieceMold } from '@/engine/mold/pour-three-piece-generator';
+import { generateSplitTwoPieceMold } from '@/engine/mold/split-two-piece-generator';
 import type { MoldMeshes } from '@/engine/mold/mold-generator';
 import type { OnePieceMoldMeshes } from '@/engine/mold/one-piece-generator';
 import type { PourTwoPieceMoldMeshes } from '@/engine/mold/pour-two-piece-generator';
 import type { PourThreePieceMoldMeshes } from '@/engine/mold/pour-three-piece-generator';
+import type { SplitTwoPieceMoldMeshes } from '@/engine/mold/split-two-piece-generator';
 
 /** Any mold style's generated meshes — discriminated by `style`. */
-export type AnyMoldMeshes = MoldMeshes | OnePieceMoldMeshes | PourTwoPieceMoldMeshes | PourThreePieceMoldMeshes;
+export type AnyMoldMeshes = MoldMeshes | OnePieceMoldMeshes | PourTwoPieceMoldMeshes | PourThreePieceMoldMeshes | SplitTwoPieceMoldMeshes;
 
 export function useMoldMeshes(): AnyMoldMeshes {
   const vaseParams = useVaseStore((s) => s.params);
@@ -30,6 +32,8 @@ export function useMoldMeshes(): AnyMoldMeshes {
         return generatePourTwoPieceMold(vaseParams, moldParams);
       case 'pourThreePiece':
         return generatePourThreePieceMold(vaseParams, moldParams);
+      case 'splitTwoPiece':
+        return generateSplitTwoPieceMold(vaseParams, moldParams);
       default:
         return generateMoldMeshes(vaseParams, moldParams);
     }
