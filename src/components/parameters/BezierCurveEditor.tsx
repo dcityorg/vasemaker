@@ -206,18 +206,16 @@ export function BezierCurveEditor({
   // points without having to click them.
   const stepSelection = useCallback(
     (dir: 1 | -1) => {
-      let next: number;
-      if (selectedIndex !== null) {
-        next = Math.max(0, Math.min(points.length - 1, selectedIndex + dir));
-      } else if (lastSelectedRef.current !== null) {
-        next = Math.max(0, Math.min(points.length - 1, lastSelectedRef.current));
-      } else {
-        next = Math.floor((points.length - 1) / 2);
-      }
-      setSelectedIndex(next);
+      // Functional update: held-down ⌘↑ auto-repeats faster than this callback
+      // is re-created, and a closed-over index would step once per render.
+      setSelectedIndex((cur) => {
+        if (cur !== null) return Math.max(0, Math.min(points.length - 1, cur + dir));
+        if (lastSelectedRef.current !== null) return Math.max(0, Math.min(points.length - 1, lastSelectedRef.current));
+        return Math.floor((points.length - 1) / 2);
+      });
       svgRef.current?.focus();
     },
-    [selectedIndex, points.length]
+    [points.length]
   );
 
   // Plot area dimensions
@@ -369,6 +367,13 @@ export function BezierCurveEditor({
         }
         return;
       }
+      // Cmd/Ctrl + ↑/↓ = the ▲▼ stepper: select the next point up/down without
+      // reaching for the mouse. Checked before the nudge so it never moves a point.
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+        stepSelection(e.key === 'ArrowUp' ? 1 : -1);
+        return;
+      }
       if (selectedIndex === null) return;
       if (
         e.key !== 'ArrowLeft' &&
@@ -413,7 +418,7 @@ export function BezierCurveEditor({
       }
       onPointChange(idx, [nx, ny]);
     },
-    [selectedIndex, points, xRange, yRange, arrowStepX, arrowStepY, onPointChange, freeEndpointY]
+    [selectedIndex, points, xRange, yRange, arrowStepX, arrowStepY, onPointChange, freeEndpointY, stepSelection]
   );
 
   // Double-click on plot area to add a point
@@ -750,7 +755,7 @@ export function BezierCurveEditor({
         <button
           className={stepBtnCls}
           disabled={selectedIndex !== null && selectedIndex >= points.length - 1}
-          title="Select the next point up (re-selects the last point if none is selected)"
+          title="Select the next point up (⌘↑; re-selects the last point if none is selected)"
           onClick={() => stepSelection(1)}
         >
           ▲
@@ -758,7 +763,7 @@ export function BezierCurveEditor({
         <button
           className={stepBtnCls}
           disabled={selectedIndex === 0}
-          title="Select the next point down (re-selects the last point if none is selected)"
+          title="Select the next point down (⌘↓; re-selects the last point if none is selected)"
           onClick={() => stepSelection(-1)}
         >
           ▼

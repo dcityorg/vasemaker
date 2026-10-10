@@ -151,6 +151,8 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Shift-click', value: 'Toggle a point between Fixed (□) and Handle (○)' },
         { key: 'Click point', value: 'Select it (a ring appears), then use arrow keys' },
         { key: '▲▼ buttons', value: 'Profile only: step the selection to the next point up/down — the way to grab points that crowd or overlap each other. With nothing selected, re-selects the last point' },
+        { key: '⌘↑ / ⌘↓', value: 'Same as the ▲▼ buttons, from the keyboard (Ctrl on Windows) — step to the next point up/down, then nudge it with the arrows without touching the mouse. Works in every curve editor' },
+        { key: '⤢ Enlarge', value: 'Profile only: opens a large copy of the editor floating over the 3-D view. Drag its title bar to move it and its bottom-right corner to resize; it edits the same curve, so the vase updates as you work. Fit X narrows the axis to just past your widest point so tight curves spread out; 0–5 restores the full range' },
         { key: 'Arrow keys', value: 'Nudge selected point — left/right adjusts horizontally, up/down adjusts height' },
         { key: 'Shift + arrows', value: '5× larger nudge (faster traversal)' },
         { key: 'Alt + arrows', value: '5× finer nudge (precision mode)' },

@@ -4,7 +4,9 @@ import { useVaseStore } from '@/store/vase-store';
 import type { ShapeType, BezierPoint } from '@/engine/types';
 import { SHAPE_OPTIONS, SHAPE_PARAM_CONFIG, DIMENSIONS, SHELL, BEZIER_OFFSET } from '@/config/shape-params';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
+import { useState } from 'react';
 import { BezierCurveEditor } from './BezierCurveEditor';
+import { ProfileEditorPanel } from './ProfileEditorPanel';
 import { UI_MUTED, GROUP_COLORS } from '@/config/colors';
 import { SliderRow, Section, GroupHeader, Toggle } from './ui';
 
@@ -48,6 +50,9 @@ export function ShapeControls() {
     setBezierOffsetPointTypeX, setBezierOffsetPointTypeY,
     setWallThickness, setBottomThickness, setRimShape, setSmoothInner, setMinWallThickness, setInnerOffsetMode,
   } = useVaseStore();
+  const [bigProfile, setBigProfile] = useState(false);
+  const toggleProfileType = (i: number) =>
+    setProfilePointType(i, params.profilePointTypes[i] === 'fixed' ? 'handle' : 'fixed');
 
   const resetProfile = () => {
     const flat: BezierPoint[] = [[1.0, 0], [1.0, 0.2], [1.0, 0.4], [1.0, 0.6], [1.0, 0.8], [1.0, 1.0]];
@@ -195,7 +200,8 @@ export function ShapeControls() {
       </Section>
 
       <Section title="Profile" checked={params.profileEnabled} onToggle={setProfileEnabled} tooltip="Bezier curve controlling radius from bottom to top" titleColor={GROUP_COLORS.structure}>
-        <div className="flex justify-end mb-1">
+        <div className="flex justify-end gap-1 mb-1">
+          <button onClick={() => setBigProfile((v) => !v)} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Open a large, resizable copy of this editor beside the 3-D view — easier for tight curves">{bigProfile ? 'Close Large' : '⤢ Enlarge'}</button>
           <button onClick={resetProfile} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
         <BezierCurveEditor
@@ -204,15 +210,26 @@ export function ShapeControls() {
           onPointAdd={addProfilePoint}
           onPointRemove={removeProfilePoint}
           pointTypes={params.profilePointTypes}
-          onPointTypeToggle={(i) => setProfilePointType(i, params.profilePointTypes[i] === 'fixed' ? 'handle' : 'fixed')}
+          onPointTypeToggle={toggleProfileType}
           xRange={[0, 5]}
           yRange={[0, 1]}
           xLabel="Radius Multiplier"
           showReadout
         />
         <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
-          Double-click to add. Right-click to remove. Shift-click toggles Fixed (□) / Handle (○). Click a point — or use the ▲▼ buttons to step through crowded points without clicking — then arrow keys nudge (Shift = ×5, Alt = fine) or type exact X / height below. X=↓ / X=↑ match a neighbor's X for a perfectly flat (vertical) segment. Alt-drag = fine; Shift-drag locks to one axis.
+          Double-click to add. Right-click to remove. Shift-click toggles Fixed (□) / Handle (○). Click a point — or use the ▲▼ buttons to step through crowded points without clicking (or ⌘↑ / ⌘↓) — then arrow keys nudge (Shift = ×5, Alt = fine) or type exact X / height below. X=↓ / X=↑ match a neighbor's X for a perfectly flat (vertical) segment. Alt-drag = fine; Shift-drag locks to one axis. ⤢ Enlarge opens a big, resizable copy for tight curves.
         </div>
+        {bigProfile && (
+          <ProfileEditorPanel
+            points={params.profilePoints}
+            pointTypes={params.profilePointTypes}
+            onPointChange={setProfilePoint}
+            onPointAdd={addProfilePoint}
+            onPointRemove={removeProfilePoint}
+            onPointTypeToggle={toggleProfileType}
+            onClose={() => setBigProfile(false)}
+          />
+        )}
       </Section>
 
       <Section title="XY Sway" defaultOpen={false} checked={params.bezierOffset.enabled} onToggle={(v) => setBezierOffset({ enabled: v })} tooltip="Shift the vase center side-to-side along its height" titleColor={GROUP_COLORS.structure}>
