@@ -265,7 +265,7 @@ export function meshSweep(sw: HandleSweep, map: (z: number, u: number, h: number
  * HandleMaker's mug overlay. Resolution is capped — this redraws while Sher
  * drags, and a 2-D outline does not need the mold's mesh density.
  */
-export function vaseOutlineForHandle(vase: VaseParameters, seamAngle: number, keepTexture: boolean): { sil: P2[]; rimZ: number } {
+export function vaseOutlineForHandle(vase: VaseParameters, seamAngle: number, keepTexture: boolean): { sil: P2[]; silFar: P2[]; rimZ: number } {
   const v: VaseParameters = { ...vase, resolution: { ...vase.resolution, vertical: Math.min(vase.resolution.vertical, 160), radial: Math.min(vase.resolution.radial, 240) } };
   const p = prepareVaseParams(v, 1, keepTexture);
   const stack = buildOuterRings(p, keepTexture && p.textures.enabled !== false);
@@ -273,6 +273,9 @@ export function vaseOutlineForHandle(vase: VaseParameters, seamAngle: number, ke
   const [cx, cy] = stack.centers[0];
   return {
     sil: splitSilhouette(stack.rings, p.resolution.radial, cx, cy, Math.cos(a), Math.sin(a)),
+    // The opposite side of the same split plane (u measured along −s) — with
+    // `sil` it is the vase's full profile through the handle.
+    silFar: splitSilhouette(stack.rings, p.resolution.radial, cx, cy, -Math.cos(a), -Math.sin(a)),
     rimZ: stack.heights[stack.heights.length - 1],
   };
 }
@@ -318,4 +321,34 @@ export function vaseSliceForDiagram(vase: VaseParameters, keepTexture: boolean, 
   const out: P2[] = [];
   for (let t = 0; t < p.resolution.radial; t++) out.push([r[t * 3] - cx, r[t * 3 + 1] - cy]);
   return out;
+}
+
+/** Outline radius u at height z, linear between outline points (clamped at the ends). */
+export function outlineAt(sil: P2[], z: number): number {
+  if (z <= sil[0][0]) return sil[0][1];
+  const last = sil.length - 1;
+  if (z >= sil[last][0]) return sil[last][1];
+  let lo = 0, hi = last;
+  while (lo + 1 < hi) {
+    const m = (lo + hi) >> 1;
+    if (sil[m][0] <= z) lo = m; else hi = m;
+  }
+  const t = (z - sil[lo][0]) / Math.max(1e-9, sil[hi][0] - sil[lo][0]);
+  return sil[lo][1] + (sil[hi][1] - sil[lo][1]) * t;
+}
+
+/**
+ * The handle's outline in the split plane, (z, u), as a closed polygon — for
+ * HandleMaker's side view of the finished mug. The same sweep as the mold,
+ * buried against the 2-D outline (the view only needs the ends to disappear
+ * into the wall, not the mold's per-half 3-D test). `hw` = half the strap
+ * as seen side-on (stored `width` / 2).
+ */
+export function strapOutline2D(stations: SpineStation[], pl: HandlePlacement, hw: number, sil: P2[]): P2[] | null {
+  const seg = 8;
+  const sw = sweepHandle(stations, pl, hw, 1, 0, seg, (z, u) => outlineAt(sil, z) - u, 0.6);
+  if (typeof sw === 'string') return null;
+  const a = sw.rings.map((r) => [r[0][0], r[0][1]] as P2);
+  const b = sw.rings.map((r) => [r[seg][0], r[seg][1]] as P2);
+  return [...a, ...b.reverse()];
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
 import { BezierCurveEditor, EDITOR_CHROME } from '@/components/parameters/BezierCurveEditor';
@@ -15,11 +15,11 @@ import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
 import { mergeHandleParameters } from '@/engine/handle/handle-types';
-import { measureSpine, sampleSpine } from '@/engine/handle/spine';
-import { useVaseStore } from '@/store/vase-store';
+import { measureSpine } from '@/engine/handle/spine';
 import { useMoldStore } from '@/store/mold-store';
 import { MOLD_PARAMS } from '@/config/mold-params';
-import { vaseOutlineForHandle, placeHandle, worldToHandle, clipPolyline } from '@/engine/mold/split-handle';
+import { worldToHandle, clipPolyline } from '@/engine/mold/split-handle';
+import { useMugPlacement } from '@/hooks/use-mug-placement';
 import { translateMesh } from '@/engine/handle/mesh3';
 import type { HandleMeshes } from '@/engine/handle/handle-generator';
 import type { HandleParameters, WindowExtents } from '@/engine/handle/handle-types';
@@ -226,23 +226,17 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   // this handle (same function), so Sher draws against the real mug. The view
   // opens MUG_MARGIN mm left of the wall so the body shows; points still can't
   // go there (the store clamps x ≥ 0).
-  const vaseParams = useVaseStore((s) => s.params);
+  const mugInfo = useMugPlacement();
+  const showMug = mugInfo.showMug;
   const moldParams = useMoldStore((s) => s.params);
   const setMoldParam = useMoldStore((s) => s.setParam);
-  const [mugPref, setMugPref] = useState<boolean | null>(null);
-  const showMug = mugPref ?? (moldParams.moldStyle === 'splitTwoPiece' && moldParams.splitHandle);
-  const mugOutline = useMemo(
-    () => (showMug ? vaseOutlineForHandle(vaseParams, moldParams.seamAngle, moldParams.keepTexture) : null),
-    [showMug, vaseParams, moldParams.seamAngle, moldParams.keepTexture],
-  );
   const MUG_MARGIN = showMug ? 20 : 0;
   const mug = (() => {
-    if (!mugOutline) return null;
-    const stations = sampleSpine(params.spinePoints, params.spineTypes, 8, 1);
-    const pl = placeHandle(mugOutline.sil, stations, mugOutline.rimZ - moldParams.handleTopDrop);
-    if (typeof pl === 'string') return { error: pl, paths: [] as [number, number][][] };
-    const local = mugOutline.sil.map(([z, u]) => worldToHandle(pl, z, u));
-    return { error: null, paths: clipPolyline(local, -MUG_MARGIN, params.winRight, params.winBottom, params.winTop) };
+    if (!mugInfo.outline) return null;
+    const pl = mugInfo.placement;
+    if (!pl) return { error: mugInfo.error, paths: [] as [number, number][][] };
+    const local = mugInfo.outline.sil.map(([z, u]) => worldToHandle(pl, z, u));
+    return { error: mugInfo.error, paths: clipPolyline(local, -MUG_MARGIN, params.winRight, params.winBottom, params.winTop) };
   })();
 
   const winW = params.winRight + MUG_MARGIN;
@@ -553,8 +547,8 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             <Toggle
               label="Show Mug"
               checked={showMug}
-              onChange={(v) => setMugPref(v)}
-              tooltip="Draw the vase from VaseMaker behind the handle (grey), placed the way the Split 2-Pc mold will put it: the top end at Top Below Rim, the bottom end where the handle's span meets the vase"
+              onChange={(v) => setView({ showMug: v })}
+              tooltip="Show the mug from VaseMaker: a grey outline here, and the main window becomes a side view of the finished mug with this handle on it — placed the way the Split 2-Pc mold will put it. Keep editing the handle here; the side view follows live"
             />
             {showMug && (
               <>

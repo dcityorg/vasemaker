@@ -48,9 +48,14 @@ export interface HandleView {
   /** Plane position along that axis, as a fraction of the model's extent
    *  (0..1). Kept normalized so it survives a resize of the handle. */
   crossPos: number;
+  /** Show the VaseMaker mug: grey outline in the profile editor, and the main
+   *  window becomes a side view of the finished mug. null = automatic (on when
+   *  the Mold tab is Split 2-Pc with its handle on). */
+  showMug: boolean | null;
 }
 
 const DEFAULT_VIEW: HandleView = {
+  showMug: null,
   showHandle: true,
   showWells: true,
   showPlate: true,
