@@ -10,6 +10,7 @@ import { LIGHTING } from '@/config/viewport';
 import { useHandleStore } from '@/store/handle-store';
 import type { VaseMesh } from '@/engine/types';
 import type { HandleMeshes } from '@/engine/handle/handle-generator';
+import { RememberCamera } from '@/components/viewport/RememberCamera';
 
 const MASTER_COLOR = '#8fa8d8';
 const WELL_COLOR = '#a8bce0';
@@ -228,6 +229,7 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
           minDistance={30}
           maxDistance={2500}
         />
+        <RememberCamera id="handle" />
       </Canvas>
 
       {/* Home — top view matching the Handle Profile editor */}

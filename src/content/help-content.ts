@@ -41,6 +41,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Scroll wheel', value: 'Zoom in/out' },
         { key: 'Right drag', value: 'Pan the view' },
       ] },
+      { type: 'tip', text: 'Each tab (Vase, Mold, Handle) remembers how you left its view. Switch tabs and come back and the vase is the same size and angle it was. A new browser tab starts from the default view.' },
       { type: 'heading', text: 'Keyboard Shortcuts' },
       { type: 'keyvalue', items: [
         { key: '\u2318Z', value: 'Undo' },

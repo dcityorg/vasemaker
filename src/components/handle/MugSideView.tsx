@@ -33,6 +33,11 @@ const MIN_PX_PER_MM = 0.5, MAX_PX_PER_MM = 40;
 /** A zoomed view: screen scale plus the drawing point (SVG units) at the window centre. */
 interface Zoom { pxPerMm: number; cx: number; cy: number }
 
+/** The exact view (scale AND pan) last shown this session — kept in module
+ *  memory so going to the Vase or Mold tab and back returns to the same view.
+ *  undefined = nothing shown yet; null = it was on auto fit. */
+let lastZoom: Zoom | null | undefined;
+
 function loadScale(): number | null {
   try {
     const v = parseFloat(localStorage.getItem(ZOOM_KEY) ?? '');
@@ -117,9 +122,12 @@ export function MugSideView() {
   useEffect(() => {
     if (restored.current || !outline || !size.w) return;
     restored.current = true;
+    if (lastZoom !== undefined) { setZoom(lastZoom); return; }
     const s = loadScale();
     if (s) setZoom({ pxPerMm: s, cx: fitCx, cy: fitCy });
   }, [outline, size.w, fitCx, fitCy]);
+
+  useEffect(() => { if (restored.current) lastZoom = zoom; }, [zoom]);
 
   if (!outline) return null;
 

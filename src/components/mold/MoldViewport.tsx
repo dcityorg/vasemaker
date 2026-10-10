@@ -15,6 +15,7 @@ import { useVaseStore } from '@/store/vase-store';
 import { useMoldStore } from '@/store/mold-store';
 import type { VaseMesh } from '@/engine/types';
 import type { AnyMoldMeshes } from '@/hooks/use-mold-meshes';
+import { RememberCamera } from '@/components/viewport/RememberCamera';
 
 const MASTER_COLOR = '#d9d2c5';
 const COTTLE_COLOR = '#7ea6d6';
@@ -223,6 +224,7 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
           minDistance={MOLD_ORBIT.minDistance}
           maxDistance={MOLD_ORBIT.maxDistance}
         />
+        <RememberCamera id="mold" />
       </Canvas>
     </div>
   );

@@ -11,6 +11,7 @@ import { CaptureRenderer } from './CaptureRenderer';
 import { CAMERA, ORBIT_CONTROLS, LIGHTING } from '@/config/viewport';
 import { useVaseStore } from '@/store/vase-store';
 import type { CaptureFormat } from '@/config/capture';
+import { RememberCamera } from '@/components/viewport/RememberCamera';
 
 interface ViewportProps {
   captureActive?: boolean;
@@ -117,6 +118,7 @@ export function Viewport({
           minDistance={ORBIT_CONTROLS.minDistance}
           maxDistance={ORBIT_CONTROLS.maxDistance}
         />
+        <RememberCamera id="vase" />
       </Canvas>
 
       {/* Capture frame overlay (HTML layer, outside Canvas) */}
