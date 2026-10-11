@@ -162,7 +162,7 @@ export function ShapeControls() {
             onChange={(e) => setBottomShape(e.target.value as ShapeType)}
             className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm min-w-0" style={{ color: UI_MUTED }}
           >
-            {SHAPE_OPTIONS.map((o) => (
+            {SHAPE_OPTIONS.filter((o) => !o.hidden || o.value === params.bottomShape).map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
@@ -184,7 +184,7 @@ export function ShapeControls() {
             onChange={(e) => setTopShape(e.target.value as ShapeType)}
             className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm min-w-0" style={{ color: UI_MUTED }}
           >
-            {SHAPE_OPTIONS.map((o) => (
+            {SHAPE_OPTIONS.filter((o) => !o.hidden || o.value === params.topShape).map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>

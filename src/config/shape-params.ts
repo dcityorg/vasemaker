@@ -14,8 +14,10 @@ export type ParamSpec = {
   step: number;
 };
 
-/** Shape dropdown options (order matches the UI) */
-export const SHAPE_OPTIONS: { value: ShapeType; label: string }[] = [
+/** Shape dropdown options (order matches the UI). `hidden` shapes are left
+ *  out of the dropdown unless a loaded design already uses one, so old files
+ *  still show their shape; the engine still draws them. */
+export const SHAPE_OPTIONS: { value: ShapeType; label: string; hidden?: boolean }[] = [
   { value: 'Astroid1', label: 'Astroid' },
   { value: 'Butterfly1', label: 'Butterfly' },
   { value: 'Cardioid1', label: 'Cardioid (sharp)' },
@@ -25,8 +27,11 @@ export const SHAPE_OPTIONS: { value: ShapeType; label: string }[] = [
   { value: 'Circle1', label: 'Circle' },
   { value: 'Cycloid1', label: 'Cycloid' },
   { value: 'Diamond1', label: 'Diamond' },
-  { value: 'Egg1', label: 'Egg 1' },
-  { value: 'Egg2', label: 'Egg 2' },
+  // Egg1 hidden 2026-10-10: |sin t|^2.5 is two eggs tip to tip, meeting AT
+  // the polar origin, so the wall touches itself along a vertical line with
+  // zero thickness (non-manifold vase, fails verify-3pc). Egg2 is a real egg.
+  { value: 'Egg1', label: 'Egg 1 (twin)', hidden: true },
+  { value: 'Egg2', label: 'Egg' },
   { value: 'Ellipse1', label: 'Ellipse' },
   { value: 'Folium1', label: 'Folium' },
   { value: 'Gear1', label: 'Gear' },
