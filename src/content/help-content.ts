@@ -479,14 +479,14 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: 'moldmaker',
     title: 'MoldMaker (Slip Casting)',
     blocks: [
-      { type: 'paragraph', text: 'MoldMaker turns your vase design into the two 3D-printable plastic parts needed to cast a plaster slip-casting mold. Click the "Mold ▸" button in the header to open it — it reads your current vase design and updates live.' },
+      { type: 'paragraph', text: 'MoldMaker turns your vase design into 3D-printable plastic parts for casting a plaster slip-casting mold. Click the "Mold ▸" button in the header to open it — it reads your current vase design and updates live. There are two styles:' },
       { type: 'keyvalue', items: [
-        { key: 'Master', value: 'A hollow positive of your vase, scaled up for clay shrinkage, with a well (slip reservoir) on top and a flanged lid with pour slots.' },
-        { key: 'Cottle', value: 'The container that holds the poured plaster while it sets. The plaster block cast between the two parts IS the finished mold.' },
+        { key: 'Pour 3-Pc', value: 'One plaster block, poured around the upside-down vase inside a shell that unclips in two halves. Proven over many pours. The vase must never get narrower going up.' },
+        { key: 'Split 2-Pc', value: 'Two plaster halves split down the middle of the vase, each poured in a throwaway tray. Necks, bellies, rolled lips and a cast-on handle are all fine. New — being tested now.' },
       ] },
-      { type: 'paragraph', text: 'One design constraint matters while you\'re still on the Vase tab: to pull out of the plaster, the master must never get narrower as it rises. Inward-curving profiles, twist, and most textures create undercuts — MoldMaker highlights them in red.' },
+      { type: 'paragraph', text: 'For Pour 3-Pc, one design constraint matters while you\'re still on the Vase tab: to pull out of the plaster, the vase must never get narrower as it rises. Inward-curving profiles, twist, and most textures create undercuts — MoldMaker highlights them in red. If your design narrows on purpose (a mug with a rolled lip, say), use Split 2-Pc.' },
       { type: 'paragraph', text: 'Full MoldMaker help — mold anatomy, every setting, the undercut check, and a printing/pouring/casting walkthrough — is on the Mold tab itself: click the ? button next to ◂ Vase.' },
-      { type: 'tip', text: 'Design with the mold in mind: keep the profile always widening (or vertical) from base to rim, skip twist, and preview with Mold ▸ early — the undercut check updates live as you edit.' },
+      { type: 'tip', text: 'Preview with Mold ▸ early — the undercut check updates live as you edit, for whichever style you pick.' },
     ],
   },
 ];

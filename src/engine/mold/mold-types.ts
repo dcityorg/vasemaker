@@ -25,6 +25,21 @@ export type PlasterType = 'pottery' | 'hydrocal' | 'hydrostone';
  */
 export type MoldStyle = 'twoPart' | 'onePiece' | 'pourTwoPiece' | 'pourThreePiece' | 'splitTwoPiece';
 
+/** The styles offered in the UI. Press 2-Pc, Pour 1-Pc and Pour 2-Pc were
+ *  HIDDEN on 2026-10-10 (Gary: too hard to get the plaster out of, and five
+ *  choices confused people). Their code stays: Pour 3-Pc is built on Pour
+ *  2-Pc's center and every style shares Press 2-Pc's helpers, and hiding is
+ *  reversible in one line. Settings that name a hidden style are moved onto
+ *  Pour 3-Pc by `retireMoldStyle`. */
+export const ACTIVE_MOLD_STYLES: readonly MoldStyle[] = ['pourThreePiece', 'splitTwoPiece'];
+
+/** Move settings that name a hidden style onto Pour 3-Pc. Returns the style
+ *  that was replaced (for a notice), or null if nothing changed. */
+export function retireMoldStyle(p: MoldParameters): { params: MoldParameters; retired: MoldStyle | null } {
+  if (ACTIVE_MOLD_STYLES.includes(p.moldStyle)) return { params: p, retired: null };
+  return { params: { ...p, moldStyle: 'pourThreePiece' }, retired: p.moldStyle };
+}
+
 export interface MoldParameters {
   /** Mold construction style — see MoldStyle. */
   moldStyle: MoldStyle;
@@ -158,7 +173,7 @@ export function mergeMoldParameters(loaded: unknown): MoldParameters {
 }
 
 export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
-  moldStyle: 'twoPart',
+  moldStyle: 'pourThreePiece',
   shrinkPercent: 12,
   masterWallThickness: 3,
   keepTexture: true,

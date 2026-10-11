@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
-import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_SETTINGS_NAME, DEFAULT_PART_COLOR } from '@/store/mold-store';
+import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_SETTINGS_NAME, DEFAULT_PART_COLOR, retiredStyleNotice } from '@/store/mold-store';
 import { useVaseStore } from '@/store/vase-store';
 import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME } from '@/store/handle-store';
 import { mergeHandleParameters, DEFAULT_HANDLE_PARAMETERS } from '@/engine/handle/handle-types';
@@ -17,7 +17,7 @@ import { generateSTL } from '@/engine/stl-export';
 import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib/image-capture';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport, type ReportPart } from '@/lib/print-report';
-import { mergeMoldParameters } from '@/engine/mold/mold-types';
+import { mergeMoldParameters, retireMoldStyle, ACTIVE_MOLD_STYLES } from '@/engine/mold/mold-types';
 import { translateMesh } from '@/engine/handle/mesh3';
 import type { AnyMoldMeshes } from '@/hooks/use-mold-meshes';
 import type { MoldParameters, MoldStyle, PlasterType } from '@/engine/mold/mold-types';
@@ -28,13 +28,16 @@ type MoldNumKey = {
   [K in keyof MoldParameters]: MoldParameters[K] extends number ? K : never;
 }[keyof MoldParameters];
 
-const MOLD_STYLE_TABS: { value: MoldStyle; label: string; tooltip: string }[] = [
+/** Every style's tab. Only ACTIVE_MOLD_STYLES are shown (see mold-types);
+ *  the rest stay defined so their labels still read right in reports. */
+const ALL_MOLD_STYLE_TABS: { value: MoldStyle; label: string; tooltip: string }[] = [
   { value: 'twoPart', label: 'Press 2-Pc', tooltip: 'Master + cottle printed separately — press the master into plaster poured in the cottle' },
   { value: 'onePiece', label: 'Pour 1-Pc', tooltip: 'Single print with the vase inverted inside — pour plaster in through the open top' },
   { value: 'pourTwoPiece', label: 'Pour 2-Pc', tooltip: 'Pour mold split in two: center piece + removable outer shell that binder-clips to its foot flange — much easier release' },
   { value: 'pourThreePiece', label: 'Pour 3-Pc', tooltip: 'Pour 2-Pc with the shell split vertically into two clip-together halves — part them sideways instead of lifting the shell off the whole block' },
-  { value: 'splitTwoPiece', label: 'Split 2-Pc', tooltip: 'Two plaster halves split through the vase, each poured in its own throwaway printed tray. The halves pull apart sideways, so the vase may narrow going up — necks, bellies, rolled rims' },
+  { value: 'splitTwoPiece', label: 'Split 2-Pc', tooltip: 'Two plaster halves split through the vase, each poured in its own throwaway printed tray. The halves pull apart sideways, so the vase may narrow going up — necks, bellies, rolled rims, cast-on handles. NEW — being tested now' },
 ];
+const MOLD_STYLE_TABS = ACTIVE_MOLD_STYLES.map((v) => ALL_MOLD_STYLE_TABS.find((t) => t.value === v)!);
 
 export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMeshes; helpOpen: boolean; onToggleHelp: () => void }) {
   const designName = useVaseStore((s) => s.designName);
@@ -77,6 +80,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   const settingsName = useMoldStore((s) => s.settingsName);
   const setParam = useMoldStore((s) => s.setParam);
   const setView = useMoldStore((s) => s.setView);
+  const styleNotice = useMoldStore((s) => s.styleNotice);
+  const setStyleNotice = useMoldStore((s) => s.setStyleNotice);
   const partColor = useMoldStore((s) => s.partColor);
   const setPartColor = useMoldStore((s) => s.setPartColor);
   const setSettingsName = useMoldStore((s) => s.setSettingsName);
@@ -255,7 +260,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
 
   /** Apply the mold half of a settings file. */
   const applyMoldOnly = (settings: unknown, baseName: string) => {
-    const loaded = mergeMoldParameters(settings);
+    const { params: loaded, retired } = retireMoldStyle(mergeMoldParameters(settings));
+    setStyleNotice(retired ? retiredStyleNotice(retired) : null);
     moldHistory.skipNextRecord();
     useMoldHistory.getState().clear();
     useMoldStore.setState({ params: loaded, savedParams: loaded, settingsName: baseName });
@@ -418,12 +424,12 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           </button>
         </div>
         <p className="text-xs text-[var(--text-secondary)]">Plaster slip-casting mold from your vase</p>
-        {/* Mold style switcher — Two-Piece (master + cottle) vs One-Piece (single pour-in print). Internal value stays 'twoPart' for settings-file compat. */}
+        {/* Mold style switcher — only ACTIVE_MOLD_STYLES (Pour 3-Pc, Split 2-Pc) since 2026-10-10. */}
         <div className="grid grid-cols-2 gap-1 mt-2">
           {MOLD_STYLE_TABS.map((tab) => (
             <button
               key={tab.value}
-              onClick={() => setParam('moldStyle', tab.value)}
+              onClick={() => { setParam('moldStyle', tab.value); setStyleNotice(null); }}
               title={tab.tooltip}
               className={`flex-1 px-2 py-1 text-xs rounded border transition-colors ${
                 params.moldStyle === tab.value
@@ -435,6 +441,12 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             </button>
           ))}
         </div>
+        {styleNotice && (
+          <p className="mt-1 text-[11px] leading-snug text-amber-300 flex gap-1">
+            <span className="flex-1">{styleNotice}</span>
+            <button onClick={() => setStyleNotice(null)} title="Dismiss" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">✕</button>
+          </p>
+        )}
         {/* Settings profile name — filled by Load/Save Settings, click to rename */}
         <div className="flex items-center gap-1 mt-0.5">
           <span className="text-xs text-[var(--text-secondary)] shrink-0">Settings File:</span>

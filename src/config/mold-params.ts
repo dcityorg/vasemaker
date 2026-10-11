@@ -13,7 +13,7 @@ export const MOLD_PARAMS = {
 
   wellWidth:      { min: 0, max: 40, step: 0.5 } as SliderRange,
   wellHeight:     { min: 0, max: 40, step: 0.5 } as SliderRange,
-  wellDraftAngle: { min: 0, max: 20, step: 0.5 } as SliderRange,
+  wellDraftAngle: { min: 0, max: 30, step: 0.5 } as SliderRange,
 
   flangeWidth:     { min: 5, max: 80, step: 1 } as SliderRange,
   flangeThickness: { min: 2, max: 15, step: 0.5 } as SliderRange,

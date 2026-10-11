@@ -13,8 +13,16 @@
  */
 
 import { create } from 'zustand';
-import type { MoldParameters } from '@/engine/mold/mold-types';
-import { DEFAULT_MOLD_PARAMETERS, mergeMoldParameters } from '@/engine/mold/mold-types';
+import type { MoldParameters, MoldStyle } from '@/engine/mold/mold-types';
+import { DEFAULT_MOLD_PARAMETERS, mergeMoldParameters, retireMoldStyle } from '@/engine/mold/mold-types';
+
+const RETIRED_LABELS: Partial<Record<MoldStyle, string>> = {
+  twoPart: 'Press 2-Pc', onePiece: 'Pour 1-Pc', pourTwoPiece: 'Pour 2-Pc',
+};
+/** The one-line notice for settings moved off a hidden style. */
+export function retiredStyleNotice(style: MoldStyle): string {
+  return `These settings were for ${RETIRED_LABELS[style] ?? style}, which is no longer offered — switched to Pour 3-Pc.`;
+}
 import { createHistory } from './history';
 
 export const DEFAULT_SETTINGS_NAME = 'mold settings';
@@ -57,6 +65,10 @@ interface MoldStore {
   view: MoldView;
   partColor: string;
   setPartColor: (color: string) => void;
+  /** Shown once when saved settings named a mold style that is now hidden and
+   *  were moved onto Pour 3-Pc. Not persisted. */
+  styleNotice: string | null;
+  setStyleNotice: (notice: string | null) => void;
   /** User-facing settings profile name — shown in the header, used as the Save Settings filename. */
   settingsName: string;
   setParam: <K extends keyof MoldParameters>(key: K, value: MoldParameters[K]) => void;
@@ -83,6 +95,8 @@ export const useMoldStore = create<MoldStore>((set, get) => ({
   params: { ...DEFAULT_MOLD_PARAMETERS },
   view: { ...DEFAULT_VIEW },
   partColor: DEFAULT_PART_COLOR,
+  styleNotice: null,
+  setStyleNotice: (notice) => set({ styleNotice: notice }),
   setPartColor: (color) => {
     set({ partColor: color });
     try {
@@ -143,15 +157,18 @@ export function hydrateMoldSettingsFromStorage(): void {
     // back to the bare defaults.
     moldHistory.skipNextRecord();
     useMoldHistory.getState().clear();
+    const { params, retired } = retireMoldStyle(mergeMoldParameters(data.params));
+    const saved = data.savedParams && typeof data.savedParams === 'object'
+      ? retireMoldStyle(mergeMoldParameters(data.savedParams)).params
+      : null;
     useMoldStore.setState({
-      params: mergeMoldParameters(data.params),
+      params,
+      styleNotice: retired ? retiredStyleNotice(retired) : null,
       settingsName:
         typeof data.settingsName === 'string' && data.settingsName.trim()
           ? data.settingsName
           : DEFAULT_SETTINGS_NAME,
-      savedParams: data.savedParams && typeof data.savedParams === 'object'
-        ? mergeMoldParameters(data.savedParams)
-        : null,
+      savedParams: saved,
     });
   } catch {
     // Corrupted entry — keep defaults; the next change overwrites it.
