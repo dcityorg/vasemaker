@@ -45,7 +45,8 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'tip', text: 'The choice is there because both answers are useful: taking the vase reopens a mold exactly as you left it, while "settings only" is how you put a mold you like onto a different vase. Your vase design file is unaffected either way — it is the one that a mold file copies FROM, never the other way round.' },
       { type: 'paragraph', text: 'Save Settings writes two files: the «name».json profile, and a «name».txt bench sheet with the plaster batch (powder, water, mix ratio) and the printer-fit numbers, so you can size a batch at the bench without opening the app. Your browser asks for each file separately — the second dialog opens in the same folder with the name already filled in, so it is one extra Save click. Skipping it costs nothing; the settings are already written. HandleMaker saves the same pair.' },
-      { type: 'paragraph', text: 'Until you name the profile yourself, the Settings File name follows your VASE design name, so the .json and .txt land beside the STL exports rather than under a generic name. Click it to rename whenever you want a profile that outlives one design.' },
+      { type: 'paragraph', text: 'If the vase — or, for a Split 2-Pc with its handle on, the handle — has unsaved changes, Save Settings first asks whether to save those too, with the unsaved ones ticked. Each is saved as its own file under its OWN name (the one on the Vase or Handle tab), then the mold, so one click leaves everything on disk. Nothing unsaved means no question.' },
+      { type: 'paragraph', text: 'Until you name the profile yourself, the Settings File name is your VASE design name plus "mold" ("Tumbler 3 mold"), so the .json and .txt land beside the STL exports and never overwrite the vase\'s own Tumbler 3.json. Click it to rename whenever you want a profile that outlives one design.' },
       { type: 'paragraph', text: 'Reset Mold Settings returns every setting to its default but keeps you on the mold style you are working in.' },
       { type: 'paragraph', text: 'The Settings File name in the header is used as the save filename — click it to rename, and it fills in automatically when you load or save a settings file. Settings files contain only the mold settings, never the vase: the vase design has its own Save Design file on the Vase tab.' },
       { type: 'paragraph', text: 'Mouse controls match the vase viewport: left-drag rotates, scroll zooms, right-drag pans. Hover any slider or toggle for a tooltip.' },
@@ -74,6 +75,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'heading', text: 'The Plaster (view only)' },
       { type: 'paragraph', text: 'The Plaster view toggle shows the block that will form between the two parts — it isn\'t exported, it\'s a preview of your finished mold. Combine it with Cross-section to see the cavity, the well funnel, and the wall thicknesses exactly as they\'ll cast.' },
+      { type: 'tip', text: 'View → Color changes the preview colour of the main part (master, center, mold or trays) — handy when the default off-white is hard to look at. The shell stays blue. It is remembered in this browser and is not part of a settings file; Reset beside it puts the default back. Avoid a red, since undercuts are shown in red.' },
     ],
   },
 

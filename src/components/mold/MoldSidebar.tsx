@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
-import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_SETTINGS_NAME } from '@/store/mold-store';
+import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_SETTINGS_NAME, DEFAULT_PART_COLOR } from '@/store/mold-store';
 import { useVaseStore } from '@/store/vase-store';
 import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME } from '@/store/handle-store';
 import { mergeHandleParameters, DEFAULT_HANDLE_PARAMETERS } from '@/engine/handle/handle-types';
@@ -77,6 +77,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   const settingsName = useMoldStore((s) => s.settingsName);
   const setParam = useMoldStore((s) => s.setParam);
   const setView = useMoldStore((s) => s.setView);
+  const partColor = useMoldStore((s) => s.partColor);
+  const setPartColor = useMoldStore((s) => s.setPartColor);
   const setSettingsName = useMoldStore((s) => s.setSettingsName);
   const handleName = useHandleStore((s) => s.settingsName);
   /** The handle has changes not in any file. The handle store keeps no dirty
@@ -96,8 +98,14 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
    * Name used for the settings + bench-sheet files. Until the user names the
    * profile themselves it follows the VASE design name, so Save Settings lands
    * beside the STL exports instead of a generic "mold settings" (Gary, 2026-07-30).
+   * With " mold" on the end (2026-10-10): the vase's own file is «vase».json, and
+   * once Save Settings can save the vase too, the two would overwrite each other.
    */
-  const fileName = (settingsName === DEFAULT_SETTINGS_NAME && designName ? designName : settingsName) || DEFAULT_SETTINGS_NAME;
+  const moldFileName = (vaseName: string | null) =>
+    (settingsName === DEFAULT_SETTINGS_NAME && vaseName ? `${vaseName} mold` : settingsName) || DEFAULT_SETTINGS_NAME;
+  const fileName = moldFileName(designName);
+  /** Save Settings' "also save the vase / handle?" box — which boxes are ticked. */
+  const [saveAll, setSaveAll] = useState<{ vase: boolean; handle: boolean } | null>(null);
 
   const exportMesh = async (mesh: VaseMesh, name: string) => {
     const buffer = generateSTL(mesh);
@@ -177,7 +185,32 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     ];
   };
 
-  const handleSaveSettings = async () => {
+  /** Save Settings. When the vase (or the handle this mold uses) has unsaved
+   *  changes, first offer to save those too, so one click leaves everything on
+   *  disk. Each design is saved under its OWN name — the mold's name would make
+   *  all three «name».json and they would overwrite each other. */
+  const handleSaveSettings = () => {
+    const vaseUnsaved = vaseDirty;
+    const handleUnsaved = usesHandle && handleDirty;
+    if (vaseUnsaved || handleUnsaved) setSaveAll({ vase: vaseUnsaved, handle: handleUnsaved });
+    else void saveMoldFiles();
+  };
+
+  /** Run the ticked saves, then the mold. The vase and handle go FIRST so the
+   *  mold file records the names they were actually saved under (Chrome can
+   *  rename in its dialog). Cancelling any dialog stops the rest. */
+  const runSaveAll = async (choice: { vase: boolean; handle: boolean }) => {
+    setSaveAll(null);
+    if (choice.vase && !(await saveCurrentVase())) return;
+    if (choice.handle && !(await saveCurrentHandle())) return;
+    await saveMoldFiles();
+  };
+
+  const saveMoldFiles = async () => {
+    // Read the names fresh: a save just before this may have renamed them.
+    const designName = useVaseStore.getState().designName;
+    const handleName = useHandleStore.getState().settingsName;
+    const fileName = moldFileName(designName);
     // The vase is EMBEDDED, not referenced (2026-08-09). A mold is derived from
     // a vase — the master IS the vase, scaled — so mold settings alone can never
     // reproduce a mold. Before this, reopening a mold file a day later silently
@@ -607,6 +640,20 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           )}
           <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} />
           {!isSplit && <Toggle label="Cross-section" checked={view.crossSection} onChange={(v) => setView({ crossSection: v })} tooltip="Slice the assembly to reveal the plaster, well, and cavity" />}
+          {/* Same control as the vase's Appearance → Color. Colours the main
+              part only; the shell keeps its blue so the two stay distinct. */}
+          <div className="flex items-center gap-3 mb-2">
+            <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Preview colour of the main part (master, center, mold or trays). The shell stays blue. Undercuts still show red, so avoid a red here">Color</label>
+            <input
+              type="color"
+              value={partColor}
+              onChange={(e) => setPartColor(e.target.value)}
+              className="w-8 h-8 rounded cursor-pointer border border-[var(--border-color)] bg-transparent p-0"
+            />
+            {partColor !== DEFAULT_PART_COLOR && (
+              <button onClick={() => setPartColor(DEFAULT_PART_COLOR)} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Back to the default colour">Reset</button>
+            )}
+          </div>
           <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals. Smooth shading averages across a V ridge's three faces and renders the sharp apex as a rounded tube — flat shading gives it a crease and puts a hard shadow line in each groove" />
           {(mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece') && (
             <Toggle label="Ghost Shell" checked={view.ghostShell} onChange={(v) => setView({ ghostShell: v })} tooltip="Draw the shell translucent to see how the whole assembly fits together. Opaque is clearer for inspecting the flange features — stacked transparent surfaces sort badly at the seam" />
@@ -860,6 +907,38 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           </button>
         </div>
       </div>
+
+      {saveAll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg p-5 max-w-md mx-4 shadow-xl">
+            <p className="text-sm text-[var(--text-primary)] mb-1 font-medium">Save the designs too?</p>
+            <p className="text-xs text-[var(--text-secondary)] mb-3">
+              Each is saved as its own file under its own name, then the mold.
+            </p>
+            {([
+              ['vase', 'Vase', designName || 'vase-design', vaseDirty, true],
+              ['handle', 'Handle', handleName, handleDirty, usesHandle],
+            ] as const).map(([key, label, name, dirty, show]) => show && (
+              <label key={key} className="flex items-center gap-2 text-xs text-[var(--text-secondary)] mb-1.5 cursor-pointer">
+                <input type="checkbox" checked={saveAll[key]}
+                  onChange={(e) => setSaveAll({ ...saveAll, [key]: e.target.checked })} />
+                {label} <span className="text-[var(--text-primary)]">{name}</span>
+                <span className={dirty ? 'text-amber-300' : 'opacity-70'}>{dirty ? '(unsaved changes)' : '(saved, no changes)'}</span>
+              </label>
+            ))}
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => runSaveAll(saveAll)}
+                className="flex-1 px-3 py-1.5 text-xs bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded transition-colors">
+                Save
+              </button>
+              <button onClick={() => setSaveAll(null)}
+                className="flex-1 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] text-[var(--text-secondary)] transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Undercut warning dialog */}
       {/* "This mold was saved with a different vase / handle" — only ever shown

@@ -46,9 +46,17 @@ const DEFAULT_VIEW: MoldView = {
   showUndercuts: true,
 };
 
+/** Preview colour of the main part (master / center / mold / trays). A view
+ *  preference like the vase's Color: remembered per browser, never in a
+ *  settings file, untouched by Reset. */
+export const DEFAULT_PART_COLOR = '#d9d2c5';
+const COLOR_KEY = 'vasemaker-mold-color';
+
 interface MoldStore {
   params: MoldParameters;
   view: MoldView;
+  partColor: string;
+  setPartColor: (color: string) => void;
   /** User-facing settings profile name — shown in the header, used as the Save Settings filename. */
   settingsName: string;
   setParam: <K extends keyof MoldParameters>(key: K, value: MoldParameters[K]) => void;
@@ -74,6 +82,14 @@ export const useMoldHistory = moldHistory.useHistoryStore;
 export const useMoldStore = create<MoldStore>((set, get) => ({
   params: { ...DEFAULT_MOLD_PARAMETERS },
   view: { ...DEFAULT_VIEW },
+  partColor: DEFAULT_PART_COLOR,
+  setPartColor: (color) => {
+    set({ partColor: color });
+    try {
+      if (color === DEFAULT_PART_COLOR) window.localStorage.removeItem(COLOR_KEY);
+      else window.localStorage.setItem(COLOR_KEY, color);
+    } catch { /* not remembered */ }
+  },
   settingsName: DEFAULT_SETTINGS_NAME,
   setParam: (key, value) =>
     set((state) => ({ params: { ...state.params, [key]: value } })),
@@ -115,6 +131,10 @@ let hydrated = false;
 export function hydrateMoldSettingsFromStorage(): void {
   if (hydrated || typeof window === 'undefined') return;
   hydrated = true;
+  try {
+    const c = window.localStorage.getItem(COLOR_KEY);
+    if (c && /^#[0-9a-f]{6}$/i.test(c)) useMoldStore.setState({ partColor: c });
+  } catch { /* keep the default colour */ }
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return;

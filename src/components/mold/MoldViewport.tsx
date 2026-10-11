@@ -17,7 +17,6 @@ import type { VaseMesh } from '@/engine/types';
 import type { AnyMoldMeshes } from '@/hooks/use-mold-meshes';
 import { RememberCamera } from '@/components/viewport/RememberCamera';
 
-const MASTER_COLOR = '#d9d2c5';
 const COTTLE_COLOR = '#7ea6d6';
 const PLASTER_COLOR = '#e7dfca';
 const UNDERCUT_COLOR = new THREE.Color('#ff2b2b');
@@ -144,6 +143,7 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
   const radius = useVaseStore((s) => s.params.radius);
   const height = useVaseStore((s) => s.params.height);
   const view = useMoldStore((s) => s.view);
+  const partColor = useMoldStore((s) => s.partColor);
 
   const clipPlanes = useMemo(() => [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)], []);
   // Split 2-Pc lays its trays out side by side, so a slice through y = 0 cuts nothing.
@@ -156,7 +156,7 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
     : mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece' ? mold.center
     : mold.style === 'splitTwoPiece' ? mold.trays
     : mold.mold;
-  const masterGeo = useGeometry(mainMesh, view.showUndercuts ? mold.undercutFlags : undefined, view.showUndercuts ? MASTER_COLOR : undefined);
+  const masterGeo = useGeometry(mainMesh, view.showUndercuts ? mold.undercutFlags : undefined, view.showUndercuts ? partColor : undefined);
   const cottleGeo = useGeometry(
     mold.style === 'twoPart' ? mold.cottle
     : mold.style === 'pourTwoPiece' ? mold.shell
@@ -206,7 +206,7 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
         {view.showMaster && masterGeo && (
           <Part
             geometry={masterGeo}
-            color={MASTER_COLOR}
+            color={partColor}
             flat={view.flatShading}
             opacity={1}
             clip={clip}
