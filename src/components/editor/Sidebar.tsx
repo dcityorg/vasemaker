@@ -10,6 +10,7 @@ import { generateSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
 import { UI_MUTED } from '@/config/colors';
 import { saveDesignFile, openDesignFile, saveSTLFile } from '@/lib/image-capture';
+import { dcCountExport } from '@/lib/analytics';
 import { CAPTURE_SIZE_PRESETS, CUSTOM_SIZE_INDEX } from '@/config/capture';
 import type { CaptureFormat } from '@/config/capture';
 
@@ -100,7 +101,7 @@ export function Sidebar({
     const stlName = designName ? `${designName}.stl` : 'vasemaker-export.stl';
     const buffer = generateSTL(mesh);
     const blob = new Blob([buffer], { type: 'application/octet-stream' });
-    await saveSTLFile(blob, stlName);
+    if (await saveSTLFile(blob, stlName)) dcCountExport();
   };
 
   const handleSaveDesign = async () => {
@@ -203,7 +204,7 @@ export function Sidebar({
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.41.1</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.42.0</p>
         <div className="flex items-center gap-1 mt-0.5">
           <span className="text-xs text-[var(--text-secondary)] shrink-0">Design Name:</span>
           {editingName ? (

@@ -208,8 +208,10 @@ export async function openDesignFile(): Promise<{ name: string; text: string } |
 /**
  * Save an STL blob using the File System Access API with directory memory.
  * Falls back to anchor download if API not available or user cancels.
+ * Resolves false only when the user cancelled the save dialog (so a cancelled
+ * export isn't counted as one); an anchor download can't report that, so it's true.
  */
-export async function saveSTLFile(blob: Blob, filename: string): Promise<void> {
+export async function saveSTLFile(blob: Blob, filename: string): Promise<boolean> {
   if ('showSaveFilePicker' in window) {
     try {
       const handle = await (window as unknown as PickerWindow).showSaveFilePicker({
@@ -224,11 +226,12 @@ export async function saveSTLFile(blob: Blob, filename: string): Promise<void> {
       const writable = await handle.createWritable();
       await writable.write(blob);
       await writable.close();
-      return;
+      return true;
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return;
+      if (err instanceof DOMException && err.name === 'AbortError') return false;
       console.warn('[ExportSTL] showSaveFilePicker failed, falling back to anchor:', err);
     }
   }
   anchorDownload(blob, filename);
+  return true;
 }

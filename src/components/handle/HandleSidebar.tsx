@@ -12,6 +12,7 @@ import { PLASTER_MATERIALS } from '@/config/mold-params';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import { generateSTL } from '@/engine/stl-export';
 import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib/image-capture';
+import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
 import { mergeHandleParameters } from '@/engine/handle/handle-types';
@@ -91,10 +92,12 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   const nameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const exportMesh = async (mesh: VaseMesh, lift: number, part: string) => {
+  /** `count`: only the handle master counts as an export (DCity/ANALYTICS.md §2 —
+   *  one event per design, not per file), so plate, wall and the B parts pass false. */
+  const exportMesh = async (mesh: VaseMesh, lift: number, part: string, count = false) => {
     const positioned = lift !== 0 ? translateMesh(mesh, 0, 0, lift) : mesh;
     const blob = new Blob([generateSTL(positioned)], { type: 'application/octet-stream' });
-    await saveSTLFile(blob, `${settingsName || 'handle'} ${part}.stl`);
+    if ((await saveSTLFile(blob, `${settingsName || 'handle'} ${part}.stl`)) && count) dcCountExport();
   };
 
   // ── Settings files (the full handle design + mold settings) ──
@@ -401,7 +404,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           <div className="border-t-[3px] border-[#555] pt-2 flex flex-col gap-2">
             <div className="flex gap-2">
               <button
-                onClick={() => exportMesh(handle.master, handle.layout.masterLift, handle.masterB ? 'handle A' : 'handle')}
+                onClick={() => exportMesh(handle.master, handle.layout.masterLift, handle.masterB ? 'handle A' : 'handle', true)}
                 className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors"
                 style={{ color: UI_MUTED }}
                 title="Export the half-handle master (prints flat side down, no supports)"

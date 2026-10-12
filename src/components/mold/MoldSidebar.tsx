@@ -15,6 +15,7 @@ import { MOLD_PARAMS, PLASTER_MATERIALS } from '@/config/mold-params';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import { generateSTL } from '@/engine/stl-export';
 import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib/image-capture';
+import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport, type ReportPart } from '@/lib/print-report';
 import { mergeMoldParameters, retireMoldStyle, ACTIVE_MOLD_STYLES } from '@/engine/mold/mold-types';
@@ -112,10 +113,12 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   /** Save Settings' "also save the vase / handle?" box — which boxes are ticked. */
   const [saveAll, setSaveAll] = useState<{ vase: boolean; handle: boolean } | null>(null);
 
-  const exportMesh = async (mesh: VaseMesh, name: string) => {
+  /** `count`: only the main part counts as an export (DCity/ANALYTICS.md §2 — one
+   *  event per mold, not per file), so shells, cottle and tray B pass false. */
+  const exportMesh = async (mesh: VaseMesh, name: string, count = false) => {
     const buffer = generateSTL(mesh);
     const blob = new Blob([buffer], { type: 'application/octet-stream' });
-    await saveSTLFile(blob, name);
+    if ((await saveSTLFile(blob, name)) && count) dcCountExport();
   };
 
   // Both pour-and-clip styles share every label, slider and stat below.
@@ -131,12 +134,12 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   // Main export: the part carrying the vase form — gated by the undercut warning.
   const doExportMain = () => {
     if (mold.style === 'splitTwoPiece') {
-      if (splitTarget.current === 'A') exportMesh(mold.trayA, stlName('split A'));
+      if (splitTarget.current === 'A') exportMesh(mold.trayA, stlName('split A'), true);
       else exportMesh(mold.trayB, stlName('split B'));
     }
-    else if (mold.style === 'onePiece') exportMesh(mold.mold, stlName('mold'));
-    else if (mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece') exportMesh(mold.center, stlName('center'));
-    else exportMesh(mold.master, stlName('master'));
+    else if (mold.style === 'onePiece') exportMesh(mold.mold, stlName('mold'), true);
+    else if (mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece') exportMesh(mold.center, stlName('center'), true);
+    else exportMesh(mold.master, stlName('master'), true);
   };
   const handleExportMain = (target: 'A' | 'B' = 'A') => {
     splitTarget.current = target;
