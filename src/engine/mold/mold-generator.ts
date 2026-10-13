@@ -156,6 +156,26 @@ export function buildCavityRings(rings: Ring[], centers: [number, number][], rRe
   return out;
 }
 
+/**
+ * A lip that curls INWARD tilts its profile normal up, so the normal-offset
+ * cavity ends BELOW the rim and only part of a wall inside it (measured 1.3 mm
+ * of a 3 mm wall on Gary's mug) — and the straight rise from there to the well
+ * floor leaves a thin wall across the rim corner. Pull every cavity point in the
+ * top `2·wt` in to at least `wt` inside the rim, radially per azimuth. Only ever
+ * moves the cavity INWARD, i.e. only adds material. Mutates `cavity`.
+ */
+export function clampCavityUnderRim(cavity: Ring[], topRing: Ring, tcx: number, tcy: number, hTop: number, wt: number, rRes: number): void {
+  for (const ring of cavity) {
+    for (let t = 0; t < rRes; t++) {
+      if (ring[t * 3 + 2] < hTop - 2 * wt) continue;
+      const dx = ring[t * 3] - tcx, dy = ring[t * 3 + 1] - tcy;
+      const r = Math.hypot(dx, dy);
+      const rLim = Math.hypot(topRing[t * 3] - tcx, topRing[t * 3 + 1] - tcy) - wt;
+      if (r > rLim && r > 1e-9) { ring[t * 3] = tcx + (dx * rLim) / r; ring[t * 3 + 1] = tcy + (dy * rLim) / r; }
+    }
+  }
+}
+
 /** Widest horizontal extent of a mesh — diameter of the enclosing circle about the XY bounding-box center. */
 export function maxDiameterXY(mesh: VaseMesh): number {
   const p = mesh.positions;

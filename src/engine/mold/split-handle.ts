@@ -153,7 +153,7 @@ export function surfaceLookup(arcs: Arc[], F: number, ySign: number): (z: number
 
 /** Solid half cross-section: half-ellipse (in-plane half-width a, height b)
  *  over a skirt `seat` deep into the floor. Closed CCW in (u, h). */
-function halfProfile(a: number, b: number, seat: number, seg: number): P2[] {
+export function halfProfile(a: number, b: number, seat: number, seg: number): P2[] {
   const pts: P2[] = [];
   for (let j = 0; j <= seg; j++) {
     const th = (j / seg) * Math.PI;
@@ -164,7 +164,58 @@ function halfProfile(a: number, b: number, seat: number, seg: number): P2[] {
   return pts;
 }
 
+/**
+ * Hollow half cross-section (HandleMaker's channel): the solid profile shelled
+ * to `t`, OPEN along the bottom — both shell walls run down to −seat and the
+ * space between them is void. Point 0 and point `seg` are still the strap's
+ * outer edges at the parting plane, as in `halfProfile`.
+ */
+export function channelProfile(a: number, b: number, seat: number, seg: number, t: number): P2[] {
+  const ai = a - t, bi = b - t;
+  const pts: P2[] = [];
+  for (let j = 0; j <= seg; j++) {
+    const th = (j / seg) * Math.PI;
+    pts.push([Math.cos(th) * a, Math.sin(th) * b]);
+  }
+  pts.push([-a, -seat], [-ai, -seat]);
+  for (let j = seg; j >= 0; j--) {
+    const th = (j / seg) * Math.PI;
+    pts.push([Math.cos(th) * ai, Math.sin(th) * bi]);
+  }
+  pts.push([ai, -seat], [a, -seat]);
+  return pts;
+}
+
 interface Frame { cx: number; cy: number; ux: number; uy: number }
+
+/**
+ * Sweep another profile over the same frames as `sw`, at fractional frame
+ * indices (the u-axis is renormalised after the lerp). Used for the hollow
+ * strap and its pull-ribs, which must follow the solid sweep exactly.
+ */
+export function resweep(
+  sw: HandleSweep, pl: HandlePlacement, profile: P2[], at: number[],
+): HandleSweep {
+  const F = sw.frames;
+  const frameAt = (fi: number): Frame => {
+    const i0 = Math.max(0, Math.min(F.length - 1, Math.floor(fi)));
+    const i1 = Math.min(F.length - 1, i0 + 1);
+    const t = Math.max(0, Math.min(1, fi - i0));
+    const a = F[i0], b = F[i1];
+    let ux = a.ux + (b.ux - a.ux) * t, uy = a.uy + (b.uy - a.uy) * t;
+    const L = Math.hypot(ux, uy) || 1;
+    ux /= L; uy /= L;
+    return { cx: a.cx + (b.cx - a.cx) * t, cy: a.cy + (b.cy - a.cy) * t, ux, uy };
+  };
+  const rings = at.map((fi) => {
+    const f = frameAt(fi);
+    return profile.map(([pu, ph]) => {
+      const [z, u] = handleToWorld(pl, f.cx + f.ux * pu, f.cy + f.uy * pu);
+      return [z, u, ph] as [number, number, number];
+    });
+  });
+  return { ...sw, rings, profile };
+}
 
 export interface HandleSweep {
   /** Rings of (z, u, h) — world split-plane coords + height above the parting plane. */
@@ -172,6 +223,11 @@ export interface HandleSweep {
   profile: P2[];
   /** Half-handle volume of the VISIBLE part (station run only), mm³. */
   volume: number;
+  /** The sweep frames (handle space) and where the visible station run sits in them. */
+  frames: { cx: number; cy: number; ux: number; uy: number }[];
+  stationFirst: number;
+  /** Cumulative arc length along the station run, one entry per station. */
+  stationArc: number[];
 }
 
 /**
@@ -231,9 +287,10 @@ export function sweepHandle(
     const [z, u] = handleToWorld(pl, f.cx + f.ux * pu, f.cy + f.uy * pu);
     return [z, u, ph] as [number, number, number];
   }));
-  let len = 0;
-  for (let i = 1; i < stations.length; i++) len += Math.hypot(stations[i].x - stations[i - 1].x, stations[i].y - stations[i - 1].y);
-  return { rings, profile, volume: (Math.PI * hw * ht / 2) * len };
+  const stationArc = [0];
+  for (let i = 1; i < stations.length; i++) stationArc.push(stationArc[i - 1] + Math.hypot(stations[i].x - stations[i - 1].x, stations[i].y - stations[i - 1].y));
+  const len = stationArc[stationArc.length - 1];
+  return { rings, profile, volume: (Math.PI * hw * ht / 2) * len, frames, stationFirst: extA.length, stationArc };
 }
 
 /** Mesh a sweep through a print-space map. Caps are triangulated in profile-

@@ -29,7 +29,7 @@ export interface MugPlacement {
 /** Just the on/off decision — for callers that only switch views. */
 export function useShowMug(): boolean {
   const viewPref = useHandleStore((s) => s.view.showMug);
-  const auto = useMoldStore((s) => s.params.moldStyle === 'splitTwoPiece' && s.params.splitHandle);
+  const auto = useMoldStore((s) => (s.params.moldStyle === 'splitTwoPiece' || s.params.moldStyle === 'splitHalves') && s.params.splitHandle);
   return viewPref ?? auto;
 }
 

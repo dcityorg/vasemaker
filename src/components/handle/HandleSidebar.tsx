@@ -121,7 +121,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
       ],
       material: params.material,
       plasterVolumeMm3: handle.plasterVolumeMm3,
-      volumeLabel: 'Volume (both halves)',
+      bothHalves: true,
       parts: [
         { label: 'Plate', note: handle.isSymmetric ? 'pour twice' : 'A + B', rows: [
           { label: 'footprint', value: `${dim(L.plateW)} x ${dim(L.plateD)}` },
@@ -680,8 +680,8 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               </select>
             </div>
             <StatRow label="Plaster (both halves)" value={`≈ ${est.volumeCm3.toFixed(0)} cm³`} />
-            <StatRow label="Powder" value={`≈ ${fmt(est.powderGrams)} g`} />
-            <StatRow label="Water" value={`≈ ${fmt(est.waterGrams)} g`} />
+            <StatRow label="Powder (both halves)" value={`≈ ${fmt(est.powderGrams)} g`} />
+            <StatRow label="Water (both halves)" value={`≈ ${fmt(est.waterGrams)} g`} />
           </Section>
           <Section title="Printer Fit" titleColor={GROUP_COLORS.settings}>
             <StatRow label="Plate" value={`${handle.layout.plateW.toFixed(0)} × ${handle.layout.plateD.toFixed(0)} mm`} tooltip="Plate footprint — the biggest part; compare to your printer bed" />

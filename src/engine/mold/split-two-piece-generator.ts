@@ -31,7 +31,7 @@
 import type { VaseParameters, VaseMesh } from '../types';
 import { computeMeshStats, MeshStats } from '../mesh-stats';
 import { offsetRingRadial, mergeMeshes, Ring } from './ring-mesh';
-import { tanDeg, prepareVaseParams, buildOuterRings, buildCavityRings } from './mold-generator';
+import { tanDeg, prepareVaseParams, buildOuterRings, buildCavityRings, clampCavityUnderRim } from './mold-generator';
 import { ShapeUtils, Vector2 } from 'three';
 import { MeshBuilder, ensureOutward, triangulateFace, translateMesh, boxSolid, circlePoints, weldMesh, type P2 } from '../handle/mesh3';
 import { buildDome } from '../handle/mold-parts';
@@ -101,9 +101,9 @@ export interface SplitTwoPieceMoldMeshes {
 }
 
 /** One half-ring: N+1 points from split plane to split plane, in print space. */
-type Arc = [number, number, number][];
+export type Arc = [number, number, number][];
 
-interface HalfFrame { sx: number; sy: number; px: number; py: number }
+export interface HalfFrame { sx: number; sy: number; px: number; py: number }
 
 /**
  * Cut a closed ring by the split plane and return the arc on the +pull side,
@@ -115,7 +115,7 @@ interface HalfFrame { sx: number; sy: number; px: number; py: number }
  * dips through the plane near the seam stays IN the arc (and gets flagged as
  * an undercut) instead of cutting the arc short.
  */
-function cutArc(ring: Ring, rRes: number, cx: number, cy: number, f: HalfFrame, F: number, n: number): Arc | null {
+export function cutArc(ring: Ring, rRes: number, cx: number, cy: number, f: HalfFrame, F: number, n: number): Arc | null {
   const h = new Float64Array(rRes);
   let tMin = 0;
   for (let t = 0; t < rRes; t++) {
@@ -169,7 +169,7 @@ function cutArc(ring: Ring, rRes: number, cx: number, cy: number, f: HalfFrame, 
  * to `loop()` below are those traversals, not guesses); ensureOutward then only
  * has to choose the global sign.
  */
-function buildRelief(outer: Arc[], inner: Arc[]): VaseMesh {
+export function buildRelief(outer: Arc[], inner: Arc[]): VaseMesh {
   const b = new MeshBuilder();
   const P: [number, number, number][] = [];
   const v = (p: [number, number, number]) => { P.push(p); return b.vertex(p[0], p[1], p[2]); };
@@ -231,7 +231,7 @@ function buildRelief(outer: Arc[], inner: Arc[]): VaseMesh {
 
 /** Floor slab: rect with the relief hole through it and natch pockets carved
  *  into its top face (inverted spherical caps — they mould the plaster bumps). */
-function buildFloor(rect: [number, number, number, number], hole: P2[], pockets: P2[], a: number, h: number, F: number): VaseMesh {
+export function buildFloor(rect: [number, number, number, number], hole: P2[], pockets: P2[], a: number, h: number, F: number): VaseMesh {
   const b = new MeshBuilder();
   const [x0, y0, x1, y1] = rect;
   const outerLoop: P2[] = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
@@ -288,7 +288,7 @@ function buildFloor(rect: [number, number, number, number], hole: P2[], pockets:
 }
 
 /** Area of a half-section (arc closed by its chord on the parting plane), in (Y, Z−F). */
-function halfSectionArea(arc: Arc, F: number): number {
+export function halfSectionArea(arc: Arc, F: number): number {
   let s = 0;
   for (let k = 0; k < arc.length; k++) {
     const [, y1, z1] = arc[k], [, y2, z2] = arc[(k + 1) % arc.length];
@@ -302,7 +302,7 @@ function halfSectionArea(arc: Arc, F: number): number {
  * any outer-surface normal pointing DOWN (toward the parting face) locks into
  * the plaster. Points that dip below the parting face are locked outright.
  */
-function undercutOf(outer: Arc[], F: number): Float32Array {
+export function undercutOf(outer: Arc[], F: number): Float32Array {
   const rows = outer.length, n = outer[0].length - 1;
   const out = new Float32Array(rows * (n + 1));
   const mid = Math.floor(n / 2);
@@ -379,13 +379,16 @@ export function generateSplitTwoPieceMold(
   const ledgeRing = offsetRingRadial(topRing, tcx, tcy, mold.wellWidth, hTop, rRes);
   const wellTopRing = offsetRingRadial(topRing, tcx, tcy, wellOuterDelta, wellTopZ, rRes);
   const wellEmbRing = offsetRingRadial(topRing, tcx, tcy, wellOuterDelta + EMBED * draftTan, wellTopZ + EMBED, rRes);
-  const outerRings: Ring[] = [...outerStack.rings, ledgeRing, wellTopRing, wellEmbRing];
+  // Width 0: the ledge ring IS the top ring — repeating it makes a degenerate strip.
+  const outerRings: Ring[] = [...outerStack.rings, ...(mold.wellWidth > 1e-3 ? [ledgeRing] : []), wellTopRing, wellEmbRing];
 
   // Skin: profile-normal offset of the body (full thickness on shoulders),
   // then the same rise-and-run under the ledge the master uses.
   let innerStart = topIdx;
   for (let v = 0; v <= topIdx; v++) if (outerStack.heights[v] >= skin) { innerStart = v; break; }
   const cavity = buildCavityRings(outerStack.rings, outerStack.centers, rRes, innerStart, topIdx, skin);
+  // Inward-curling lips leave a thin rim corner otherwise (see the helper).
+  clampCavityUnderRim(cavity, topRing, tcx, tcy, hTop, skin, rRes);
   const floorTopZ = Math.min(hTop + skin, wellTopZ);
   const cavTop = cavity[cavity.length - 1];
   const riseRing = new Float32Array(cavTop);
@@ -393,7 +396,9 @@ export function generateSplitTwoPieceMold(
   const flatRing = offsetRingRadial(ledgeRing, tcx, tcy, -skin, floorTopZ, rRes);
   const wellInnerTop = offsetRingRadial(topRing, tcx, tcy, wellOuterDelta - skin, wellTopZ, rRes);
   const wellInnerEmb = offsetRingRadial(topRing, tcx, tcy, wellOuterDelta - skin + EMBED * draftTan, wellTopZ + EMBED, rRes);
-  const innerRings: Ring[] = [...cavity, riseRing, flatRing, wellInnerTop, wellInnerEmb];
+  // With no ledge (Width 0) the clamped rise ring already sits at rim − skin,
+  // so flatRing would repeat it (an all-degenerate strip) — leave it out.
+  const innerRings: Ring[] = [...cavity, riseRing, ...(mold.wellWidth > 1e-3 ? [flatRing] : []), wellInnerTop, wellInnerEmb];
 
   // ── Split plane: through the base center, along seamAngle. ──
   const [c0x, c0y] = outerStack.centers[0];

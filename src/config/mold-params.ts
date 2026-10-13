@@ -46,6 +46,13 @@ export const MOLD_PARAMS = {
   natchHeight:         { min: 0.5, max: 3, step: 0.1 } as SliderRange,
   handleTopDrop:       { min: 0, max: 80, step: 0.5 } as SliderRange,
   castWallThickness:   { min: 1.5, max: 8, step: 0.1 } as SliderRange,
+
+  halvesSeatDepth:      { min: 1, max: 8, step: 0.5 } as SliderRange,
+  halvesFitClearance:   { min: 0, max: 0.6, step: 0.05 } as SliderRange,
+  halvesPlateFloor:     { min: 2, max: 10, step: 0.2 } as SliderRange,
+  halvesWallThickness:  { min: 2, max: 8, step: 0.5 } as SliderRange,
+  halvesFlangeWidth:    { min: 10, max: 30, step: 0.5 } as SliderRange,
+  halvesWellSeal:       { min: 1, max: 10, step: 0.5 } as SliderRange,
 } as const;
 
 /**

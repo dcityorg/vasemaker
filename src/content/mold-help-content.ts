@@ -12,15 +12,16 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     id: 'mold-quick-start',
     title: 'Quick Start',
     blocks: [
-      { type: 'paragraph', text: 'MoldMaker turns your current vase design into 3D-printable plastic parts for making a plaster drain mold for slip casting. You print the parts, pour plaster into them, and the plaster that sets IS your working mold. Pick a style with the two tabs at the top of the sidebar:' },
+      { type: 'paragraph', text: 'MoldMaker turns your current vase design into 3D-printable plastic parts for making a plaster drain mold for slip casting. You print the parts, pour plaster into them, and the plaster that sets IS your working mold. Pick a style with the tabs at the top of the sidebar:' },
       { type: 'keyvalue', items: [
         { key: 'Pour 3-Pc', value: 'One plaster block. The vase stands upside down on a printed center piece inside a shell that unclips in two halves. Proven over many pours, and the one to use whenever the vase never gets narrower going up.' },
-        { key: 'Split 2-Pc', value: 'Two plaster halves that split down the middle of the vase, each poured in its own throwaway printed tray. Use it when the vase narrows going up — a neck, a belly, a rolled lip — or to cast a handle on with the mug. New, and being tested now.' },
+        { key: 'Split 2-Pc', value: 'Two plaster halves that split down the middle of the vase, each poured in its own throwaway printed tray. Use it when the vase narrows going up — a neck, a belly, a rolled lip — or to cast a handle on with the mug. The first pour showed the tray is very hard to get off the plaster; Split Halves is the replacement being tried.' },
+        { key: 'Split Halves', value: 'The same two plaster halves, poured in REUSABLE parts like the handle mold: a plate, two clip-on walls, and a separate hollow master that you pull out of the plaster. New, and being tested now.' },
       ] },
       { type: 'heading', text: 'Workflow' },
       { type: 'list', items: [
         'Design your vase in VaseMaker as usual, then click Mold ▸',
-        'Pick Pour 3-Pc or Split 2-Pc, then adjust the settings (shrinkage %, well size, plaster thickness)',
+        'Pick a style, then adjust the settings (shrinkage %, well size, plaster thickness)',
         'Check for red undercut areas — red means the plaster would lock onto the vase',
         'Export the STLs and print them',
         'Pour plaster, let it set, release the plastic — your plaster mold is ready for slip',
@@ -135,6 +136,42 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    id: 'mold-split-halves',
+    title: 'Split Halves Mold',
+    blocks: [
+      { type: 'warning', text: 'Split Halves is new and being tested now. The parts have been checked on screen (they seat, mate and clear each other), but nothing has been printed or poured yet.' },
+      { type: 'paragraph', text: 'Split Halves makes the same two plaster halves as Split 2-Pc — split down the middle of the vase, each pulling off sideways — but instead of one throwaway tray it uses reusable parts built like the HandleMaker mold. Every part comes off in its own direction, so nothing has to be cut or melted away.' },
+      { type: 'keyvalue', items: [
+        { key: 'Master', value: 'Half of your vase (with its well and, if on, half the handle) as a hollow shell, open on its flat cut face and closed at the well end so it holds water. The handle is hollow too, with three ribs across its channel to grip with long-nose pliers. Its skirt sits Seat Depth down into a pocket in the plate.' },
+        { key: 'Plate', value: 'The parting face. Solid, with the pocket for the master, the natches, and the three V ridges round its edge that the walls\' clip flanges seal on.' },
+        { key: 'Wall 1 + Wall 2', value: 'Two L-shaped walls that clip onto the plate edge and meet at the middle of the long sides. The well end of the master runs into a collar on the wall, the way the handle wells do.' },
+      ] },
+      { type: 'heading', text: 'How many parts' },
+      { type: 'list', items: [
+        'With a handle, the two halves are mirror images (lay both cut-face down and the handle points opposite ways), so there is a Master L and Master R, and a Plate L and Plate R: 6 STLs',
+        'Without a handle, a vase that is the same on both halves needs only ONE master and ONE plate, poured twice: 4 STLs. The sidebar says which you have',
+        'The two walls serve both halves. They SWAP ENDS between pours: Wall 1 goes on the left half\'s well end and the right half\'s base end, Wall 2 the other way round',
+        'That is why each wall has a collar: on the base end it is not used, and leaves a shallow dent in the end of the plaster. Harmless',
+        'Wall 1 carries ridges at both seams and Wall 2 grooves, so they always fit together whichever way round they go',
+      ] },
+      { type: 'heading', text: 'Pouring and releasing' },
+      { type: 'list', items: [
+        'Seat the master in its pocket, clip the walls on (Wall 1 at the well end for the left half), and pour plaster in the open top',
+        'When it has set: unclip and pull the walls off sideways',
+        'Lift the plate off the parting face. Go gently near the natches — the plate is solid, with no holes to push through',
+        'Turn the block over so the master\'s open cut face is up, fill it with VERY COLD water (the capped well end keeps it in, and fill the handle channel too), and the master shrinks free and lifts out. Pliers on the handle ribs help pull the handle straight up',
+      ] },
+      { type: 'heading', text: 'Settings' },
+      { type: 'keyvalue', items: [
+        { key: 'Seat Depth', value: 'How deep the master sits in the plate. This is the seal — a deeper skirt is a longer path for plaster to creep — and it is the lip you grip to lift the master. 3 mm, as on the handle mold.' },
+        { key: 'Fit Clearance', value: 'The gap round the master in its pocket and in the wall collar. 0.10 mm, as on the handle mold; raise it if the master binds.' },
+        { key: 'Plate Floor', value: 'Solid plastic under the pocket. 4 mm, thicker than the handle plate because this one spans a whole mug.' },
+        { key: 'Well Seal', value: 'How far the well runs into the wall collar. The well ends in a straight section exactly this long (a collar can only seal on a straight section, not a taper), and that end is capped so the master holds ice water when you turn the half cut-face up to release it.' },
+      ] },
+      { type: 'tip', text: 'Print the master either way up. Cut face down (the default) needs no support outside, and with a handle it is the only sensible way. Standing upright gives cleaner layer lines but needs supports if the vase overhangs. The Plaster setting is the margin round the vase, below its base, and above its highest point.' },
+    ],
+  },
+  {
     id: 'mold-mesh-quality',
     title: 'Mesh Quality & File Size',
     blocks: [
@@ -224,7 +261,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
         'Each style\'s section above says which way up to print and where supports go',
       ] },
       { type: 'heading', text: 'Mixing plaster' },
-      { type: 'paragraph', text: 'The Plaster Estimate section shows the mold volume split into approximate powder and water weights for the chosen material (Pottery Plaster No.1, Hydrocal, or Hydrostone). For Split 2-Pc it is the total for both halves. Weigh both, add powder to water (not the reverse), let it slake a minute or two, then mix until it just starts to thicken.' },
+      { type: 'paragraph', text: 'The Plaster Estimate section shows the mold volume split into approximate powder and water weights for the chosen material (Pottery Plaster No.1, Hydrocal, or Hydrostone). For Split 2-Pc and Split Halves the volume, powder and water are TOTALS for both halves together (the sidebar and the saved .txt both say so). Weigh both, add powder to water (not the reverse), let it slake a minute or two, then mix until it just starts to thicken.' },
       { type: 'heading', text: 'Pouring' },
       { type: 'list', items: [
         'Apply mold release to every plastic surface the plaster will touch',

@@ -22,8 +22,11 @@ export type PlasterType = 'pottery' | 'hydrocal' | 'hydrostone';
  * - 'splitTwoPiece' — "Split 2-Pc": TWO plaster halves split through the vase
  *   axis, each poured in its own throwaway printed tray. The halves pull
  *   sideways, so the vase may narrow going up (necks, bellies, rolled rims).
+ * - 'splitHalves' — "Split Halves": the same two plaster halves, poured in
+ *   REUSABLE parts (plate + two clip-on walls + a separate hollow master),
+ *   HandleMaker style — after the throwaway tray proved too hard to remove.
  */
-export type MoldStyle = 'twoPart' | 'onePiece' | 'pourTwoPiece' | 'pourThreePiece' | 'splitTwoPiece';
+export type MoldStyle = 'twoPart' | 'onePiece' | 'pourTwoPiece' | 'pourThreePiece' | 'splitTwoPiece' | 'splitHalves';
 
 /** The styles offered in the UI. Press 2-Pc, Pour 1-Pc and Pour 2-Pc were
  *  HIDDEN on 2026-10-10 (Gary: too hard to get the plaster out of, and five
@@ -31,7 +34,7 @@ export type MoldStyle = 'twoPart' | 'onePiece' | 'pourTwoPiece' | 'pourThreePiec
  *  2-Pc's center and every style shares Press 2-Pc's helpers, and hiding is
  *  reversible in one line. Settings that name a hidden style are moved onto
  *  Pour 3-Pc by `retireMoldStyle`. */
-export const ACTIVE_MOLD_STYLES: readonly MoldStyle[] = ['pourThreePiece', 'splitTwoPiece'];
+export const ACTIVE_MOLD_STYLES: readonly MoldStyle[] = ['pourThreePiece', 'splitTwoPiece', 'splitHalves'];
 
 /** Move settings that name a hidden style onto Pour 3-Pc. Returns the style
  *  that was replaced (for a notice), or null if nothing changed. */
@@ -143,6 +146,23 @@ export interface MoldParameters {
    *  won't fill solid before the walls are done (mm). */
   castWallThickness: number;
 
+  // ── Split Halves only: reusable plate + two walls + separate master ──
+  // (natches, handle, seamAngle and the well are shared with Split 2-Pc; the
+  // master shell is masterWallThickness)
+  /** How deep the master's skirt sits in the plate pocket — the seal (mm). */
+  halvesSeatDepth: number;
+  /** Gap between the printed master and the plate pocket / collar bore (mm). */
+  halvesFitClearance: number;
+  /** Solid plate under the pocket (mm). */
+  halvesPlateFloor: number;
+  /** Side wall thickness (mm). */
+  halvesWallThickness: number;
+  /** Clip flange width along the bottom of the walls (mm). */
+  halvesFlangeWidth: number;
+  /** How far the well runs into the wall collar = the length of its straight,
+   *  capped end (mm). */
+  halvesWellSeal: number;
+
   // ── Analysis ──
   /** Plaster material for the weight estimate. */
   material: PlasterType;
@@ -163,7 +183,7 @@ export function mergeMoldParameters(loaded: unknown): MoldParameters {
       if (key === 'material') {
         if (v === 'pottery' || v === 'hydrocal' || v === 'hydrostone') out.material = v;
       } else if (key === 'moldStyle') {
-        if (v === 'twoPart' || v === 'onePiece' || v === 'pourTwoPiece' || v === 'pourThreePiece' || v === 'splitTwoPiece') out.moldStyle = v;
+        if (v === 'twoPart' || v === 'onePiece' || v === 'pourTwoPiece' || v === 'pourThreePiece' || v === 'splitTwoPiece' || v === 'splitHalves') out.moldStyle = v;
       } else if (typeof v === typeof DEFAULT_MOLD_PARAMETERS[key]) {
         (out as unknown as Record<string, unknown>)[key] = v;
       }
@@ -221,6 +241,16 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   handleTopDrop: 15,
   // Gary measured their own mugs, 2026-10-09: about 3.5 mm after firing.
   castWallThickness: 3.5,
+
+  // HandleMaker's poured numbers (seat 3, fit 0.10, wall 4, flange 14, cylinder
+  // 10, well seal 3). The plate floor is thicker than HandleMaker's 3.6 because
+  // it spans a mug, not a handle — Claude's guess, 2026-10-12.
+  halvesSeatDepth: 3,
+  halvesFitClearance: 0.1,
+  halvesPlateFloor: 4,
+  halvesWallThickness: 4,
+  halvesFlangeWidth: 14,
+  halvesWellSeal: 3,
 
   material: 'pottery',
 };

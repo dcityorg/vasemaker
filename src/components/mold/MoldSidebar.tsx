@@ -36,7 +36,8 @@ const ALL_MOLD_STYLE_TABS: { value: MoldStyle; label: string; tooltip: string }[
   { value: 'onePiece', label: 'Pour 1-Pc', tooltip: 'Single print with the vase inverted inside — pour plaster in through the open top' },
   { value: 'pourTwoPiece', label: 'Pour 2-Pc', tooltip: 'Pour mold split in two: center piece + removable outer shell that binder-clips to its foot flange — much easier release' },
   { value: 'pourThreePiece', label: 'Pour 3-Pc', tooltip: 'Pour 2-Pc with the shell split vertically into two clip-together halves — part them sideways instead of lifting the shell off the whole block' },
-  { value: 'splitTwoPiece', label: 'Split 2-Pc', tooltip: 'Two plaster halves split through the vase, each poured in its own throwaway printed tray. The halves pull apart sideways, so the vase may narrow going up — necks, bellies, rolled rims, cast-on handles. NEW — being tested now' },
+  { value: 'splitTwoPiece', label: 'Split 2-Pc', tooltip: 'Two plaster halves split through the vase, each poured in its own throwaway printed tray. The halves pull apart sideways, so the vase may narrow going up — necks, bellies, rolled rims, cast-on handles. The tray proved very hard to get off the plaster — try Split Halves' },
+  { value: 'splitHalves', label: 'Split Halves', tooltip: 'Two plaster halves split through the vase, poured in REUSABLE parts like the handle mold: a plate, two clip-on walls and a separate hollow master you pull out of the plaster. The halves pull apart sideways, so the vase may narrow going up, and a handle can be cast on. NEW — being tested now' },
 ];
 const MOLD_STYLE_TABS = ACTIVE_MOLD_STYLES.map((v) => ALL_MOLD_STYLE_TABS.find((t) => t.value === v)!);
 
@@ -91,10 +92,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
    *  flag, so compare with the last Save/Load (or the defaults, if never saved). */
   const handleDirty = JSON.stringify(handleParams) !== JSON.stringify(handleSaved ?? mergeHandleParameters(DEFAULT_HANDLE_PARAMETERS));
   /** The mold actually uses the HandleMaker design (so the file must carry it). */
-  const usesHandle = params.moldStyle === 'splitTwoPiece' && params.splitHandle;
+  const usesHandle = (params.moldStyle === 'splitTwoPiece' || params.moldStyle === 'splitHalves') && params.splitHandle;
   const reset = useMoldStore((s) => s.reset);
   const [warnExport, setWarnExport] = useState(false);
-  /** Split 2-Pc has two gated exports; which one the warning dialog continues. */
+  /** Split 2-Pc / Split Halves have two gated exports; which one the warning dialog continues. */
   const splitTarget = useRef<'A' | 'B'>('A');
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -124,6 +125,21 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   // Both pour-and-clip styles share every label, slider and stat below.
   const isPourClip = mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece';
   const isSplit = mold.style === 'splitTwoPiece';
+  const isHalves = mold.style === 'splitHalves';
+  /** Either split style — they share the split plane, natches and handle. */
+  const isSplitAny = isSplit || isHalves;
+  /** Split Halves: print-ready parts, lifted so each sits on the bed. */
+  const halvesExport = (which: 'masterL' | 'masterR' | 'plateL' | 'plateR' | 'wall1' | 'wall2') => {
+    if (mold.style !== 'splitHalves') return;
+    const one = mold.oneKit;
+    const name: Record<typeof which, string> = {
+      masterL: one ? 'master' : 'master L', masterR: 'master R',
+      plateL: one ? 'plate' : 'plate L', plateR: 'plate R',
+      wall1: 'wall 1', wall2: 'wall 2',
+    };
+    const lift = which.startsWith('master') ? mold.layout.masterLift : which.startsWith('plate') ? mold.layout.plateLift : 0;
+    exportMesh(translateMesh(mold[which], 0, 0, lift), stlName(name[which]), which === 'masterL');
+  };
   /** Binary STL is an 84-byte header plus 50 bytes per triangle. */
   const stlSize = (tris: number) => {
     const mb = (84 + tris * 50) / (1024 * 1024);
@@ -137,6 +153,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       if (splitTarget.current === 'A') exportMesh(mold.trayA, stlName('split A'), true);
       else exportMesh(mold.trayB, stlName('split B'));
     }
+    else if (mold.style === 'splitHalves') halvesExport(splitTarget.current === 'A' ? 'masterL' : 'masterR');
     else if (mold.style === 'onePiece') exportMesh(mold.mold, stlName('mold'), true);
     else if (mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece') exportMesh(mold.center, stlName('center'), true);
     else exportMesh(mold.master, stlName('master'), true);
@@ -179,6 +196,23 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
         { label: 'triangles', value: mold.trayStats.triangleCount.toLocaleString('en-US') },
       ],
     }];
+    if (mold.style === 'splitHalves') {
+      const box = (label: string, s: MeshStats, note?: string): ReportPart => ({
+        label, note,
+        rows: [
+          { label: 'footprint', value: `${s.sizeX.toFixed(0)} x ${s.sizeY.toFixed(0)} mm` },
+          { label: 'height', value: `${s.sizeZ.toFixed(0)} mm` },
+          { label: 'plastic', value: `${(s.volumeMm3 / 1000).toFixed(0)} cm3` },
+          { label: 'triangles', value: s.triangleCount.toLocaleString('en-US') },
+        ],
+      });
+      const k = mold.oneKit;
+      return [
+        box(k ? 'Master' : 'Master L + Master R', mold.masterStats, k ? 'one master, poured twice' : 'mirror images, each'),
+        box(k ? 'Plate' : 'Plate L + Plate R', mold.plateStats, k ? 'one plate, poured twice' : 'each'),
+        box('Wall 1 + Wall 2', mold.wallStats, 'each; both walls go round every pour, swapping ends'),
+      ];
+    }
     if (mold.style === 'pourThreePiece') return [
       part('Center', mold.centerMaxDiameter, mold.centerStats),
       part(
@@ -250,6 +284,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       ],
       material: params.material,
       plasterVolumeMm3: mold.plasterVolumeMm3,
+      bothHalves: isSplitAny,
       parts: reportParts(),
       keySettings: [
         { label: 'Shrink', value: `${params.shrinkPercent}%` },
@@ -428,7 +463,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
         </div>
         <p className="text-xs text-[var(--text-secondary)]">Plaster slip-casting mold from your vase</p>
         {/* Mold style switcher — only ACTIVE_MOLD_STYLES (Pour 3-Pc, Split 2-Pc) since 2026-10-10. */}
-        <div className="grid grid-cols-2 gap-1 mt-2">
+        <div className="grid grid-cols-3 gap-1 mt-2">
           {MOLD_STYLE_TABS.map((tab) => (
             <button
               key={tab.value}
@@ -595,6 +630,36 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 </button>
               </>
             )}
+            {mold.style === 'splitHalves' && (
+              <div className="grid grid-cols-2 gap-2 flex-1">
+                {(mold.oneKit
+                  ? [['A', 'Master', 'The hollow half-vase — print once, pour twice. Allow supports inside the hollow if your slicer wants them'],
+                     ['plateL', 'Plate', 'The parting plate — print once, pour twice'],
+                    ] as const
+                  : [['A', 'Master L', 'Left half master (the handle points one way) — the right half is its mirror'],
+                     ['B', 'Master R', 'Right half master'],
+                     ['plateL', 'Plate L', 'Plate for the left half'],
+                     ['plateR', 'Plate R', 'Plate for the right half'],
+                    ] as const
+                ).map(([k, label, tip]) => (
+                  <button key={k} disabled={!!mold.error} title={tip} style={{ color: UI_MUTED }}
+                    onClick={() => (k === 'A' || k === 'B' ? handleExportMain(k) : halvesExport(k))}
+                    className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
+                    Export {label} STL
+                  </button>
+                ))}
+                <button disabled={!!mold.error} onClick={() => halvesExport('wall1')} style={{ color: UI_MUTED }}
+                  title="Wall 1 — the left half's well end (it carries the collar the well runs into). On the right half's pour it goes on the base end"
+                  className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
+                  Export Wall 1 STL
+                </button>
+                <button disabled={!!mold.error} onClick={() => halvesExport('wall2')} style={{ color: UI_MUTED }}
+                  title="Wall 2 — the right half's well end; the base end on the left half's pour. Wall 1 has ridges at its seams, wall 2 grooves, so they always mate"
+                  className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
+                  Export Wall 2 STL
+                </button>
+              </div>
+            )}
             {mold.style === 'pourThreePiece' && (
               <>
                 <button
@@ -631,11 +696,11 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
         <div className="px-3 py-3">
           {/* View toggles */}
           <GroupHeader label="View" color={GROUP_COLORS.settings} />
-          {isSplit && mold.error && (
+          {isSplitAny && mold.error && (
             <p className="text-[11px] text-red-400 mb-2 leading-snug">{mold.error}</p>
           )}
           <Toggle
-            label={mold.style === 'onePiece' ? 'Mold' : isPourClip ? 'Center' : isSplit ? 'Trays' : 'Master'}
+            label={mold.style === 'onePiece' ? 'Mold' : isPourClip ? 'Center' : isSplit ? 'Trays' : isHalves ? 'Masters' : 'Master'}
             checked={view.showMaster}
             onChange={(v) => setView({ showMaster: v })}
           />
@@ -653,8 +718,14 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               <Toggle label="Shell B" checked={view.showCottleB} onChange={(v) => setView({ showCottleB: v })} tooltip="Second shell half" />
             </>
           )}
+          {isHalves && (
+            <>
+              <Toggle label="Plates" checked={view.showCottle} onChange={(v) => setView({ showCottle: v })} />
+              <Toggle label="Walls" checked={view.showCottleB} onChange={(v) => setView({ showCottleB: v })} tooltip="Wall 1 and wall 2 round each half. Note they swap ends between the two pours" />
+            </>
+          )}
           <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} />
-          {!isSplit && <Toggle label="Cross-section" checked={view.crossSection} onChange={(v) => setView({ crossSection: v })} tooltip="Slice the assembly to reveal the plaster, well, and cavity" />}
+          {!isSplitAny && <Toggle label="Cross-section" checked={view.crossSection} onChange={(v) => setView({ crossSection: v })} tooltip="Slice the assembly to reveal the plaster, well, and cavity" />}
           {/* Same control as the vase's Appearance → Color. Colours the main
               part only; the shell keeps its blue so the two stay distinct. */}
           <div className="flex items-center gap-3 mb-2">
@@ -670,10 +741,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             )}
           </div>
           <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals. Smooth shading averages across a V ridge's three faces and renders the sharp apex as a rounded tube — flat shading gives it a crease and puts a hard shadow line in each groove" />
-          {(mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece') && (
-            <Toggle label="Ghost Shell" checked={view.ghostShell} onChange={(v) => setView({ ghostShell: v })} tooltip="Draw the shell translucent to see how the whole assembly fits together. Opaque is clearer for inspecting the flange features — stacked transparent surfaces sort badly at the seam" />
+          {(mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece' || isHalves) && (
+            <Toggle label={isHalves ? 'Ghost Walls' : 'Ghost Shell'} checked={view.ghostShell} onChange={(v) => setView({ ghostShell: v })} tooltip="Draw the shell translucent to see how the whole assembly fits together. Opaque is clearer for inspecting the flange features — stacked transparent surfaces sort badly at the seam" />
           )}
-          <Toggle label="Undercuts" checked={view.showUndercuts} onChange={(v) => setView({ showUndercuts: v })} tooltip={isSplit
+          <Toggle label="Undercuts" checked={view.showUndercuts} onChange={(v) => setView({ showUndercuts: v })} tooltip={isSplitAny
             ? "Highlight areas (red) that face back toward the split line — the plaster half locks onto them and can't pull straight off sideways. Flutes, twist and concave shapes crossing the split do this; necks and bellies don't"
             : "Highlight areas (red) where the master narrows as it rises — the plaster above locks them in, so the master can't pull straight up"} />
 
@@ -681,10 +752,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           <GroupHeader label="Master" color={GROUP_COLORS.structure} />
           <Section title="Master" titleColor={GROUP_COLORS.structure}>
             {sl('shrinkPercent', 'Shrink', '%', 'Clay slip shrinkage — master is scaled up by this to compensate')}
-            {!isSplit && sl('masterWallThickness', 'Wall', 'mm', 'Printed shell thickness of the hollow master')}
+            {!isSplit && sl('masterWallThickness', 'Wall', 'mm', isHalves ? 'Printed shell of the hollow half-vase master. It is open on its cut face so cold water can go in to shrink it free' : 'Printed shell thickness of the hollow master')}
             <Toggle label="Keep Texture" checked={params.keepTexture} onChange={(v) => setParam('keepTexture', v)} tooltip="Carry the vase's surface texture onto the master" />
           </Section>
-          {!isSplit && <Section title="Foot Recess" titleColor={GROUP_COLORS.structure}>
+          {!isSplitAny && <Section title="Foot Recess" titleColor={GROUP_COLORS.structure}>
             <Toggle label="Enabled" checked={params.footEnabled} onChange={(v) => setParam('footEnabled', v)} tooltip="Recess the master's bottom so cast pieces get a foot ring and a recessed center for glaze" />
             {params.footEnabled && (
               <>
@@ -703,6 +774,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             {sl('wellWidth', 'Width', 'mm', 'Horizontal step out at the rim (the 90° razor-trim ledge)')}
             {sl('wellHeight', 'Height', 'mm', 'Height of the well wall above the vase rim')}
             {sl('wellDraftAngle', 'Draft', '°', 'Outward taper of the well wall for easy release')}
+            {isHalves && sl('halvesWellSeal', 'Well Seal', 'mm', 'How far the well runs into the wall\'s collar. The well ends in a straight section exactly this long (a collar can only seal on a straight section, not a taper), capped at the end so the master holds ice water')}
           </Section>
           {mold.style === 'twoPart' && (
             <Section title="Flange" titleColor={GROUP_COLORS.surface} defaultOpen={false}>
@@ -711,10 +783,12 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             </Section>
           )}
 
-          {isSplit && (
+          {isSplitAny && (
             <>
-              <GroupHeader label="Trays" color={GROUP_COLORS.smoothing} />
-              <Section title="Trays" titleColor={GROUP_COLORS.smoothing} tooltip="One throwaway printed tray per plaster half. Pour plaster into each, let it set, then soften the plastic with a heat gun and peel it off">
+              <GroupHeader label={isHalves ? 'Plate & Walls' : 'Trays'} color={GROUP_COLORS.smoothing} />
+              <Section title={isHalves ? 'Plate & Walls' : 'Trays'} titleColor={GROUP_COLORS.smoothing} tooltip={isHalves
+                ? 'Reusable parts, the handle-mold way: the master sits in a pocket in the plate, two walls clip on round it. After the plaster sets: walls off, plate off, then cold water into the master and pull it out'
+                : 'One throwaway printed tray per plaster half. Pour plaster into each, let it set, then soften the plastic with a heat gun and peel it off'}>
                 {sl('plasterThickness', 'Plaster', 'mm', 'Plaster around the vase: the margin each side of it, below its base, and behind it')}
                 {sl('seamAngle', 'Split Angle', '°', 'Where the split plane runs through the vase. On a square or polygon it decides where the seam lines fall — watch the Undercuts view. It also decides which side the handle is on')}
                 <SplitTopView
@@ -727,13 +801,27 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 <p className="text-[11px] text-[var(--text-secondary)] mb-1 leading-snug">
                   Looking down{params.splitHandle ? ', sliced where the handle\'s top attaches' : ', sliced half way up'}. Dashed = the split{params.splitHandle ? '; red = the handle' : ''}.
                 </p>
-                {sl('trayWallThickness', 'Skin', 'mm', 'Printed thickness of the half-vase relief and the tray walls. Thin on purpose: the tray is peeled off and thrown away')}
-                {sl('trayFloorThickness', 'Floor', 'mm', 'Thickness of the tray floor, which is the parting face. Never thinner than Natch Height + 0.8, so a natch pocket can\'t reach the print bed')}
+                {isSplit && sl('trayWallThickness', 'Skin', 'mm', 'Printed thickness of the half-vase relief and the tray walls. Thin on purpose: the tray is peeled off and thrown away')}
+                {isSplit && sl('trayFloorThickness', 'Floor', 'mm', 'Thickness of the tray floor, which is the parting face. Never thinner than Natch Height + 0.8, so a natch pocket can\'t reach the print bed')}
+                {isHalves && (
+                  <>
+                    {sl('halvesSeatDepth', 'Seat Depth', 'mm', 'How deep the master\'s skirt sits in the plate pocket. This is the seal: a deeper skirt is a longer path for plaster to creep. Also what you grip to lift the master')}
+                    {sl('halvesFitClearance', 'Fit Clearance', 'mm', 'Gap between the printed master and its pocket (and the collar bore). Raise it if the master binds going in')}
+                    {sl('halvesPlateFloor', 'Plate Floor', 'mm', 'Solid plate under the pocket. The plate is solid — no tape holes — so this is all that keeps it flat under setting plaster')}
+                    {sl('halvesWallThickness', 'Wall', 'mm', 'Side wall thickness')}
+                    {sl('halvesFlangeWidth', 'Clip Flange', 'mm', 'The flange along the bottom of each wall, which clips to the plate edge. It carries the three V seals, so it can\'t go much below ~11 mm')}
+                    <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug">
+                      {mold.style === 'splitHalves' && (mold.oneKit
+                        ? 'This vase is the same on both halves: one master and one plate, poured twice (4 STLs).'
+                        : 'The halves are mirror images: a master and plate for each, L and R (6 STLs). The two walls serve both, swapping ends between pours.')}
+                    </p>
+                  </>
+                )}
               </Section>
               <Section title="Natches" titleColor={GROUP_COLORS.smoothing} tooltip="Two bumps and two dimples on each plaster half, on diagonals, so the halves only go together one way">
                 {sl('natchDiameter', 'Diameter', 'mm', 'Size of each bump and dimple. Clamped so at least 4 mm of plaster stays between a natch and the block edge — a thinner wall chips when the halves are parted')}
                 {sl('natchHeight', 'Height', 'mm', 'How far each plaster bump stands proud (and each dimple sinks)')}
-                {mold.style === 'splitTwoPiece' && mold.natchRadius * 2 < params.natchDiameter - 0.01 && (
+                {(mold.style === 'splitTwoPiece' || mold.style === 'splitHalves') && mold.natchRadius * 2 < params.natchDiameter - 0.01 && (
                   <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug">
                     Clamped to {(mold.natchRadius * 2).toFixed(1)} mm by the plaster margin — raise Plaster to allow bigger natches.
                   </p>
@@ -752,15 +840,15 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 </p>
                 {sl('handleTopDrop', 'Top Below Rim', 'mm', 'Where the top of the handle meets the vase, measured down from the rim (finished size). The bottom end lands wherever the handle\'s span reaches the vase below it')}
                 {sl('castWallThickness', 'Cast Wall', 'mm', 'Your usual fired wall thickness. A handle much thicker than twice this may not fill solid before you drain the mold')}
-                {mold.style === 'splitTwoPiece' && mold.handleError && (
-                  <p className="text-[11px] text-red-400 mt-1 leading-snug">{mold.handleError} The trays are built without the handle.</p>
+                {(mold.style === 'splitTwoPiece' || mold.style === 'splitHalves') && mold.handleError && (
+                  <p className="text-[11px] text-red-400 mt-1 leading-snug">{mold.handleError} The {isHalves ? 'mold is' : 'trays are'} built without the handle.</p>
                 )}
-                {mold.style === 'splitTwoPiece' && mold.handle && (
+                {(mold.style === 'splitTwoPiece' || mold.style === 'splitHalves') && mold.handle && (
                   <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug">
                     Strap {mold.handle.sectionMm[0].toFixed(1)} × {mold.handle.sectionMm[1].toFixed(1)} mm finished; ends {(mold.handle.placement.span / (1 + params.shrinkPercent / 100)).toFixed(0)} mm apart.
                   </p>
                 )}
-                {mold.style === 'splitTwoPiece' && mold.handleWarning && (
+                {(mold.style === 'splitTwoPiece' || mold.style === 'splitHalves') && mold.handleWarning && (
                   <p className="text-[11px] text-amber-400 mt-1 leading-snug">{mold.handleWarning}</p>
                 )}
               </Section>
@@ -768,7 +856,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           )}
 
           {/* Cottle / Shell */}
-          {!isSplit && <>
+          {!isSplitAny && <>
           <GroupHeader label={isPourClip ? 'Shell' : 'Cottle'} color={GROUP_COLORS.smoothing} />
           <Section title={isPourClip ? 'Shell' : 'Cottle'} titleColor={GROUP_COLORS.smoothing}>
             {sl('plasterThickness', 'Plaster', 'mm', isPourClip ? 'Plaster thickness at the widest point — gap between master and shell wall' : 'Plaster thickness — gap between master and cottle wall')}
@@ -842,9 +930,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 ))}
               </select>
             </div>
-            <StatRow label="Plaster" value={`${est.volumeCm3.toFixed(0)} cm³`} />
-            <StatRow label="Powder" value={`≈ ${fmt(est.powderGrams)} g`} />
-            <StatRow label="Water" value={`≈ ${fmt(est.waterGrams)} g`} />
+            {isSplitAny && <div className="text-xs mb-1.5" style={{ color: UI_MUTED }}>Totals for BOTH halves of the mold</div>}
+            <StatRow label={isSplitAny ? 'Plaster (both halves)' : 'Plaster'} value={`${est.volumeCm3.toFixed(0)} cm³`} />
+            <StatRow label={isSplitAny ? 'Powder (both halves)' : 'Powder'} value={`≈ ${fmt(est.powderGrams)} g`} />
+            <StatRow label={isSplitAny ? 'Water (both halves)' : 'Water'} value={`≈ ${fmt(est.waterGrams)} g`} />
           </Section>
           <Section title="Printer Fit" titleColor={GROUP_COLORS.settings}>
             {mold.style === 'twoPart' && (
@@ -896,6 +985,15 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               <>
                 <StatRow label="Center STL" value={stlSize(mold.centerStats.triangleCount)} tooltip="Triangle count and approximate binary STL size. The center carries the vase surface twice — outer and cavity — so it dominates the file" />
                 <StatRow label="Shell STL" value={stlSize(mold.shellStats.triangleCount)} />
+              </>
+            )}
+            {mold.style === 'splitHalves' && (
+              <>
+                <StatRow label="Master" value={`${mold.masterStats.sizeX.toFixed(0)} x ${mold.masterStats.sizeY.toFixed(0)} x ${mold.masterStats.sizeZ.toFixed(0)} mm`} tooltip="Bounding box lying cut-face down (each master)" />
+                <StatRow label="Plate" value={`${mold.plateStats.sizeX.toFixed(0)} x ${mold.plateStats.sizeY.toFixed(0)} x ${mold.plateStats.sizeZ.toFixed(0)} mm`} tooltip="Each plate. Too big for the bed? Lower Plaster or Clip Flange" />
+                <StatRow label="Wall" value={`${mold.wallStats.sizeX.toFixed(0)} x ${mold.wallStats.sizeY.toFixed(0)} x ${mold.wallStats.sizeZ.toFixed(0)} mm`} tooltip="Each wall — L-shaped, so it can also go diagonally on the bed" />
+                <StatRow label="Plastic" value={`${((mold.masterStats.volumeMm3 + mold.plateStats.volumeMm3 + mold.wallStats.volumeMm3) / 1000).toFixed(0)} cm³ per half`} tooltip="Master + plate + one wall. Before supports" />
+                <StatRow label="Master STL" value={stlSize(mold.masterStats.triangleCount)} tooltip="Triangle count and approximate binary STL size, each master" />
               </>
             )}
             {mold.style === 'splitTwoPiece' && (
@@ -1042,7 +1140,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           <div className="bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg p-5 max-w-sm mx-4 shadow-xl">
             <p className="text-sm text-[var(--text-primary)] mb-2 font-medium">Undercuts detected</p>
             <p className="text-xs text-[var(--text-secondary)] mb-4">
-              {mold.style === 'splitTwoPiece'
+              {mold.style === 'splitTwoPiece' || mold.style === 'splitHalves'
                 ? <>In the areas shown in red, the surface faces back toward the split line, so the plaster half locks onto it and won&apos;t pull straight off sideways. Try another Split Angle. Export anyway?</>
                 : mold.style === 'twoPart'
                 ? <>In the areas shown in red, the master gets narrower as it rises, so the plaster above locks it in — it won&apos;t pull straight up out of the mold. Export anyway?</>

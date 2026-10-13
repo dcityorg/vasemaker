@@ -38,8 +38,10 @@ export interface PrintReportInput {
   identity: ReportRow[];
   material: PlasterType;
   plasterVolumeMm3: number;
-  /** Label for the volume row, e.g. "Volume (both halves)" on the handle mold. */
-  volumeLabel?: string;
+  /** The plaster is cast as two halves (handle mold, Split 2-Pc, Split Halves):
+   *  label volume, powder and water as totals for both, so nobody mixes the full
+   *  batch for each pour. */
+  bothHalves?: boolean;
   parts: ReportPart[];
   keySettings: ReportRow[];
 }
@@ -57,12 +59,13 @@ export function buildPrintReport(i: PrintReportInput): string {
   L.push(i.title, '='.repeat(Math.max(12, i.title.length)), '');
   L.push(...rows(i.identity), '');
 
-  L.push(...block('PLASTER'));
+  const both = i.bothHalves ? ' (both halves)' : '';
+  L.push(...block(i.bothHalves ? 'PLASTER — TOTALS FOR BOTH HALVES' : 'PLASTER'));
   L.push(...rows([
     { label: 'Material', value: material.label },
-    { label: i.volumeLabel ?? 'Volume', value: `${est.volumeCm3.toFixed(0)} cm3` },
-    { label: 'Powder', value: grams(est.powderGrams) },
-    { label: 'Water', value: `${grams(est.waterGrams)}  (${est.waterGrams.toFixed(0)} mL)` },
+    { label: `Volume${both}`, value: `${est.volumeCm3.toFixed(0)} cm3` },
+    { label: `Powder${both}`, value: grams(est.powderGrams) },
+    { label: `Water${both}`, value: `${grams(est.waterGrams)}  (${est.waterGrams.toFixed(0)} mL)` },
     { label: 'Mix ratio', value: `${material.waterRatio} parts water : 100 parts plaster, by weight` },
   ]));
   L.push('', 'Estimates only — plaster density varies with mixing. Mix a little extra.', '');

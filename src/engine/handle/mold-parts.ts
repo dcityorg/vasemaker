@@ -326,17 +326,27 @@ export function buildPlate(
   // V-ridge loops near the plate/flange edge (matching grooves live in the
   // wall's clip-flange underside, and the wall's vertical seam Vs stand on
   // these same lines).
+  const ridges = buildPlateRidges(layout);
+
+  const dome = buildDome(domeC[0], domeC[1], layout.domeR, layout.domeH, domeSeg(layout));
+
+  return mergeMeshes([base, top, ...ties, ...ridges, dome]);
+}
+
+/**
+ * The plate's flange-edge V-ridge loops, at z = 0. Shared with the Split
+ * Halves mold (engine/mold/split-halves-generator.ts), whose walls are this
+ * file's walls, so its plate must carry the same ridges in the same places.
+ */
+export function buildPlateRidges(layout: MoldLayout): VaseMesh[] {
+  const { px0, py0, px1, py1 } = layout;
   const ridgeCs: P2[] = [
     [-layout.vw / 2, -EMBED],
     [layout.vw / 2, -EMBED],
     [0, layout.vh],
   ];
-  const ridges = seamBandPositions(layout).map((d) =>
+  return seamBandPositions(layout).map((d) =>
     sweepRectLoop(px0 + d, py0 + d, px1 - d, py1 - d, ridgeCs));
-
-  const dome = buildDome(domeC[0], domeC[1], layout.domeR, layout.domeH, domeSeg(layout));
-
-  return mergeMeshes([base, top, ...ties, ...ridges, dome]);
 }
 
 // ── Side wall ─────────────────────────────────────────────────────────────────
@@ -450,7 +460,19 @@ function buildCollar(layout: MoldLayout, coneY: number, xFace: number, dir: 1 | 
  * + far): the far one is vestigial on this copy but becomes the second cone's
  * collar after rotation.
  */
-export function buildWall(layout: MoldLayout): VaseMesh {
+export interface WallOptions {
+  /** Build HandleMaker's two well collars (default true). The Split Halves
+   *  mold adds its own collar, shaped to the vase's well. */
+  collars?: boolean;
+  /** Which seam features this wall carries. 'mixed' (HandleMaker): ridges at
+   *  the y0 seam, grooves at the y1 seam, so one design rotated 180° mates with
+   *  itself. 'ridges' / 'grooves': the same at both seams — the Split Halves
+   *  mold has two DIFFERENT wall designs, and one-of-each always mates. */
+  seams?: 'mixed' | 'ridges' | 'grooves';
+}
+
+export function buildWall(layout: MoldLayout, opts: WallOptions = {}): VaseMesh {
+  const { collars = true, seams = 'mixed' } = opts;
   const { cavX0, cavX1, cavY0, cavY1, yc, wt, wallH, vclr, vw, vh, flangeW } = layout;
   const gW = vw / 2 + vclr;
   /** Vertical seam groove depth (mates the other copy's vertical ridge). */
@@ -586,8 +608,9 @@ export function buildWall(layout: MoldLayout): VaseMesh {
   const b1 = cavY0 - wt + TAB_LIP;
   const t0 = cavY1 + wt - TAB_LIP;
   const t1 = layout.py1;
-  const blockA = seamBlock(b0, b1, band.map((d) => b0 + d), true);
-  const blockB = seamBlock(t0, t1, band.map((d) => t1 - d), false);
+  const blockA = seamBlock(b0, b1, band.map((d) => b0 + d), seams !== 'grooves');
+  const blockB = seamBlock(t0, t1, band.map((d) => t1 - d), seams === 'ridges');
+  if (!collars) return mergeMeshes([body, flange, blockA, blockB]);
 
   // Collars for BOTH wells on this design's full (well) side. The rotated
   // copy's collars land on the far wall as harmless shallow dents.

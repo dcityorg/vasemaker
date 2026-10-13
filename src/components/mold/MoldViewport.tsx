@@ -147,7 +147,8 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
 
   const clipPlanes = useMemo(() => [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)], []);
   // Split 2-Pc lays its trays out side by side, so a slice through y = 0 cuts nothing.
-  const clip = view.crossSection && mold.style !== 'splitTwoPiece' ? clipPlanes : null;
+  const splitLike = mold.style === 'splitTwoPiece' || mold.style === 'splitHalves';
+  const clip = view.crossSection && !splitLike ? clipPlanes : null;
 
   // The master slot renders whichever part carries the vase form (master /
   // one-piece mold / pour-2pc center) with the undercut tint; the cottle slot
@@ -155,17 +156,20 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
   const mainMesh = mold.style === 'twoPart' ? mold.master
     : mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece' ? mold.center
     : mold.style === 'splitTwoPiece' ? mold.trays
+    : mold.style === 'splitHalves' ? mold.masters
     : mold.mold;
   const masterGeo = useGeometry(mainMesh, view.showUndercuts ? mold.undercutFlags : undefined, view.showUndercuts ? partColor : undefined);
   const cottleGeo = useGeometry(
     mold.style === 'twoPart' ? mold.cottle
     : mold.style === 'pourTwoPiece' ? mold.shell
     : mold.style === 'pourThreePiece' ? mold.shellA
+    : mold.style === 'splitHalves' ? mold.plates
     : null,
   );
   // Pour 3-Pc's second half: null when one printed half serves both positions,
   // but it is still DISPLAYED so you see the assembled cottle.
-  const cottleBGeo = useGeometry(mold.style === 'pourThreePiece' ? mold.shellB : null);
+  // Split Halves: the walls (wall 1 + wall 2 round each assembly).
+  const cottleBGeo = useGeometry(mold.style === 'pourThreePiece' ? mold.shellB : mold.style === 'splitHalves' ? mold.walls : null);
   const plasterGeo = useGeometry(mold.plaster);
 
   return (
@@ -215,7 +219,7 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
           />
         )}
 
-        <FrameForSplit split={mold.style === 'splitTwoPiece'} />
+        <FrameForSplit split={splitLike} />
         <OrbitControls
           makeDefault
           enableDamping

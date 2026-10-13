@@ -13,14 +13,16 @@ import { generateOnePieceMold } from '@/engine/mold/one-piece-generator';
 import { generatePourTwoPieceMold } from '@/engine/mold/pour-two-piece-generator';
 import { generatePourThreePieceMold } from '@/engine/mold/pour-three-piece-generator';
 import { generateSplitTwoPieceMold } from '@/engine/mold/split-two-piece-generator';
+import { generateSplitHalvesMold } from '@/engine/mold/split-halves-generator';
 import type { MoldMeshes } from '@/engine/mold/mold-generator';
 import type { OnePieceMoldMeshes } from '@/engine/mold/one-piece-generator';
 import type { PourTwoPieceMoldMeshes } from '@/engine/mold/pour-two-piece-generator';
 import type { PourThreePieceMoldMeshes } from '@/engine/mold/pour-three-piece-generator';
 import type { SplitTwoPieceMoldMeshes } from '@/engine/mold/split-two-piece-generator';
+import type { SplitHalvesMoldMeshes } from '@/engine/mold/split-halves-generator';
 
 /** Any mold style's generated meshes — discriminated by `style`. */
-export type AnyMoldMeshes = MoldMeshes | OnePieceMoldMeshes | PourTwoPieceMoldMeshes | PourThreePieceMoldMeshes | SplitTwoPieceMoldMeshes;
+export type AnyMoldMeshes = MoldMeshes | OnePieceMoldMeshes | PourTwoPieceMoldMeshes | PourThreePieceMoldMeshes | SplitTwoPieceMoldMeshes | SplitHalvesMoldMeshes;
 
 export function useMoldMeshes(): AnyMoldMeshes {
   const vaseParams = useVaseStore((s) => s.params);
@@ -28,7 +30,7 @@ export function useMoldMeshes(): AnyMoldMeshes {
   // The Split 2-Pc handle is HandleMaker's live design. Only depend on it when
   // it is used, so editing a handle doesn't rebuild every other style.
   const handleParams = useHandleStore((s) => s.params);
-  const handleDep = moldParams.moldStyle === 'splitTwoPiece' && moldParams.splitHandle ? handleParams : null;
+  const handleDep = (moldParams.moldStyle === 'splitTwoPiece' || moldParams.moldStyle === 'splitHalves') && moldParams.splitHandle ? handleParams : null;
   return useMemo(() => {
     switch (moldParams.moldStyle) {
       case 'onePiece':
@@ -39,6 +41,8 @@ export function useMoldMeshes(): AnyMoldMeshes {
         return generatePourThreePieceMold(vaseParams, moldParams);
       case 'splitTwoPiece':
         return generateSplitTwoPieceMold(vaseParams, moldParams, handleDep);
+      case 'splitHalves':
+        return generateSplitHalvesMold(vaseParams, moldParams, handleDep);
       default:
         return generateMoldMeshes(vaseParams, moldParams);
     }
