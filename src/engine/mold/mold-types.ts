@@ -162,6 +162,11 @@ export interface MoldParameters {
   /** How far the well runs into the wall collar = the length of its straight,
    *  capped end (mm). */
   halvesWellSeal: number;
+  /** How many natches per plaster half, 3 or 4 (Gary, 2026-10-13). Each is
+   *  placed and sized automatically in the biggest free plaster near its
+   *  corner. A vase that pours one plate twice always uses 4 — it needs a
+   *  bump opposite every dimple. */
+  halvesNatchCount: number;
 
   // ── Analysis ──
   /** Plaster material for the weight estimate. */
@@ -251,6 +256,7 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   halvesWallThickness: 4,
   halvesFlangeWidth: 14,
   halvesWellSeal: 3,
+  halvesNatchCount: 4,
 
   material: 'pottery',
 };

@@ -25,9 +25,9 @@ import type { MoldParameters, MoldStyle, PlasterType } from '@/engine/mold/mold-
 import type { VaseMesh } from '@/engine/types';
 import type { MeshStats } from '@/engine/mesh-stats';
 
-type MoldNumKey = {
+type MoldNumKey = Exclude<{
   [K in keyof MoldParameters]: MoldParameters[K] extends number ? K : never;
-}[keyof MoldParameters];
+}[keyof MoldParameters], 'halvesNatchCount'>;   // a 3 / 4 switch, not a slider
 
 /** Every style's tab. Only ACTIVE_MOLD_STYLES are shown (see mold-types);
  *  the rest stay defined so their labels still read right in reports. */
@@ -818,10 +818,35 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                   </>
                 )}
               </Section>
-              <Section title="Natches" titleColor={GROUP_COLORS.smoothing} tooltip="Two bumps and two dimples on each plaster half, on diagonals, so the halves only go together one way">
-                {sl('natchDiameter', 'Diameter', 'mm', 'Size of each bump and dimple. Clamped so at least 4 mm of plaster stays between a natch and the block edge — a thinner wall chips when the halves are parted')}
+              <Section title="Natches" titleColor={GROUP_COLORS.smoothing} tooltip={isHalves
+                ? 'Bumps and dimples on each plaster half so the halves only go together one way. Each is placed automatically in the biggest free plaster near its corner'
+                : 'Two bumps and two dimples on each plaster half, on diagonals, so the halves only go together one way'}>
+                {isHalves && (
+                  <div className="flex items-center gap-2 mb-2" title="How many natches per plaster half. Three still line the halves up; a vase that pours one plate twice always uses four">
+                    <span className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Count</span>
+                    {[3, 4].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setParam('halvesNatchCount', n)}
+                        className={`px-3 py-0.5 text-xs rounded border ${Math.round(params.halvesNatchCount) === n ? 'border-[var(--accent)] text-[var(--text-primary)]' : 'border-[var(--border-color)] text-[var(--text-secondary)]'}`}
+                      >{n}</button>
+                    ))}
+                  </div>
+                )}
+                {sl('natchDiameter', isHalves ? 'Max Diameter' : 'Diameter', 'mm', isHalves
+                  ? 'Largest size for each bump and dimple. Each one is made as big as its corner allows, up to this, with at least 4 mm of plaster all round — a thinner wall chips when the halves are parted'
+                  : 'Size of each bump and dimple. Clamped so at least 4 mm of plaster stays between a natch and the block edge — a thinner wall chips when the halves are parted')}
                 {sl('natchHeight', 'Height', 'mm', 'How far each plaster bump stands proud (and each dimple sinks)')}
-                {(mold.style === 'splitTwoPiece' || mold.style === 'splitHalves') && mold.natchRadius * 2 < params.natchDiameter - 0.01 && (
+                {mold.style === 'splitHalves' && mold.natches.length > 0 && (
+                  <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug">
+                    {mold.natches.length} natches: {mold.natches.map((n) => (2 * n.r).toFixed(0)).join(' / ')} mm.
+                    {mold.natches.some((n) => n.r * 2 < params.natchDiameter - 0.05) && ' Some are smaller to fit their corner.'}
+                  </p>
+                )}
+                {mold.style === 'splitHalves' && mold.natchNote && (
+                  <p className="text-[11px] text-amber-400 mt-1 leading-snug">{mold.natchNote}</p>
+                )}
+                {mold.style === 'splitTwoPiece' && mold.natchRadius * 2 < params.natchDiameter - 0.01 && (
                   <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug">
                     Clamped to {(mold.natchRadius * 2).toFixed(1)} mm by the plaster margin — raise Plaster to allow bigger natches.
                   </p>
@@ -850,6 +875,9 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 )}
                 {(mold.style === 'splitTwoPiece' || mold.style === 'splitHalves') && mold.handleWarning && (
                   <p className="text-[11px] text-amber-400 mt-1 leading-snug">{mold.handleWarning}</p>
+                )}
+                {mold.style === 'splitHalves' && mold.gapWarning && (
+                  <p className="text-[11px] text-amber-400 mt-1 leading-snug">{mold.gapWarning}</p>
                 )}
               </Section>
             </>

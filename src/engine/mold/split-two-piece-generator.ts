@@ -231,11 +231,13 @@ export function buildRelief(outer: Arc[], inner: Arc[]): VaseMesh {
 
 /** Floor slab: rect with the relief hole through it and natch pockets carved
  *  into its top face (inverted spherical caps — they mould the plaster bumps). */
-export function buildFloor(rect: [number, number, number, number], hole: P2[], pockets: P2[], a: number, h: number, F: number): VaseMesh {
+export function buildFloor(rect: [number, number, number, number], hole: P2[], pockets: P2[], radius: number | number[], h: number, F: number): VaseMesh {
   const b = new MeshBuilder();
+  // One radius for every pocket, or one per pocket (Split Halves sizes each natch to its corner).
+  const radiusOf = (i: number) => (Array.isArray(radius) ? radius[i] : radius);
   const [x0, y0, x1, y1] = rect;
   const outerLoop: P2[] = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
-  const circles = pockets.map(([cx, cy]) => circlePoints(cx, cy, a, DOME_SEG));
+  const circles = pockets.map(([cx, cy], i) => circlePoints(cx, cy, radiusOf(i), DOME_SEG));
 
   const wall = (loop: P2[]) => {
     const bot = loop.map(([x, y]) => b.vertex(x, y, 0));
@@ -257,10 +259,11 @@ export function buildFloor(rect: [number, number, number, number], hole: P2[], p
   const botIdx = botFace.points.map(([x, y]) => b.vertex(x, y, 0));
   for (const [i, j, k] of botFace.tris) b.tri(botIdx[i], botIdx[k], botIdx[j]);
 
-  const R = (a * a + h * h) / (2 * h);
-  const phiMax = Math.asin(Math.min(1, a / R));
-  const zc = F + R - h;
-  for (const [cx, cy] of pockets) {
+  pockets.forEach(([cx, cy], pi) => {
+    const a = radiusOf(pi);
+    const R = (a * a + h * h) / (2 * h);
+    const phiMax = Math.asin(Math.min(1, a / R));
+    const zc = F + R - h;
     const rings: number[][] = [];
     for (let j = 0; j < DOME_RINGS; j++) {
       const phi = phiMax * (1 - j / DOME_RINGS);
@@ -281,7 +284,7 @@ export function buildFloor(rect: [number, number, number, number], hole: P2[], p
     const bottom = b.vertex(cx, cy, F - h);
     const lr = rings[rings.length - 1];
     for (let k = 0; k < DOME_SEG; k++) b.tri(bottom, lr[k], lr[(k + 1) % DOME_SEG]);
-  }
+  });
   // The pocket rims and the top face's hole circles are separate vertices at
   // the same positions — weld them so the slab is one closed surface.
   return ensureOutward(weldMesh(b.build()));

@@ -62,6 +62,16 @@ const CAP_RECESS = 0.2;
 const RIB_COUNT = 3;
 const RIB_WIDTH = 3;
 const RIB_INSET = 0.15;
+/** Water notch through each pull-rib (Gary, 2026-10-13), mm. Cut into the rib
+ *  from its crown, so the strap's shell roofs it into a tunnel at the bottom of
+ *  the channel when the half is turned cut-face up — one pour of ice water then
+ *  runs the length of the strap instead of four eyedropper fills. */
+const RIB_HOLE = 1.5;
+/** Warn below this much plaster between the handle and the rim/well, mm. The
+ *  first Split Halves pour chipped there at 7.7 mm (Gary, 2026-10-13). */
+const MIN_PLASTER_GAP = 10;
+/** Natch search grid, mm (refined to a quarter of this around the best spot). */
+const NATCH_GRID = 2;
 /** Collar material beyond the well bore, mm (HandleMaker's COLLAR_BAND). */
 const COLLAR_BAND = 4;
 /** How far past the vase surface each handle end is buried, beyond the shell, mm. */
@@ -78,7 +88,14 @@ export interface HalfDebug {
   relief: VaseMesh; cap: VaseMesh; capPoly: P2[];
   handle: VaseMesh | null; handleSolid: VaseMesh | null; strapLine: P2[];
   plate: VaseMesh[];
+  /** Each pull-rib as its own solid, and its water tunnel: centre (print) and
+   *  the strap direction there (print x, y). */
+  ribs: VaseMesh[];
+  ribHoles: { p: [number, number, number]; t: P2 }[];
 }
+
+/** One natch, world (z, u): a bump on plaster L (and a dimple on R) or the reverse. */
+export interface Natch { z: number; u: number; r: number; bump: boolean }
 
 export interface SplitHalvesMoldMeshes {
   style: 'splitHalves';
@@ -105,7 +122,14 @@ export interface SplitHalvesMoldMeshes {
   masterStats: MeshStats;
   plateStats: MeshStats;
   wallStats: MeshStats;
+  /** Smallest natch radius placed (Split 2-Pc's clamp note reads it). */
   natchRadius: number;
+  natches: Natch[];
+  /** Why the natches are not what was asked for (count forced to 4, or too few fit). */
+  natchNote: string | null;
+  /** Narrowest plaster between the handle and the rim/well, mm (null: no handle). */
+  plasterGap: number | null;
+  gapWarning: string | null;
   error: string | null;
   handle: { placement: HandlePlacement; sectionMm: [number, number] } | null;
   handleError: string | null;
@@ -217,6 +241,74 @@ function outsideRun(E: P2[], S: P2[]): { pts: P2[]; lo: Hit; hi: Hit } | null {
   return sA <= sB ? { pts, lo: A, hi: B } : { pts: pts.reverse(), lo: B, hi: A };
 }
 
+/**
+ * Drop SPIKES — a vertex where the loop doubles straight back on itself. The
+ * mitred offset of the rim/ledge corner makes one (out 0.2 mm and back,
+ * measured on Gary's Width 5 mug, 2026-10-13): zero area, but earcut cannot
+ * triangulate round it and the plate's top slab was left with 12 open edges.
+ */
+function removeSpikes(loop: P2[]): P2[] {
+  let pts = loop.slice();
+  for (let changed = true; changed && pts.length > 3;) {
+    changed = false;
+    for (let i = 0; i < pts.length && pts.length > 3; i++) {
+      const a = pts[(i - 1 + pts.length) % pts.length], b = pts[i], c = pts[(i + 1) % pts.length];
+      const ux = b[0] - a[0], uy = b[1] - a[1], vx = c[0] - b[0], vy = c[1] - b[1];
+      const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+      if (lu < 1e-9 || lv < 1e-9 || (ux * vx + uy * vy) / (lu * lv) < -0.9) { pts.splice(i, 1); changed = true; i--; }
+    }
+  }
+  return pts;
+}
+
+function segDist(px: number, py: number, a: P2, b: P2): number {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const L2 = dx * dx + dy * dy;
+  const t = L2 > 1e-12 ? Math.max(0, Math.min(1, ((px - a[0]) * dx + (py - a[1]) * dy) / L2)) : 0;
+  return Math.hypot(px - a[0] - t * dx, py - a[1] - t * dy);
+}
+
+/** Distance from p to a closed polygon's boundary, NEGATIVE inside it. */
+function signedDist(px: number, py: number, poly: P2[]): number {
+  let d = Infinity, inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[j], b = poly[i];
+    d = Math.min(d, segDist(px, py, a, b));
+    if ((a[1] > py) !== (b[1] > py) && px < a[0] + ((py - a[1]) * (b[0] - a[0])) / (b[1] - a[1])) inside = !inside;
+  }
+  return inside ? -d : d;
+}
+
+/**
+ * Pull-rib section: the solid half-ellipse (a, b) with a RIB_HOLE-wide notch
+ * cut down from its crown to RIB_HOLE below where the channel's inner surface
+ * (ai, bi) crosses the notch walls — so under the shell the notch is a tunnel
+ * at least RIB_HOLE tall. Returns the section and the two notch-floor point
+ * indices; the plain section (indices −1) when the strap is too small.
+ */
+function ribProfile(a: number, b: number, ai: number, bi: number, seat: number, seg: number): { prof: P2[]; iA: number; iB: number } {
+  const plain = { prof: halfProfile(a, b, seat, seg), iA: -1, iB: -1 };
+  const w = RIB_HOLE / 2;
+  if (ai < w + 0.6) return plain;
+  const roof = bi * Math.sqrt(1 - (w / ai) ** 2);
+  const floor = roof - RIB_HOLE;
+  if (floor < -seat + 1) return plain;
+  const top = b * Math.sqrt(Math.max(0, 1 - (w / a) ** 2));
+  const prof: P2[] = [];
+  let iA = -1;
+  for (let j = 0; j <= seg; j++) {
+    const th = (j / seg) * Math.PI;
+    const x = Math.cos(th) * a, y = Math.sin(th) * b;
+    if (Math.abs(x) < w + 1e-6) {
+      if (iA < 0) { prof.push([w, top], [w, floor]); iA = prof.length - 1; prof.push([-w, floor], [-w, top]); }
+      continue;
+    }
+    prof.push([x, y]);
+  }
+  prof.push([-a, -seat], [a, -seat]);
+  return { prof, iA, iB: iA + 1 };
+}
+
 // ── The generator ────────────────────────────────────────────────────────────
 
 function empty(): VaseMesh {
@@ -229,12 +321,13 @@ function errorResult(error: string): SplitHalvesMoldMeshes {
   return {
     style: 'splitHalves', masterL: e, masterR: e, plateL: e, plateR: e, wall1: e, wall2: e,
     masters: e, plates: e, walls: e, plaster: e, undercutFlags: new Float32Array(0), hasUndercuts: false,
-    oneKit: false, plasterVolumeMm3: 0, masterStats: st, plateStats: st, wallStats: st, natchRadius: 0, error,
+    oneKit: false, plasterVolumeMm3: 0, masterStats: st, plateStats: st, wallStats: st, natchRadius: 0,
+    natches: [], natchNote: null, plasterGap: null, gapWarning: null, error,
     handle: null, handleError: null, handleWarning: null,
     layout: { cavX0: 0, cavX1: 0, cavY0: 0, cavY1: 0, wallH: 0, seat: 0, plateThk: 0, plateW: 0, plateD: 0, masterLift: 0, plateLift: 0 },
     debug: {
-      partsL: { relief: e, cap: e, capPoly: [], handle: null, handleSolid: null, strapLine: [], plate: [] },
-      partsR: { relief: e, cap: e, capPoly: [], handle: null, handleSolid: null, strapLine: [], plate: [] },
+      partsL: { relief: e, cap: e, capPoly: [], handle: null, handleSolid: null, strapLine: [], plate: [], ribs: [], ribHoles: [] },
+      partsR: { relief: e, cap: e, capPoly: [], handle: null, handleSolid: null, strapLine: [], plate: [], ribs: [], ribHoles: [] },
       handleShell: 0, handleRibs: 0,
       pocketL: [], islandL: null, pocketR: [], islandR: null, bumpsL: [], dimplesL: [], wall2AtL: e, wall1AtR: e,
     },
@@ -334,6 +427,8 @@ export function generateSplitHalvesMold(
   let handlePrint: HandleSweep[] = [];
   let handleShell = 0;
   let handleRibs = 0;
+  /** Each rib's water tunnel, world: centre (z, u, h) and strap direction (z, u). */
+  const ribHolesW: { c: [number, number, number]; t: P2 }[] = [];
   if (mold.splitHandle && handleParams) {
     const nBody = outerStack.rings.length;
     const sil = splitSilhouette(outerStack.rings, rRes, c0x, c0y, sx, sy);
@@ -371,7 +466,7 @@ export function generateSplitHalvesMold(
               const seg = arc[i + 1] - arc[i];
               return sw.stationFirst + i + (seg > 1e-9 ? (sc - arc[i]) / seg : 0);
             };
-            const ribProf = halfProfile(hw - RIB_INSET, ht - RIB_INSET, seat, HANDLE_SEG);
+            const rib = ribProfile(hw - RIB_INSET, ht - RIB_INSET, hw - t, ht - t, seat, HANDLE_SEG);
             const margin = RIB_WIDTH / 2 + hw + 2;
             for (let k = 1; k <= RIB_COUNT; k++) {
               const sc = (total * k) / (RIB_COUNT + 1);
@@ -380,8 +475,15 @@ export function generateSplitHalvesMold(
               const at = [f0];
               for (let i = Math.ceil(f0 + 1e-6); i < f1 - 1e-6; i++) at.push(i);
               at.push(f1);
-              handlePrint.push(resweep(sw, pl, ribProf, at));
+              const ribSw = resweep(sw, pl, rib.prof, at);
+              handlePrint.push(ribSw);
               handleRibs++;
+              if (rib.iA >= 0) {
+                const midR = ribSw.rings[Math.floor(ribSw.rings.length / 2)];
+                const A = midR[rib.iA], B = midR[rib.iB];
+                const r0 = ribSw.rings[0][rib.iA], r1 = ribSw.rings[ribSw.rings.length - 1][rib.iA];
+                ribHolesW.push({ c: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, A[2] + RIB_HOLE / 2], t: [r1[0] - r0[0], r1[1] - r0[1]] });
+              }
             }
           } else handlePrint = [sw];
         }
@@ -412,25 +514,183 @@ export function generateSplitHalvesMold(
   const flangeW = mold.halvesFlangeWidth;
   const border = wt + flangeW;
   const floorT = mold.halvesPlateFloor;
-  const natchR = Math.max(2, Math.min(mold.natchDiameter / 2, m / 2 - NATCH_EDGE));
-  const natchH = Math.min(mold.natchHeight, seat);
 
-  // Natches: Split 2-Pc's diagonal pairs, in world (z, u). Bumps on plaster L
-  // at (low, near) and (high, far). On a box symmetric about the axis this
-  // pattern also mates with ITSELF (each bump's mirror across the axis is a
-  // dimple), which is what lets one plate serve both halves.
-  const inset = Math.max(m / 2, natchR + NATCH_EDGE);
-  const zLoN = -m + inset, zHiN = zEnd - inset;
-  const uNear = uMin - m / 2, uFar = uMax + m / 2;
-  const bumpsL: P2[] = [[zLoN, uNear], [zHiN, uFar]];
-  const dimplesL: P2[] = [[zHiN, uNear], [zLoN, uFar]];
+  /**
+   * The vase (+ handle) footprint on the parting face for one half, native
+   * (z, Y) with Y = ySign·u — so half L's is in world (z, u). The pocket is
+   * the outer loop; the island is the plate inside the handle's C.
+   */
+  const footprint = (outer: Arc[], ySign: 1 | -1): { pocketNative: P2[]; islandNative: P2[] | null; error: string | null } => {
+    // ── Pocket outline, native (z, Y). Vase footprint at the parting plane =
+    // the arcs' two endpoints per ring; the handle side is the one where
+    // ySign·Y is larger (the handle sits at u > 0). ──
+    const n = outer[0].length - 1;
+    const e0: P2[] = outer.map((arc) => [arc[0][0], arc[0][1]]);
+    const eN: P2[] = outer.map((arc) => [arc[n][0], arc[n][1]]);
+    const mid = Math.floor(outer.length / 2);
+    const zeroIsHandle = ySign * e0[mid][1] > ySign * eN[mid][1];
+    const sideH = zeroIsHandle ? e0 : eN, sideO = zeroIsHandle ? eN : e0;
+    // Closed footprint: handle side base → end, other side end → base. Each
+    // side is de-duplicated on its own (a zero-width ledge repeats a point) so
+    // the split back into sides below is by a known index.
+    const dedupeRun = (run: P2[]): P2[] => run.filter((q, i) => i === 0 || Math.hypot(q[0] - run[i - 1][0], q[1] - run[i - 1][1]) > 1e-6);
+    const sideHd = dedupeRun(sideH), sideOd = dedupeRun(sideO);
+    const foot: P2[] = [...sideHd, ...sideOd.slice().reverse()];
+    const off = offsetPolygon(foot, clr);
+    const S = off.slice(0, sideHd.length);     // handle side, base → end
+    const rest = off.slice(sideHd.length);      // other side, end → base
+
+    let pocketNative: P2[] = [...S, ...rest];
+    let error: string | null = null;
+    let islandNative: P2[] | null = null;
+    if (handleSweep) {
+      // Strap edges at the parting plane (profile ends, h = 0), pushed out by
+      // the clearance; native (z, Y).
+      const seg = HANDLE_SEG;
+      const edge = (k0: number, k1: number): P2[] => handleSweep!.rings.map((r) => {
+        const [z0, u0] = r[k0], [z1, u1] = r[k1];
+        const dz = z0 - z1, du = u0 - u1, L = Math.hypot(dz, du) || 1;
+        return [z0 + (dz / L) * clr, ySign * (u0 + (du / L) * clr)] as P2;
+      });
+      const E1 = edge(0, seg), E2 = edge(seg, 0);
+      const r1 = outsideRun(E1, S), r2 = outsideRun(E2, S);
+      if (r1 && r2) {
+        const span = (r: { lo: Hit; hi: Hit }) => (r.hi.s + r.hi.st) - (r.lo.s + r.lo.st);
+        const [outerRun, innerRun] = span(r1) >= span(r2) ? [r1, r2] : [r2, r1];
+        pocketNative = [
+          ...S.slice(0, outerRun.lo.s + 1), ...outerRun.pts, ...S.slice(outerRun.hi.s + 1), ...rest,
+        ];
+        islandNative = [...innerRun.pts, ...S.slice(innerRun.lo.s + 1, innerRun.hi.s + 1).reverse()];
+      } else {
+        error = 'The handle outline could not be joined to the vase outline for the plate pocket.';
+      }
+    }
+    return { pocketNative, islandNative, error };
+  };
+
+  // ── One kit for both halves? Only if the R master IS the L master. ──
+  const printArcs = (outer: Arc[]) => outer.map((arc) => arc.map(([z, Y, Z]) => [-z, -Y, Z - F]));
+  let oneKit = !handleSweep;
+  if (oneKit) {
+    const la = printArcs(outA), ra = printArcs(outB);
+    const near = (pa: number[][], pb: number[][]) => {
+      let worst = 0;
+      for (let k = 0; k < pa.length; k++) {
+        const q = pb[k];
+        worst = Math.max(worst, Math.hypot(pa[k][0] - q[0], pa[k][1] - q[1], pa[k][2] - q[2]));
+      }
+      return worst;
+    };
+    for (let i = 0; i < la.length && oneKit; i++) {
+      const d = Math.min(near(la[i], ra[i]), near(la[i], ra[i].slice().reverse()));
+      if (d > SYMMETRY_TOL) oneKit = false;
+    }
+  }
+
+  // ── Natches, placed automatically (Gary, 2026-10-13). One per quarter of the
+  // block — base/rim end × either side of the axis — each at the spot with the
+  // most free plaster round it (block edge, vase + handle footprint, and the
+  // natches already placed), sized to fit up to Natch Diameter with NATCH_EDGE
+  // of plaster all round. Both halves share the parting-face outline, so one
+  // set of world (z, u) positions serves both. Diagonal pairs as before: bumps
+  // on plaster L at (base, −u) and (rim, +u). With ONE kit the pattern must be
+  // its own mirror across the axis (each bump's mirror a dimple), so the −u
+  // side is placed and mirrored, and the count is always 4. ──
+  const natchH = Math.min(mold.natchHeight, seat);
+  const rMax = Math.max(2, mold.natchDiameter / 2);
+  const obstacle = footprint(outA, 1).pocketNative;
+  const zB0 = -m, zB1 = zEnd, uB0 = uMin - m, uB1 = uMax + m;
+  const zMid = hTop / 2;
+  const clearAt = (z: number, u: number, placed: Natch[]): number => {
+    let c = Math.min(z - zB0, zB1 - z, u - uB0, uB1 - u, signedDist(z, u, obstacle));
+    for (const n of placed) c = Math.min(c, Math.hypot(z - n.z, u - n.u) - n.r);
+    return c - NATCH_EDGE;
+  };
+  const wantCount = oneKit ? 4 : Math.round(mold.halvesNatchCount) === 3 ? 3 : 4;
+  let natchNote: string | null = oneKit && Math.round(mold.halvesNatchCount) === 3
+    ? 'This vase pours one plate twice, which needs a bump opposite every dimple, so it uses 4 natches.'
+    : null;
+  /** Best spot in [z0,z1]×[u0,u1]: coarse grid, then a fine pass round the winner. */
+  const bestIn = (z0: number, z1: number, u0: number, u1: number, score: (z: number, u: number) => number): { z: number; u: number; c: number } => {
+    let best = { z: 0, u: 0, c: -Infinity };
+    const scan = (za: number, zb: number, ua: number, ub: number, step: number) => {
+      for (let z = za; z <= zb + 1e-9; z += step) for (let u = ua; u <= ub + 1e-9; u += step) {
+        const c = score(z, u);
+        if (c > best.c) best = { z, u, c };
+      }
+    };
+    scan(z0 + NATCH_GRID / 2, z1, u0 + NATCH_GRID / 2, u1, NATCH_GRID);
+    const f = NATCH_GRID / 4;
+    scan(Math.max(z0, best.z - NATCH_GRID), Math.min(z1, best.z + NATCH_GRID), Math.max(u0, best.u - NATCH_GRID), Math.min(u1, best.u + NATCH_GRID), f);
+    return best;
+  };
+  const natches: Natch[] = [];
+  const fits = (c: number) => c >= 2;
+  if (oneKit) {
+    for (const lo of [true, false]) {
+      const [z0, z1] = lo ? [zB0, zMid] : [zMid, zB1];
+      const b = bestIn(z0, z1, uB0, Math.min(0, uB1), (z, u) => Math.min(clearAt(z, u, natches), clearAt(z, -u, natches), -u - NATCH_EDGE));
+      if (!fits(b.c)) continue;
+      const r = Math.min(rMax, b.c);
+      natches.push({ z: b.z, u: b.u, r, bump: lo }, { z: b.z, u: -b.u, r, bump: !lo });
+    }
+  } else {
+    const cand: (Natch & { c: number })[] = [];
+    for (const [lo, neg] of [[true, true], [false, false], [false, true], [true, false]] as const) {
+      const [z0, z1] = lo ? [zB0, zMid] : [zMid, zB1];
+      const [u0, u1] = neg ? [uB0, 0] : [0, uB1];
+      const b = bestIn(z0, z1, u0, u1, (z, u) => clearAt(z, u, cand));
+      if (!fits(b.c)) continue;
+      cand.push({ z: b.z, u: b.u, r: Math.min(rMax, b.c), bump: lo === neg, c: b.c });
+    }
+    // Three: drop the one with the least room.
+    if (wantCount === 3 && cand.length === 4) {
+      let worst = 0;
+      for (let i = 1; i < 4; i++) if (cand[i].r < cand[worst].r - 1e-6 || (Math.abs(cand[i].r - cand[worst].r) < 1e-6 && cand[i].c < cand[worst].c)) worst = i;
+      cand.splice(worst, 1);
+    }
+    for (const { z, u, r, bump } of cand) natches.push({ z, u, r, bump });
+  }
+  if (natches.length < wantCount) natchNote = `Only ${natches.length} natch${natches.length === 1 ? '' : 'es'} fit${natches.length === 1 ? 's' : ''} — raise Plaster to make room.`;
+  const natchR = natches.length ? Math.min(...natches.map((n) => n.r)) : 0;
+  const bumpsL: P2[] = natches.filter((n) => n.bump).map((n) => [n.z, n.u]);
+  const dimplesL: P2[] = natches.filter((n) => !n.bump).map((n) => [n.z, n.u]);
+  const bumpR = natches.filter((n) => n.bump).map((n) => n.r);
+  const dimpleR = natches.filter((n) => !n.bump).map((n) => n.r);
+
+  // ── Plaster between the handle and the rim/well. The first pour chipped
+  // there: the top of the strap curls up under a flared rim and well, leaving
+  // a thin plaster tongue that breaks as the master comes out. Measured in the
+  // parting plane from the strap's two edges (visible stations) to the vase +
+  // well outline at or above the rim. Ignores the body below the rim, which
+  // the handle always meets at a sharp corner. ──
+  let plasterGap: number | null = null;
+  let gapWarning: string | null = null;
+  if (handleSweep) {
+    const nA = outA[0].length - 1;
+    const rimSide = (k: number): P2[] => outA.map((arc) => [arc[k][0], arc[k][1]] as P2);
+    let g = Infinity;
+    for (const side of [rimSide(0), rimSide(nA)]) {
+      for (let i = 0; i + 1 < side.length; i++) {
+        if (Math.max(side[i][0], side[i + 1][0]) < hTop - 1e-6) continue;
+        for (let st = handleSweep.stationFirst; st < handleSweep.stationFirst + handleSweep.stationArc.length; st++) {
+          const ring = handleSweep.rings[st];
+          for (const k of [0, HANDLE_SEG]) g = Math.min(g, segDist(ring[k][0], ring[k][1], side[i], side[i + 1]));
+        }
+      }
+    }
+    if (Number.isFinite(g)) {
+      plasterGap = g;
+      if (g < MIN_PLASTER_GAP) gapWarning = `Only ${g.toFixed(1)} mm of plaster between the top of the handle and the rim. Under ${MIN_PLASTER_GAP} mm it can chip as the master comes out — lower the handle (Top Below Rim) or narrow the well.`;
+    }
+  }
 
   const layoutFor = (cavY0: number, cavY1: number): MoldLayout => ({
     cavX0, cavX1, cavY0, cavY1, yc: (cavY0 + cavY1) / 2,
     px0: cavX0 - border, px1: cavX1 + border, py0: cavY0 - border, py1: cavY1 + border,
     seat, lipThk: floorT, plateThk: seat + floorT, wallH, wt,
     vw: Math.min(V_WIDTH, seamMaxVWidth(flangeW, V_CLEARANCE)), vh: V_HEIGHT, vclr: V_CLEARANCE,
-    flangeW, domeR: natchR, domeH: natchH, seg: 48,
+    flangeW, domeR: Math.max(natchR, 2), domeH: natchH, seg: 48,
     openR: 0, coneYA: 0, coneYB: 0,
     sealDepth, clr,
   });
@@ -439,7 +699,7 @@ export function generateSplitHalvesMold(
    * One half's kit. `ySign` = +1 for L (native frame A), −1 for R (frame B);
    * native Y = ySign·u, print (x, y) = (−z, −Y).
    */
-  const buildHalf = (outer: Arc[], inner: Arc[], ySign: 1 | -1, pocketsW: P2[], domesW: P2[]) => {
+  const buildHalf = (outer: Arc[], inner: Arc[], ySign: 1 | -1, pocketsW: P2[], pocketR: number[], domesW: P2[], domeR: number[]) => {
     const toPrint = ([z, Y]: P2): P2 => [-z, -Y];
     const worldToPrint = ([z, u]: P2): P2 => [-z, -ySign * u];
     // y range of the block: print y = −ySign·u.
@@ -465,51 +725,11 @@ export function generateSplitHalvesMold(
     const flags = new Float32Array(master.vertexCount);
     flags.set(undercutOf(outer, F));
 
-    // ── Pocket outline, native (z, Y). Vase footprint at the parting plane =
-    // the arcs' two endpoints per ring; the handle side is the one where
-    // ySign·Y is larger (the handle sits at u > 0). ──
-    const n = outer[0].length - 1;
-    const e0: P2[] = outer.map((arc) => [arc[0][0], arc[0][1]]);
-    const eN: P2[] = outer.map((arc) => [arc[n][0], arc[n][1]]);
-    const mid = Math.floor(outer.length / 2);
-    const zeroIsHandle = ySign * e0[mid][1] > ySign * eN[mid][1];
-    const sideH = zeroIsHandle ? e0 : eN, sideO = zeroIsHandle ? eN : e0;
-    // Closed footprint: handle side base → end, other side end → base. Each
-    // side is de-duplicated on its own (a zero-width ledge repeats a point) so
-    // the split back into sides below is by a known index.
-    const dedupeRun = (run: P2[]): P2[] => run.filter((q, i) => i === 0 || Math.hypot(q[0] - run[i - 1][0], q[1] - run[i - 1][1]) > 1e-6);
-    const sideHd = dedupeRun(sideH), sideOd = dedupeRun(sideO);
-    const foot: P2[] = [...sideHd, ...sideOd.slice().reverse()];
-    const off = offsetPolygon(foot, clr);
-    const S = off.slice(0, sideHd.length);     // handle side, base → end
-    const rest = off.slice(sideHd.length);      // other side, end → base
-
-    let pocketNative: P2[] = [...S, ...rest];
-    let islandNative: P2[] | null = null;
-    if (handleSweep) {
-      // Strap edges at the parting plane (profile ends, h = 0), pushed out by
-      // the clearance; native (z, Y).
-      const seg = HANDLE_SEG;
-      const edge = (k0: number, k1: number): P2[] => handleSweep!.rings.map((r) => {
-        const [z0, u0] = r[k0], [z1, u1] = r[k1];
-        const dz = z0 - z1, du = u0 - u1, L = Math.hypot(dz, du) || 1;
-        return [z0 + (dz / L) * clr, ySign * (u0 + (du / L) * clr)] as P2;
-      });
-      const E1 = edge(0, seg), E2 = edge(seg, 0);
-      const r1 = outsideRun(E1, S), r2 = outsideRun(E2, S);
-      if (r1 && r2) {
-        const span = (r: { lo: Hit; hi: Hit }) => (r.hi.s + r.hi.st) - (r.lo.s + r.lo.st);
-        const [outerRun, innerRun] = span(r1) >= span(r2) ? [r1, r2] : [r2, r1];
-        pocketNative = [
-          ...S.slice(0, outerRun.lo.s + 1), ...outerRun.pts, ...S.slice(outerRun.hi.s + 1), ...rest,
-        ];
-        islandNative = [...innerRun.pts, ...S.slice(innerRun.lo.s + 1, innerRun.hi.s + 1).reverse()];
-      } else {
-        handleError = handleError ?? 'The handle outline could not be joined to the vase outline for the plate pocket.';
-      }
-    }
+    const fp = footprint(outer, ySign);
+    if (fp.error) handleError = handleError ?? fp.error;
+    const { pocketNative, islandNative } = fp;
     // Map to print and stop the pocket at the well wall's inner face.
-    const pocket = dedupeLoop(clipToXMax(pocketNative.map(toPrint).map(([x, y]) => [-x, y] as P2), zEnd).map(([x, y]) => [-x, y] as P2));
+    const pocket = removeSpikes(dedupeLoop(clipToXMax(pocketNative.map(toPrint).map(([x, y]) => [-x, y] as P2), zEnd).map(([x, y]) => [-x, y] as P2)));
     const island = islandNative ? dedupeLoop(islandNative.map(toPrint)) : null;
 
     // ── Plate: solid base slab + top slab (pocket + natch pockets) + finger
@@ -517,10 +737,10 @@ export function generateSplitHalvesMold(
     const base = boxSolid(layout.px0, layout.py0, layout.px1, layout.py1, -seat - floorT, -seat);
     const topSlab = translateMesh(
       buildFloor([layout.px0, layout.py0, layout.px1, layout.py1], pocket,
-        pocketsW.map(worldToPrint), natchR, natchH, seat + EMBED),
+        pocketsW.map(worldToPrint), pocketR, natchH, seat + EMBED),
       0, 0, -seat - EMBED);
     const islandSolid = island && Math.abs(polyArea(island)) > 1 ? extrudeSolid(island, [], -seat - EMBED, 0) : null;
-    const domes = domesW.map(worldToPrint).map(([x, y]) => buildDome(x, y, natchR, natchH, DOME_SEG));
+    const domes = domesW.map(worldToPrint).map(([x, y], i) => buildDome(x, y, domeR[i], natchH, DOME_SEG));
     const plateParts = [base, topSlab, ...(islandSolid ? [islandSolid] : []), ...buildPlateRidges(layout), ...domes];
     const plate = mergeMeshes(plateParts);
 
@@ -562,6 +782,8 @@ export function generateSplitHalvesMold(
     const toP = (z: number, u: number, h: number): [number, number, number] => [-z, -ySign * u, h];
     const dbg: HalfDebug = {
       relief, cap, capPoly, handle: handleMesh, plate: plateParts,
+      ribs: handleShell > 0 ? handlePrint.slice(1).map((sw) => meshSweep(sw, toP)) : [],
+      ribHoles: ribHolesW.map(({ c, t }) => ({ p: toP(c[0], c[1], c[2]), t: [-t[0], -ySign * t[1]] as P2 })),
       handleSolid: handleSweep ? meshSweep(handleSweep, toP) : null,
       // Strap centreline at the parting plane, print (x, y), visible stations only.
       strapLine: handleSweep
@@ -572,26 +794,8 @@ export function generateSplitHalvesMold(
     return { master, flags, plate, plateParts, wall, plaster, plasterVol, layout, relief, handleMesh, pocket, island, dbg, outerPrint: outer.map((arc) => arc.map(([z, Y, Z]) => [-z, -Y, Z - F])) };
   };
 
-  const L = buildHalf(outA, inA, 1, bumpsL, dimplesL);
-  const R = buildHalf(outB, inB, -1, dimplesL, bumpsL);
-
-  // ── One kit for both halves? Only if the R master IS the L master. ──
-  let oneKit = !handleSweep;
-  if (oneKit) {
-    const near = (pa: number[][], pb: number[][]) => {
-      let worst = 0;
-      for (let k = 0; k < pa.length; k++) {
-        const q = pb[k];
-        worst = Math.max(worst, Math.hypot(pa[k][0] - q[0], pa[k][1] - q[1], pa[k][2] - q[2]));
-      }
-      return worst;
-    };
-    for (let i = 0; i < L.outerPrint.length && oneKit; i++) {
-      const la = L.outerPrint[i], ra = R.outerPrint[i];
-      const d = Math.min(near(la, ra), near(la, ra.slice().reverse()));
-      if (d > SYMMETRY_TOL) oneKit = false;
-    }
-  }
+  const L = buildHalf(outA, inA, 1, bumpsL, bumpR, dimplesL, dimpleR);
+  const R = buildHalf(outB, inB, -1, dimplesL, dimpleR, bumpsL, bumpR);
 
   // ── Display: L assembly on the left, R on the right (shifted along −y/+y). ──
   const dyL = -L.layout.py1 - LAYOUT_GAP / 2;
@@ -628,6 +832,7 @@ export function generateSplitHalvesMold(
     plateStats: computeMeshStats(L.plate),
     wallStats: computeMeshStats(L.wall),
     natchRadius: natchR,
+    natches, natchNote, plasterGap, gapWarning,
     error: null,
     handle: placement && handleSweep ? { placement, sectionMm } : null,
     handleError, handleWarning,
