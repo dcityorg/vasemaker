@@ -14,14 +14,16 @@
 
 import { create } from 'zustand';
 import type { MoldParameters, MoldStyle } from '@/engine/mold/mold-types';
-import { DEFAULT_MOLD_PARAMETERS, mergeMoldParameters, retireMoldStyle } from '@/engine/mold/mold-types';
+import { DEFAULT_MOLD_PARAMETERS, mergeMoldParameters, retireMoldStyle, retiredSuccessor } from '@/engine/mold/mold-types';
 
 const RETIRED_LABELS: Partial<Record<MoldStyle, string>> = {
-  twoPart: 'Press 2-Pc', onePiece: 'Pour 1-Pc', pourTwoPiece: 'Pour 2-Pc',
+  twoPart: 'Press 2-Pc', onePiece: 'Pour 1-Pc', pourTwoPiece: 'Pour 2-Pc', splitTwoPiece: 'Split 2-Pc',
 };
+const SUCCESSOR_LABELS: Partial<Record<MoldStyle, string>> = { pourThreePiece: 'Pour 3-Pc', splitHalves: 'Split Halves' };
 /** The one-line notice for settings moved off a hidden style. */
 export function retiredStyleNotice(style: MoldStyle): string {
-  return `These settings were for ${RETIRED_LABELS[style] ?? style}, which is no longer offered — switched to Pour 3-Pc.`;
+  const to = retiredSuccessor(style);
+  return `These settings were for ${RETIRED_LABELS[style] ?? style}, which is no longer offered — switched to ${SUCCESSOR_LABELS[to] ?? to}.`;
 }
 import { createHistory } from './history';
 

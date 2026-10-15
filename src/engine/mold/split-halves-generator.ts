@@ -39,7 +39,7 @@ import type { VaseParameters, VaseMesh } from '../types';
 import { computeMeshStats, type MeshStats } from '../mesh-stats';
 import { offsetRingRadial, mergeMeshes, type Ring } from './ring-mesh';
 import { tanDeg, prepareVaseParams, buildOuterRings, buildCavityRings, clampCavityUnderRim } from './mold-generator';
-import { boxSolid, extrudeSolid, translateMesh, rotate180Z, dedupeLoop, MAP_YZ_X, type P2 } from '../handle/mesh3';
+import { boxSolid, extrudeSolid, translateMesh, rotate180Z, dedupeLoop, rectPoints, triangulateFace, ensureOutward, MeshBuilder, MAP_XY_Z, MAP_YZ_X, type ExtrudeMap, type P2 } from '../handle/mesh3';
 import { buildDome, buildWall, buildPlateRidges, seamMaxVWidth, type MoldLayout } from '../handle/mold-parts';
 import type { MoldParameters } from './mold-types';
 import type { HandleParameters } from '../handle/handle-types';
@@ -83,6 +83,23 @@ const V_HEIGHT = 1.4;
 const V_CLEARANCE = 0.2;
 /** Max L/R master deviation (mm) still treated as one master for both halves. */
 const SYMMETRY_TOL = 0.05;
+/** Foot piece (Gary, 2026-10-14): the halves' counterbore depth = the step's
+ *  height, its draft (the step narrows toward its top so the foot pulls
+ *  straight down), and the step's clearance in the counterbore, all round.
+ *  The 0.2 mm also covers plaster's ~0.2 % setting expansion. The last
+ *  FOOT_FLANGE_T of the depth is the flange's wider recess, so the step fits
+ *  snugly over the first 4 mm — the depth Gary approved. */
+const FOOT_STEP_DEPTH = 5;
+const FOOT_STEP_DRAFT = 5;
+const FOOT_STEP_GAP = 0.2;
+/** A flange on the master's disc just in front of the base-end wall, this
+ *  thick (x) and this much wider than the wall's bore. The bore has Fit
+ *  Clearance round the disc, and that gap opens onto the halves' bottom face:
+ *  plaster creeping in would stand a thin fin exactly where the foot piece
+ *  sits. The flange covers the gap (it presses on the boss face) and leaves a
+ *  harmless recess in the bottom face instead. */
+const FOOT_FLANGE_T = 1;
+const FOOT_FLANGE_OVER = 1;
 
 export interface HalfDebug {
   relief: VaseMesh; cap: VaseMesh; capPoly: P2[];
@@ -134,6 +151,16 @@ export interface SplitHalvesMoldMeshes {
   handle: { placement: HandlePlacement; sectionMm: [number, number] } | null;
   handleError: string | null;
   handleWarning: string | null;
+  /** The foot piece's print parts (null when Foot Piece is off): one plate
+   *  (the step + foot face, upside down) and one wall design printed twice. */
+  foot: {
+    plate: VaseMesh; wall: VaseMesh;
+    plateStats: MeshStats; wallStats: MeshStats;
+    /** Plaster for the foot piece alone, mm³. */
+    plasterVolumeMm3: number;
+    plateW: number; plateD: number; plateThk: number; wallH: number;
+    plateLift: number;
+  } | null;
   /** Shared by both halves. */
   layout: {
     cavX0: number; cavX1: number;
@@ -157,6 +184,19 @@ export interface SplitHalvesMoldMeshes {
     bumpsL: P2[]; dimplesL: P2[];
     /** Wall 2 placed at L's base end (and wall 1 at R's), for mating checks. */
     wall2AtL: VaseMesh; wall1AtR: VaseMesh;
+    /** Foot piece numbers + solids, for the verify script (null when off). */
+    foot: {
+      stepD: number; M0: number; M1: number; gap: number; recessDepth: number; zDeep: number;
+      /** Step outline at its top (print z = −stepD, world z = 0) and base (print z = 0), foot print (x, y) = (u, −h). */
+      stepTop: P2[]; stepBase: P2[];
+      /** The vase bottom outline, foot print (x, y). */
+      base: P2[];
+      plateParts: VaseMesh[]; wallAt2: VaseMesh;
+      /** Each half's master disc parts (loft, straight, plug), print coords. */
+      discL: VaseMesh[]; discR: VaseMesh[];
+      /** Each half's well-end collar + flange (print coords). */
+      wellL?: VaseMesh[]; wellR?: VaseMesh[];
+    } | null;
   };
 }
 
@@ -279,6 +319,117 @@ function signedDist(px: number, py: number, poly: P2[]): number {
   return inside ? -d : d;
 }
 
+/** Sutherland–Hodgman clip to the half-plane x ≥ xMin. */
+function clipToXMin(loop: P2[], xMin: number): P2[] {
+  return clipToXMax(loop.map(([x, y]) => [-x, y] as P2), -xMin).map(([x, y]) => [-x, y] as P2);
+}
+
+/**
+ * Upper envelope of several arches in (u, h) — each a polyline from h = 0 up
+ * and back to h = 0 — as one polyline in increasing u. Exact for piecewise-
+ * linear input: sampled at every vertex of every arch, plus the crossing
+ * wherever the topmost segment changes between two samples (a corner cut
+ * there would make a bore smaller than the part it must clear).
+ */
+function upperEnvelope(arches: P2[][]): P2[] {
+  const segs: [P2, P2][] = [];
+  const us: number[] = [];
+  for (const a of arches) {
+    for (let i = 0; i < a.length; i++) {
+      us.push(a[i][0]);
+      if (i + 1 < a.length) {
+        const p = a[i], q = a[i + 1];
+        if (Math.abs(q[0] - p[0]) > 1e-9) segs.push(p[0] < q[0] ? [p, q] : [q, p]);
+      }
+    }
+  }
+  us.sort((x, y) => x - y);
+  const xs = us.filter((u, i) => i === 0 || u - us[i - 1] > 1e-7);
+  /** Topmost segment over [ua, ub] (whole interval inside it), and its value at u. */
+  const lineAt = (sg: [P2, P2], u: number) => sg[0][1] + ((sg[1][1] - sg[0][1]) * (u - sg[0][0])) / (sg[1][0] - sg[0][0]);
+  const out: P2[] = [];
+  for (let k = 0; k < xs.length; k++) {
+    const u = xs[k];
+    let h = 0;
+    for (const sg of segs) if (u >= sg[0][0] - 1e-9 && u <= sg[1][0] + 1e-9) h = Math.max(h, lineAt(sg, u));
+    out.push([u, h]);
+    if (k + 1 < xs.length) {
+      const ua = u, ub = xs[k + 1];
+      const live = segs.filter((sg) => sg[0][0] <= ua + 1e-9 && sg[1][0] >= ub - 1e-9);
+      if (live.length < 2) continue;
+      let ia = 0, ib = 0;
+      for (let i = 1; i < live.length; i++) {
+        if (lineAt(live[i], ua) > lineAt(live[ia], ua)) ia = i;
+        if (lineAt(live[i], ub) > lineAt(live[ib], ub)) ib = i;
+      }
+      if (ia === ib) continue;
+      const da = lineAt(live[ia], ua) - lineAt(live[ib], ua), db = lineAt(live[ia], ub) - lineAt(live[ib], ub);
+      const t = da / (da - db);
+      if (t > 1e-6 && t < 1 - 1e-6) { const uc = ua + (ub - ua) * t; out.push([uc, Math.max(0, lineAt(live[ia], uc))]); }
+    }
+  }
+  out[0] = [out[0][0], 0];
+  out[out.length - 1] = [out[out.length - 1][0], 0];
+  // A crossing that lands a hair from a vertex makes an earcut sliver.
+  return out.filter((q, i) => i === 0 || i === out.length - 1 || Math.hypot(q[0] - out[i - 1][0], q[1] - out[i - 1][1]) > 1e-3);
+}
+
+/** Offset an arch (h ≥ 0, endpoints on h = 0) outward by d, normal to the
+ *  curve and away from its chord midpoint; returned in increasing first
+ *  coordinate with both ends pinned to h = 0. The well collar's bore. */
+function offsetArch(arc: P2[], d: number): P2[] {
+  const out: P2[] = arc.map((pt, k) => {
+    const prev = arc[Math.max(0, k - 1)], next = arc[Math.min(arc.length - 1, k + 1)];
+    let tx = next[0] - prev[0], ty = next[1] - prev[1];
+    const L = Math.hypot(tx, ty) || 1; tx /= L; ty /= L;
+    // Outward = away from the arc's own chord midpoint.
+    let nx = ty, ny = -tx;
+    const cx = (arc[0][0] + arc[arc.length - 1][0]) / 2;
+    if (nx * (pt[0] - cx) + ny * pt[1] < 0) { nx = -nx; ny = -ny; }
+    return [pt[0] + nx * d, Math.max(0, pt[1] + ny * d)];
+  });
+  if (out[0][0] > out[out.length - 1][0]) out.reverse();
+  out[0] = [out[0][0], 0];
+  out[out.length - 1] = [out[out.length - 1][0], 0];
+  return out;
+}
+
+/**
+ * A closed solid lofted through stations of equal point count: each station is
+ * an outer loop (and optional holes) at extrusion coordinate w, mapped to 3-D
+ * by `map` (right-handed, as extrudeSolid). Point i of one station joins point
+ * i of the next; the first and last stations are capped. For the foot step's
+ * drafted pocket and the master's drafted disc, which a prism can't make.
+ */
+function loftSolid(stations: { outer: P2[]; holes: P2[][]; w: number }[], map: ExtrudeMap = MAP_XY_Z): VaseMesh {
+  const b = new MeshBuilder();
+  const area = (q: P2[]) => polyArea(q);
+  const flipO = area(stations[0].outer) < 0;
+  const flipH = stations[0].holes.map((h) => area(h) > 0);
+  const st = stations.map((s) => ({
+    w: s.w,
+    loops: [flipO ? s.outer.slice().reverse() : s.outer, ...s.holes.map((h, i) => (flipH[i] ? h.slice().reverse() : h))],
+  }));
+  for (let li = 0; li < st[0].loops.length; li++) {
+    for (let k = 0; k + 1 < st.length; k++) {
+      const A = st[k].loops[li], B = st[k + 1].loops[li];
+      const bot = A.map(([u, v]) => b.vertex(...map(u, v, st[k].w)));
+      const top = B.map(([u, v]) => b.vertex(...map(u, v, st[k + 1].w)));
+      for (let i = 0; i < A.length; i++) { const j = (i + 1) % A.length; b.quad(bot[i], bot[j], top[j], top[i]); }
+    }
+  }
+  const cap = (s: typeof st[number], up: boolean) => {
+    const { points, tris } = triangulateFace(s.loops[0], s.loops.slice(1));
+    const idx = points.map(([u, v]) => b.vertex(...map(u, v, s.w)));
+    for (const [i, j, k] of tris) { if (up) b.tri(idx[i], idx[j], idx[k]); else b.tri(idx[i], idx[k], idx[j]); }
+  };
+  cap(st[st.length - 1], st[st.length - 1].w > st[0].w);
+  cap(st[0], st[0].w > st[st.length - 1].w);
+  // Not welded: caps and walls keep their own vertices so sharp edges shade
+  // sharp (the checkers weld by position anyway).
+  return ensureOutward(b.build());
+}
+
 /**
  * Pull-rib section: the solid half-ellipse (a, b) with a RIB_HOLE-wide notch
  * cut down from its crown to RIB_HOLE below where the channel's inner surface
@@ -323,13 +474,13 @@ function errorResult(error: string): SplitHalvesMoldMeshes {
     masters: e, plates: e, walls: e, plaster: e, undercutFlags: new Float32Array(0), hasUndercuts: false,
     oneKit: false, plasterVolumeMm3: 0, masterStats: st, plateStats: st, wallStats: st, natchRadius: 0,
     natches: [], natchNote: null, plasterGap: null, gapWarning: null, error,
-    handle: null, handleError: null, handleWarning: null,
+    handle: null, handleError: null, handleWarning: null, foot: null,
     layout: { cavX0: 0, cavX1: 0, cavY0: 0, cavY1: 0, wallH: 0, seat: 0, plateThk: 0, plateW: 0, plateD: 0, masterLift: 0, plateLift: 0 },
     debug: {
       partsL: { relief: e, cap: e, capPoly: [], handle: null, handleSolid: null, strapLine: [], plate: [], ribs: [], ribHoles: [] },
       partsR: { relief: e, cap: e, capPoly: [], handle: null, handleSolid: null, strapLine: [], plate: [], ribs: [], ribHoles: [] },
       handleShell: 0, handleRibs: 0,
-      pocketL: [], islandL: null, pocketR: [], islandR: null, bumpsL: [], dimplesL: [], wall2AtL: e, wall1AtR: e,
+      pocketL: [], islandL: null, pocketR: [], islandR: null, bumpsL: [], dimplesL: [], wall2AtL: e, wall1AtR: e, foot: null,
     },
   };
 }
@@ -413,6 +564,66 @@ export function generateSplitHalvesMold(
   const outB = cutAll(outerRings, frameB), inB = cutAll(innerRings, frameB);
   if (!outA || !inA || !outB || !inB) {
     return errorResult('The split plane misses part of the vase at this Split Angle (XY Sway can carry it entirely to one side). Try another angle or less sway.');
+  }
+
+  // ── Foot piece (Gary, 2026-10-14). The halves stop at the vase's bottom
+  // plane; below it the master carries a DISC — the vase bottom outline grown
+  // by Margin, drafted wider over stepD — that moulds a counterbore into the
+  // bottom end of each half. A separate plaster foot piece's step plugs into
+  // it, its top forming the vase bottom (foot ring + recess), and it pulls off
+  // straight down. Past the counterbore the disc runs straight into the wall,
+  // capped and sealed like the well end.
+  //
+  // The two walls SWAP ENDS, so each wall's bore must take its own half's well
+  // AND the other half's disc. If the bore were the union of the two, its
+  // spare part would fill with plaster and stand proud of the halves' bottom
+  // face, where the foot piece must sit flat. So the disc's straight part is
+  // itself that union (the envelope with the other half's well), and fills the
+  // bore exactly at the base end. Its extra width sits inside the wall's boss,
+  // never against plaster, and the step it makes at the counterbore mouth lies
+  // in the halves' bottom face. The spare at the WELL end (only where the disc
+  // is wider than the well) is a harmless lip on the pour end.
+  //
+  // Arches here are in (u, h): u along the split, h out of the parting face.
+  // Every frame maps onto them without mirroring: half L print y = −u, R y = u,
+  // and a wall moved to the other half's base end lands at the same u. ──
+  const footOn = mold.halvesFootPiece;
+  const stepD = FOOT_STEP_DEPTH;
+  const stepTan = tanDeg(FOOT_STEP_DRAFT);
+  const M0 = Math.max(1, mold.halvesFootMargin), M1 = M0 + stepD * stepTan;
+  const ring0 = outerStack.rings[0];
+  const arcU = (arc: Arc, sgn: 1 | -1): P2[] => arc.map(([, Y, Z]) => [sgn * Y, Z - F] as P2);
+  const discArc = (M: number, sgn: 1 | -1): P2[] | null => {
+    const arc = cutArc(offsetRingRadial(ring0, c0x, c0y, M, 0, rRes), rRes, c0x, c0y, sgn > 0 ? frameA : frameB, F, nArc);
+    return arc ? arcU(arc, sgn) : null;
+  };
+  type DiscSet = { m0: P2[]; m1: P2[]; mEmb: P2[]; m1c: P2[]; m1f: P2[]; mF: P2[]; plug: P2[] };
+  const discs: Record<1 | -1, DiscSet> = { 1: null!, [-1]: null! } as Record<1 | -1, DiscSet>;
+  const wellU: Record<1 | -1, P2[]> = { 1: arcU(outA[outA.length - 1], 1), [-1]: arcU(outB[outB.length - 1], -1) } as Record<1 | -1, P2[]>;
+  /** The disc's straight part per half, and the bore of the wall that half's well end uses. */
+  const envU: Record<1 | -1, P2[]> = { 1: [], [-1]: [] } as Record<1 | -1, P2[]>;
+  const boreU: Record<1 | -1, P2[]> = { 1: [], [-1]: [] } as Record<1 | -1, P2[]>;
+  /** The disc's flange per half: the bore it meets, grown by FOOT_FLANGE_OVER. */
+  const flangeU: Record<1 | -1, P2[]> = { 1: [], [-1]: [] } as Record<1 | -1, P2[]>;
+  const xF = stepD - FOOT_FLANGE_T;
+  if (footOn) {
+    for (const sg of [1, -1] as const) {
+      const m0 = discArc(M0, sg), m1 = discArc(M1, sg), mEmb = discArc(M0 + (stepD + EMBED) * stepTan, sg);
+      const m1c = discArc(M1 + clr, sg), plug = discArc(-0.1, sg);
+      const m1f = discArc(M1 + clr + FOOT_FLANGE_OVER, sg), mF = discArc(M0 + xF * stepTan, sg);
+      if (!m0 || !m1 || !mEmb || !m1c || !m1f || !mF || !plug) return errorResult('The foot piece could not be cut at this Split Angle.');
+      discs[sg] = { m0, m1, mEmb, m1c, m1f, mF, plug };
+    }
+    for (const sg of [1, -1] as const) {
+      const other = (-sg) as 1 | -1;
+      envU[sg] = upperEnvelope([discs[sg].m1, wellU[other]]);
+      boreU[sg] = upperEnvelope([offsetArch(wellU[sg], clr), discs[other].m1c]);
+    }
+    // Half sg's base end meets the OTHER half's well-end wall.
+    for (const sg of [1, -1] as const) {
+      const other = (-sg) as 1 | -1;
+      flangeU[sg] = upperEnvelope([offsetArch(wellU[other], clr + FOOT_FLANGE_OVER), discs[sg].m1f]);
+    }
   }
 
   // ── Handle: Split 2-Pc's placement and burial, skirted to the seat depth. ──
@@ -507,8 +718,10 @@ export function generateSplitHalvesMold(
     }
   }
   if (handleSweep) for (const r of handleSweep.rings) for (const [, u, h] of r) { uMax = Math.max(uMax, u); hMax = Math.max(hMax, h); }
+  if (footOn) for (const q of [envU[1], envU[-1], boreU[1], boreU[-1], flangeU[1], flangeU[-1]]) for (const [u, h] of q) { uMin = Math.min(uMin, u); uMax = Math.max(uMax, u); hMax = Math.max(hMax, h); }
 
-  const cavX0 = -zEnd, cavX1 = m;
+  // With the foot piece the block ends at the wall boss past the counterbore.
+  const cavX0 = -zEnd, cavX1 = footOn ? stepD + sealDepth : m;
   const wallH = hMax + m;
   const wt = mold.halvesWallThickness;
   const flangeW = mold.halvesFlangeWidth;
@@ -565,6 +778,47 @@ export function generateSplitHalvesMold(
         error = 'The handle outline could not be joined to the vase outline for the plate pocket.';
       }
     }
+    if (footOn) {
+      // Add the disc below the base plane: cut the vase footprint at z = clr and
+      // detour round the disc (counterbore, then the straight part to the wall).
+      const ext = (q: P2[]): P2 => [Math.min(q[0][0], q[q.length - 1][0]), Math.max(q[0][0], q[q.length - 1][0])];
+      const [l0, h0] = ext(discs[ySign].m0), [lt, ht] = ext(discs[ySign].mF);
+      const [lF, hF] = ext(flangeU[ySign]), [lE, hE] = ext(envU[ySign]);
+      // Counterbore taper, flange (with clearance all round), straight part.
+      const a = -(xF - clr), b = -(stepD + clr);
+      const loSide: P2[] = [[clr, l0 - clr], [a, lt - clr], [a, lF - clr], [b, lF - clr], [b, lE - clr], [-cavX1, lE - clr]];
+      const hiSide: P2[] = [[clr, h0 + clr], [a, ht + clr], [a, hF + clr], [b, hF + clr], [b, hE + clr], [-cavX1, hE + clr]];
+      const nat = (q: P2[]) => q.map(([z, u]) => [z, ySign * u] as P2);
+      // Lower native Y first.
+      const [sideA, sideB] = ySign > 0 ? [nat(loSide), nat(hiSide)] : [nat(hiSide), nat(loSide)];
+      // Clearance in front of the disc's face too (+z = toward the vase).
+      let poly = clipToXMin(pocketNative, clr);
+      const k = poly.findIndex((q, i) => Math.abs(q[0] - clr) < 1e-9 && Math.abs(poly[(i + 1) % poly.length][0] - clr) < 1e-9);
+      if (k < 0) error = error ?? 'The vase outline could not be joined to the foot disc for the plate pocket.';
+      else {
+        poly = [...poly.slice(k + 1), ...poly.slice(0, k + 1)];   // the cut edge is now last → first
+        const yLast = poly[poly.length - 1][1], yFirst = poly[0][1];
+        const detour = yLast < yFirst ? [...sideA, ...sideB.slice().reverse()] : [...sideB, ...sideA.slice().reverse()];
+        pocketNative = [...poly, ...detour];
+      }
+      // Well end: the collar + flange are wider than the well when the other
+      // half's disc is. Cut the outline before the flange and detour round it.
+      const [lW, hW] = ext(flangeU[(-ySign) as 1 | -1]);
+      const zA = zEnd - sealDepth - FOOT_FLANGE_T - clr;
+      let top = clipToXMax(pocketNative, zA);
+      const kt = top.findIndex((q, i) => Math.abs(q[0] - zA) < 1e-9 && Math.abs(top[(i + 1) % top.length][0] - zA) < 1e-9);
+      if (kt < 0) error = error ?? 'The well outline could not be joined to the well-end flange for the plate pocket.';
+      else {
+        top = [...top.slice(kt + 1), ...top.slice(0, kt + 1)];
+        const lo = ySign * (lW - clr), hi = ySign * (hW + clr);
+        const [yA, yB] = lo < hi ? [lo, hi] : [hi, lo];
+        const yLast = top[top.length - 1][1], yFirst = top[0][1];
+        const run: P2[] = yLast < yFirst
+          ? [[zA, yA], [zEnd, yA], [zEnd, yB], [zA, yB]]
+          : [[zA, yB], [zEnd, yB], [zEnd, yA], [zA, yA]];
+        pocketNative = [...top, ...run];
+      }
+    }
     return { pocketNative, islandNative, error };
   };
 
@@ -599,7 +853,8 @@ export function generateSplitHalvesMold(
   const natchH = Math.min(mold.natchHeight, seat);
   const rMax = Math.max(2, mold.natchDiameter / 2);
   const obstacle = footprint(outA, 1).pocketNative;
-  const zB0 = -m, zB1 = zEnd, uB0 = uMin - m, uB1 = uMax + m;
+  // Plaster ends: with the foot piece, the counterbore mouth and the well-end boss.
+  const zB0 = footOn ? -stepD : -m, zB1 = footOn ? zEnd - sealDepth : zEnd, uB0 = uMin - m, uB1 = uMax + m;
   const zMid = hTop / 2;
   const clearAt = (z: number, u: number, placed: Natch[]): number => {
     let c = Math.min(z - zB0, zB1 - z, u - uB0, uB1 - u, signedDist(z, u, obstacle));
@@ -634,7 +889,7 @@ export function generateSplitHalvesMold(
       const r = Math.min(rMax, b.c);
       natches.push({ z: b.z, u: b.u, r, bump: lo }, { z: b.z, u: -b.u, r, bump: !lo });
     }
-  } else {
+  } else if (wantCount === 4) {
     const cand: (Natch & { c: number })[] = [];
     for (const [lo, neg] of [[true, true], [false, false], [false, true], [true, false]] as const) {
       const [z0, z1] = lo ? [zB0, zMid] : [zMid, zB1];
@@ -643,13 +898,40 @@ export function generateSplitHalvesMold(
       if (!fits(b.c)) continue;
       cand.push({ z: b.z, u: b.u, r: Math.min(rMax, b.c), bump: lo === neg, c: b.c });
     }
-    // Three: drop the one with the least room.
-    if (wantCount === 3 && cand.length === 4) {
-      let worst = 0;
-      for (let i = 1; i < 4; i++) if (cand[i].r < cand[worst].r - 1e-6 || (Math.abs(cand[i].r - cand[worst].r) < 1e-6 && cand[i].c < cand[worst].c)) worst = i;
-      cand.splice(worst, 1);
-    }
     for (const { z, u, r, bump } of cand) natches.push({ z, u, r, bump });
+  } else {
+    // Three (Gary, 2026-10-14): not four with the smallest dropped — that kept
+    // two crowded together on his mug. Try two at the ends of one side and one
+    // along the other, both ways round. Keep the layout with more natches, then
+    // the larger smallest natch, then the wider triangle.
+    type C = Natch & { c: number };
+    let best: { set: C[]; key: number[] } | null = null;
+    for (const pairNeg of [true, false]) {
+      const set: C[] = [];
+      for (const lo of [true, false]) {
+        const [z0, z1] = lo ? [zB0, zMid] : [zMid, zB1];
+        const [u0, u1] = pairNeg ? [uB0, 0] : [0, uB1];
+        const b = bestIn(z0, z1, u0, u1, (z, u) => clearAt(z, u, set));
+        if (fits(b.c)) set.push({ z: b.z, u: b.u, r: Math.min(rMax, b.c), bump: lo === pairNeg, c: b.c });
+      }
+      // Opposite the middle of the pair (a balanced triangle) where a
+      // full-size natch fits, else the roomiest spot on that side.
+      const zc = set.length === 2 ? (set[0].z + set[1].z) / 2 : zMid;
+      const [u0, u1] = pairNeg ? [0, uB1] : [uB0, 0];
+      const b = bestIn(zB0, zB1, u0, u1, (z, u) => { const c = clearAt(z, u, set); return c >= rMax ? 1e6 - Math.abs(z - zc) : c; });
+      const c = clearAt(b.z, b.u, set);
+      if (fits(c)) set.push({ z: b.z, u: b.u, r: Math.min(rMax, c), bump: (b.z < zMid) === !pairNeg, c });
+      const minR = set.length ? Math.min(...set.map((q) => q.r)) : 0;
+      const area = set.length === 3
+        ? Math.abs((set[1].z - set[0].z) * (set[2].u - set[0].u) - (set[1].u - set[0].u) * (set[2].z - set[0].z)) / 2 : 0;
+      const key = [set.length, Math.round(minR * 2) / 2, area];
+      const better = !best || key.some((v, i) => v !== best!.key[i]) && (() => {
+        for (let i = 0; i < key.length; i++) if (key[i] !== best!.key[i]) return key[i] > best!.key[i];
+        return false;
+      })();
+      if (better) best = { set, key };
+    }
+    for (const { z, u, r, bump } of best!.set) natches.push({ z, u, r, bump });
   }
   if (natches.length < wantCount) natchNote = `Only ${natches.length} natch${natches.length === 1 ? '' : 'es'} fit${natches.length === 1 ? 's' : ''} — raise Plaster to make room.`;
   const natchR = natches.length ? Math.min(...natches.map((n) => n.r)) : 0;
@@ -721,7 +1003,51 @@ export function generateSplitHalvesMold(
     const capPoly = dedupeLoop(offsetPolygon(
       [...capArc, [capArc[capArc.length - 1][0], -seat], [capArc[0][0], -seat]], -0.1));
     const cap = extrudeSolid(capPoly, [], cavX0 + CAP_RECESS, cavX0 + CAP_RECESS + shell, MAP_YZ_X);
-    const master = mergeMeshes(handleMesh ? [relief, cap, handleMesh] : [relief, cap]);
+    // Foot disc (solid): drafted over the counterbore (x 0 → stepD), then the
+    // straight part into the wall. A plug laps into the relief's base wall —
+    // the disc's x = 0 face only touches the relief, it doesn't overlap it.
+    const disc: VaseMesh[] = [];
+    if (footOn) {
+      const d = discs[ySign];
+      const sec = (q: P2[], bed = -seat): P2[] => {
+        const pts = q.map(([u, h]) => [-ySign * u, h] as P2);
+        return [...pts, [pts[pts.length - 1][0], bed], [pts[0][0], bed]];
+      };
+      disc.push(
+        loftSolid([
+          { outer: sec(d.m0), holes: [], w: 0 },
+          { outer: sec(d.m1), holes: [], w: stepD },
+          { outer: sec(d.mEmb), holes: [], w: stepD + EMBED },
+        ], MAP_YZ_X),
+        // Starts inside the flange (E lies within it), so the two never share a face.
+        extrudeSolid(sec(envU[ySign]), [], stepD - EMBED, cavX1, MAP_YZ_X),
+        extrudeSolid(sec(flangeU[ySign]), [], xF, stepD, MAP_YZ_X),
+        extrudeSolid(sec(d.plug, -seat + 0.1), [], -Math.min(1, shell / 2), Math.min(1, stepD / 2), MAP_YZ_X),
+      );
+    }
+    // Well end, the same trick (Gary, 2026-10-14): this half's wall opening is
+    // also the OTHER half's disc opening, so on a vase narrower at the top than
+    // the bottom the well alone left most of it empty — a 3 mm plaster lip on
+    // the pour end, the well no longer held by the wall, and the well's rim
+    // sealed only by its end touching the wall. A solid collar round the
+    // well's straight run fills the opening (it is the other half's disc
+    // envelope, exactly), with a flange in front covering the fit gap. On a
+    // mug whose well is bigger than the disc it is just the well plus the
+    // flange. Solid inside the run too — that only thickens the end cap.
+    const wellEnd: VaseMesh[] = [];
+    if (footOn) {
+      const other = (-ySign) as 1 | -1;
+      const secW = (q: P2[]): P2[] => {
+        const pts = q.map(([u, h]) => [-ySign * u, h] as P2);
+        return [...pts, [pts[pts.length - 1][0], -seat], [pts[0][0], -seat]];
+      };
+      const xFace = cavX0 + sealDepth;
+      wellEnd.push(
+        extrudeSolid(secW(envU[other]), [], cavX0 + CAP_RECESS, xFace + EMBED, MAP_YZ_X),
+        extrudeSolid(secW(flangeU[other]), [], xFace, xFace + FOOT_FLANGE_T, MAP_YZ_X),
+      );
+    }
+    const master = mergeMeshes([relief, cap, ...(handleMesh ? [handleMesh] : []), ...disc, ...wellEnd]);
     const flags = new Float32Array(master.vertexCount);
     flags.set(undercutOf(outer, F));
 
@@ -766,7 +1092,16 @@ export function generateSplitHalvesMold(
     for (const [y] of bite) { bMin = Math.min(bMin, y); bMax = Math.max(bMax, y); }
     const yL = bMin - COLLAR_BAND, yR = bMax + COLLAR_BAND;
     const collarPoly = dedupeLoop([[yL, 0], ...bite, [yR, 0], [yR, wallH], [yL, wallH]]);
-    const collar = extrudeSolid(collarPoly, [], cavX0 - EMBED, cavX0 + layout.sealDepth, MAP_YZ_X);
+    let collar = extrudeSolid(collarPoly, [], cavX0 - EMBED, cavX0 + layout.sealDepth, MAP_YZ_X);
+    if (footOn) {
+      // Full-width boss instead of a collar band, so the halves' bottom face is
+      // flat where the foot piece sits. Bore = this half's well + the other
+      // half's disc (see the foot notes above).
+      const bore = boreU[ySign].map(([u, h]) => [-ySign * u, h] as P2);
+      if (bore[0][0] > bore[bore.length - 1][0]) bore.reverse();
+      const bossPoly = dedupeLoop([[layout.cavY0 - EMBED, 0], ...bore, [layout.cavY1 + EMBED, 0], [layout.cavY1 + EMBED, wallH], [layout.cavY0 - EMBED, wallH]]);
+      collar = extrudeSolid(bossPoly, [], cavX0 - EMBED, cavX0 + sealDepth, MAP_YZ_X);
+    }
     const wall = mergeMeshes([buildWall(layout, { collars: false, seams: ySign > 0 ? 'ridges' : 'grooves' }), collar]);
 
     // Plaster: block interior minus the half-vase (+ handle) above the plane.
@@ -776,8 +1111,15 @@ export function generateSplitHalvesMold(
       envelope += (dx * (halfSectionArea(outer[i], F) + halfSectionArea(outer[i + 1], F))) / 2;
     }
     if (handleSweep) envelope += handleSweep.volume;
-    const plasterVol = Math.max(0, (cavX1 - cavX0) * (cavY1 - cavY0) * wallH - envelope);
-    const plaster = boxSolid(cavX0, cavY0, cavX1, cavY1, 0, wallH);
+    // With the foot piece the plaster runs from the well-end boss to the
+    // counterbore mouth: drop the well run inside the boss, add the counterbore.
+    const xLo = footOn ? cavX0 + sealDepth : cavX0, xHi = footOn ? stepD : cavX1;
+    if (footOn) {
+      envelope -= halfSectionArea(outer[outer.length - 1], F) * sealDepth;
+      envelope += (stepD * (Math.abs(polyArea(discs[ySign].m0)) + Math.abs(polyArea(discs[ySign].m1)))) / 2;
+    }
+    const plasterVol = Math.max(0, (xHi - xLo) * (cavY1 - cavY0) * wallH - envelope);
+    const plaster = boxSolid(xLo, cavY0, xHi, cavY1, 0, wallH);
 
     const toP = (z: number, u: number, h: number): [number, number, number] => [-z, -ySign * u, h];
     const dbg: HalfDebug = {
@@ -791,11 +1133,85 @@ export function generateSplitHalvesMold(
           .map((r) => { const [x0, y0] = toP(r[0][0], r[0][1], 0), [x1, y1] = toP(r[HANDLE_SEG][0], r[HANDLE_SEG][1], 0); return [(x0 + x1) / 2, (y0 + y1) / 2] as P2; })
         : [],
     };
-    return { master, flags, plate, plateParts, wall, plaster, plasterVol, layout, relief, handleMesh, pocket, island, dbg, outerPrint: outer.map((arc) => arc.map(([z, Y, Z]) => [-z, -Y, Z - F])) };
+    return { master, flags, plate, plateParts, wall, plaster, plasterVol, layout, relief, handleMesh, pocket, island, dbg, disc, wellEnd, outerPrint: outer.map((arc) => arc.map(([z, Y, Z]) => [-z, -Y, Z - F])) };
   };
 
   const L = buildHalf(outA, inA, 1, bumpsL, bumpR, dimplesL, dimpleR);
   const R = buildHalf(outB, inB, -1, dimplesL, dimpleR, bumpsL, bumpR);
+
+  // ── The foot piece's mold: a plate carrying the step pocket and the foot
+  // face, upside down, and one wall design printed twice — the same clip
+  // flange and V ridges as the halves. Foot print coords: x = u, y = −h,
+  // z = −(world z) − stepD, so the plate top is the foot's face against the
+  // halves and the pocket floor is the vase bottom. A rotation about u, never
+  // a mirror. The block matches the halves' bottom face exactly. ──
+  let footOut: SplitHalvesMoldMeshes['foot'] = null;
+  let footDbg: SplitHalvesMoldMeshes['debug']['foot'] = null;
+  let footDisplay: { plate: VaseMesh; walls: VaseMesh; plaster: VaseMesh } | null = null;
+  if (footOn) {
+    const toF = (ring: Ring): P2[] => {
+      const out: P2[] = [];
+      for (let t = 0; t < rRes; t++) {
+        const dx = ring[t * 3] - c0x, dy = ring[t * 3 + 1] - c0y;
+        out.push([dx * sx + dy * sy, -(dx * frameA.px + dy * frameA.py)]);
+      }
+      return out;
+    };
+    const FT = m;
+    const uLo = uMin - m, uHi = uMax + m;
+    const layoutF: MoldLayout = {
+      ...layoutFor(-wallH, wallH),
+      cavX0: uLo, cavX1: uHi, yc: 0,
+      px0: uLo - border, px1: uHi + border,
+      wallH: FT,
+    };
+    // Foot recess, as Pour 3-Pc's buildFootRings: flat ring, then a staircase
+    // of ~Step Height risers across Slope Width, up Depth to the centre.
+    const fBase = mold.footSmoothInner ? outerStack.smoothBase : ring0;
+    const hF = Math.max(0, mold.footHeight);
+    let fw = mold.footWidth, sw = mold.footSlopeWidth;
+    let rMin = Infinity;
+    for (let t = 0; t < rRes; t++) rMin = Math.min(rMin, Math.hypot(fBase[t * 3] - c0x, fBase[t * 3 + 1] - c0y));
+    const avail = rMin - 0.5;
+    const recess = hF > 1e-6 && sw > 0 && avail > 0.2;
+    if (recess && fw + sw > avail) { const k = avail / (fw + sw); fw *= k; sw *= k; }
+    const n = recess ? Math.max(1, Math.round(hF / Math.max(0.05, mold.footStepHeight))) : 0;
+    const sh = recess ? hF / n : 0;
+    const inset = (d: number) => toF(offsetRingRadial(fBase, c0x, c0y, -d, 0, rRes));
+    const riser = (j: number) => inset(fw + (sw * j) / n);
+    const zDeep = -stepD - (recess ? hF : 0);
+    const rect = rectPoints(layoutF.px0, layoutF.py0, layoutF.px1, layoutF.py1);
+    const P = (M: number) => toF(offsetRingRadial(ring0, c0x, c0y, M, 0, rRes));
+    const stepTop = P(M0 - FOOT_STEP_GAP), stepBase = P(M1 - FOOT_STEP_GAP);
+    const plateParts: VaseMesh[] = [boxSolid(layoutF.px0, layoutF.py0, layoutF.px1, layoutF.py1, zDeep - floorT, zDeep)];
+    if (recess) {
+      plateParts.push(extrudeSolid(rect, [riser(0)], zDeep - EMBED, -stepD));
+      // Each tread laps 0.1 under the taller one outside it.
+      for (let j = 1; j < n; j++) plateParts.push(extrudeSolid(inset(fw + (sw * (j - 1)) / n - 0.1), [riser(j)], zDeep - EMBED, -stepD - j * sh));
+    }
+    plateParts.push(loftSolid([
+      { outer: rect, holes: [P(M0 - FOOT_STEP_GAP - EMBED * stepTan)], w: -stepD - EMBED },
+      { outer: rect, holes: [stepBase], w: 0 },
+    ]));
+    plateParts.push(...buildPlateRidges(layoutF));
+    const plateF = mergeMeshes(plateParts);
+    const wallF = buildWall(layoutF, { collars: false });
+    const wallF2 = rotate180Z(wallF, (uLo + uHi) / 2, 0);
+    let vol = (uHi - uLo) * 2 * wallH * FT + (stepD * (Math.abs(polyArea(stepTop)) + Math.abs(polyArea(stepBase)))) / 2;
+    for (let j = 0; j < n; j++) vol += Math.abs(polyArea(riser(j))) * sh;
+    const plateThkF = floorT - zDeep;
+    footOut = {
+      plate: plateF, wall: wallF, plateStats: computeMeshStats(plateF), wallStats: computeMeshStats(wallF),
+      plasterVolumeMm3: vol,
+      plateW: layoutF.px1 - layoutF.px0, plateD: layoutF.py1 - layoutF.py0, plateThk: plateThkF, wallH: FT,
+      plateLift: plateThkF,
+    };
+    footDisplay = { plate: plateF, walls: mergeMeshes([wallF, wallF2]), plaster: boxSolid(uLo, -wallH, uHi, wallH, 0, FT) };
+    footDbg = {
+      stepD, M0, M1, gap: FOOT_STEP_GAP, recessDepth: recess ? hF : 0, zDeep,
+      stepTop, stepBase, base: toF(ring0), plateParts, wallAt2: wallF2, discL: [], discR: [],
+    };
+  }
 
   // ── Display: L assembly on the left, R on the right (shifted along −y/+y). ──
   const dyL = -L.layout.py1 - LAYOUT_GAP / 2;
@@ -816,7 +1232,23 @@ export function generateSplitHalvesMold(
     translateMesh(L.wall, shiftX, dyL, dz), translateMesh(wall2AtL, shiftX, dyL, dz),
     translateMesh(R.wall, shiftX, dyR, dz), translateMesh(wall1AtR, shiftX, dyR, dz),
   ]);
-  const plaster = mergeMeshes([translateMesh(L.plaster, shiftX, dyL, dz), translateMesh(R.plaster, shiftX, dyR, dz)]);
+  const plasterParts = [translateMesh(L.plaster, shiftX, dyL, dz), translateMesh(R.plaster, shiftX, dyR, dz)];
+  let platesOut = plates, wallsOut = walls;
+  if (footDisplay && footOut) {
+    // To the side of the two halves (they run along y), centred, standing on
+    // the grid like the plates — past one end it fell out of the default view.
+    let x0 = Infinity, x1 = -Infinity;
+    for (let i = 0; i < footDisplay.plate.positions.length; i += 3) { x0 = Math.min(x0, footDisplay.plate.positions[i]); x1 = Math.max(x1, footDisplay.plate.positions[i]); }
+    const halvesRight = L.layout.px1 + shiftX;
+    const fsx = halvesRight + LAYOUT_GAP - x0;
+    const dyF = 0;
+    const dzF = footOut.plateLift;
+    platesOut = mergeMeshes([plates, translateMesh(footDisplay.plate, fsx, dyF, dzF)]);
+    wallsOut = mergeMeshes([walls, translateMesh(footDisplay.walls, fsx, dyF, dzF)]);
+    plasterParts.push(translateMesh(footDisplay.plaster, fsx, dyF, dzF));
+  }
+  const plaster = mergeMeshes(plasterParts);
+  if (footDbg) { footDbg.discL = L.disc; footDbg.discR = R.disc; footDbg.wellL = L.wellEnd; footDbg.wellR = R.wellEnd; }
   const undercutFlags = new Float32Array(masters.vertexCount);
   undercutFlags.set(L.flags, 0);
   undercutFlags.set(R.flags, L.master.vertexCount);
@@ -826,7 +1258,7 @@ export function generateSplitHalvesMold(
   return {
     style: 'splitHalves',
     masterL: L.master, masterR: R.master, plateL: L.plate, plateR: R.plate, wall1: L.wall, wall2: R.wall,
-    masters, plates, walls, plaster, undercutFlags, hasUndercuts, oneKit,
+    masters, plates: platesOut, walls: wallsOut, plaster, undercutFlags, hasUndercuts, oneKit,
     plasterVolumeMm3: L.plasterVol + R.plasterVol,
     masterStats: computeMeshStats(L.master),
     plateStats: computeMeshStats(L.plate),
@@ -836,6 +1268,7 @@ export function generateSplitHalvesMold(
     error: null,
     handle: placement && handleSweep ? { placement, sectionMm } : null,
     handleError, handleWarning,
+    foot: footOut,
     layout: {
       cavX0, cavX1, cavY0: L.layout.cavY0, cavY1: L.layout.cavY1, wallH, seat,
       plateThk: seat + floorT,
@@ -845,7 +1278,7 @@ export function generateSplitHalvesMold(
     debug: {
       partsL: L.dbg, partsR: R.dbg, handleShell, handleRibs,
       pocketL: L.pocket, islandL: L.island, pocketR: R.pocket, islandR: R.island,
-      bumpsL, dimplesL, wall2AtL, wall1AtR,
+      bumpsL, dimplesL, wall2AtL, wall1AtR, foot: footDbg,
     },
   };
 }

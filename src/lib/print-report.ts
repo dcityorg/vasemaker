@@ -42,6 +42,8 @@ export interface PrintReportInput {
    *  label volume, powder and water as totals for both, so nobody mixes the full
    *  batch for each pour. */
   bothHalves?: boolean;
+  /** Further pieces poured separately (Split Halves' foot piece), each with its own batch. */
+  extraPours?: { label: string; volumeMm3: number }[];
   parts: ReportPart[];
   keySettings: ReportRow[];
 }
@@ -68,6 +70,14 @@ export function buildPrintReport(i: PrintReportInput): string {
     { label: `Water${both}`, value: `${grams(est.waterGrams)}  (${est.waterGrams.toFixed(0)} mL)` },
     { label: 'Mix ratio', value: `${material.waterRatio} parts water : 100 parts plaster, by weight` },
   ]));
+  for (const x of i.extraPours ?? []) {
+    const e = estimatePlaster(x.volumeMm3, i.material);
+    L.push('', ...block(x.label), ...rows([
+      { label: 'Volume', value: `${e.volumeCm3.toFixed(0)} cm3` },
+      { label: 'Powder', value: grams(e.powderGrams) },
+      { label: 'Water', value: `${grams(e.waterGrams)}  (${e.waterGrams.toFixed(0)} mL)` },
+    ]));
+  }
   L.push('', 'Estimates only — plaster density varies with mixing. Mix a little extra.', '');
 
   L.push(...block('PRINTER FIT'));

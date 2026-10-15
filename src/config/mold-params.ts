@@ -53,6 +53,7 @@ export const MOLD_PARAMS = {
   halvesWallThickness:  { min: 2, max: 8, step: 0.5 } as SliderRange,
   halvesFlangeWidth:    { min: 10, max: 30, step: 0.5 } as SliderRange,
   halvesWellSeal:       { min: 1, max: 10, step: 0.5 } as SliderRange,
+  halvesFootMargin:     { min: 3, max: 20, step: 0.5 } as SliderRange,
 } as const;
 
 /**

@@ -30,17 +30,25 @@ export type MoldStyle = 'twoPart' | 'onePiece' | 'pourTwoPiece' | 'pourThreePiec
 
 /** The styles offered in the UI. Press 2-Pc, Pour 1-Pc and Pour 2-Pc were
  *  HIDDEN on 2026-10-10 (Gary: too hard to get the plaster out of, and five
- *  choices confused people). Their code stays: Pour 3-Pc is built on Pour
- *  2-Pc's center and every style shares Press 2-Pc's helpers, and hiding is
- *  reversible in one line. Settings that name a hidden style are moved onto
- *  Pour 3-Pc by `retireMoldStyle`. */
-export const ACTIVE_MOLD_STYLES: readonly MoldStyle[] = ['pourThreePiece', 'splitTwoPiece', 'splitHalves'];
+ *  choices confused people). Split 2-Pc was hidden on 2026-10-14: its
+ *  throwaway tray was very hard to get off, and Split Halves pours the same
+ *  two halves in reusable parts. Their code stays: Pour 3-Pc is built on Pour
+ *  2-Pc's center, every style shares Press 2-Pc's helpers, and Split Halves
+ *  shares Split 2-Pc's floor/natch/handle helpers; hiding is reversible in one
+ *  line. Settings that name a hidden style are moved by `retireMoldStyle`. */
+export const ACTIVE_MOLD_STYLES: readonly MoldStyle[] = ['pourThreePiece', 'splitHalves'];
 
-/** Move settings that name a hidden style onto Pour 3-Pc. Returns the style
- *  that was replaced (for a notice), or null if nothing changed. */
+/** Where settings for a hidden style go: Split 2-Pc → Split Halves (same two
+ *  halves, same handle), everything else → Pour 3-Pc. */
+export function retiredSuccessor(style: MoldStyle): MoldStyle {
+  return style === 'splitTwoPiece' ? 'splitHalves' : 'pourThreePiece';
+}
+
+/** Move settings that name a hidden style onto its successor. Returns the
+ *  style that was replaced (for a notice), or null if nothing changed. */
 export function retireMoldStyle(p: MoldParameters): { params: MoldParameters; retired: MoldStyle | null } {
   if (ACTIVE_MOLD_STYLES.includes(p.moldStyle)) return { params: p, retired: null };
-  return { params: { ...p, moldStyle: 'pourThreePiece' }, retired: p.moldStyle };
+  return { params: { ...p, moldStyle: retiredSuccessor(p.moldStyle) }, retired: p.moldStyle };
 }
 
 export interface MoldParameters {
@@ -167,6 +175,18 @@ export interface MoldParameters {
    *  corner. A vase that pours one plate twice always uses 4 — it needs a
    *  bump opposite every dimple. */
   halvesNatchCount: number;
+  /** Split Halves: cast a separate plaster FOOT PIECE (Gary, 2026-10-14). The
+   *  halves stop at the vase's bottom plane with a drafted counterbore in their
+   *  bottom end; the foot piece's raised step plugs into it and its top forms
+   *  the vase bottom — foot ring + recess from the shared footWidth /
+   *  footSlopeWidth / footHeight / footStepHeight / footSmoothInner sliders.
+   *  It pulls off straight down, so the recess can't lock the halves. Its own
+   *  switch rather than footEnabled, which defaults ON for Pour 3-Pc and would
+   *  otherwise change every existing Split Halves mold. */
+  halvesFootPiece: boolean;
+  /** How much wider than the vase bottom the counterbore/step is, radially (mm).
+   *  This band is the ledge the halves sit on — the seal against the slip. */
+  halvesFootMargin: number;
 
   // ── Analysis ──
   /** Plaster material for the weight estimate. */
@@ -257,6 +277,8 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   halvesFlangeWidth: 14,
   halvesWellSeal: 3,
   halvesNatchCount: 4,
+  halvesFootPiece: false,
+  halvesFootMargin: 8,
 
   material: 'pottery',
 };
