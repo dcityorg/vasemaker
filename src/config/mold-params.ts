@@ -52,6 +52,10 @@ export const MOLD_PARAMS = {
   halvesPlateFloor:     { min: 2, max: 10, step: 0.2 } as SliderRange,
   halvesWallThickness:  { min: 2, max: 8, step: 0.5 } as SliderRange,
   halvesFlangeWidth:    { min: 10, max: 30, step: 0.5 } as SliderRange,
+  thirdsPlateFloor:     { min: 2, max: 10, step: 0.2 } as SliderRange,
+  thirdsWallThickness:  { min: 2, max: 8, step: 0.5 } as SliderRange,
+  thirdsFlangeWidth:    { min: 10, max: 30, step: 0.5 } as SliderRange,
+  thirdsFootMargin:     { min: 3, max: 20, step: 0.5 } as SliderRange,
   halvesWellSeal:       { min: 1, max: 10, step: 0.5 } as SliderRange,
   halvesFootMargin:     { min: 3, max: 20, step: 0.5 } as SliderRange,
 } as const;

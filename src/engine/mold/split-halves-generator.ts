@@ -89,17 +89,17 @@ const SYMMETRY_TOL = 0.05;
  *  The 0.2 mm also covers plaster's ~0.2 % setting expansion. The last
  *  FOOT_FLANGE_T of the depth is the flange's wider recess, so the step fits
  *  snugly over the first 4 mm — the depth Gary approved. */
-const FOOT_STEP_DEPTH = 5;
-const FOOT_STEP_DRAFT = 5;
-const FOOT_STEP_GAP = 0.2;
+export const FOOT_STEP_DEPTH = 5;
+export const FOOT_STEP_DRAFT = 5;
+export const FOOT_STEP_GAP = 0.2;
 /** A flange on the master's disc just in front of the base-end wall, this
  *  thick (x) and this much wider than the wall's bore. The bore has Fit
  *  Clearance round the disc, and that gap opens onto the halves' bottom face:
  *  plaster creeping in would stand a thin fin exactly where the foot piece
  *  sits. The flange covers the gap (it presses on the boss face) and leaves a
  *  harmless recess in the bottom face instead. */
-const FOOT_FLANGE_T = 1;
-const FOOT_FLANGE_OVER = 1;
+export const FOOT_FLANGE_T = 1;
+export const FOOT_FLANGE_OVER = 1;
 
 export interface HalfDebug {
   relief: VaseMesh; cap: VaseMesh; capPoly: P2[];
@@ -182,6 +182,8 @@ export interface SplitHalvesMoldMeshes {
     pocketR: P2[]; islandR: P2[] | null;
     /** Natch centres, world (z, u): plaster L bumps / dimples. */
     bumpsL: P2[]; dimplesL: P2[];
+    /** What the natch search measured against: the vase footprint (z, u) and the plaster block. */
+    natchFrame: { obstacle: P2[]; zB0: number; zB1: number; uB0: number; uB1: number; hTop: number } | null;
     /** Wall 2 placed at L's base end (and wall 1 at R's), for mating checks. */
     wall2AtL: VaseMesh; wall1AtR: VaseMesh;
     /** Foot piece numbers + solids, for the verify script (null when off). */
@@ -209,7 +211,7 @@ function polyArea(p: P2[]): number {
 }
 
 /** Offset a closed polygon outward by d (mitered, miter capped at 4×). Same point count/order. */
-function offsetPolygon(poly: P2[], d: number): P2[] {
+export function offsetPolygon(poly: P2[], d: number): P2[] {
   const n = poly.length;
   const ccw = polyArea(poly) > 0;
   const normals: P2[] = [];
@@ -232,7 +234,7 @@ function offsetPolygon(poly: P2[], d: number): P2[] {
 }
 
 /** Sutherland–Hodgman clip to the half-plane x ≤ xMax. */
-function clipToXMax(loop: P2[], xMax: number): P2[] {
+export function clipToXMax(loop: P2[], xMax: number): P2[] {
   const out: P2[] = [];
   for (let i = 0; i < loop.length; i++) {
     const a = loop[i], b = loop[(i + 1) % loop.length];
@@ -287,7 +289,7 @@ function outsideRun(E: P2[], S: P2[]): { pts: P2[]; lo: Hit; hi: Hit } | null {
  * measured on Gary's Width 5 mug, 2026-10-13): zero area, but earcut cannot
  * triangulate round it and the plate's top slab was left with 12 open edges.
  */
-function removeSpikes(loop: P2[]): P2[] {
+export function removeSpikes(loop: P2[]): P2[] {
   let pts = loop.slice();
   for (let changed = true; changed && pts.length > 3;) {
     changed = false;
@@ -309,7 +311,7 @@ function segDist(px: number, py: number, a: P2, b: P2): number {
 }
 
 /** Distance from p to a closed polygon's boundary, NEGATIVE inside it. */
-function signedDist(px: number, py: number, poly: P2[]): number {
+export function signedDist(px: number, py: number, poly: P2[]): number {
   let d = Infinity, inside = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
     const a = poly[j], b = poly[i];
@@ -320,7 +322,7 @@ function signedDist(px: number, py: number, poly: P2[]): number {
 }
 
 /** Sutherland–Hodgman clip to the half-plane x ≥ xMin. */
-function clipToXMin(loop: P2[], xMin: number): P2[] {
+export function clipToXMin(loop: P2[], xMin: number): P2[] {
   return clipToXMax(loop.map(([x, y]) => [-x, y] as P2), -xMin).map(([x, y]) => [-x, y] as P2);
 }
 
@@ -401,7 +403,7 @@ function offsetArch(arc: P2[], d: number): P2[] {
  * i of the next; the first and last stations are capped. For the foot step's
  * drafted pocket and the master's drafted disc, which a prism can't make.
  */
-function loftSolid(stations: { outer: P2[]; holes: P2[][]; w: number }[], map: ExtrudeMap = MAP_XY_Z): VaseMesh {
+export function loftSolid(stations: { outer: P2[]; holes: P2[][]; w: number }[], map: ExtrudeMap = MAP_XY_Z): VaseMesh {
   const b = new MeshBuilder();
   const area = (q: P2[]) => polyArea(q);
   const flipO = area(stations[0].outer) < 0;
@@ -480,7 +482,7 @@ function errorResult(error: string): SplitHalvesMoldMeshes {
       partsL: { relief: e, cap: e, capPoly: [], handle: null, handleSolid: null, strapLine: [], plate: [], ribs: [], ribHoles: [] },
       partsR: { relief: e, cap: e, capPoly: [], handle: null, handleSolid: null, strapLine: [], plate: [], ribs: [], ribHoles: [] },
       handleShell: 0, handleRibs: 0,
-      pocketL: [], islandL: null, pocketR: [], islandR: null, bumpsL: [], dimplesL: [], wall2AtL: e, wall1AtR: e, foot: null,
+      pocketL: [], islandL: null, pocketR: [], islandR: null, bumpsL: [], dimplesL: [], natchFrame: null, wall2AtL: e, wall1AtR: e, foot: null,
     },
   };
 }
@@ -842,9 +844,9 @@ export function generateSplitHalvesMold(
   }
 
   // ── Natches, placed automatically (Gary, 2026-10-13). One per quarter of the
-  // block — base/rim end × either side of the axis — each at the spot with the
-  // most free plaster round it (block edge, vase + handle footprint, and the
-  // natches already placed), sized to fit up to Natch Diameter with NATCH_EDGE
+  // block — base/rim end × either side of the axis — each in its corner, the
+  // same distance from the end, the side and the vase (2026-10-16; was: the
+  // spot with the most free plaster), sized to fit up to Natch Diameter with NATCH_EDGE
   // of plaster all round. Both halves share the parting-face outline, so one
   // set of world (z, u) positions serves both. Diagonal pairs as before: bumps
   // on plaster L at (base, −u) and (rim, +u). With ONE kit the pattern must be
@@ -881,24 +883,76 @@ export function generateSplitHalvesMold(
   };
   const natches: Natch[] = [];
   const fits = (c: number) => c >= 2;
+  // Each corner natch sits the same distance from the three things round it
+  // (Gary, 2026-10-16, as Split Thirds): the base end (or the counterbore
+  // mouth), the side of the block and the vase; at the rim end, the well (its
+  // ledge and funnel), the side and the vase. That is the biggest circle that
+  // still touches its end feature. Found on a 1 → 0.2 → 0.04 mm grid.
+  const wellSegs: [P2, P2][] = [];
+  for (let i = 0; i < obstacle.length; i++) {
+    const a = obstacle[i], b = obstacle[(i + 1) % obstacle.length];
+    // Any segment reaching the rim counts as well — including the stretch up
+    // to the rim corner, which the cup (below) deliberately leaves out.
+    if (a[0] >= hTop - 1e-6 || b[0] >= hTop - 1e-6) wellSegs.push([a, b]);
+  }
+  const bodySegs: [P2, P2][] = [];
+  for (let i = 0; i < obstacle.length; i++) {
+    const a = obstacle[i], b = obstacle[(i + 1) % obstacle.length];
+    // The cup only — the rim corner belongs to the well side, or a rim-end
+    // circle settles on that one point instead of the cup wall.
+    if (a[0] < hTop - 1e-6 && b[0] < hTop - 1e-6) bodySegs.push([a, b]);
+  }
+  /** A corner's three distances: its end feature, the block side, the vase. */
+  const feats = (lo: boolean, neg: boolean, z: number, u: number): number[] => {
+    let end = lo ? z - zB0 : zB1 - z, vase = Infinity;
+    if (!lo) for (const [a, b] of wellSegs) end = Math.min(end, segDist(z, u, a, b));
+    for (const [a, b] of lo ? bodySegs.concat(wellSegs) : bodySegs) vase = Math.min(vase, segDist(z, u, a, b));
+    return [end, neg ? u - uB0 : uB1 - u, vase];
+  };
+  /** The corner natch of one quarter; `raw` = free radius at a point (clearAt + NATCH_EDGE). */
+  const cornerIn = (lo: boolean, u0: number, u1: number, raw: (z: number, u: number) => number): { z: number; u: number; c: number } | null => {
+    const neg = u1 <= 0;
+    const [z0, z1] = lo ? [zB0, zMid] : [zMid, zB1];
+    let best: { z: number; u: number; c: number } | null = null;
+    // Score = free radius, less a steep penalty (×20) for the three distances
+    // not being equal: evenness wins over room (a leaning mug offered a roomier
+    // spot 1 mm off even, and ×4 took it). Smooth, so finer passes improve.
+    let bestS = -Infinity;
+    const scan = (za: number, zb: number, ua: number, ub: number, st: number) => {
+      for (let z = za; z <= zb + 1e-9; z += st) for (let u = ua; u <= ub + 1e-9; u += st) {
+        if (z < z0 || z > z1 || u < u0 || u > u1) continue;
+        const c = raw(z, u);
+        const f = feats(lo, neg, z, u);
+        const sc = c - 20 * (Math.max(...f) - Math.min(...f));
+        if (sc > bestS) { bestS = sc; best = { z, u, c }; }
+      }
+    };
+    scan(z0 + 0.5, z1, u0 + 0.5, u1, 1);
+    for (const st of [0.2, 0.04]) {
+      const b0 = best as { z: number; u: number; c: number } | null;
+      if (!b0) break;
+      scan(b0.z - 6 * st, b0.z + 6 * st, b0.u - 6 * st, b0.u + 6 * st, st);
+    }
+    return best;
+  };
   if (oneKit) {
+    // Placed on the −u side and mirrored, so every bump meets a dimple.
     for (const lo of [true, false]) {
-      const [z0, z1] = lo ? [zB0, zMid] : [zMid, zB1];
-      const b = bestIn(z0, z1, uB0, Math.min(0, uB1), (z, u) => Math.min(clearAt(z, u, natches), clearAt(z, -u, natches), -u - NATCH_EDGE));
-      if (!fits(b.c)) continue;
-      const r = Math.min(rMax, b.c);
+      const b = cornerIn(lo, uB0, Math.min(0, uB1), (z, u) => Math.min(clearAt(z, u, natches), clearAt(z, -u, natches), -u - NATCH_EDGE) + NATCH_EDGE);
+      if (!b) continue;
+      const c = Math.min(clearAt(b.z, b.u, natches), clearAt(b.z, -b.u, natches), -b.u - NATCH_EDGE);
+      if (!fits(c)) continue;
+      const r = Math.min(rMax, c);
       natches.push({ z: b.z, u: b.u, r, bump: lo }, { z: b.z, u: -b.u, r, bump: !lo });
     }
   } else if (wantCount === 4) {
-    const cand: (Natch & { c: number })[] = [];
     for (const [lo, neg] of [[true, true], [false, false], [false, true], [true, false]] as const) {
-      const [z0, z1] = lo ? [zB0, zMid] : [zMid, zB1];
       const [u0, u1] = neg ? [uB0, 0] : [0, uB1];
-      const b = bestIn(z0, z1, u0, u1, (z, u) => clearAt(z, u, cand));
-      if (!fits(b.c)) continue;
-      cand.push({ z: b.z, u: b.u, r: Math.min(rMax, b.c), bump: lo === neg, c: b.c });
+      const b = cornerIn(lo, u0, u1, (z, u) => clearAt(z, u, []) + NATCH_EDGE);
+      if (!b) continue;
+      const c = clearAt(b.z, b.u, natches);
+      if (fits(c)) natches.push({ z: b.z, u: b.u, r: Math.min(rMax, c), bump: lo === neg });
     }
-    for (const { z, u, r, bump } of cand) natches.push({ z, u, r, bump });
   } else {
     // Three (Gary, 2026-10-14): not four with the smallest dropped — that kept
     // two crowded together on his mug. Try two at the ends of one side and one
@@ -909,10 +963,10 @@ export function generateSplitHalvesMold(
     for (const pairNeg of [true, false]) {
       const set: C[] = [];
       for (const lo of [true, false]) {
-        const [z0, z1] = lo ? [zB0, zMid] : [zMid, zB1];
         const [u0, u1] = pairNeg ? [uB0, 0] : [0, uB1];
-        const b = bestIn(z0, z1, u0, u1, (z, u) => clearAt(z, u, set));
-        if (fits(b.c)) set.push({ z: b.z, u: b.u, r: Math.min(rMax, b.c), bump: lo === pairNeg, c: b.c });
+        const b = cornerIn(lo, u0, u1, (z, u) => clearAt(z, u, []) + NATCH_EDGE);
+        const c = b ? clearAt(b.z, b.u, set) : -1;
+        if (b && fits(c)) set.push({ z: b.z, u: b.u, r: Math.min(rMax, c), bump: lo === pairNeg, c });
       }
       // Opposite the middle of the pair (a balanced triangle) where a
       // full-size natch fits, else the roomiest spot on that side.
@@ -1278,7 +1332,7 @@ export function generateSplitHalvesMold(
     debug: {
       partsL: L.dbg, partsR: R.dbg, handleShell, handleRibs,
       pocketL: L.pocket, islandL: L.island, pocketR: R.pocket, islandR: R.island,
-      bumpsL, dimplesL, wall2AtL, wall1AtR, foot: footDbg,
+      bumpsL, dimplesL, natchFrame: { obstacle, zB0, zB1, uB0, uB1, hTop }, wall2AtL, wall1AtR, foot: footDbg,
     },
   };
 }

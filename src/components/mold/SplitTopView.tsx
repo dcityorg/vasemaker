@@ -16,8 +16,11 @@ import { vaseSliceForDiagram } from '@/engine/mold/split-handle';
 
 const SIZE = 150;
 
-export function SplitTopView({ vase, keepTexture, seamAngle, handleOn, zFrac }: {
+export function SplitTopView({ vase, keepTexture, seamAngle, handleOn, zFrac, seams = 2 }: {
   vase: VaseParameters; keepTexture: boolean; seamAngle: number; handleOn: boolean; zFrac: number;
+  /** 2: one split line through the axis (the halves). 3+: that many seams
+   *  from the axis, evenly spaced, the first at Seam Angle (Split Thirds). */
+  seams?: number;
 }) {
   const slice = useMemo(() => vaseSliceForDiagram(vase, keepTexture, zFrac), [vase, keepTexture, zFrac]);
   let rMax = 1;
@@ -50,8 +53,14 @@ export function SplitTopView({ vase, keepTexture, seamAngle, handleOn, zFrac }: 
       <line x1={c + rMax * k + 2} y1={c} x2={c + rMax * k + 8} y2={c} stroke="var(--text-secondary)" />
       <text x={SIZE - 2} y={c - 4} fontSize={9} textAnchor="end" fill="var(--text-secondary)">0°</text>
       <path d={path} fill="rgba(159,179,200,0.18)" stroke="#9fb3c8" strokeWidth={1.5} />
-      <line x1={X(-L * sx)} y1={Y(-L * sy)} x2={X(L * sx)} y2={Y(L * sy)}
-        stroke="var(--text-primary)" strokeWidth={1} strokeDasharray="5 3" />
+      {seams <= 2 ? (
+        <line x1={X(-L * sx)} y1={Y(-L * sy)} x2={X(L * sx)} y2={Y(L * sy)}
+          stroke="var(--text-primary)" strokeWidth={1} strokeDasharray="5 3" />
+      ) : Array.from({ length: seams }, (_, i) => {
+        const b = a + (i * 2 * Math.PI) / seams;
+        return <line key={i} x1={X(0)} y1={Y(0)} x2={X(L * Math.cos(b))} y2={Y(L * Math.sin(b))}
+          stroke="var(--text-primary)" strokeWidth={1} strokeDasharray="5 3" />;
+      })}
       {handleOn && (
         <line x1={X(rEdge * sx)} y1={Y(rEdge * sy)} x2={X((rEdge + 13) * sx)} y2={Y((rEdge + 13) * sy)}
           stroke="#e05555" strokeWidth={5} strokeLinecap="round" />

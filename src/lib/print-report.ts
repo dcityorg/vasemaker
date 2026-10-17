@@ -42,6 +42,8 @@ export interface PrintReportInput {
    *  label volume, powder and water as totals for both, so nobody mixes the full
    *  batch for each pour. */
   bothHalves?: boolean;
+  /** As bothHalves, for a mold in more pieces: e.g. 'all three pieces'. Wins over bothHalves. */
+  totalsFor?: string;
   /** Further pieces poured separately (Split Halves' foot piece), each with its own batch. */
   extraPours?: { label: string; volumeMm3: number }[];
   parts: ReportPart[];
@@ -61,8 +63,9 @@ export function buildPrintReport(i: PrintReportInput): string {
   L.push(i.title, '='.repeat(Math.max(12, i.title.length)), '');
   L.push(...rows(i.identity), '');
 
-  const both = i.bothHalves ? ' (both halves)' : '';
-  L.push(...block(i.bothHalves ? 'PLASTER — TOTALS FOR BOTH HALVES' : 'PLASTER'));
+  const totals = i.totalsFor ?? (i.bothHalves ? 'both halves' : null);
+  const both = totals ? ` (${totals})` : '';
+  L.push(...block(totals ? `PLASTER — TOTALS FOR ${totals.toUpperCase()}` : 'PLASTER'));
   L.push(...rows([
     { label: 'Material', value: material.label },
     { label: `Volume${both}`, value: `${est.volumeCm3.toFixed(0)} cm3` },

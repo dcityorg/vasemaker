@@ -35,6 +35,7 @@ export function SliderRow({
   tooltip,
   suffix,
   valueLabel,
+  color,
 }: {
   label: string;
   value: number;
@@ -50,6 +51,8 @@ export function SliderRow({
    * the overall extent that follows along). Widens the column to suit.
    */
   valueLabel?: string;
+  /** Colours the label and readout — for a setting that must not be missed (the mold's Shrink). */
+  color?: string;
 }) {
   // Modifier state for the drag path. The `input` event carries no modifier
   // flags, so they're latched from the pointer events that precede it.
@@ -92,7 +95,7 @@ export function SliderRow({
       {/* w-28, not w-24: labels carrying a unit ("Thickness (mm)") wrapped to a
           second line and threw the row heights out of alignment. Toggle matches
           so its label still lines up with the sliders around it. */}
-      <label className="text-sm text-[var(--text-secondary)] w-28 shrink-0" title={tooltip}>{label}</label>
+      <label className="text-sm text-[var(--text-secondary)] w-28 shrink-0" title={tooltip} style={color ? { color } : undefined}>{label}</label>
       <input
         type="range"
         min={min}
@@ -120,6 +123,7 @@ export function SliderRow({
       <span
         className={`text-xs text-[var(--text-secondary)] shrink-0 text-right tabular-nums ${valueLabel ? 'w-[68px]' : 'w-12'}`}
         title={tooltip}
+        style={color ? { color } : undefined}
       >
         {valueLabel ?? `${value}${suffix ?? ''}`}
       </span>
@@ -157,6 +161,7 @@ export function Section({ title, children, defaultOpen = true, active, checked, 
         {onToggle ? (
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(!checked); }}
+            title={checked ? 'On — click to turn off' : 'Off — click to turn on'}
             className={`w-8 h-4 rounded-full transition-colors shrink-0 ${checked ? 'bg-[var(--accent)]' : 'bg-[#888]'}`}
           />
         ) : (
@@ -191,6 +196,7 @@ export function Toggle({ label, checked, onChange, onReset, tooltip }: {
       <label className="text-sm text-[var(--text-secondary)] w-28 shrink-0" title={tooltip}>{label}</label>
       <button
         onClick={() => onChange(!checked)}
+        title={tooltip ?? (checked ? 'On — click to turn off' : 'Off — click to turn on')}
         className={`w-8 h-4 rounded-full transition-colors ${
           checked ? 'bg-[var(--accent)]' : 'bg-[var(--border-color)]'
         }`}

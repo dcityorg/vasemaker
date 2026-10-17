@@ -89,7 +89,7 @@ const MIN_LAND = 0.6;
  * between them. The seam block below carries the ring grooves on its own
  * underside, which removes that constraint entirely.
  */
-function seamBandPositions(layout: MoldLayout): number[] {
+export function seamBandPositions(layout: Pick<MoldLayout, 'vw' | 'vclr' | 'flangeW'>): number[] {
   const gW = layout.vw / 2 + layout.vclr;
   const first = RIDGE_EDGE_INSET + layout.vw / 2;
   const last = layout.flangeW - gW - 0.3;

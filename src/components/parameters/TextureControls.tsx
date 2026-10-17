@@ -81,6 +81,7 @@ function SvgLoadDialog({ onClose, onApply, initialSvg }: {
         {text.trim() && (
           <button
             onClick={() => setText('')}
+            title="Empty the box so you can paste something new"
             className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors self-start"
           >
             Clear
@@ -111,6 +112,7 @@ function SvgLoadDialog({ onClose, onApply, initialSvg }: {
           </button>
           <button
             onClick={handleApply}
+            title="Use the pasted SVG as the pattern"
             disabled={!text.trim()}
             className="text-sm px-3 py-1.5 rounded bg-[var(--accent)] text-white hover:opacity-90 transition-colors disabled:opacity-40"
           >
@@ -349,12 +351,14 @@ export function TextureControls({ designName }: { designName?: string | null }) 
               <div className="flex flex-wrap gap-1">
                 <button
                   onClick={() => svgFileRef.current?.click()}
+                  title="Open an .svg file from your computer to use as the pattern"
                   className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
                 >
                   Load SVG
                 </button>
                 <button
                   onClick={handleSaveSvg}
+                  title="Save the current pattern as an .svg file so you can reuse it"
                   disabled={!params.textures.svgPattern.svgText}
                   className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
@@ -362,6 +366,7 @@ export function TextureControls({ designName }: { designName?: string | null }) 
                 </button>
                 <button
                   onClick={() => setSvgDialogOpen(true)}
+                  title="Paste SVG code (or CSS from a pattern website) into a box"
                   className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
                 >
                   Paste SVG
@@ -382,7 +387,7 @@ export function TextureControls({ designName }: { designName?: string | null }) 
                 <SliderRow label="SVG Size X" value={params.textures.svgPattern.sizeAround ?? 100} {...TEXTURES.svgPattern.sizeAround} onChange={(v) => setSvgPattern({ sizeAround: v })} tooltip="Motif width as % of tile cell (smaller = more gap between motifs)" suffix="%" />
                 <div className="flex items-center gap-2 ml-4 -mt-1 mb-1">
                   <span className="text-xs text-[var(--text-secondary)] opacity-60">↕ 100% for tiling</span>
-                  <button className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]" onClick={() => setSvgPattern({ sizeAround: 100, sizeUp: 100 })}>Reset</button>
+                  <button className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]" onClick={() => setSvgPattern({ sizeAround: 100, sizeUp: 100 })} title="Set SVG Size X and Y back to 100% (tiles touch)">Reset</button>
                 </div>
                 <SliderRow label="SVG Size Y" value={params.textures.svgPattern.sizeUp ?? 100} {...TEXTURES.svgPattern.sizeUp} onChange={(v) => setSvgPattern({ sizeUp: v })} tooltip="Motif height as % of tile cell (smaller = more gap between motifs)" suffix="%" />
                 <SliderRow label="Rotate" value={params.textures.svgPattern.tileRotation ?? 0} {...TEXTURES.svgPattern.tileRotation} onChange={(v) => setSvgPattern({ tileRotation: v })} tooltip="Uniform rotation for all tiles in degrees" suffix="°" />

@@ -156,19 +156,19 @@ export function Sidebar({
   return (
     <div className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-[var(--border-color)]">
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-semibold text-[var(--text-primary)] flex-1">VaseMaker</h1>
+      <div className="px-3 py-3 border-b border-[var(--border-color)]">
+        <div className="flex items-center gap-0.5">
+          <h1 className="text-base font-semibold text-[var(--text-primary)] flex-1 whitespace-nowrap">VaseMaker</h1>
           <Link
             href="/mold"
-            className="text-xs px-2 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
+            className="text-xs px-1.5 py-0.5 shrink-0 whitespace-nowrap rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
             title="Make a plaster casting mold from this vase"
           >
             Mold ▸
           </Link>
           <Link
             href="/handle"
-            className="text-xs px-2 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
+            className="text-xs px-1.5 py-0.5 shrink-0 whitespace-nowrap rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
             title="Design a handle and its plaster casting mold"
           >
             Handle ▸
@@ -198,7 +198,7 @@ export function Sidebar({
           </button>
           <button
             onClick={onToggleHelp}
-            className={`text-sm font-bold leading-none w-6 h-6 rounded-full flex items-center justify-center transition-colors ${helpOpen ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}
+            className={`text-sm font-bold leading-none w-6 h-6 shrink-0 rounded-full flex items-center justify-center transition-colors ${helpOpen ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}
             title="Toggle help panel"
           >
             ?
@@ -257,6 +257,7 @@ export function Sidebar({
         <div className="relative" ref={presetDropdownRef}>
           <button
             onClick={() => setPresetDropdownOpen(!presetDropdownOpen)}
+            title="Start from one of the built-in vase designs"
             className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs text-left flex items-center justify-between"
             style={{ color: UI_MUTED }}
           >

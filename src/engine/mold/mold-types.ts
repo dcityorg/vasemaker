@@ -25,8 +25,11 @@ export type PlasterType = 'pottery' | 'hydrocal' | 'hydrostone';
  * - 'splitHalves' — "Split Halves": the same two plaster halves, poured in
  *   REUSABLE parts (plate + two clip-on walls + a separate hollow master),
  *   HandleMaker style — after the throwaway tray proved too hard to remove.
+ * - 'splitThirds' — "Split Thirds": three plaster pieces split by seams 120°
+ *   apart, each poured on a V-shaped plate with tilted walls (2026-10-15). A
+ *   seam leans 30° the safe way, so softer flutes and 3-fold shapes release.
  */
-export type MoldStyle = 'twoPart' | 'onePiece' | 'pourTwoPiece' | 'pourThreePiece' | 'splitTwoPiece' | 'splitHalves';
+export type MoldStyle = 'twoPart' | 'onePiece' | 'pourTwoPiece' | 'pourThreePiece' | 'splitTwoPiece' | 'splitHalves' | 'splitThirds';
 
 /** The styles offered in the UI. Press 2-Pc, Pour 1-Pc and Pour 2-Pc were
  *  HIDDEN on 2026-10-10 (Gary: too hard to get the plaster out of, and five
@@ -36,7 +39,7 @@ export type MoldStyle = 'twoPart' | 'onePiece' | 'pourTwoPiece' | 'pourThreePiec
  *  2-Pc's center, every style shares Press 2-Pc's helpers, and Split Halves
  *  shares Split 2-Pc's floor/natch/handle helpers; hiding is reversible in one
  *  line. Settings that name a hidden style are moved by `retireMoldStyle`. */
-export const ACTIVE_MOLD_STYLES: readonly MoldStyle[] = ['pourThreePiece', 'splitHalves'];
+export const ACTIVE_MOLD_STYLES: readonly MoldStyle[] = ['pourThreePiece', 'splitHalves', 'splitThirds'];
 
 /** Where settings for a hidden style go: Split 2-Pc → Split Halves (same two
  *  halves, same handle), everything else → Pour 3-Pc. */
@@ -46,6 +49,16 @@ export function retiredSuccessor(style: MoldStyle): MoldStyle {
 
 /** Move settings that name a hidden style onto its successor. Returns the
  *  style that was replaced (for a notice), or null if nothing changed. */
+/** Split Halves no longer offers a cast-on handle (Gary, 2026-10-16: handles
+ *  are to become their own molds — getting handle + vase out together was
+ *  chipping the plaster). The code is kept; set true to bring it back. */
+export const HALVES_HANDLE_OFFERED = false;
+
+/** Does this mold cast the HandleMaker handle with the vase? */
+export function moldUsesHandle(p: MoldParameters): boolean {
+  return p.splitHandle && (p.moldStyle === 'splitTwoPiece' || (p.moldStyle === 'splitHalves' && HALVES_HANDLE_OFFERED));
+}
+
 export function retireMoldStyle(p: MoldParameters): { params: MoldParameters; retired: MoldStyle | null } {
   if (ACTIVE_MOLD_STYLES.includes(p.moldStyle)) return { params: p, retired: null };
   return { params: { ...p, moldStyle: retiredSuccessor(p.moldStyle) }, retired: p.moldStyle };
@@ -167,6 +180,15 @@ export interface MoldParameters {
   halvesWallThickness: number;
   /** Clip flange width along the bottom of the walls (mm). */
   halvesFlangeWidth: number;
+  /** Split Thirds' own plate floor / wall / clip flange (mm). Separate from
+   *  Split Halves so its poured numbers stay put (Gary, 2026-10-16). */
+  thirdsPlateFloor: number;
+  thirdsWallThickness: number;
+  thirdsFlangeWidth: number;
+  /** Split Thirds' own foot piece switch and step margin (Gary, 2026-10-16:
+   *  keep the styles' settings separate). */
+  thirdsFootPiece: boolean;
+  thirdsFootMargin: number;
   /** How far the well runs into the wall collar = the length of its straight,
    *  capped end (mm). */
   halvesWellSeal: number;
@@ -208,7 +230,7 @@ export function mergeMoldParameters(loaded: unknown): MoldParameters {
       if (key === 'material') {
         if (v === 'pottery' || v === 'hydrocal' || v === 'hydrostone') out.material = v;
       } else if (key === 'moldStyle') {
-        if (v === 'twoPart' || v === 'onePiece' || v === 'pourTwoPiece' || v === 'pourThreePiece' || v === 'splitTwoPiece' || v === 'splitHalves') out.moldStyle = v;
+        if (v === 'twoPart' || v === 'onePiece' || v === 'pourTwoPiece' || v === 'pourThreePiece' || v === 'splitTwoPiece' || v === 'splitHalves' || v === 'splitThirds') out.moldStyle = v;
       } else if (typeof v === typeof DEFAULT_MOLD_PARAMETERS[key]) {
         (out as unknown as Record<string, unknown>)[key] = v;
       }
@@ -275,6 +297,12 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   halvesPlateFloor: 4,
   halvesWallThickness: 4,
   halvesFlangeWidth: 14,
+  // Split Thirds: thinner plate and walls, narrower flange (Gary, 2026-10-16).
+  thirdsPlateFloor: 2,
+  thirdsWallThickness: 2,
+  thirdsFlangeWidth: 10,
+  thirdsFootPiece: false,
+  thirdsFootMargin: 8,
   halvesWellSeal: 3,
   halvesNatchCount: 4,
   halvesFootPiece: false,
