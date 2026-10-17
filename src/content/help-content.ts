@@ -479,12 +479,13 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: 'moldmaker',
     title: 'MoldMaker (Slip Casting)',
     blocks: [
-      { type: 'paragraph', text: 'MoldMaker turns your vase design into 3D-printable plastic parts for casting a plaster slip-casting mold. Click the "Mold ▸" button in the header to open it — it reads your current vase design and updates live. There are two styles:' },
+      { type: 'paragraph', text: 'MoldMaker turns your vase design into 3D-printable plastic parts for casting a plaster slip-casting mold. Click the "Mold ▸" button in the header to open it — it reads your current vase design and updates live. There are three styles:' },
       { type: 'keyvalue', items: [
         { key: 'Pour 3-Pc', value: 'One plaster block, poured around the upside-down vase inside a shell that unclips in two halves. Proven over many pours. The vase must never get narrower going up.' },
-        { key: 'Split Halves', value: 'Two plaster halves split down the middle of the vase, poured in reusable parts like the handle mold (plate, two walls, separate master). Necks, bellies, rolled lips and a cast-on handle are all fine, and an optional third piece gives the mug a foot. First pour went well; still being tested.' },
+        { key: 'Split Halves', value: 'Two plaster halves split down the middle of the vase, poured in reusable parts like the handle mold (plate, two walls, separate master). Necks, bellies and rolled lips are all fine, and an optional third piece gives the mug a foot. First pour went well; still being tested.' },
+        { key: 'Split Thirds', value: 'Three plaster pieces split 120° apart, each poured in its own reusable parts. Pieces part at a gentler angle than halves, so some textures that lock two halves release in thirds. Optional foot piece. New, not yet poured.' },
       ] },
-      { type: 'paragraph', text: 'For Pour 3-Pc, one design constraint matters while you\'re still on the Vase tab: to pull out of the plaster, the vase must never get narrower as it rises. Inward-curving profiles, twist, and most textures create undercuts — MoldMaker highlights them in red. If your design narrows on purpose (a mug with a rolled lip, say), use Split Halves.' },
+      { type: 'paragraph', text: 'For Pour 3-Pc, one design constraint matters while you\'re still on the Vase tab: to pull out of the plaster, the vase must never get narrower as it rises. Inward-curving profiles, twist, and most textures create undercuts — MoldMaker highlights them in red. If your design narrows on purpose (a mug with a rolled lip, say), use Split Halves or Split Thirds.' },
       { type: 'paragraph', text: 'Full MoldMaker help — mold anatomy, every setting, the undercut check, and a printing/pouring/casting walkthrough — is on the Mold tab itself: click the ? button next to ◂ Vase.' },
       { type: 'tip', text: 'Preview with Mold ▸ early — the undercut check updates live as you edit, for whichever style you pick.' },
     ],

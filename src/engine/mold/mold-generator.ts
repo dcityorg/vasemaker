@@ -59,7 +59,7 @@ function clampRingMinRadius(ring: Ring, cx: number, cy: number, minR: number, rR
  * The last returned ring is the foot inner edge at z = 0; the caller appends
  * the base ring itself (delta 0) to close the foot annulus.
  */
-export function buildFootRings(baseRing: Ring, cx: number, cy: number, rRes: number, w1: number, w2: number, h: number, stepH: number): Ring[] {
+export function buildFootRings(baseRing: Ring, cx: number, cy: number, rRes: number, w1: number, w2: number, h: number): Ring[] {
   if (h <= 0 || w2 <= 0) return [];
   const avail = minRingRadius(baseRing, cx, cy, rRes) - 0.5;
   if (avail <= 0.2) return [];
@@ -69,16 +69,12 @@ export function buildFootRings(baseRing: Ring, cx: number, cy: number, rRes: num
     fw *= s;
     sw *= s;
   }
-  const n = Math.max(1, Math.round(h / Math.max(0.05, stepH)));
-  const sh = h / n;
-  const rings: Ring[] = [];
-  rings.push(offsetRingRadial(baseRing, cx, cy, -(fw + sw), h, rRes)); // recessed-center plateau edge
-  for (let j = n - 1; j >= 0; j--) {
-    const d = -(fw + (sw * j) / n);
-    rings.push(offsetRingRadial(baseRing, cx, cy, d, sh * (j + 1), rRes)); // tread outer edge (riser top)
-    rings.push(offsetRingRadial(baseRing, cx, cy, d, sh * j, rRes));       // riser bottom
-  }
-  return rings;
+  // A smooth slope (Gary, 2026-10-16): it used to be a staircase of Step Height
+  // risers, but the slicer cuts the slope into layers anyway.
+  return [
+    offsetRingRadial(baseRing, cx, cy, -(fw + sw), h, rRes), // recessed-center plateau edge
+    offsetRingRadial(baseRing, cx, cy, -fw, 0, rRes),        // foot ring inner edge
+  ];
 }
 
 /**
@@ -345,7 +341,7 @@ export function generateMoldMeshes(vase: VaseParameters, mold: MoldParameters): 
   const footH = mold.footEnabled ? Math.max(0, Math.min(mold.footHeight, wt - 0.5)) : 0;
   const footBase = mold.footSmoothInner ? outer.smoothBase : outer.rings[0];
   const footRings = footH > 0
-    ? buildFootRings(footBase, outer.centers[0][0], outer.centers[0][1], rRes, mold.footWidth, mold.footSlopeWidth, footH, mold.footStepHeight)
+    ? buildFootRings(footBase, outer.centers[0][0], outer.centers[0][1], rRes, mold.footWidth, mold.footSlopeWidth, footH)
     : [];
 
   // ── Well rings + cavity floor path — computed from the PRE-fuse rim so the

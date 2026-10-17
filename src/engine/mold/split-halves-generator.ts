@@ -1219,8 +1219,8 @@ export function generateSplitHalvesMold(
       px0: uLo - border, px1: uHi + border,
       wallH: FT,
     };
-    // Foot recess, as Pour 3-Pc's buildFootRings: flat ring, then a staircase
-    // of ~Step Height risers across Slope Width, up Depth to the centre.
+    // Foot recess, as Pour 3-Pc's buildFootRings: flat ring, then a smooth
+    // slope across Slope Width, up Depth to the centre.
     const fBase = mold.footSmoothInner ? outerStack.smoothBase : ring0;
     const hF = Math.max(0, mold.footHeight);
     let fw = mold.footWidth, sw = mold.footSlopeWidth;
@@ -1229,19 +1229,19 @@ export function generateSplitHalvesMold(
     const avail = rMin - 0.5;
     const recess = hF > 1e-6 && sw > 0 && avail > 0.2;
     if (recess && fw + sw > avail) { const k = avail / (fw + sw); fw *= k; sw *= k; }
-    const n = recess ? Math.max(1, Math.round(hF / Math.max(0.05, mold.footStepHeight))) : 0;
-    const sh = recess ? hF / n : 0;
     const inset = (d: number) => toF(offsetRingRadial(fBase, c0x, c0y, -d, 0, rRes));
-    const riser = (j: number) => inset(fw + (sw * j) / n);
     const zDeep = -stepD - (recess ? hF : 0);
     const rect = rectPoints(layoutF.px0, layoutF.py0, layoutF.px1, layoutF.py1);
     const P = (M: number) => toF(offsetRingRadial(ring0, c0x, c0y, M, 0, rRes));
     const stepTop = P(M0 - FOOT_STEP_GAP), stepBase = P(M1 - FOOT_STEP_GAP);
     const plateParts: VaseMesh[] = [boxSolid(layoutF.px0, layoutF.py0, layoutF.px1, layoutF.py1, zDeep - floorT, zDeep)];
     if (recess) {
-      plateParts.push(extrudeSolid(rect, [riser(0)], zDeep - EMBED, -stepD));
-      // Each tread laps 0.1 under the taller one outside it.
-      for (let j = 1; j < n; j++) plateParts.push(extrudeSolid(inset(fw + (sw * (j - 1)) / n - 0.1), [riser(j)], zDeep - EMBED, -stepD - j * sh));
+      // The slope: a hole that widens from the centre plateau up to the foot ring.
+      plateParts.push(loftSolid([
+        { outer: rect, holes: [inset(fw + sw)], w: zDeep - EMBED },
+        { outer: rect, holes: [inset(fw + sw)], w: zDeep },
+        { outer: rect, holes: [inset(fw)], w: -stepD },
+      ]));
     }
     plateParts.push(loftSolid([
       { outer: rect, holes: [P(M0 - FOOT_STEP_GAP - EMBED * stepTan)], w: -stepD - EMBED },
@@ -1252,7 +1252,7 @@ export function generateSplitHalvesMold(
     const wallF = buildWall(layoutF, { collars: false });
     const wallF2 = rotate180Z(wallF, (uLo + uHi) / 2, 0);
     let vol = (uHi - uLo) * 2 * wallH * FT + (stepD * (Math.abs(polyArea(stepTop)) + Math.abs(polyArea(stepBase)))) / 2;
-    for (let j = 0; j < n; j++) vol += Math.abs(polyArea(riser(j))) * sh;
+    if (recess) vol += (hF * (Math.abs(polyArea(inset(fw))) + Math.abs(polyArea(inset(fw + sw))))) / 2;
     const plateThkF = floorT - zDeep;
     footOut = {
       plate: plateF, wall: wallF, plateStats: computeMeshStats(plateF), wallStats: computeMeshStats(wallF),

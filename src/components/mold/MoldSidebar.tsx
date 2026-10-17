@@ -898,9 +898,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               <>
                 {sl('halvesFootMargin', 'Margin', 'mm', 'How much wider than the vase bottom the step is, all round. This band is the ledge the halves sit on, which seals the slip in')}
                 {sl('footWidth', 'Foot Width', 'mm', 'The flat ring at the outer edge of the bottom — what the mug stands on')}
-                {sl('footSlopeWidth', 'Slope Width', 'mm', 'Width of the stepped ramp from the foot up to the recessed centre')}
+                {sl('footSlopeWidth', 'Slope Width', 'mm', 'Width of the sloped ramp from the foot up to the recessed centre')}
                 {sl('footHeight', 'Depth', 'mm', 'How far the centre is recessed. 0 gives a flat bottom on its own piece')}
-                {sl('footStepHeight', 'Step Height', 'mm', 'Height of each ramp step — match your printer layer height; the ramp is printed facing up on the foot plate')}
                 <Toggle label="Smooth Inside" checked={params.footSmoothInner} onChange={(v) => setParam('footSmoothInner', v)} tooltip="Build the ramp and recessed centre from the smooth contour so surface texture doesn't carry into the recess" />
               </>
             )}
@@ -911,9 +910,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               <>
                 {sl('thirdsFootMargin', 'Margin', 'mm', 'How much wider than the vase bottom the step is, all round. This band is the ledge the three pieces sit on, which seals the slip in')}
                 {sl('footWidth', 'Foot Width', 'mm', 'The flat ring at the outer edge of the bottom — what the mug stands on')}
-                {sl('footSlopeWidth', 'Slope Width', 'mm', 'Width of the stepped ramp from the foot up to the recessed centre')}
+                {sl('footSlopeWidth', 'Slope Width', 'mm', 'Width of the sloped ramp from the foot up to the recessed centre')}
                 {sl('footHeight', 'Depth', 'mm', 'How far the centre is recessed. 0 gives a flat bottom on its own piece')}
-                {sl('footStepHeight', 'Step Height', 'mm', 'Height of each ramp step — match your printer layer height; the ramp is printed facing up on the foot plate')}
                 <Toggle label="Smooth Inside" checked={params.footSmoothInner} onChange={(v) => setParam('footSmoothInner', v)} tooltip="Build the ramp and recessed centre from the smooth contour so surface texture doesn't carry into the recess" />
               </>
             )}
@@ -923,9 +921,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             {params.footEnabled && (
               <>
                 {sl('footWidth', 'Foot Width', 'mm', 'w1 — flat foot ring at the outer edge of the bottom')}
-                {sl('footSlopeWidth', 'Slope Width', 'mm', 'w2 — width of the stepped ramp from the foot up to the recessed center')}
+                {sl('footSlopeWidth', 'Slope Width', 'mm', 'w2 — width of the sloped ramp from the foot up to the recessed center')}
                 {sl('footHeight', 'Depth', 'mm', 'h — how far the center is recessed above the foot plane')}
-                {sl('footStepHeight', 'Step Height', 'mm', 'Vertical size of each ramp step — match your printer layer height')}
                 <Toggle label="Smooth Inside" checked={params.footSmoothInner} onChange={(v) => setParam('footSmoothInner', v)} tooltip="Build the ramp and recessed center from the smooth contour so surface texture doesn't carry into the recess" />
               </>
             )}
@@ -1073,7 +1070,9 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug">
                   {mold.style === 'splitThirds' && (mold.oneKit
                     ? `Every piece is the same: one master, one plate and one well wall, poured ${mold.pieceCount} times (4 STLs).`
-                    : `The pieces differ: a master, plate and well wall for each (${mold.kits.length * 3 + 1} STLs). One base wall serves them all.`)}
+                    : mold.sharedBaseWall
+                      ? `The pieces differ: a master, plate and well wall for each (${mold.kits.length * 3 + 1} STLs). One base wall serves them all.`
+                      : `The pieces differ: a master, plate, well wall and base wall for each (${mold.kits.length * 4} STLs).`)}
                 </p>
               </Section>
               <Section title="Natches" titleColor={GROUP_COLORS.smoothing} tooltip="Two per seam, so neighbouring pieces only go together one way. Each piece has bumps on one parting face and dimples on the other, so any piece mates with the next">
@@ -1296,7 +1295,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             onClick={reset}
             className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
             style={{ color: UI_MUTED }}
-            title="Put this tab's mold settings back to their defaults. The other mold styles keep their own settings, and your vase design isn't touched. Undo (⌘Z) brings them back"
+            title="Put this tab's mold settings back to their defaults. A foot that is on stays on (its settings reset). The other mold styles keep their own settings, and your vase design isn't touched. Undo (⌘Z) brings them back"
           >
             Reset Mold Settings to Defaults
           </button>

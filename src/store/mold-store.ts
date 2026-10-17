@@ -144,10 +144,21 @@ export const useMoldStore = create<MoldStore>((set, get) => ({
   // "back to Press 2-Pc" (Gary, 2026-07-30 — being thrown to another tab mid-work
   // was the annoyance, and moldStyle is a mode, not really a setting). Since
   // 2026-10-16 the other styles keep their own settings, so it resets this tab only.
-  reset: () => set((state) => ({
-    params: { ...DEFAULT_MOLD_PARAMETERS, moldStyle: state.params.moldStyle },
-    settingsName: DEFAULT_SETTINGS_NAME,
-  })),
+  // The foot on/off switches are kept too (Gary, 2026-10-16): Reset restores the
+  // foot's SETTINGS but leaves a foot that was on, on.
+  reset: () => set((state) => {
+    const p = state.params;
+    return {
+      params: {
+        ...DEFAULT_MOLD_PARAMETERS,
+        moldStyle: p.moldStyle,
+        footEnabled: p.footEnabled,
+        halvesFootPiece: p.halvesFootPiece,
+        thirdsFootPiece: p.thirdsFootPiece,
+      },
+      settingsName: DEFAULT_SETTINGS_NAME,
+    };
+  }),
 
   undo: () => {
     const restored = moldHistory.undo(get().params);

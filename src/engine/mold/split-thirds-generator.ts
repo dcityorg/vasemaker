@@ -1040,19 +1040,20 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     const avail = rMin - 0.5;
     const recess = hF > 1e-6 && sw > 0 && avail > 0.2;
     if (recess && fw + sw > avail) { const kk = avail / (fw + sw); fw *= kk; sw *= kk; }
-    const nSt = recess ? Math.max(1, Math.round(hF / Math.max(0.05, mold.footStepHeight))) : 0;
-    const sh = recess ? hF / nSt : 0;
     const inset = (d: number) => toFR(offsetRingRadial(fBase, c0x, c0y, -d, 0, rRes));
-    const riser = (j: number) => inset(fw + (sw * j) / nSt);
     const zDeep = -stepD - (recess ? hF : 0);
     const plateOut = offsetPolygon(hex, border);
     const P = (M: number) => toFR(offsetRingRadial(ring0, c0x, c0y, M, 0, rRes));
     const stepTop = P(M0 - FOOT_STEP_GAP), stepBase = P(M1 - FOOT_STEP_GAP);
     const plateParts: VaseMesh[] = [extrudeSolid(plateOut, [], zDeep - floorT, zDeep)];
     if (recess) {
-      plateParts.push(extrudeSolid(plateOut, [riser(0)], zDeep - EMBED, -stepD));
-      // Each tread laps 0.1 under the taller one outside it.
-      for (let j = 1; j < nSt; j++) plateParts.push(extrudeSolid(inset(fw + (sw * (j - 1)) / nSt - 0.1), [riser(j)], zDeep - EMBED, -stepD - j * sh));
+      // The foot recess slope (smooth, not stepped): a hole widening from the
+      // centre plateau up to the foot ring.
+      plateParts.push(loftSolid([
+        { outer: plateOut, holes: [inset(fw + sw)], w: zDeep - EMBED },
+        { outer: plateOut, holes: [inset(fw + sw)], w: zDeep },
+        { outer: plateOut, holes: [inset(fw)], w: -stepD },
+      ]));
     }
     plateParts.push(loftSolid([
       { outer: plateOut, holes: [P(M0 - FOOT_STEP_GAP - EMBED * stepTan)], w: -stepD - EMBED },
@@ -1124,7 +1125,7 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     const wallF = mergeMeshes(wallParts);
     const rotZ = (mesh: VaseMesh, ang: number) => { const c = Math.cos(ang), sn = Math.sin(ang); return mapMesh(mesh, (x, y, z) => [x * c - y * sn, x * sn + y * c, z]); };
     let vol = Math.abs(polyArea(hex)) * FT + (stepD * (Math.abs(polyArea(stepTop)) + Math.abs(polyArea(stepBase)))) / 2;
-    for (let j = 0; j < nSt; j++) vol += Math.abs(polyArea(riser(j))) * sh;
+    if (recess) vol += (hF * (Math.abs(polyArea(inset(fw))) + Math.abs(polyArea(inset(fw + sw))))) / 2;
     const plateF = mergeMeshes(plateParts);
     const lift = floorT - zDeep;
     const platePrintF = translate(plateF, 0, 0, lift);

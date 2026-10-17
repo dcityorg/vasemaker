@@ -100,12 +100,10 @@ export interface MoldParameters {
   footEnabled: boolean;
   /** w1 — width of the flat foot ring at the outer edge of the bottom (mm). */
   footWidth: number;
-  /** w2 — width of the stepped ramp from the foot up to the recessed center (mm). */
+  /** w2 — width of the sloped ramp from the foot up to the recessed center (mm). */
   footSlopeWidth: number;
   /** h — how far the center is recessed above the foot plane (mm). Clamped below the master wall thickness. */
   footHeight: number;
-  /** Vertical size of each ramp step (mm) — set to the printer layer height for clean prints. */
-  footStepHeight: number;
   /** Build the ramp + recessed center from the smooth (untextured) base contour, so surface texture doesn't carry into the recess. */
   footSmoothInner: boolean;
 
@@ -201,7 +199,7 @@ export interface MoldParameters {
    *  halves stop at the vase's bottom plane with a drafted counterbore in their
    *  bottom end; the foot piece's raised step plugs into it and its top forms
    *  the vase bottom — foot ring + recess from the shared footWidth /
-   *  footSlopeWidth / footHeight / footStepHeight / footSmoothInner sliders.
+   *  footSlopeWidth / footHeight / footSmoothInner sliders.
    *  It pulls off straight down, so the recess can't lock the halves. Its own
    *  switch rather than footEnabled, which defaults ON for Pour 3-Pc and would
    *  otherwise change every existing Split Halves mold. */
@@ -258,7 +256,6 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   footWidth: 5,
   footSlopeWidth: 1,
   footHeight: 1,
-  footStepHeight: 0.2,
   footSmoothInner: false,
 
   plasterThickness: 20,

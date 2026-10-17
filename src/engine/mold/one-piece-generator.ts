@@ -104,7 +104,7 @@ export function generateOnePieceMold(vase: VaseParameters, mold: MoldParameters)
   const footH = mold.footEnabled ? Math.max(0, Math.min(mold.footHeight, wt - 0.5)) : 0;
   const footBase = mold.footSmoothInner ? outer.smoothBase : outer.rings[0];
   const footRings = footH > 0
-    ? buildFootRings(footBase, outer.centers[0][0], outer.centers[0][1], rRes, mold.footWidth, mold.footSlopeWidth, footH, mold.footStepHeight)
+    ? buildFootRings(footBase, outer.centers[0][0], outer.centers[0][1], rRes, mold.footWidth, mold.footSlopeWidth, footH)
     : [];
   const nF = footRings.length;
 
