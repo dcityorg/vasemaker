@@ -102,3 +102,9 @@ well-made plaster slip-casting mold system looks like.
 ## License
 
 [MIT](./LICENSE)
+
+## How this project is maintained
+
+This is a hobby project. I read issues and discussions about once a week and reply when I can. Feature requests are welcome, and I'll build the ones that fit the app well. Pull requests are welcome too, but I may decline ones that don't fit.
+
+Questions go in **Discussions → Q&A**, bugs in **[Issues](../../issues/new/choose)**.
