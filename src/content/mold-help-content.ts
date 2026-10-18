@@ -185,7 +185,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
         'The walls never swap ends, so each piece always goes back together the same way',
       ] },
       { type: 'heading', text: 'Seam Angle' },
-      { type: 'paragraph', text: 'Seam Angle turns all three seams together; they always stay 120° apart. Put the seams on the RIDGES of a texture, never in its grooves, and watch the Undercuts view. A texture count divisible by 3 lets every seam land on a ridge. Fluting and Waves release well. Rods lock near the seams at any angle, because their sides go vertical at the base. The drawing under Seam Angle looks straight down on the vase, sliced half way up, with the seams dashed.' },
+      { type: 'paragraph', text: 'Seam Angle turns all three seams together; they always stay 120° apart. Put the seams on the RIDGES of a texture, never in its grooves, and watch the Undercuts view. A texture count divisible by 3 lets every seam land on a ridge. Fluting and Waves release well. Rods lock near the seams at any angle, because their sides go vertical at the base. On a TWISTED texture the angle hardly matters: the ribs turn as they rise, so every angle meets a rib side somewhere. See "Textures and the split styles" under Undercut Check. The drawing under Seam Angle looks straight down on the vase, sliced half way up, with the seams dashed. It shows the three pieces\' seams only; the foot plug\'s cup picks its own.' },
       { type: 'heading', text: 'Pouring and releasing' },
       { type: 'list', items: [
         'Clip both walls onto the master + plate, and pour plaster in the open top. Each piece is its own pour',
@@ -268,7 +268,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     id: 'mold-undercuts',
     title: 'Undercut Check',
     blocks: [
-      { type: 'paragraph', text: 'This section is about Pour 3-Pc; Split Halves and Split Thirds have their own rules, described in their sections. After the plaster sets, the vase form must pull straight out of the block. That works only if the vase never gets narrower as it rises: every horizontal slice has to fit through every slice above it. Straight vertical sections are fine — any inward narrowing is not, because the plaster that set above the wide spot locks it in.' },
+      { type: 'paragraph', text: 'The first part of this section is about Pour 3-Pc. For Split Halves and Split Thirds, see "Textures and the split styles" further down. After the plaster sets, the vase form must pull straight out of the block. That works only if the vase never gets narrower as it rises: every horizontal slice has to fit through every slice above it. Straight vertical sections are fine — any inward narrowing is not, because the plaster that set above the wide spot locks it in.' },
       { type: 'paragraph', text: 'With the Undercuts view toggle on, the vase form is tinted red wherever it\'s wider than the narrowest point anywhere above it. The whole trapped region paints — a bulge below a narrow neck shows red across the entire bulge, because all of it would collide with plaster on the way out, not just the spot where the profile turns inward.' },
       { type: 'heading', text: 'What triggers red' },
       { type: 'list', items: [
@@ -280,6 +280,17 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
       { type: 'paragraph', text: 'The check is strict on purpose: plaster doesn\'t shrink away from the plastic as it sets (it actually expands slightly, about 0.2%), so there\'s no clearance to forgive small undercuts. A tiny red band might survive in practice thanks to the plastic flexing when released — but that\'s a gamble to test on a real pour, not something the checker will approve.' },
       { type: 'paragraph', text: 'If there is any fully-flagged red area when you export the center (or a Split Halves or Split Thirds master), a warning dialog appears first. You can export anyway — useful when you\'ve decided a shallow texture is worth trying.' },
       { type: 'tip', text: 'The foot recess and the well collar are never flagged — the recess lifts cleanly off the plaster boss, and the well is always wider than the rim. Only the vase body between them is analyzed.' },
+      { type: 'heading', text: 'Textures and the split styles' },
+      { type: 'paragraph', text: 'On Split Halves and Split Thirds, each plaster piece comes off SIDEWAYS, straight out along its own centre line. Picture the texture\'s ribs as teeth. In the middle of a piece the piece moves straight away from the surface and lifts off the ribs easily. Near a seam it is moving almost ALONG the surface, so the plaster that set between two ribs has to slide past the next rib to get out, and it can\'t. The piece is locked. That is what the red shows on these styles: the parts of the vase that would catch a piece on its way off.' },
+      { type: 'list', items: [
+        'Put the seams on the CRESTS of the ribs (Seam Angle). Cut at its crest, a rib\'s sides face away from the seam and both pieces lift off it. A seam on the side of a rib, or in a groove, is where it catches',
+        'Use a rib count that divides by the number of pieces (3 for Split Thirds, 2 for Split Halves). Then every seam can sit on a crest at once, and the pieces come out identical, so you print one set of parts instead of several',
+        'Gentler ribs release more easily. Split Thirds allows a rib side to lean back toward a seam by up to about 30°; Split Halves allows nothing right at the seam. Fluting and Waves are gentle; Rods have vertical sides and catch at any angle',
+        'Twisted textures are different. The ribs turn as they rise, so a seam that sits on a crest at one height crosses the side of a rib at another, and moving Seam Angle hardly changes anything. Whether a twisted design releases depends on how steep the ribs are, not on where the seams go. If it shows red, make the texture shallower (or the twist smaller than the spacing between ribs) rather than hunting for an angle',
+        'The shape matters too, even without texture. On a square, polygon or oval, seams at the corners behave differently from seams across the flat sides; on an inward-curving shape (heart, cardioid) some angles lock and others clear. Turn Seam Angle and watch the red come and go',
+        'Smooth Zones keep texture off the bottom and the rim. On Split Thirds with the foot plug on, a base Smooth Zone also keeps the plug plain. The plug\'s little cup comes off it sideways in the same way, so a textured bottom edge needs 3 or 4 cup walls instead of 2 (the app picks how many and says so under Foot Piece)',
+      ] },
+      { type: 'tip', text: 'A thin red line right along a seam may still let go on a real pour, because the plastic master flexes a little. Treat it as something to test, not something to rely on.' },
     ],
   },
 
