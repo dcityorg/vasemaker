@@ -85,7 +85,11 @@ const RING_H = 1.5;
  *  two water cavities either side of a GAP that runs the full length up to
  *  HINGE_SKIN under the master's outer face — so flexing the base hinges the
  *  master's arch too; CAV_WALL each side of the gap. Four 1 mm flex SLITS run
- *  the length of the fill, stopping SLIT_SKIN short of the parting faces. */
+ *  the length of the fill, stopping SLIT_SKIN short of the parting faces.
+ *  2026-10-18: with the plug the band is HOLLOW and open into the master, so
+ *  the cavities and the gap run through it (it was a 30 mm solid block across
+ *  the hinge); past each end leg the plate is only a clip lip; the gap's roof
+ *  at the ends is HINGE_SKIN under the apex. */
 const GAP = 2;
 const CAV_WALL = 2;
 const HINGE_SKIN = 2;
@@ -204,6 +208,10 @@ export interface SplitThirdsMoldMeshes {
     /** Per kit: outer arcs and (un-slotted) hollow arcs, native. */
     outer: Arc3[][];
     inner: Arc3[][];
+    /** Per kit, with the plug: the band's outer arc at 9 stations from z = zLo to 0; else empty. */
+    band: Arc3[][];
+    /** z of the end legs' outer faces (past them only the clip lip). */
+    zLeg: [number, number];
     alpha: number;
     seat: number;
     clr: number;
@@ -497,8 +505,10 @@ const zAtS = (arc: Arc3, sT: number) => crossAtS(arc, sT).z;
  * each cut edge. Their bottoms lie on the two faces shifted down by `seat`, so
  * the bed is two planar strips that meet along the apex line AO–AI under the
  * base wall. Every face walks each shared edge opposite to its neighbour.
+ * `openBase`: no base wall — the base end is an annulus like the top, so the
+ * hollow runs on out of it (inner[0] must then sit at outer[0]'s z).
  */
-function buildVRelief(outer: Arc3[], inner: Arc3[], seat: number): VaseMesh {
+function buildVRelief(outer: Arc3[], inner: Arc3[], seat: number, openBase = false): VaseMesh {
   const b = new MeshBuilder();
   const P: V3[] = [];
   const v = (p: V3) => { P.push(p); return b.vertex(p[0], p[1], p[2]); };
@@ -512,8 +522,8 @@ function buildVRelief(outer: Arc3[], inner: Arc3[], seat: number): VaseMesh {
   const ObN = outer.map((arc) => bed(arc[n]));
   const Ib0 = inner.map((arc) => bed(arc[0]));
   const IbN = inner.map((arc) => bed(arc[ni]));
-  const AO = v([outer[0][0][0], 0, -seat]);
-  const AI = v([inner[0][0][0], 0, -seat]);
+  const AO = openBase ? -1 : v([outer[0][0][0], 0, -seat]);
+  const AI = openBase ? -1 : v([inner[0][0][0], 0, -seat]);
   const L = O.length - 1, M = I.length - 1;
 
   for (let i = 0; i < L; i++) {
@@ -549,11 +559,17 @@ function buildVRelief(outer: Arc3[], inner: Arc3[], seat: number): VaseMesh {
   const st = (p: V3): P2 => [p[1], p[2]];
   const zs = (p: V3): P2 => [p[0], p[1]];
 
-  loop([...O[0].slice().reverse(), Ob0[0], AO, ObN[0]], st);                                // base wall
-  loop([...I[0], IbN[0], AI, Ib0[0]], st);                                                   // hollow ceiling
   loop([...O[L], ObN[L], IbN[M], ...I[M].slice().reverse(), Ib0[M], Ob0[L]], st);            // top annulus
-  loop([...Ob0, ...Ib0.slice().reverse(), AI, AO], zs);                                      // bed, face B
-  loop([AI, ...IbN, ...ObN.slice().reverse(), AO], zs);                                      // bed, face A
+  if (openBase) {
+    loop([Ob0[0], Ib0[0], ...I[0], IbN[0], ObN[0], ...O[0].slice().reverse()], st);         // base annulus
+    loop([...Ob0, ...Ib0.slice().reverse()], zs);                                            // bed, face B
+    loop([...IbN, ...ObN.slice().reverse()], zs);                                            // bed, face A
+  } else {
+    loop([...O[0].slice().reverse(), Ob0[0], AO, ObN[0]], st);                               // base wall
+    loop([...I[0], IbN[0], AI, Ib0[0]], st);                                                 // hollow ceiling
+    loop([...Ob0, ...Ib0.slice().reverse(), AI, AO], zs);                                    // bed, face B
+    loop([AI, ...IbN, ...ObN.slice().reverse(), AO], zs);                                    // bed, face A
+  }
 
   return ensureOutward(b.build());
 }
@@ -732,7 +748,7 @@ function errorResult(error: string, N: number): SplitThirdsMoldMeshes {
     plasterVolumeMm3: 0, masterStats: st, wallStats: st, baseWallStats: st,
     natches: [], natchNote: null, hingeNote: null, foot: null, error,
     layout: { rW: 0, H: 0, zLo: 0, zHi: 0, seat: 0, plateL: 0, plateW: 0, plateH: 0, wallH: 0 },
-    debug: { parts: [], cavities: [], slitsAt: [], gap: 0, skinV: 0, tBed: 0, hinge: false, baseWallParts: [], pockets: [], outer: [], inner: [], alpha: 0, seat: 0, clr: 0, zEnd: 0, sealDepth: 0, zB0: 0, foot: null },
+    debug: { parts: [], cavities: [], slitsAt: [], gap: 0, skinV: 0, tBed: 0, hinge: false, baseWallParts: [], pockets: [], outer: [], inner: [], band: [], zLeg: [0, 0], alpha: 0, seat: 0, clr: 0, zEnd: 0, sealDepth: 0, zB0: 0, foot: null },
   };
 }
 
@@ -1126,7 +1142,21 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
   // ── Per kit: master, plate top slab (its pocket), well-end boss. ──
   const kitIdx = oneKit ? [0] : pieces.map((_, k) => k);
   const builtRaw = kitIdx.map((k) => {
-    const { outer, inner } = pieces[k];
+    const { outer } = pieces[k];
+    // With the plug, the master's base is OPEN into a hollow band (Gary
+    // 2026-10-18: water all through, and no solid block across the hinge):
+    // a first hollow arc at z = 0 — the bottom outline in by Master Wall, the
+    // same contour as the band's own hollow (`bi`, which keeps ring0's
+    // vertices like the band does).
+    let inner = pieces[k].inner;
+    let bi: Arc3 | null = null;
+    if (footOn) {
+      const ringIn = offsetRingRadial(ring0, c0x, c0y, -shell, 0, rRes);
+      const m0 = cutWedge(ringIn, rRes, c0x, c0y, wedges[k], nArc);
+      bi = cutWedgeKeep(ringIn, rRes, c0x, c0y, wedges[k]);
+      if (!m0 || !bi) return null;
+      inner = [m0, ...inner];
+    }
     // The hinge: a slot GAP wide (less 0.1, so it never shares a face with the
     // cavity walls) up the middle of the hollow, cut into the shell from inside
     // so HINGE_SKIN of master is all that crosses the middle.
@@ -1157,7 +1187,7 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
       notched = inner.map((arc, i) => notchArc(arc, hN, depth[i], Math.ceil(nArc / 2)));
     }
     const hinge = !!notched && notched.every((a) => a);
-    const relief = buildVRelief(outer, hinge ? (notched as Arc3[]) : inner, seat);
+    const relief = buildVRelief(outer, hinge ? (notched as Arc3[]) : inner, seat, footOn);
     const last = outer[outer.length - 1];
     const capArc: P2[] = last.map(([, s, t]) => [s, t]);
     const n = capArc.length - 1;
@@ -1166,30 +1196,53 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     // so it does not stiffen the hinge.
     const capZ0 = zEnd - CAP_RECESS - shell;
     const cap = mergeMeshes([clipToXMin(capPoly, GAP / 2), clipToXMax(capPoly, -GAP / 2)].map((q) => extrudeSolid(dedupeLoop(q), [], capZ0, zEnd - CAP_RECESS, MAP_YZ_X)));
-    // Plug band (solid), each section closed down to the V bed like the cap:
-    // the bottom outline run straight from the base wall up to the vase bottom,
-    // the rounded ring round its middle (a loft, ends just inside the band), and
-    // a lap 0.3 mm inside the outline into the relief's solid base — the band's
-    // z = 0 face only touches the relief.
+    // Plug band, HOLLOW (2026-10-18): the bottom outline run straight from the
+    // base wall up to the vase bottom as a C-section — outer arc, skirts down
+    // `seat`, the hollow arc (with the hinge slot, like the master's) — open
+    // at z = 0 into the master's hollow and at the bed into the cavities. Its
+    // base end is closed by two half caps that stop at the gap (as the well
+    // cap does), so nothing solid crosses the hinge. The rounded ring is a
+    // crescent loft over the band's outer skin (0.8 mm deep, so it stays out
+    // of the slot); a crescent lap 0.3–0.8 mm inside the outline joins the
+    // band to the master (the band's z = 0 face only touches the relief).
     const disc: VaseMesh[] = [];
     const secOf = (arc: Arc3, bed = -seat): P2[] => {
       const q = arc.map(([, s2, t2]) => [s2, t2] as P2), e = q.length - 1;
       return [...q, [q[e][0], q[e][1] + bed], [0, bed], [q[0][0], q[0][1] + bed]];
     };
-    if (footOn) {
+    const crescent = (X: Arc3, Y: Arc3, drop: number): P2[] => {
+      const o = X.map(([, s2, t2]) => [s2, t2] as P2), i = Y.map(([, s2, t2]) => [s2, t2] as P2);
+      const e = o.length - 1, f = i.length - 1;
+      return [...o, [o[e][0], o[e][1] - drop], [i[f][0], i[f][1] - drop], ...i.slice().reverse(), [i[0][0], i[0][1] - drop], [o[0][0], o[0][1] - drop]];
+    };
+    if (footOn && bi) {
       const d = bands[k];
-      const lapIn = cutWedgeKeep(offsetRingRadial(ring0, c0x, c0y, -0.4, 0, rRes), rRes, c0x, c0y, wedges[k]) ?? d.lap;
+      const cutK = (M: number) => cutWedgeKeep(offsetRingRadial(ring0, c0x, c0y, M, 0, rRes), rRes, c0x, c0y, wedges[k]);
+      const lapIn = cutK(-0.4) ?? d.lap;
+      const deep = cutK(-0.8);
+      if (!deep) return null;
+      // The band's hinge slot: as deep as leaves HINGE_SKIN to its outer face.
+      let biN: Arc3 = bi;
+      const nb = hinge ? notchBase(bi, hN) : null;
+      if (nb) {
+        const bo: Arc3[] = [d.b0.map(([, s2, t2]): V3 => [-1, s2, t2]), d.b0.map(([, s2, t2]): V3 => [1, s2, t2])];
+        const pts: V3[] = [nb.L, nb.R, [0, 0, (nb.L[2] + nb.R[2]) / 2]].map(([, s2, t2]): V3 => [0, s2, t2]);
+        const dB = Math.max(0.05, Math.min(notchD + 1, ...pts.map((q) => distToOuter(bo, q) - HINGE_SKIN)));
+        biN = notchArc(bi, hN, dB, Math.ceil(nArc / 2)) ?? bi;
+      }
       disc.push(
-        extrudeSolid(secOf(d.b0), [], zLo, 0, MAP_YZ_X),
+        extrudeSolid(dedupeLoop(crescent(d.b0, biN, seat)), [], zLo, 0, MAP_YZ_X),
         // Stations in increasing w (loftSolid's caps assume it); the two end
-        // stations sit 0.1 mm proud of the ring's footprint, inside the band.
+        // stations sit just inside the band's skin.
         loftSolid([
-          { outer: secOf(lapIn), holes: [], w: zRing + RING_US[0] - 0.1 },
-          ...RING_US.map((u, i) => ({ outer: secOf(d.ring[i]), holes: [], w: zRing + u })),
-          { outer: secOf(lapIn), holes: [], w: zRing + RING_US[RING_US.length - 1] + 0.1 },
+          { outer: crescent(lapIn, deep, seat), holes: [], w: zRing + RING_US[0] - 0.1 },
+          ...RING_US.map((u, i) => ({ outer: crescent(d.ring[i], deep, seat), holes: [], w: zRing + u })),
+          { outer: crescent(lapIn, deep, seat), holes: [], w: zRing + RING_US[RING_US.length - 1] + 0.1 },
         ], MAP_YZ_X),
-        extrudeSolid(secOf(d.lap, -seat + 0.1), [], -Math.min(0.5, plugH / 4), Math.min(0.5, shell / 2), MAP_YZ_X),
+        extrudeSolid(crescent(d.lap, deep, seat - 0.1), [], -Math.min(0.5, plugH / 4), Math.min(0.5, shell / 2), MAP_YZ_X),
       );
+      const bcPoly = dedupeLoop(offsetPolygon(secOf(d.b0), -0.1));
+      for (const q of [clipToXMin(bcPoly, GAP / 2), clipToXMax(bcPoly, -GAP / 2)]) disc.push(extrudeSolid(dedupeLoop(q), [], zLo + 0.1, zLo + shell, MAP_YZ_X));
     }
     const flags = undercutThirds(outer, wedges[k]);
 
@@ -1221,7 +1274,14 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     // the cavities' run (under the band, the base and beyond the cap). ──
     const g = GAP / 2;
     const innerZ0 = inner[0][0][0];
-    const zc0 = innerZ0 + 0.1, zc1 = capZ0 - 0.1;
+    // With the plug the cavities run on down the hollow band to its half caps.
+    const zCav0 = footOn ? zLo + shell : innerZ0;
+    const zc0 = zCav0 + 0.1, zc1 = capZ0 - 0.1;
+    // The end LEGS' outer faces (under the end walls, as the side legs are
+    // under the side walls): past them only a LIP is left, the side flange's
+    // thickness, so a binder clip reaches round it at the ends too (Gary
+    // 2026-10-18).
+    const zLegA = zLo - wt / 2 - LEG_W / 2, zLegB = zHi + wt / 2 + LEG_W / 2;
     const skinV = Math.max(SLIT_SKIN, natchH + 0.8) / sa;
     const plateParts: VaseMesh[] = [];
     const cavities: P2[][] = [];
@@ -1229,8 +1289,10 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     const slitsAt: number[] = [];   // signed s of every slit, both sides
     for (const sgn of [1, -1]) {
       // The inner skirt's line in plan (z, |s|): each hollow arc's face end.
+      const endS = (arc: Arc3) => Math.abs((sgn > 0 ? arc[arc.length - 1] : arc[0])[1]);
       const line: P2[] = inner.map((arc) => { const e = sgn > 0 ? arc[arc.length - 1] : arc[0]; return [e[0], Math.abs(e[1])]; });
       const oLine: P2[] = outer.map((arc) => { const e = sgn > 0 ? arc[arc.length - 1] : arc[0]; return [e[0], Math.abs(e[1])]; });
+      if (footOn && bi) { line.unshift([zLo, endS(bi)]); oLine.unshift([zLo, endS(bands[k].b0)]); }
       const cl = clipLine(line, zc0, zc1);
       if (!cl) return null;
       // Where the hollow is narrower than the cavity wants (a narrow vase at
@@ -1249,11 +1311,15 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
       const a0s = sCavMax + CAV_WALL + SLIT_W / 2, b0s = sLegOut - LEG_W - SLIT_W / 2;
       const cuts = b0s - a0s > 4 ? [a0s + (b0s - a0s) / 3, a0s + (2 * (b0s - a0s)) / 3] : b0s - a0s > 1 ? [(a0s + b0s) / 2] : [];
       slitsAt.push(...cuts.map((c) => sgn * c));
-      const rectS = (u0: number, u1: number): P2[] => [[zP0, sgn * u0], [zP1, sgn * u0], [zP1, sgn * u1], [zP0, sgn * u1]];
+      const rectS = (u0: number, u1: number, z0 = zP0, z1 = zP1): P2[] => [[z0, sgn * u0], [z1, sgn * u0], [z1, sgn * u1], [z0, sgn * u1]];
       plateParts.push(creasedSlab(rectS(g, sLegOut - 0.05), [cav], Vt, (q) => Vt(q) - skinV, sgn < 0 ? pocketHoles : [], sgn < 0 ? bowls : undefined));
       const edges = [g + 0.05, ...cuts.flatMap((c) => [c - SLIT_W / 2, c + SLIT_W / 2]), sLegOut];
       for (let i = 0; i + 1 < edges.length; i += 2) {
-        plateParts.push(creasedSlab(rectS(edges[i], edges[i + 1]), i === 0 ? [offsetPolygon(cav, 0.05)] : [], (q) => Vt(q) - skinV + EMBED, () => tBed));
+        plateParts.push(creasedSlab(rectS(edges[i], edges[i + 1], zLegA, zLegB), i === 0 ? [offsetPolygon(cav, 0.05)] : [], (q) => Vt(q) - skinV + EMBED, () => tBed));
+        // The end lips, split at the slits like the strips.
+        for (const [z0, z1] of [[zP0, zLegA + 1], [zLegB - 1, zP1]]) {
+          plateParts.push(creasedSlab(rectS(edges[i], edges[i + 1], z0, z1), [], (q) => Vt(q) - skinV + EMBED, (q) => Vt(q) - seat - floorV));
+        }
       }
       plateParts.push(creasedSlab(rectS(sLegOut - 1, sEdge), [], Vt, (q) => Vt(q) - seat - floorV));
       // The cavity wall beside the gap, from the top layer up into the shell:
@@ -1270,9 +1336,9 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
       };
       const stations: { outer: P2[]; holes: P2[][]; w: number }[] = [];
       const zOf = (arc: Arc3) => zAtS(arc, wm);
-      const s0 = sec(inner[0]);
+      const s0 = sec(footOn && bi ? bi : inner[0]);
       if (!s0) return null;
-      stations.push({ outer: s0, holes: [], w: innerZ0 - EMBED });
+      stations.push({ outer: s0, holes: [], w: zCav0 - EMBED });
       const zEndW = capZ0 + EMBED;
       for (let i = 0; i < inner.length; i++) {
         const z = zOf(inner[i]);
@@ -1294,9 +1360,11 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     // The roof over the gap, outside the cavities' run: 0.05 below the face
     // (never coplanar with the top layers' faces; nothing pours there — the
     // band, the base and the walls cover it) down to SLIT_SKIN under it.
-    const roofSec: P2[] = [[-g - 0.3, -SLIT_SKIN / sa], [g + 0.3, -SLIT_SKIN / sa], [g + 0.3, Vt(g + 0.3) - 0.05], [0, -0.05], [-g - 0.3, Vt(g + 0.3) - 0.05]];
+    // Its underside HINGE_SKIN under the apex (Gary 2026-10-18: 2 mm below the
+    // bottom of the V; it was SLIT_SKIN square to the faces, 2.3 deep).
+    const roofSec: P2[] = [[-g - 0.3, -HINGE_SKIN], [g + 0.3, -HINGE_SKIN], [g + 0.3, Vt(g + 0.3) - 0.05], [0, -0.05], [-g - 0.3, Vt(g + 0.3) - 0.05]];
     plateParts.push(
-      extrudeSolid(roofSec, [], zP0 + 0.05, innerZ0 - 0.1, MAP_YZ_X),
+      extrudeSolid(roofSec, [], zP0 + 0.05, zCav0 - 0.1, MAP_YZ_X),
       extrudeSolid(roofSec, [], capZ0 + 0.1, zP1 - 0.05, MAP_YZ_X),
       ...ridges, ...domes,
     );
@@ -1322,7 +1390,7 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     const plasterVol = Math.max(0, plasterArea * (zPl - zB0) - env);
 
     const master = mergeMeshes([relief, cap, ...disc, ...cavWalls]);
-    return { k, relief, cap, disc, cavWalls, master, flags, plateParts, wellWallParts, baseParts, pocket, plasterVol, cavities, slitsAt, hinge, skinV };
+    return { k, relief, cap, disc, cavWalls, master, flags, plateParts, wellWallParts, baseParts, pocket, plasterVol, cavities, slitsAt, hinge, skinV, inner };
   });
   if (builtRaw.some((b) => !b)) return errorResult('The vase is too narrow where a seam crosses it for the master\'s water cavities (each side of the hinge gap needs about 4 mm of hollow). Try another Seam Angle so the seams miss the narrow part.', N);
   const builtKits = builtRaw as NonNullable<typeof builtRaw[number]>[];
@@ -1516,7 +1584,9 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
       baseWallParts: asmList(builtKits[0].baseParts),
       pockets: builtKits.map((b) => b.pocket),
       outer: builtKits.map((b) => pieces[b.k].outer),
-      inner: builtKits.map((b) => pieces[b.k].inner),
+      inner: builtKits.map((b) => b.inner),
+      zLeg: [zLo - wt / 2 - LEG_W / 2, zHi + wt / 2 + LEG_W / 2],
+      band: builtKits.map((b) => (footOn ? Array.from({ length: 9 }, (_, i) => zLo * (1 - i / 8)).map((z) => bands[b.k].b0.map(([, s2, t2]): V3 => [z, s2, t2])) : [])),
       alpha, seat, clr, zEnd, sealDepth, zB0, foot: footDbg,
     },
   };
