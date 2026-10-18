@@ -1626,7 +1626,12 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
   const kits: ThirdsKit[] = builtKits.map((b) => {
     const master = toAsm(b.master);
     const plate = toAsm(mergeMeshes(b.plateParts));
-    const part = mergeMeshes([master, plate]);
+    // PLATE FIRST in the file: macOS Finder's preview (Quick Look) stops
+    // drawing a big STL part way through, and with the master first (~94% of
+    // the triangles) the plate never appeared (Gary 2026-10-18; the same file
+    // with the plate moved to the front previewed whole). The master ends with
+    // its cavity walls, which are hidden inside it anyway.
+    const part = mergeMeshes([plate, master]);
     const wellWall = toAsm(mergeMeshes(b.wellWallParts));
     const baseWall = toAsm(mergeMeshes(b.baseParts));
     return {
