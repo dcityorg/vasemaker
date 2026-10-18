@@ -183,10 +183,11 @@ export interface MoldParameters {
   thirdsPlateFloor: number;
   thirdsWallThickness: number;
   thirdsFlangeWidth: number;
-  /** Split Thirds' own foot piece switch and step margin (Gary, 2026-10-16:
-   *  keep the styles' settings separate). */
+  /** Split Thirds' own foot switch (Gary, 2026-10-16: keep the styles'
+   *  settings separate) and, since 2026-10-17, the height of the plaster PLUG
+   *  that is the foot (the old step Margin went with the hexagon foot). */
   thirdsFootPiece: boolean;
-  thirdsFootMargin: number;
+  thirdsPlugHeight: number;
   /** How far the well runs into the wall collar = the length of its straight,
    *  capped end (mm). */
   halvesWellSeal: number;
@@ -299,7 +300,7 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   thirdsWallThickness: 2,
   thirdsFlangeWidth: 10,
   thirdsFootPiece: false,
-  thirdsFootMargin: 8,
+  thirdsPlugHeight: 21,
   halvesWellSeal: 3,
   halvesNatchCount: 4,
   halvesFootPiece: false,

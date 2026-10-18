@@ -43,7 +43,7 @@ import { tanDeg, prepareVaseParams, buildOuterRings, buildCavityRings, clampCavi
 import { MeshBuilder, ensureOutward, extrudeSolid, triangulateFace, dedupeLoop, ensureCCW, ensureCW, weldMesh, MAP_YZ_X, type P2 } from '../handle/mesh3';
 import { buildDome, seamBandPositions, seamMaxVWidth } from '../handle/mold-parts';
 import { undercutOf } from './split-two-piece-generator';
-import { offsetPolygon, clipToXMax, clipToXMin, removeSpikes, signedDist, loftSolid, FOOT_STEP_DEPTH, FOOT_STEP_DRAFT, FOOT_STEP_GAP, FOOT_FLANGE_T, FOOT_FLANGE_OVER } from './split-halves-generator';
+import { offsetPolygon, clipToXMax, clipToXMin, removeSpikes, signedDist, loftSolid } from './split-halves-generator';
 import type { MoldParameters } from './mold-types';
 
 type V3 = [number, number, number];
@@ -74,6 +74,25 @@ const SYMMETRY_TOL = 0.05;
 const LAYOUT_GAP = 30;
 /** Width of each plate leg, mm. */
 const LEG_W = 4;
+/** The plug's locking ring (Gary 2026-10-17): 4 mm wide, 1.5 mm proud, ROUNDED
+ *  crest (a flat top's two corners are what chips off a plaster ridge). One
+ *  profile drives the master's ring (→ groove in the pieces) and the cup wall's
+ *  groove (→ ridge on the plug). */
+const RING_W = 4;
+const RING_H = 1.5;
+/** Plug cup: the ledge the bottom disk rests on, width and thickness, mm. */
+const LEDGE_W = 3;
+const LEDGE_T = 2;
+
+/** Height of the ring's rounded crest at u from its centre line (0 outside). */
+function ringBump(u: number): number {
+  const a = RING_W / 2;
+  if (Math.abs(u) >= a) return 0;
+  const R = (a * a + RING_H * RING_H) / (2 * RING_H);
+  return Math.sqrt(R * R - u * u) - (R - RING_H);
+}
+/** Stations across the ring, centre-relative, ends at the band surface. */
+const RING_US = [-2, -1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6, 2].map((f) => (f * RING_W) / 4);
 
 /** One natch, on every seam: (z, ρ) with ρ the distance from the vase axis along the face. */
 export interface ThirdsNatch { z: number; rho: number; r: number }
@@ -95,15 +114,23 @@ export interface ThirdsKit {
   plasterVolumeMm3: number;
 }
 
-/** The foot piece's own mold (print coords: plate top = the foot's face against the pieces). */
+/**
+ * The plaster PLUG's own mold (Gary 2026-10-17): a small cup — a bottom disk
+ * shaped like the vase bottom (foot ring + recessed middle) resting on a ledge
+ * inside two clip-together walls. Each wall carries the groove that gives the
+ * plug its ridge. Print coords, each on the bed.
+ */
 export interface ThirdsFoot {
-  /** Lifted so it sits on the bed. */
+  /** The bottom disk, recess up. */
   plate: VaseMesh;
-  /** One wall; print it three times. */
+  /** Cup wall A (ridges on its clip flanges) and B (grooves), standing on their ledge. */
   wall: VaseMesh;
+  wallB: VaseMesh;
   plateStats: MeshStats;
   wallStats: MeshStats;
+  /** One plug. */
   plasterVolumeMm3: number;
+  plugHeight: number;
 }
 
 export interface SplitThirdsMoldMeshes {
@@ -159,7 +186,8 @@ export interface SplitThirdsMoldMeshes {
     sealDepth: number;
     /** Plaster starts here (the counterbore mouth with the foot on). */
     zB0: number;
-    foot: { stepD: number; M0: number; M1: number; zDeep: number; recessDepth: number; hex: P2[]; plateParts: VaseMesh[]; wallParts: VaseMesh[]; stepTop: P2[]; stepBase: P2[]; base: P2[] } | null;
+    /** Plug + cup, cup coords (plan = world turned over about x; z = 0 the plug's vase face). */
+    foot: { plugH: number; zRing: number; recessDepth: number; zDisk: number; zWall0: number; disk: VaseMesh[]; wallA: VaseMesh[]; wallB: VaseMesh[]; plugOutline: P2[]; base: P2[] } | null;
   };
 }
 
@@ -279,6 +307,57 @@ function cutWedge(ring: Ring, rRes: number, cx: number, cy: number, w: Wedge, n:
   for (const [i, sgn] of [[0, -1], [n, 1]] as const) {
     const [z, s, t] = arc[i];
     const rho = sgn * s * w.sa + t * w.ca;
+    const [fs, ft] = faceAt(w, sgn, rho);
+    arc[i] = [z, fs, ft];
+  }
+  return arc;
+}
+
+/**
+ * As cutWedge, but keeping the ring's own vertices instead of resampling:
+ * the crossing points plus every vertex inside the wedge. A radial offset of a
+ * ring keeps each vertex on its own ray from the axis, so which vertices are
+ * inside — and so the point count — is the same at every offset. The plug band
+ * uses this so the pieces' bore and the plug cup (built from the whole ring)
+ * are the same polygon, not two samplings of it (on a sharp teardrop the two
+ * samplings differed by 0.6 mm).
+ */
+function cutWedgeKeep(ring: Ring, rRes: number, cx: number, cy: number, w: Wedge): Arc3 | null {
+  const gA = new Float64Array(rRes), gB = new Float64Array(rRes);
+  const P: V3[] = [];
+  for (let i = 0; i < rRes; i++) {
+    const dx = ring[i * 3] - cx, dy = ring[i * 3 + 1] - cy;
+    const s = dx * w.qx + dy * w.qy, t = dx * w.bx + dy * w.by;
+    gA[i] = -w.ca * s + w.sa * t;
+    gB[i] = w.ca * s + w.sa * t;
+    P.push([ring[i * 3 + 2], s, t]);
+  }
+  // Inside by ANGLE from the seam planes (g / r), which a radial offset does
+  // not change — so the decision, and the point count, is the same at every
+  // offset. A vertex within 1e-3 rad of a seam counts as outside: its crossing
+  // would land on top of it and make a zero-length edge.
+  const inside = (i: number) => {
+    const r = Math.hypot(P[i][1], P[i][2]);
+    return r > 1e-9 && Math.min(gA[i], gB[i]) / r > 1e-3;
+  };
+  let start = -1;
+  for (let i = 0; i < rRes; i++) if (inside(i) && !inside((i - 1 + rRes) % rRes)) { if (start >= 0) return null; start = i; }
+  if (start < 0) return null;
+  const cross = (a: number, b: number): V3 => {
+    // a inside, b outside: the plane that is negative at b.
+    const arr = gA[b] <= gB[b] ? gA : gB;
+    const f = arr[a] / (arr[a] - arr[b]);
+    return [P[a][0] + (P[b][0] - P[a][0]) * f, P[a][1] + (P[b][1] - P[a][1]) * f, P[a][2] + (P[b][2] - P[a][2]) * f];
+  };
+  const run: number[] = [];
+  for (let k = 0; k < rRes && inside((start + k) % rRes); k++) run.push((start + k) % rRes);
+  const i0 = run[0], i1 = run[run.length - 1];
+  const arc: Arc3 = [cross(i0, (i0 - 1 + rRes) % rRes), ...run.map((i) => P[i]), cross(i1, (i1 + 1) % rRes)];
+  if (arc[0][1] > arc[arc.length - 1][1]) arc.reverse();
+  const n = arc.length - 1;
+  for (const [i, sgn] of [[0, -1], [n, 1]] as const) {
+    const [z, s2, t2] = arc[i];
+    const rho = sgn * s2 * w.sa + t2 * w.ca;
     const [fs, ft] = faceAt(w, sgn, rho);
     arc[i] = [z, fs, ft];
   }
@@ -604,27 +683,27 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     }
   }
 
-  // ── Foot piece (Phase 3, Gary 2026-10-16): as Split Halves, the pieces stop
-  // stepD below the vase bottom; there the master carries a DISC (the base
-  // outline grown by Margin, drafted wider over stepD) that moulds a
-  // counterbore into each piece's bottom end, and runs on straight into the
-  // base wall's boss. NO envelope with the well end: the thirds' walls never
-  // swap ends (every piece pours the same way round), so the base wall's bore
-  // is just this piece's disc. ──
+  // ── Foot = a plaster PLUG (Gary 2026-10-17, replacing the 10-16 hexagon
+  // foot, which cracked): the master carries a BAND — the vase's bottom outline
+  // exactly, run straight down plugH and on into the base wall — with a rounded
+  // ring round it. No margin means no flat ledge meeting a curled-in bottom, so
+  // no thin wedge of plaster. Each piece gets a groove from the ring; the plug,
+  // cast in its own cup, gets the matching ridge, so the strapped pieces hold
+  // it. The pieces still pull straight out sideways (the ring's flanks are
+  // level). ──
   const footOn = mold.thirdsFootPiece;
-  const stepD = FOOT_STEP_DEPTH;
-  const stepTan = tanDeg(FOOT_STEP_DRAFT);
-  const M0 = Math.max(1, mold.thirdsFootMargin), M1 = M0 + stepD * stepTan;
-  const xF = stepD - FOOT_FLANGE_T;
+  const plugH = Math.max(6, mold.thirdsPlugHeight);
+  const zRing = -plugH / 2;
   const ring0 = outerStack.rings[0];
-  type DiscSet = { m0: Arc3; m1: Arc3; mEmb: Arc3; m1f: Arc3; mF: Arc3; plug: Arc3 };
-  const discs: DiscSet[] = [];
+  type BandSet = { b0: Arc3; lap: Arc3; ring: Arc3[]; bR: Arc3 };
+  const bands: BandSet[] = [];
   if (footOn) {
     for (const w of wedges) {
-      const cut = (M: number) => cutWedge(offsetRingRadial(ring0, c0x, c0y, M, 0, rRes), rRes, c0x, c0y, w, nArc);
-      const d = { m0: cut(M0), m1: cut(M1), mEmb: cut(M0 + (stepD + EMBED) * stepTan), m1f: cut(M1 + clr + FOOT_FLANGE_OVER), mF: cut(M0 + xF * stepTan), plug: cut(-0.1) };
-      if (Object.values(d).some((a) => !a)) return errorResult('The foot piece could not be cut at this Seam Angle. Try another angle.', N);
-      discs.push(d as DiscSet);
+      const cut = (M: number) => cutWedgeKeep(offsetRingRadial(ring0, c0x, c0y, M, 0, rRes), rRes, c0x, c0y, w);
+      const ring = RING_US.map((u) => cut(ringBump(u)));
+      const d = { b0: cut(0), lap: cut(-0.3), bR: cut(RING_H), ring };
+      if (!d.b0 || !d.lap || !d.bR || ring.some((a) => !a)) return errorResult('The plug band could not be cut at this Seam Angle. Try another angle.', N);
+      bands.push(d as BandSet);
     }
   }
 
@@ -634,9 +713,10 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
   for (const pc of pieces) for (const arc of pc.outer) for (const [, , t] of arc) tMax = Math.max(tMax, t);
   const rW = rhoMax + m;
   const H = tMax + m;
-  // With the foot on, the plaster starts at the counterbore mouth and the base
-  // wall's boss (Well Seal long, like the well end's) holds the disc's run.
-  const zB0 = footOn ? -stepD : -m;
+  // With the plug, the pieces stop plugH below the vase bottom (the plug's
+  // bottom is flush with theirs) and the base wall's boss (Well Seal long, like
+  // the well end's) holds the band's run.
+  const zB0 = footOn ? -plugH : -m;
   const zLo = footOn ? zB0 - sealDepth : -m, zHi = zEnd;
   const zPl = zHi - sealDepth;            // plaster ends at the boss face
   const zMid = (zLo + zHi) / 2;           // wall seam
@@ -674,17 +754,13 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
   const natchH = Math.max(0.5, Math.min(mold.natchHeight, seat * sa - 0.4));
   const rhoEnds = (arcs: Arc3[]) => {
     let r = 0;
-    for (const a of arcs) for (const q of [a[0], a[nArc]]) r = Math.max(r, Math.hypot(q[1], q[2]));
+    for (const a of arcs) for (const q of [a[0], a[a.length - 1]]) r = Math.max(r, Math.hypot(q[1], q[2]));
     return r + clr;
   };
-  // With the foot on, the counterbore (and the flange's recess at its mouth)
-  // is part of what a natch must keep clear of.
+  // With the plug, the band (and its ring, counted at full height the whole
+  // way) is part of what a natch must keep clear of.
   const rhoFoot: P2[] = footOn
-    ? [
-      [zB0 - 1, 0], [zB0 - 1, rhoEnds(discs.map((d) => d.m1f))],
-      [zB0 + FOOT_FLANGE_T, rhoEnds(discs.map((d) => d.m1f))], [zB0 + FOOT_FLANGE_T, rhoEnds(discs.map((d) => d.mF))],
-      [0, rhoEnds(discs.map((d) => d.m0))],
-    ]
+    ? [[zB0 - 1, 0], [zB0 - 1, rhoEnds(bands.map((d) => d.bR))], [0, rhoEnds(bands.map((d) => d.bR))]]
     : [[zLo + m - clr, 0]];
   for (let i = 0; i < outerRings.length; i++) {
     const z = pieces[0].outer[i][0][0];
@@ -935,29 +1011,29 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     const n = capArc.length - 1;
     const capPoly = dedupeLoop(offsetPolygon([...capArc, [capArc[n][0], capArc[n][1] - seat], [0, -seat], [capArc[0][0], capArc[0][1] - seat]], -0.1));
     const cap = extrudeSolid(capPoly, [], zEnd - CAP_RECESS - shell, zEnd - CAP_RECESS, MAP_YZ_X);
-    // Foot disc (solid), each section closed down to the V bed like the cap:
-    // drafted over the counterbore (z 0 → −stepD), the 1 mm flange inside the
-    // mouth that covers the boss's fit gap, the straight run into the boss
-    // (starting inside the flange so the two never share a face), and a plug
-    // lapping into the relief's solid base — the disc's z = 0 face only
-    // touches the relief.
+    // Plug band (solid), each section closed down to the V bed like the cap:
+    // the bottom outline run straight from the base wall up to the vase bottom,
+    // the rounded ring round its middle (a loft, ends just inside the band), and
+    // a lap 0.3 mm inside the outline into the relief's solid base — the band's
+    // z = 0 face only touches the relief.
     const disc: VaseMesh[] = [];
     const secOf = (arc: Arc3, bed = -seat): P2[] => {
       const q = arc.map(([, s2, t2]) => [s2, t2] as P2), e = q.length - 1;
       return [...q, [q[e][0], q[e][1] + bed], [0, bed], [q[0][0], q[0][1] + bed]];
     };
     if (footOn) {
-      const d = discs[k];
+      const d = bands[k];
+      const lapIn = cutWedgeKeep(offsetRingRadial(ring0, c0x, c0y, -0.4, 0, rRes), rRes, c0x, c0y, wedges[k]) ?? d.lap;
       disc.push(
-        // Stations in increasing w: loftSolid's caps assume it.
+        extrudeSolid(secOf(d.b0), [], zLo, 0, MAP_YZ_X),
+        // Stations in increasing w (loftSolid's caps assume it); the two end
+        // stations sit 0.1 mm proud of the ring's footprint, inside the band.
         loftSolid([
-          { outer: secOf(d.mEmb), holes: [], w: -stepD - EMBED },
-          { outer: secOf(d.m1), holes: [], w: -stepD },
-          { outer: secOf(d.m0), holes: [], w: 0 },
+          { outer: secOf(lapIn), holes: [], w: zRing + RING_US[0] - 0.1 },
+          ...RING_US.map((u, i) => ({ outer: secOf(d.ring[i]), holes: [], w: zRing + u })),
+          { outer: secOf(lapIn), holes: [], w: zRing + RING_US[RING_US.length - 1] + 0.1 },
         ], MAP_YZ_X),
-        extrudeSolid(secOf(d.m1), [], zLo, zB0 + EMBED, MAP_YZ_X),
-        extrudeSolid(secOf(d.m1f), [], zB0, zB0 + FOOT_FLANGE_T, MAP_YZ_X),
-        extrudeSolid(secOf(d.plug, -seat + 0.1), [], -Math.min(1, stepD / 2), Math.min(1, shell / 2), MAP_YZ_X),
+        extrudeSolid(secOf(d.lap, -seat + 0.1), [], -Math.min(0.5, plugH / 4), Math.min(0.5, shell / 2), MAP_YZ_X),
       );
     }
     const master = mergeMeshes([relief, cap, ...disc]);
@@ -968,12 +1044,14 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     const sideB: P2[] = outer.map((arc) => [arc[0][0], arc[0][1]]);
     const sideA: P2[] = outer.map((arc) => [arc[nArc][0], arc[nArc][1]]);
     const dd = (run: P2[]) => run.filter((q, i) => i === 0 || Math.hypot(q[0] - run[i - 1][0], q[1] - run[i - 1][1]) > 1e-6);
-    // The disc's skirts too, from the base wall to the vase bottom.
+    // The band's skirts too, from the base wall to the vase bottom (the ring
+    // counted full height over its whole width).
     const discB: P2[] = [], discA: P2[] = [];
     if (footOn) {
-      const d = discs[k];
-      const run: [number, Arc3][] = [[zLo, d.m1], [zB0, d.m1], [zB0, d.m1f], [zB0 + FOOT_FLANGE_T, d.m1f], [zB0 + FOOT_FLANGE_T, d.mF], [0, d.m0]];
-      for (const [z, a] of run) { discB.push([z, a[0][1]]); discA.push([z, a[nArc][1]]); }
+      const d = bands[k];
+      const r0 = zRing + RING_US[0] - 0.1, r1 = zRing + RING_US[RING_US.length - 1] + 0.1;
+      const run: [number, Arc3][] = [[zLo, d.b0], [r0, d.b0], [r0, d.bR], [r1, d.bR], [r1, d.b0], [0, d.b0]];
+      for (const [z, a] of run) { discB.push([z, a[0][1]]); discA.push([z, a[a.length - 1][1]]); }
     }
     const fp = [...discB, ...dd(sideB), ...dd(sideA).reverse(), ...discA.reverse()];
     let pocketLoop = clipToXMax(offsetPolygon(fp, clr), zHi);
@@ -987,7 +1065,7 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     // The base wall gets the same round the foot disc's straight run.
     const boss = bossFor(capArc, zHi - sealDepth, zHi + EMBED);
     const wellWallParts = [...wallCommon(true), boss];
-    const baseParts = footOn ? [...baseWallParts, bossFor(discs[k].m1.map(([, s2, t2]) => [s2, t2] as P2), zLo - EMBED, zB0)] : baseWallParts;
+    const baseParts = footOn ? [...baseWallParts, bossFor(bands[k].b0.map(([, s2, t2]) => [s2, t2] as P2), zLo - EMBED, zB0)] : baseWallParts;
 
     // Plaster: the block section along the plaster run, less the vase + well
     // slice inside it.
@@ -998,23 +1076,22 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
       env += ((zb - za) * (secArea(outer[i]) + secArea(outer[i + 1]))) / 2;
     }
     env -= secArea(last) * sealDepth;
-    // With the foot, the plaster starts at the mouth and the counterbore is cut out of it.
-    if (footOn) env += (stepD * (secArea(discs[k].m0) + secArea(discs[k].m1))) / 2;
+    // With the plug, the plaster starts plugH below the vase and the band is cut out of it.
+    if (footOn) env += plugH * secArea(bands[k].b0);
     const plasterVol = Math.max(0, plasterArea * (zPl - zB0) - env);
 
     return { k, relief, cap, disc, master, flags, plateParts, wellWallParts, baseParts, pocket, plasterVol };
   });
 
-  // ── The foot piece's mold (Gary, 2026-10-16): a flat plate carrying the step
-  // pocket and the foot face, upside down, and three identical walls round a
-  // HEXAGON — the three pieces' bottom face exactly, so one strap holds all
-  // four. Foot coords: plan (x, −y) about the vase axis, z = print height, so
-  // the plate top (z = 0) is the foot's face against the pieces and the
-  // pocket floor is the vase bottom: the world turned over about x, a
-  // rotation, never a mirror. Each wall = one piece's top side + half of each
-  // seam side; the hexagon is 3-fold symmetric (every piece's section is
-  // endPoly(rW)), so one wall design fits all three places. Its two ends meet
-  // the neighbours at seam blocks — grooves at the start, ridges at the end.
+  // ── The plug's cup (Gary 2026-10-17): a bottom disk shaped like the vase
+  // bottom resting on a ledge inside two clip-together walls, each with the
+  // groove that gives the plug its ridge. Cup coords: plan (x, −y) about the
+  // vase axis, z up, z = 0 the plug's vase face — the world turned over about
+  // x, a rotation, never a mirror (the plug sits vase face DOWN in its cup). The
+  // walls split along the cup's x axis and part sideways, as the pieces do off
+  // the plug. The cup's inside is the band less the clearance, so the plug
+  // drops into the pieces' bore; the disk is another clearance smaller so it
+  // slides in. Wall A's clip flanges carry the V ridges, wall B's the grooves. ──
   let foot: ThirdsFoot | null = null;
   let footDbg: SplitThirdsMoldMeshes['debug']['foot'] = null;
   let footDisplay: { plate: VaseMesh; walls: VaseMesh; plaster: VaseMesh; reach: number; lift: number } | null = null;
@@ -1024,14 +1101,34 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
       for (let t = 0; t < rRes; t++) out.push([ring[t * 3] - c0x, -(ring[t * 3 + 1] - c0y)]);
       return out;
     };
-    // Hexagon corners in world plan, CCW (pieces by increasing angle, face B
-    // then face A), then into foot coords — y flips, so reverse to stay CCW.
-    const ep = endPoly(rW);
-    const hexW: P2[] = [];
-    for (const w of wedges) for (const [s2, t2] of [ep[4], ep[0]]) hexW.push([s2 * w.qx + t2 * w.bx, s2 * w.qy + t2 * w.by]);
-    const hex: P2[] = hexW.map(([x, y]) => [x, -y] as P2).reverse();
-    // hex[2j], hex[2j+1] = a piece's top side; (2j+1, 2j+2) a seam side.
-    const FT = m;
+    const L = (M: number) => toFR(offsetRingRadial(ring0, c0x, c0y, M, 0, rRes));
+    // The half of a loop with y > 0 (wall A) or y < 0 (B), from one x-axis
+    // crossing to the other. A radial offset keeps each point on its own ray, so
+    // which points are inside, and the two crossing segments, are the same for
+    // every offset: every station of a wall has the same point count.
+    const base = L(0);
+    const ys = base.map(([, y]) => y);
+    const halfIdx = (sgn: number) => {
+      const inside = (i: number) => sgn * ys[i] > 1e-9;
+      let start = -1;
+      for (let i = 0; i < rRes; i++) if (inside(i) && !inside((i - 1 + rRes) % rRes)) { if (start >= 0) return null; start = i; }
+      if (start < 0) return null;
+      const idx: number[] = [];
+      for (let k = 0; k < rRes && inside((start + k) % rRes); k++) idx.push((start + k) % rRes);
+      return idx;
+    };
+    const half = (loop: P2[], idx: number[]): P2[] => {
+      const cross = (a: number, b: number): P2 => {
+        const [ax, ay] = loop[a], [bx, by] = loop[b];
+        const f = Math.abs(ay - by) > 1e-12 ? ay / (ay - by) : 0;
+        return [ax + (bx - ax) * f, 0];
+      };
+      const i0 = idx[0], i1 = idx[idx.length - 1];
+      return [cross((i0 - 1 + rRes) % rRes, i0), ...idx.map((i) => loop[i]), cross(i1, (i1 + 1) % rRes)];
+    };
+    const idxA = halfIdx(1), idxB = halfIdx(-1);
+    if (!idxA || !idxB) return errorResult('The plug cup cannot be split in two along this bottom outline (it crosses the split line more than twice). Turn the foot piece off for this shape.', N);
+
     const fBase = mold.footSmoothInner ? outerStack.smoothBase : ring0;
     const hF = Math.max(0, mold.footHeight);
     let fw = mold.footWidth, sw = mold.footSlopeWidth;
@@ -1040,105 +1137,72 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     const avail = rMin - 0.5;
     const recess = hF > 1e-6 && sw > 0 && avail > 0.2;
     if (recess && fw + sw > avail) { const kk = avail / (fw + sw); fw *= kk; sw *= kk; }
+    fw = Math.max(fw, 2 * clr + 0.3);
     const inset = (d: number) => toFR(offsetRingRadial(fBase, c0x, c0y, -d, 0, rRes));
-    const zDeep = -stepD - (recess ? hF : 0);
-    const plateOut = offsetPolygon(hex, border);
-    const P = (M: number) => toFR(offsetRingRadial(ring0, c0x, c0y, M, 0, rRes));
-    const stepTop = P(M0 - FOOT_STEP_GAP), stepBase = P(M1 - FOOT_STEP_GAP);
-    const plateParts: VaseMesh[] = [extrudeSolid(plateOut, [], zDeep - floorT, zDeep)];
+    const recessD = recess ? hF : 0;
+    const zDisk = -recessD - floorT;          // disk bottom = ledge top
+    const zW0 = zDisk - LEDGE_T;              // wall bottom, on the bed
+
+    // Disk: the vase bottom's positive — foot ring flat at z = 0, sloping down to
+    // the recessed middle (the plug's face is its negative, the vase's foot).
+    const diskOut = L(-2 * clr);
+    const diskParts: VaseMesh[] = [extrudeSolid(diskOut, [], zDisk, recess ? -recessD : 0)];
     if (recess) {
-      // The foot recess slope (smooth, not stepped): a hole widening from the
-      // centre plateau up to the foot ring.
-      plateParts.push(loftSolid([
-        { outer: plateOut, holes: [inset(fw + sw)], w: zDeep - EMBED },
-        { outer: plateOut, holes: [inset(fw + sw)], w: zDeep },
-        { outer: plateOut, holes: [inset(fw)], w: -stepD },
+      diskParts.push(loftSolid([
+        { outer: diskOut, holes: [inset(fw + sw)], w: -recessD - EMBED },
+        { outer: diskOut, holes: [inset(fw + sw)], w: -recessD },
+        { outer: diskOut, holes: [inset(fw)], w: 0 },
       ]));
     }
-    plateParts.push(loftSolid([
-      { outer: plateOut, holes: [P(M0 - FOOT_STEP_GAP - EMBED * stepTan)], w: -stepD - EMBED },
-      { outer: plateOut, holes: [stepBase], w: 0 },
-    ]));
-    // The three flange ridges, closed loops `d` in from the plate edge.
-    const up: V3 = [0, 0, 1];
-    const outN = (a: P2, b: P2): V3 => { const ex = b[0] - a[0], ey = b[1] - a[1], L = Math.hypot(ex, ey) || 1; return [ey / L, -ex / L, 0]; };
-    for (const d of band) {
-      const loop = offsetPolygon(hex, border - d);
-      const V: V3[] = loop.map(([x, y]) => [x, y, 0]);
-      const segs = loop.map((a, i) => ({ o: outN(a, loop[(i + 1) % loop.length]), n: up }));
-      plateParts.push(framedSweep(V, segs, ridgeCs, true));
-    }
+    const disk = mergeMeshes(diskParts);
 
-    // Wall 0: piece 0's top side (hex 0 → 1) + half of each neighbouring seam side.
-    const mid = (a: P2, b: P2): P2 => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    const C = offsetPolygon(hex, wt / 2);
-    const iPrev = hex.length - 1;
-    const path2: P2[] = [mid(C[iPrev], C[0]), C[0], C[1], mid(C[1], C[2])];
-    const sideN = [outN(hex[iPrev], hex[0]), outN(hex[0], hex[1]), outN(hex[1], hex[2])];
-    const segsW = sideN.map((o) => ({ o, n: up }));
-    const body = framedSweep(path2.map(([x, y]) => [x, y, 0] as V3), segsW, [[-wt / 2, 0], [wt / 2, 0], [wt / 2, FT], [-wt / 2, FT]], false);
-    // The clip flange stops TAB_T short of each end, where the seam blocks take over.
-    const along = (a: P2, b: P2, d: number): P2 => { const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [a[0] + ((b[0] - a[0]) * d) / L, a[1] + ((b[1] - a[1]) * d) / L]; };
-    const flPath: P2[] = [along(path2[0], path2[1], TAB_T), path2[1], path2[2], along(path2[3], path2[2], TAB_T)];
-    const flangeF = framedSweep(flPath.map(([x, y]) => [x, y, 0] as V3), segsW, flangeCs, false);
-    /** Seam block at a wall end: `M` on the hexagon's inner line at the seam,
-     *  `e` along the side INTO this wall, `o` outward. As the V-plate walls'
-     *  seamBlock, flat: grooves over the plate ridges underneath, vertical Vs
-     *  on the seam face, standing up to the plaster level. */
-    const footSeamBlock = (M: P2, e: P2, o: V3, ridge: boolean): VaseMesh => {
-      const a0 = wt - TAB_LIP, a1 = wt + flangeW;
-      const dams = band.map((d) => a1 - d);
-      const face = (a: number): number => {
-        for (const dm of dams) {
-          const t = Math.abs(a - dm);
-          if (ridge) { if (t < vw / 2) return V_HEIGHT * (1 - t / (vw / 2)); }
-          else if (t < gW) return -gH * (1 - t / gW);
-        }
-        return 0;
-      };
-      const floor = (a: number): number => {
-        for (const dm of dams) { const t = Math.abs(a - dm); if (t < gW) return gHf * (1 - t / gW); }
-        return 0;
-      };
-      const cols = [a0, a1];
-      for (const dm of dams) cols.push(dm - gW, dm - vw / 2, dm, dm + vw / 2, dm + gW);
-      const as = cols.map((a) => Math.min(Math.max(a, a0), a1)).sort((x, y) => x - y).filter((a, i, arr) => i === 0 || a - arr[i - 1] > 1e-4);
-      const alIn = TAB_T + EMBED;
-      const mb = new MeshBuilder();
-      const pt = (al: number, a: number, h: number) => mb.vertex(M[0] + al * e[0] + a * o[0], M[1] + al * e[1] + a * o[1], h);
-      const rings = as.map((a) => {
-        const alS = -face(a), h0 = floor(a);
-        return ([[alIn, h0], [alIn, FT], [alS, FT], [alS, h0]] as P2[]).map(([al, h]) => pt(al, a, h));
-      });
-      for (let j = 0; j + 1 < rings.length; j++) for (let i = 0; i < 4; i++) { const iN = (i + 1) % 4; mb.quad(rings[j][i], rings[j][iN], rings[j + 1][iN], rings[j + 1][i]); }
-      const last = rings.length - 1;
-      for (let i = 1; i + 1 < 4; i++) { mb.tri(rings[last][0], rings[last][i], rings[last][i + 1]); mb.tri(rings[0][0], rings[0][i + 1], rings[0][i]); }
-      return ensureOutward(mb.build());
-    };
-    const unit = (a: P2, b: P2): P2 => { const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [(b[0] - a[0]) / L, (b[1] - a[1]) / L]; };
-    const mStart = mid(hex[iPrev], hex[0]), mEnd = mid(hex[1], hex[2]);
-    const wallParts = [
-      body, flangeF,
-      footSeamBlock(mStart, unit(hex[iPrev], hex[0]), sideN[0], false),
-      footSeamBlock(mEnd, unit(hex[2], hex[1]), sideN[2], true),
+    // Walls: one loft per half, inside offset by station — the ledge, the
+    // plug's straight side, the groove (the ring's own profile, less clr).
+    const mOut = -clr + RING_H + wt;
+    const st: [number, number][] = [
+      // The ledge's top steps out 0.01 mm BELOW the disk, so the disk sits on it
+      // without the step's ramp reaching under the disk's edge.
+      [zW0, -clr - LEDGE_W], [zDisk - 0.01, -clr - LEDGE_W], [zDisk, -clr],
+      ...RING_US.map((u): [number, number] => [plugH / 2 + u, -clr + ringBump(u)]),
+      [plugH, -clr],
     ];
-    const wallF = mergeMeshes(wallParts);
-    const rotZ = (mesh: VaseMesh, ang: number) => { const c = Math.cos(ang), sn = Math.sin(ang); return mapMesh(mesh, (x, y, z) => [x * c - y * sn, x * sn + y * c, z]); };
-    let vol = Math.abs(polyArea(hex)) * FT + (stepD * (Math.abs(polyArea(stepTop)) + Math.abs(polyArea(stepBase)))) / 2;
-    if (recess) vol += (hF * (Math.abs(polyArea(inset(fw))) + Math.abs(polyArea(inset(fw + sw))))) / 2;
-    const plateF = mergeMeshes(plateParts);
-    const lift = floorT - zDeep;
-    const platePrintF = translate(plateF, 0, 0, lift);
-    foot = { plate: platePrintF, wall: wallF, plateStats: computeMeshStats(platePrintF), wallStats: computeMeshStats(wallF), plasterVolumeMm3: vol };
-    let reach = 0;
-    for (const [x, y] of plateOut) reach = Math.max(reach, Math.hypot(x, y));
-    footDisplay = {
-      plate: plateF,
-      walls: mergeMeshes([wallF, rotZ(wallF, (2 * Math.PI) / 3), rotZ(wallF, (4 * Math.PI) / 3)]),
-      plaster: extrudeSolid(hex, [], 0, FT),
-      reach, lift,
+    const outerA = half(L(mOut), idxA), outerB = half(L(mOut), idxB);
+    const wallBody = (idx: number[], outer: P2[]) => loftSolid(st.map(([w, M]) => ({ outer: [...outer, ...half(L(M), idx).reverse()], holes: [], w })));
+    // Clip flange at each end of a wall: from 1 mm inside the wall's outer face
+    // out flangeW along the split line, FLANGE_T thick on the wall's own side,
+    // the three V's on its mating face (y = 0) — ridges on A, grooves on B.
+    const flangeAt = (xE: number, side: number, ridge: boolean): VaseMesh => {
+      const sx = Math.sign(xE) || 1;
+      const x0 = xE - sx * 1, x1 = xE + sx * flangeW;
+      const face: P2[] = [[x0, 0]];
+      for (const d of band.slice().sort((p, q) => q - p)) {
+        const c = x1 - sx * d;
+        if (ridge) face.push([c - sx * vw / 2, 0], [c, -side * V_HEIGHT], [c + sx * vw / 2, 0]);
+        else face.push([c - sx * gW, 0], [c, side * gH], [c + sx * gW, 0]);
+      }
+      face.push([x1, 0], [x1, side * FLANGE_T], [x0, side * FLANGE_T]);
+      return extrudeSolid(face, [], zW0, plugH);
     };
-    footDbg = { stepD, M0, M1, zDeep, recessDepth: recess ? hF : 0, hex, plateParts, wallParts, stepTop, stepBase, base: toFR(ring0) };
+    const wallOf = (idx: number[], outer: P2[], side: number, ridge: boolean) => [
+      wallBody(idx, outer),
+      flangeAt(outer[0][0], side, ridge),
+      flangeAt(outer[outer.length - 1][0], side, ridge),
+    ];
+    const wallAParts = wallOf(idxA, outerA, 1, true);
+    const wallBParts = wallOf(idxB, outerB, -1, false);
+    const wallA = mergeMeshes(wallAParts), wallB = mergeMeshes(wallBParts);
+
+    const plugOut = L(-clr);
+    let vol = Math.abs(polyArea(plugOut)) * plugH;
+    if (recess) vol += (recessD * (Math.abs(polyArea(inset(fw))) + Math.abs(polyArea(inset(fw + sw))))) / 2;
+    const diskPrint = translate(disk, 0, 0, -zDisk);
+    const wallAPrint = translate(wallA, 0, 0, -zW0), wallBPrint = translate(wallB, 0, 0, -zW0);
+    foot = { plate: diskPrint, wall: wallAPrint, wallB: wallBPrint, plateStats: computeMeshStats(diskPrint), wallStats: computeMeshStats(wallAPrint), plasterVolumeMm3: vol, plugHeight: plugH };
+    let reach = 0;
+    for (const [x, y] of L(mOut)) reach = Math.max(reach, Math.hypot(x, y));
+    reach += flangeW + 2;
+    footDisplay = { plate: disk, walls: mergeMeshes([wallA, wallB]), plaster: extrudeSolid(plugOut, [], 0, plugH), reach, lift: -zW0 };
+    footDbg = { plugH, zRing: plugH / 2, recessDepth: recessD, zDisk, zWall0: zW0, disk: diskParts, wallA: wallAParts, wallB: wallBParts, plugOutline: plugOut, base: base };
   }
 
   // ── To assembly coordinates, print orientations, display. ──

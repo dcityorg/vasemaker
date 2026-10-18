@@ -135,10 +135,13 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   /** Which Split Thirds kit the undercut warning's "Export anyway" continues. */
   const thirdsTarget = useRef(0);
   /** Split Thirds: print-ready parts (master upright, plate on its end). */
-  const thirdsExport = (which: 'master' | 'plate' | 'wellWall' | 'baseWall' | 'footPlate' | 'footWall', k = 0) => {
+  const thirdsExport = (which: 'master' | 'plate' | 'wellWall' | 'baseWall' | 'footPlate' | 'footWall' | 'footWallB', k = 0) => {
     if (mold.style !== 'splitThirds') return;
-    if (which === 'footPlate' || which === 'footWall') {
-      if (mold.foot) exportMesh(which === 'footPlate' ? mold.foot.plate : mold.foot.wall, stlName(which === 'footPlate' ? 'foot plate' : 'foot wall'));
+    if (which === 'footPlate' || which === 'footWall' || which === 'footWallB') {
+      if (!mold.foot) return;
+      const f = mold.foot;
+      if (which === 'footPlate') exportMesh(f.plate, stlName('plug disk'));
+      else exportMesh(which === 'footWall' ? f.wall : f.wallB, stlName(which === 'footWall' ? 'plug wall A' : 'plug wall B'));
       return;
     }
     if (which === 'baseWall' && mold.sharedBaseWall) { exportMesh(mold.baseWallPrint, stlName('base wall')); return; }
@@ -263,8 +266,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
         box(k ? 'Well wall' : `Well walls 1-${N}`, mold.wallStats, 'the well end + half of each side'),
         box(mold.sharedBaseWall ? 'Base wall' : `Base walls 1-${N}`, mold.baseWallStats, mold.sharedBaseWall ? 'the base end + the other halves; goes round every pour' : 'one per piece (its boss fits that piece\'s foot disc)'),
         ...(mold.foot ? [
-          box('Foot plate', mold.foot.plateStats, 'the foot piece, poured once; plaster poured onto it'),
-          box('Foot wall', mold.foot.wallStats, 'print 3 — one wall design goes all the way round'),
+          box('Plug disk', mold.foot.plateStats, 'the plug cup\'s bottom: the vase\'s foot, recess up'),
+          box('Plug walls A + B', mold.foot.wallStats, 'each; clip together round the disk, printed standing on their ledge'),
         ] : []),
       ];
     }
@@ -345,7 +348,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
         : mold.style === 'splitThirds' ? (mold.oneKit
           ? [{ label: `EACH PIECE (one pour of ${mold.pieceCount})`, volumeMm3: mold.kits[0]?.plasterVolumeMm3 ?? 0 }]
           : mold.kits.map((kt) => ({ label: `PIECE ${kt.piece + 1} (its own pour)`, volumeMm3: kt.plasterVolumeMm3 }))).concat(
-            mold.foot ? [{ label: 'FOOT PIECE (its own pour)', volumeMm3: mold.foot.plasterVolumeMm3 }] : [])
+            mold.foot ? [{ label: 'PLUG (its own pour, in its cup)', volumeMm3: mold.foot.plasterVolumeMm3 }] : [])
         : undefined,
       parts: reportParts(),
       keySettings: [
@@ -776,14 +779,19 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 {mold.foot && (
                   <>
                     <button disabled={!!mold.error} onClick={() => thirdsExport('footPlate')} style={{ color: UI_MUTED }}
-                      title="The foot piece's plate: the step pocket and the foot ring + recess, upside down, with the flange ridges round a hexagon. Plaster is poured onto it"
+                      title="The plug cup's bottom disk: the vase bottom's foot ring and recessed middle, recess up. It drops into the two walls and rests on their ledge; the plug is poured onto it, vase face down"
                       className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
-                      Export Foot Plate STL
+                      Export Plug Disk STL
                     </button>
                     <button disabled={!!mold.error} onClick={() => thirdsExport('footWall')} style={{ color: UI_MUTED }}
-                      title="The foot piece's wall — print it THREE times; the three copies go round the hexagon, each one's ridged end into the next one's grooved end"
+                      title="Plug cup wall A: half the cup, with the groove that gives the plug its ridge and a ledge for the disk. V ridges on its two clip flanges. Prints standing on its ledge"
                       className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
-                      Export Foot Wall STL (print 3)
+                      Export Plug Wall A STL
+                    </button>
+                    <button disabled={!!mold.error} onClick={() => thirdsExport('footWallB')} style={{ color: UI_MUTED }}
+                      title="Plug cup wall B: the other half, V grooves on its clip flanges"
+                      className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
+                      Export Plug Wall B STL
                     </button>
                   </>
                 )}
@@ -905,10 +913,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             )}
           </Section>}
           {isThirds && <Section title="Foot Piece" titleColor={GROUP_COLORS.structure}>
-            <Toggle label="Enabled" checked={params.thirdsFootPiece} onChange={(v) => setParam('thirdsFootPiece', v)} tooltip="Cast a fourth plaster piece for the bottom, so the mug gets a foot ring and a recessed centre. The three pieces get a shallow counterbore in their bottom end; the foot piece's step plugs into it and pulls off straight down. The foot is the same hexagon as the pieces, with one wall printed three times" />
+            <Toggle label="Enabled" checked={params.thirdsFootPiece} onChange={(v) => setParam('thirdsFootPiece', v)} tooltip="Cast the bottom as a fourth plaster piece: a PLUG the shape of the vase bottom that sits inside the three pieces, held in by a rounded ring. It gives the mug a foot ring and a recessed centre, with no thin plaster wedge where a curled-in bottom meets a ledge. The plug is poured in its own small cup (a bottom disk and two clip-together walls)" />
             {params.thirdsFootPiece && (
               <>
-                {sl('thirdsFootMargin', 'Margin', 'mm', 'How much wider than the vase bottom the step is, all round. This band is the ledge the three pieces sit on, which seals the slip in')}
+                {sl('thirdsPlugHeight', 'Plug Height', 'mm', 'How tall the plug is, from the vase bottom down to the bottom of the mold. The ring sits in the middle. The plug is the mold wall for the bottom of the vase, so keep it near the Plaster thickness so it soaks up water like the sides')}
                 {sl('footWidth', 'Foot Width', 'mm', 'The flat ring at the outer edge of the bottom — what the mug stands on')}
                 {sl('footSlopeWidth', 'Slope Width', 'mm', 'Width of the sloped ramp from the foot up to the recessed centre')}
                 {sl('footHeight', 'Depth', 'mm', 'How far the centre is recessed. 0 gives a flat bottom on its own piece')}
@@ -1185,7 +1193,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               const f = estimatePlaster(mold.foot.plasterVolumeMm3, params.material);
               return (
                 <>
-                  <div className="text-xs mt-2 mb-1.5" style={{ color: UI_MUTED }}>Foot piece — its own pour</div>
+                  <div className="text-xs mt-2 mb-1.5" style={{ color: UI_MUTED }}>{mold.style === 'splitThirds' ? 'Plug' : 'Foot piece'} — its own pour</div>
                   <StatRow label="Plaster (foot)" value={`${f.volumeCm3.toFixed(0)} cm³`} />
                   <StatRow label="Powder (foot)" value={`≈ ${fmt(f.powderGrams)} g`} />
                   <StatRow label="Water (foot)" value={`≈ ${fmt(f.waterGrams)} g`} />
@@ -1270,8 +1278,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 <StatRow label="Master STL" value={stlSize(mold.masterStats.triangleCount)} tooltip="Triangle count and approximate binary STL size" />
                 {mold.foot && (
                   <>
-                    <StatRow label="Foot plate" value={`${mold.foot.plateStats.sizeX.toFixed(0)} x ${mold.foot.plateStats.sizeY.toFixed(0)} x ${mold.foot.plateStats.sizeZ.toFixed(0)} mm`} tooltip="The foot piece's plate (a hexagon plus its clip flange)" />
-                    <StatRow label="Foot wall" value={`${mold.foot.wallStats.sizeX.toFixed(0)} x ${mold.foot.wallStats.sizeY.toFixed(0)} x ${mold.foot.wallStats.sizeZ.toFixed(0)} mm`} tooltip="Each foot wall — print three" />
+                    <StatRow label="Plug disk" value={`${mold.foot.plateStats.sizeX.toFixed(0)} x ${mold.foot.plateStats.sizeY.toFixed(0)} x ${mold.foot.plateStats.sizeZ.toFixed(0)} mm`} tooltip="The plug cup's bottom disk" />
+                    <StatRow label="Plug wall" value={`${mold.foot.wallStats.sizeX.toFixed(0)} x ${mold.foot.wallStats.sizeY.toFixed(0)} x ${mold.foot.wallStats.sizeZ.toFixed(0)} mm`} tooltip="Each plug cup wall (A and B), standing on its ledge" />
                   </>
                 )}
               </>
