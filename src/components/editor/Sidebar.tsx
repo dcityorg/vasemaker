@@ -204,7 +204,7 @@ export function Sidebar({
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.46.0</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.47.0</p>
         <div className="flex items-center gap-1 mt-0.5">
           <span className="text-xs text-[var(--text-secondary)] shrink-0">Design Name:</span>
           {editingName ? (
