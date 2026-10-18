@@ -37,7 +37,7 @@ const ALL_MOLD_STYLE_TABS: { value: MoldStyle; label: string; tooltip: string }[
   { value: 'pourTwoPiece', label: 'Pour 2-Pc', tooltip: 'Pour mold split in two: center piece + removable outer shell that binder-clips to its foot flange — much easier release' },
   { value: 'pourThreePiece', label: 'Pour 3-Pc', tooltip: 'Pour 2-Pc with the shell split vertically into two clip-together halves — part them sideways instead of lifting the shell off the whole block' },
   { value: 'splitTwoPiece', label: 'Split 2-Pc', tooltip: 'Two plaster halves split through the vase, each poured in its own throwaway printed tray. The halves pull apart sideways, so the vase may narrow going up — necks, bellies, rolled rims, cast-on handles. The tray proved very hard to get off the plaster — try Split Halves' },
-  { value: 'splitThirds', label: 'Split Thirds', tooltip: 'Three plaster pieces split by seams 120° apart, each poured on a V-shaped plate with clip-on walls and a separate hollow master. At a seam the wall already leans 30° the safe way (halves: 0°), so softer flutes, waves and 3- or 6-sided shapes release. No handle; an optional foot piece makes the bottom. New — not yet poured' },
+  { value: 'splitThirds', label: 'Split Thirds', tooltip: 'Three plaster pieces split by seams 120° apart, each poured on its master + V plate (one print) with clip-on walls. At a seam the wall already leans 30° the safe way (halves: 0°), so softer flutes, waves and 3- or 6-sided shapes release. No handle; an optional plaster plug makes the bottom. First set poured Oct 2026; this version not yet poured' },
   { value: 'splitHalves', label: 'Split Halves', tooltip: 'Two plaster halves split through the vase, poured in REUSABLE parts like the handle mold: a plate, two clip-on walls and a separate hollow master you pull out of the plaster. The halves pull apart sideways, so the vase may narrow going up, and an optional third piece makes a foot. No cast-on handle. Being tested now' },
 ];
 const MOLD_STYLE_TABS = ACTIVE_MOLD_STYLES.map((v) => ALL_MOLD_STYLE_TABS.find((t) => t.value === v)!);
@@ -148,8 +148,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     const kit = mold.kits[k];
     if (!kit) return;
     const suffix = mold.oneKit ? '' : ` ${k + 1}`;
-    const mesh = which === 'master' ? kit.masterPrint : which === 'plate' ? kit.platePrint : which === 'baseWall' ? kit.baseWallPrint : kit.wellWallPrint;
-    const label = which === 'wellWall' ? 'well wall' : which === 'baseWall' ? 'base wall' : which;
+    const mesh = which === 'master' || which === 'plate' ? kit.partPrint : which === 'baseWall' ? kit.baseWallPrint : kit.wellWallPrint;
+    const label = which === 'wellWall' ? 'well wall' : which === 'baseWall' ? 'base wall' : 'master';
     exportMesh(mesh, stlName(`${label}${suffix}`), which === 'master' && k === 0);
   };
   /** Split Halves: print-ready parts, lifted so each sits on the bed. */
@@ -261,8 +261,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       });
       const k = mold.oneKit, N = mold.pieceCount;
       return [
-        box(k ? 'Master' : `Masters 1-${N}`, mold.masterStats, k ? `one master, poured ${N} times; printed upright, base down` : 'one per piece, each; printed upright, base down'),
-        box(k ? 'Plate' : `Plates 1-${N}`, mold.plateStats, k ? `one plate, poured ${N} times; printed standing on its end` : 'each; printed standing on its end'),
+        box(k ? 'Master + plate' : `Master + plate 1-${N}`, mold.masterStats, `${k ? `one print, poured ${N} times` : 'one print per piece, each'}; lying down, V underside on the bed; support inside the two water cavities`),
         box(k ? 'Well wall' : `Well walls 1-${N}`, mold.wallStats, 'the well end + half of each side'),
         box(mold.sharedBaseWall ? 'Base wall' : `Base walls 1-${N}`, mold.baseWallStats, mold.sharedBaseWall ? 'the base end + the other halves; goes round every pour' : 'one per piece (its boss fits that piece\'s foot disc)'),
         ...(mold.foot ? [
@@ -747,16 +746,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                   const n = mold.oneKit ? '' : ` ${k + 1}`;
                   return [
                     <button key={`m${k}`} disabled={!!mold.error} style={{ color: UI_MUTED }}
-                      title={mold.oneKit ? `The hollow master — print once, pour all ${mold.pieceCount} pieces. Exported upright, base down` : `Master for piece ${k + 1}. Exported upright, base down`}
+                      title={`${mold.oneKit ? `The master and V plate as ONE print — print once, pour all ${mold.pieceCount} pieces` : `Master + V plate for piece ${k + 1}, one print`}. Exported lying down, the V's underside on the bed. Two water cavities under the master (support goes in them), a hinge gap between them and four flex slits, so the whole part flexes to break the plaster loose`}
                       onClick={() => handleExportMain('A', k)}
                       className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
-                      Export Master{n} STL
-                    </button>,
-                    <button key={`p${k}`} disabled={!!mold.error} style={{ color: UI_MUTED }}
-                      title={`The V plate${mold.oneKit ? '' : ` for piece ${k + 1}`}. Exported standing on its end, so its sloped faces print without stair-steps or support`}
-                      onClick={() => thirdsExport('plate', k)}
-                      className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
-                      Export Plate{n} STL
+                      Export Master + Plate{n} STL
                     </button>,
                     <button key={`w${k}`} disabled={!!mold.error} style={{ color: UI_MUTED }}
                       title={`Well wall${mold.oneKit ? '' : ` for piece ${k + 1}`}: the well end (its boss holds the well) + half of each side. Ridges at its two seams`}
@@ -1094,6 +1087,9 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 {mold.style === 'splitThirds' && mold.natchNote && (
                   <p className="text-[11px] text-amber-400 mt-1 leading-snug">{mold.natchNote}</p>
                 )}
+                {mold.style === 'splitThirds' && mold.hingeNote && (
+                  <p className="text-[11px] text-amber-400 mt-1 leading-snug">{mold.hingeNote}</p>
+                )}
               </Section>
             </>
           )}
@@ -1270,11 +1266,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             )}
             {mold.style === 'splitThirds' && (
               <>
-                <StatRow label="Master" value={`${mold.masterStats.sizeX.toFixed(0)} x ${mold.masterStats.sizeY.toFixed(0)} x ${mold.masterStats.sizeZ.toFixed(0)} mm`} tooltip="Upright, base down, as exported" />
-                <StatRow label="Plate" value={`${mold.plateStats.sizeX.toFixed(0)} x ${mold.plateStats.sizeY.toFixed(0)} x ${mold.plateStats.sizeZ.toFixed(0)} mm`} tooltip="Standing on its end, as exported — the last number is its printed height. Too tall? Lower Plaster or Clip Flange, or the well" />
+                <StatRow label="Master + plate" value={`${mold.masterStats.sizeX.toFixed(0)} x ${mold.masterStats.sizeY.toFixed(0)} x ${mold.masterStats.sizeZ.toFixed(0)} mm`} tooltip="One print, lying down as exported (the V's underside on the bed)" />
                 <StatRow label="Well wall" value={`${mold.wallStats.sizeX.toFixed(0)} x ${mold.wallStats.sizeY.toFixed(0)} x ${mold.wallStats.sizeZ.toFixed(0)} mm`} tooltip="As assembled; turn it in the slicer as suits your printer" />
                 <StatRow label="Base wall" value={`${mold.baseWallStats.sizeX.toFixed(0)} x ${mold.baseWallStats.sizeY.toFixed(0)} x ${mold.baseWallStats.sizeZ.toFixed(0)} mm`} />
-                <StatRow label="Plastic" value={`${((mold.masterStats.volumeMm3 + mold.plateStats.volumeMm3 + mold.wallStats.volumeMm3 + mold.baseWallStats.volumeMm3) / 1000).toFixed(0)} cm³ per kit`} tooltip="Master + plate + both walls. Before supports" />
+                <StatRow label="Plastic" value={`${((mold.masterStats.volumeMm3 + mold.wallStats.volumeMm3 + mold.baseWallStats.volumeMm3) / 1000).toFixed(0)} cm³ per kit`} tooltip="Master + plate (solid, so this is an upper bound — your infill sets the real figure) + both walls. Before supports" />
                 <StatRow label="Master STL" value={stlSize(mold.masterStats.triangleCount)} tooltip="Triangle count and approximate binary STL size" />
                 {mold.foot && (
                   <>
