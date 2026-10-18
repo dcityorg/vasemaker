@@ -178,7 +178,7 @@ export interface SplitThirdsMoldMeshes {
   wallStats: MeshStats;
   baseWallStats: MeshStats;
   natches: ThirdsNatch[];
-  /** Null when the hinge slot is cut; else why not (master wall too thin). */
+  /** Null when the master's arch can hinge (slot cut, or Master Wall ≤ the skin); else why not. */
   hingeNote: string | null;
   natchNote: string | null;
   foot: ThirdsFoot | null;
@@ -1195,8 +1195,12 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
       });
       notched = inner.map((arc, i) => notchArc(arc, hN, depth[i], Math.ceil(nArc / 2)));
     }
-    const hinge = !!notched && notched.every((a) => a);
-    const relief = buildVRelief(outer, hinge ? (notched as Arc3[]) : inner, seat, footOn);
+    // A slot is only needed where the wall is thicker than the skin; at
+    // Master Wall ≤ HINGE_SKIN the gap meets the hollow and the wall itself is
+    // the hinge (2026-10-18: this used to warn "will not flex" at Wall 2).
+    const slotted = !!notched && notched.every((a) => a);
+    const hinge = slotted || notchD <= 0.05;
+    const relief = buildVRelief(outer, slotted ? (notched as Arc3[]) : inner, seat, footOn);
     const last = outer[outer.length - 1];
     const capArc: P2[] = last.map(([, s, t]) => [s, t]);
     const n = capArc.length - 1;
@@ -1232,7 +1236,7 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
       if (!deep) return null;
       // The band's hinge slot: as deep as leaves HINGE_SKIN to its outer face.
       let biN: Arc3 = bi;
-      const nb = hinge ? notchBase(bi, hN) : null;
+      const nb = slotted ? notchBase(bi, hN) : null;
       if (nb) {
         const bo: Arc3[] = [d.b0.map(([, s2, t2]): V3 => [-1, s2, t2]), d.b0.map(([, s2, t2]): V3 => [1, s2, t2])];
         const pts: V3[] = [nb.L, nb.R, [0, 0, (nb.L[2] + nb.R[2]) / 2]].map(([, s2, t2]): V3 => [0, s2, t2]);
@@ -1569,7 +1573,7 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     wallStats: computeMeshStats(kits[0].wellWallPrint),
     baseWallStats: computeMeshStats(baseWallPrint),
     natches, natchNote,
-    hingeNote: builtKits.every((b) => b.hinge) ? null : `Master Wall ${shell} mm leaves no room for the hinge slot (it keeps ${HINGE_SKIN} mm of skin); the master's arch will not flex. Raise Master Wall above ${HINGE_SKIN}.`,
+    hingeNote: builtKits.every((b) => b.hinge) ? null : 'The hinge slot could not be cut into the master at this Seam Angle, so the master\'s arch is stiffer than it should be. Try another Seam Angle.',
     foot, error: null,
     layout: { rW, H, zLo, zHi, seat, plateL: zP1 - zP0, plateW: 2 * sEdge, plateH, wallH: H - tBed },
     debug: {
