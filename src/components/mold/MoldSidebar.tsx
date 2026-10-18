@@ -746,7 +746,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                   const n = mold.oneKit ? '' : ` ${k + 1}`;
                   return [
                     <button key={`m${k}`} disabled={!!mold.error} style={{ color: UI_MUTED }}
-                      title={`${mold.oneKit ? `The master and V plate as ONE print — print once, pour all ${mold.pieceCount} pieces` : `Master + V plate for piece ${k + 1}, one print`}. Exported lying down, the V's underside on the bed. Two water cavities under the master (support goes in them), a hinge gap between them and four flex slits, so the whole part flexes to break the plaster loose`}
+                      title={`${mold.oneKit ? `The master and V plate as ONE print — print once, pour all ${mold.pieceCount} pieces` : `Master + V plate for piece ${k + 1}, one print`}. Exported lying down, the V's underside on the bed. Two water cavities under the master (support goes in them), and a hinge gap between them that runs through the ends, so the two halves swing apart to break the plaster loose`}
                       onClick={() => handleExportMain('A', k)}
                       className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
                       Export Master + Plate{n} STL
