@@ -144,14 +144,17 @@ export interface ThirdsKit {
 export interface ThirdsFoot {
   /** The bottom disk, recess up. */
   plate: VaseMesh;
-  /** Cup walls A and B, standing on their ledge. Each has V ridges on one
-   *  clip flange and grooves on the other — A ridges at +x, B at −x — so a
-   *  ridge end meets a groove end at both seams. */
+  /** The cup's walls (2–4, the fewest that pull off the plug), each standing
+   *  on its ledge, in CCW order round the cup. Each has V ridges on its first
+   *  clip flange and grooves on its last, so a ridge meets a groove at every
+   *  seam. `wall` is walls[0]. */
+  walls: VaseMesh[];
   wall: VaseMesh;
-  wallB: VaseMesh;
-  /** B is A turned half a turn (a bottom outline that looks the same after a
-   *  half turn — round, oval, rectangle): one wall STL, printed twice. */
+  /** Every wall is wall 0 turned round (the outline repeats with the walls):
+   *  one wall STL, printed `walls.length` times. */
   wallsSame: boolean;
+  /** Set when even 4 walls would be gripped by a textured bottom edge. */
+  plugNote: string | null;
   plateStats: MeshStats;
   wallStats: MeshStats;
   /** One plug. */
@@ -227,7 +230,7 @@ export interface SplitThirdsMoldMeshes {
     /** Plaster starts here (the counterbore mouth with the foot on). */
     zB0: number;
     /** Plug + cup, cup coords (plan = world turned over about x; z = 0 the plug's vase face). */
-    foot: { plugH: number; zRing: number; recessDepth: number; zDisk: number; zWall0: number; disk: VaseMesh[]; wallA: VaseMesh[]; wallB: VaseMesh[]; plugOutline: P2[]; base: P2[] } | null;
+    foot: { plugH: number; zRing: number; recessDepth: number; zDisk: number; zWall0: number; disk: VaseMesh[]; walls: VaseMesh[][]; seams: number[]; plugOutline: P2[]; base: P2[] } | null;
   };
 }
 
@@ -1417,14 +1420,18 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
       return out;
     };
     const L = (M: number) => toFR(offsetRingRadial(ring0, c0x, c0y, M, 0, rRes));
-    // The half of a loop with y > 0 (wall A) or y < 0 (B), from one x-axis
-    // crossing to the other. A radial offset keeps each point on its own ray, so
-    // which points are inside, and the two crossing segments, are the same for
-    // every offset: every station of a wall has the same point count.
+    // The cup's walls are SECTORS of the loop between seam rays from the
+    // cup's centre. A radial offset keeps each point on its own ray, so which
+    // points fall in a sector, and the segments crossing its seams, are the
+    // same for every offset: every station of a wall has the same point count.
     const base = L(0);
-    const ys = base.map(([, y]) => y);
-    const halfIdx = (sgn: number) => {
-      const inside = (i: number) => sgn * ys[i] > 1e-9;
+    const TAU = 2 * Math.PI;
+    const wrap = (a: number) => ((a % TAU) + TAU) % TAU;
+    const angOf = base.map(([x, y]) => Math.atan2(y, x));
+    const ccw = polyArea(base) > 0;
+    /** Indices strictly inside the CCW sector a0 → a0 + span, in loop order; null if not one run. */
+    const sectorIdx = (a0: number, span: number): number[] | null => {
+      const inside = (i: number) => { const d = wrap(angOf[i] - a0); return d > 1e-9 && d < span - 1e-9; };
       let start = -1;
       for (let i = 0; i < rRes; i++) if (inside(i) && !inside((i - 1 + rRes) % rRes)) { if (start >= 0) return null; start = i; }
       if (start < 0) return null;
@@ -1432,17 +1439,69 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
       for (let k = 0; k < rRes && inside((start + k) % rRes); k++) idx.push((start + k) % rRes);
       return idx;
     };
-    const half = (loop: P2[], idx: number[]): P2[] => {
-      const cross = (a: number, b: number): P2 => {
-        const [ax, ay] = loop[a], [bx, by] = loop[b];
-        const f = Math.abs(ay - by) > 1e-12 ? ay / (ay - by) : 0;
-        return [ax + (bx - ax) * f, 0];
-      };
-      const i0 = idx[0], i1 = idx[idx.length - 1];
-      return [cross((i0 - 1 + rRes) % rRes, i0), ...idx.map((i) => loop[i]), cross(i1, (i1 + 1) % rRes)];
+    /** Where segment a→b of `loop` crosses the seam ray at angle aS, snapped onto it. */
+    const crossAt = (loop: P2[], a: number, b: number, aS: number): P2 => {
+      const c = Math.cos(aS), sn = Math.sin(aS);
+      const va = -loop[a][0] * sn + loop[a][1] * c, vb = -loop[b][0] * sn + loop[b][1] * c;
+      const f = Math.abs(va - vb) > 1e-12 ? va / (va - vb) : 0;
+      const x = loop[a][0] + (loop[b][0] - loop[a][0]) * f, y = loop[a][1] + (loop[b][1] - loop[a][1]) * f;
+      const r = x * c + y * sn;
+      return [r * c, r * sn];
     };
-    const idxA = halfIdx(1), idxB = halfIdx(-1);
-    if (!idxA || !idxB) return errorResult('The plug cup cannot be split in two along this bottom outline (it crosses the split line more than twice). Turn the foot piece off for this shape.', N);
+    /** The sector's slice of `loop`, seam crossing to seam crossing, in loop order. */
+    const sector = (loop: P2[], idx: number[], a0: number, span: number): P2[] => {
+      const i0 = idx[0], i1 = idx[idx.length - 1];
+      const [aIn, aOut] = ccw ? [a0, a0 + span] : [a0 + span, a0];
+      return [crossAt(loop, (i0 - 1 + rRes) % rRes, i0, aIn), ...idx.map((i) => loop[i]), crossAt(loop, i1, (i1 + 1) % rRes, aOut)];
+    };
+    // How many walls, and where the seams go (Gary 2026-10-18): the FEWEST,
+    // 2 to 4, that all pull off the plug, each straight out along its own
+    // centre line. A wall locks where the plug's outline faces away from its
+    // pull (outward normal · pull < 0) — a textured bottom edge, ribs near a
+    // seam. Seams are turned round in 0.1° steps and the clearest kept; a plain
+    // round cup stays 2 walls split on the x axis. Tested on the plug's side
+    // and on the ring's crest.
+    const LOCK_TOL = 0.02;
+    const lockLoops = [L(-clr), L(-clr + RING_H)].map((q) => (ccw ? q : q.slice().reverse()));
+    const worstPull = (n: number, a0: number): number => {
+      const span = TAU / n;
+      let worst = Infinity;
+      for (const q of lockLoops) for (let i = 0; i < q.length; i++) {
+        const [ax, ay] = q[i], [bx, by] = q[(i + 1) % q.length];
+        const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy);
+        if (len < 1e-9) continue;
+        const k = Math.floor(wrap(Math.atan2((ay + by) / 2, (ax + bx) / 2) - a0) / span);
+        const pull = a0 + (k + 0.5) * span;
+        worst = Math.min(worst, (dy * Math.cos(pull) - dx * Math.sin(pull)) / len);
+      }
+      return worst;
+    };
+    const sectorsOk = (n: number, a0: number): boolean => {
+      for (let k = 0; k < n; k++) if (!sectorIdx(a0 + (k * TAU) / n, TAU / n)) return false;
+      return true;
+    };
+    let plugWalls = 0, seam0 = 0, bestWorst = -Infinity, bestN = 2, bestA = 0;
+    for (const n of [2, 3, 4]) {
+      const span = TAU / n;
+      let nW = worstPull(n, 0), nA = 0;
+      if (nW < -LOCK_TOL) {
+        for (let a = 0.1 * Math.PI / 180; a < span; a += 0.1 * Math.PI / 180) {
+          const w = worstPull(n, a);
+          if (w > nW) { nW = w; nA = a; }
+        }
+      }
+      if (nW > bestWorst) { bestWorst = nW; bestN = n; bestA = nA; }
+      if (nW >= -LOCK_TOL && sectorsOk(n, nA)) { plugWalls = n; seam0 = nA; break; }
+    }
+    let plugNote: string | null = null;
+    if (!plugWalls) {
+      plugWalls = bestN; seam0 = bestA;
+      if (!sectorsOk(plugWalls, seam0)) return errorResult('The plug cup cannot be split along this bottom outline (a seam crosses it more than once). Turn the foot piece off for this shape.', N);
+      plugNote = `The texture runs down to the bottom edge, so the plug's ribs grip its cup walls at the seams even with ${plugWalls} walls. Add a base Smooth Zone on the Vase tab so the bottom edge is plain.`;
+    }
+    const seams = Array.from({ length: plugWalls }, (_, k) => seam0 + (k * TAU) / plugWalls);
+    const spanW = TAU / plugWalls;
+    const idxW = seams.map((a) => sectorIdx(a, spanW) as number[]);
 
     const fBase = mold.footSmoothInner ? outerStack.smoothBase : ring0;
     const hF = Math.max(0, mold.footHeight);
@@ -1481,71 +1540,84 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
       ...RING_US.map((u): [number, number] => [plugH / 2 + u, -clr + ringBump(u)]),
       [plugH, -clr],
     ];
-    const outerA = half(L(mOut), idxA), outerB = half(L(mOut), idxB);
-    const wallBody = (idx: number[], outer: P2[]) => loftSolid(st.map(([w, M]) => ({ outer: [...outer, ...half(L(M), idx).reverse()], holes: [], w })));
-    // Clip flange at each end of a wall: from 1 mm inside the wall's outer face
-    // out flangeW along the split line, FLANGE_T thick on the wall's own side,
-    // the three V's on its mating face (y = 0). Ridges at +x on A and at −x
-    // on B, grooves at the other end (Gary 2026-10-18), so the two walls are
-    // the same part turned half a turn wherever the outline allows it.
-    const flangeAt = (xE: number, side: number, ridge: boolean): VaseMesh => {
-      const sx = Math.sign(xE) || 1;
-      const x0 = xE - sx * 1, x1 = xE + sx * flangeW;
+    const wallBody = (k: number) => {
+      const outer = sector(L(mOut), idxW[k], seams[k], spanW);
+      return loftSolid(st.map(([w, M]) => ({ outer: [...outer, ...sector(L(M), idxW[k], seams[k], spanW).reverse()], holes: [], w })));
+    };
+    // Clip flange at each end of a wall, built on the seam ray as the +x axis
+    // and turned onto it: from 1 mm inside the wall's outer face out flangeW
+    // along the seam, FLANGE_T thick on the wall's own side (+y: the wall lies
+    // CCW of this seam), the three V's on its mating face (y = 0). Each wall
+    // has RIDGES at its first seam (CCW order) and GROOVES at its last (Gary
+    // 2026-10-18), so a ridge meets a groove at every seam and the walls are
+    // the same part turned round wherever the outline allows it.
+    const flangeAt = (xE: number, side: number, ridge: boolean, aS: number): VaseMesh => {
+      const x0 = xE - 1, x1 = xE + flangeW;
       const face: P2[] = [[x0, 0]];
       for (const d of band.slice().sort((p, q) => q - p)) {
-        const c = x1 - sx * d;
-        if (ridge) face.push([c - sx * vw / 2, 0], [c, -side * V_HEIGHT], [c + sx * vw / 2, 0]);
-        else face.push([c - sx * gW, 0], [c, side * gH], [c + sx * gW, 0]);
+        const c = x1 - d;
+        if (ridge) face.push([c - vw / 2, 0], [c, -side * V_HEIGHT], [c + vw / 2, 0]);
+        else face.push([c - gW, 0], [c, side * gH], [c + gW, 0]);
       }
       face.push([x1, 0], [x1, side * FLANGE_T], [x0, side * FLANGE_T]);
-      return extrudeSolid(face, [], zW0, plugH);
+      return rotZ(extrudeSolid(face, [], zW0, plugH), aS);
     };
-    const wallOf = (idx: number[], outer: P2[], side: number) => [
-      wallBody(idx, outer),
-      ...[outer[0][0], outer[outer.length - 1][0]].map((xE) => flangeAt(xE, side, (xE > 0) === (side > 0))),
-    ];
-    const wallAParts = wallOf(idxA, outerA, 1);
-    const wallBParts = wallOf(idxB, outerB, -1);
-    const wallA = mergeMeshes(wallAParts), wallB = mergeMeshes(wallBParts);
-    // Same part? Every vertex of B turned half a turn about z must land on A,
-    // and every vertex of A on B turned (to 0.01 mm, by a spatial hash). Not
-    // point counts: a sample landing exactly on the split line gives one half
-    // an extra, collinear point (Gary's 30-wave tumbler at Radial 360).
-    const onEachOther = (a: VaseMesh, b: VaseMesh, sb: number): boolean => {
+    const rotZ = (m: VaseMesh, a: number): VaseMesh => {
+      const c = Math.cos(a), sn = Math.sin(a);
+      const positions = new Float32Array(m.positions.length);
+      for (let q = 0; q < positions.length; q += 3) {
+        const x = m.positions[q], y = m.positions[q + 1];
+        positions[q] = x * c - y * sn; positions[q + 1] = x * sn + y * c; positions[q + 2] = m.positions[q + 2];
+      }
+      const out = { ...m, positions, normals: new Float32Array(m.normals.length) };
+      computeNormals(out.positions, out.indices, out.normals);
+      return out;
+    };
+    const outerLoop = L(mOut);
+    const wallParts = seams.map((a0, k) => {
+      const seg = sector(outerLoop, idxW[k], a0, spanW);
+      const rIn = Math.hypot(...seg[ccw ? 0 : seg.length - 1]), rOut = Math.hypot(...seg[ccw ? seg.length - 1 : 0]);
+      return [wallBody(k), flangeAt(rIn, 1, true, a0), flangeAt(rOut, -1, false, a0 + spanW)];
+    });
+    const wallMeshes = wallParts.map((ps) => mergeMeshes(ps));
+    // Same part? Each wall turned back by its seam offset must land on wall 0,
+    // every vertex both ways (to 0.01 mm, by a spatial hash). Not point
+    // counts: a sample landing exactly on a seam gives one wall an extra,
+    // collinear point (Gary's 30-wave tumbler at Radial 360).
+    const onEachOther = (a: VaseMesh, b: VaseMesh): boolean => {
       const tol = 0.01, cell = 0.05;
       const grid = new Map<string, number[]>();
-      for (let i = 0; i < a.vertexCount; i++) {
-        const k = `${Math.floor(a.positions[i * 3] / cell)},${Math.floor(a.positions[i * 3 + 1] / cell)},${Math.floor(a.positions[i * 3 + 2] / cell)}`;
-        const arr = grid.get(k);
-        if (arr) arr.push(i); else grid.set(k, [i]);
+      for (let q = 0; q < a.vertexCount; q++) {
+        const key = `${Math.floor(a.positions[q * 3] / cell)},${Math.floor(a.positions[q * 3 + 1] / cell)},${Math.floor(a.positions[q * 3 + 2] / cell)}`;
+        const arr = grid.get(key);
+        if (arr) arr.push(q); else grid.set(key, [q]);
       }
-      for (let i = 0; i < b.vertexCount; i++) {
-        const x = sb * b.positions[i * 3], y = sb * b.positions[i * 3 + 1], z = b.positions[i * 3 + 2];
+      for (let q = 0; q < b.vertexCount; q++) {
+        const x = b.positions[q * 3], y = b.positions[q * 3 + 1], z = b.positions[q * 3 + 2];
         const cx = Math.floor(x / cell), cy = Math.floor(y / cell), cz = Math.floor(z / cell);
         let hit = false;
         for (let dx = -1; dx <= 1 && !hit; dx++) for (let dy = -1; dy <= 1 && !hit; dy++) for (let dz = -1; dz <= 1 && !hit; dz++) {
-          for (const j of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) {
-            if (Math.hypot(a.positions[j * 3] - x, a.positions[j * 3 + 1] - y, a.positions[j * 3 + 2] - z) <= tol) { hit = true; break; }
+          for (const j2 of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) {
+            if (Math.hypot(a.positions[j2 * 3] - x, a.positions[j2 * 3 + 1] - y, a.positions[j2 * 3 + 2] - z) <= tol) { hit = true; break; }
           }
         }
         if (!hit) return false;
       }
       return true;
     };
-    const sameAfterHalfTurn = (a: VaseMesh, b: VaseMesh) => onEachOther(a, b, -1) && onEachOther(b, a, -1);
-    const wallsSame = sameAfterHalfTurn(wallA, wallB);
+    const wallsSame = wallMeshes.every((m, k) => { if (!k) return true; const back = rotZ(m, -k * spanW); return onEachOther(wallMeshes[0], back) && onEachOther(back, wallMeshes[0]); });
 
     const plugOut = L(-clr);
     let vol = Math.abs(polyArea(plugOut)) * plugH;
     if (recess) vol += (recessD * (Math.abs(polyArea(inset(fw))) + Math.abs(polyArea(inset(fw + sw))))) / 2;
     const diskPrint = translate(disk, 0, 0, -zDisk);
-    const wallAPrint = translate(wallA, 0, 0, -zW0), wallBPrint = translate(wallB, 0, 0, -zW0);
-    foot = { plate: diskPrint, wall: wallAPrint, wallB: wallBPrint, wallsSame, plateStats: computeMeshStats(diskPrint), wallStats: computeMeshStats(wallAPrint), plasterVolumeMm3: vol, plugHeight: plugH };
+    const wallPrints = wallMeshes.map((m) => translate(m, 0, 0, -zW0));
+    foot = { plate: diskPrint, walls: wallPrints, wall: wallPrints[0], wallsSame, plugNote, plateStats: computeMeshStats(diskPrint), wallStats: computeMeshStats(wallPrints[0]), plasterVolumeMm3: vol, plugHeight: plugH };
     let reach = 0;
     for (const [x, y] of L(mOut)) reach = Math.max(reach, Math.hypot(x, y));
     reach += flangeW + 2;
-    footDisplay = { plate: disk, walls: mergeMeshes([wallA, wallB]), plaster: extrudeSolid(plugOut, [], 0, plugH), reach, lift: -zW0 };
-    footDbg = { plugH, zRing: plugH / 2, recessDepth: recessD, zDisk, zWall0: zW0, disk: diskParts, wallA: wallAParts, wallB: wallBParts, plugOutline: plugOut, base: base };
+    footDisplay = { plate: disk, walls: mergeMeshes(wallMeshes), plaster: extrudeSolid(plugOut, [], 0, plugH), reach, lift: -zW0 };
+    footDbg = { plugH, zRing: plugH / 2, recessDepth: recessD, zDisk, zWall0: zW0, disk: diskParts, walls: wallParts, seams, plugOutline: plugOut, base: base };
   }
 
   // ── To assembly coordinates, print orientations, display. ──

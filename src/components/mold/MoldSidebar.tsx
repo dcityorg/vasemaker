@@ -135,13 +135,13 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   /** Which Split Thirds kit the undercut warning's "Export anyway" continues. */
   const thirdsTarget = useRef(0);
   /** Split Thirds: print-ready parts (master upright, plate on its end). */
-  const thirdsExport = (which: 'master' | 'plate' | 'wellWall' | 'baseWall' | 'footPlate' | 'footWall' | 'footWallB', k = 0) => {
+  const thirdsExport = (which: 'master' | 'plate' | 'wellWall' | 'baseWall' | 'footPlate' | 'footWall', k = 0) => {
     if (mold.style !== 'splitThirds') return;
-    if (which === 'footPlate' || which === 'footWall' || which === 'footWallB') {
+    if (which === 'footPlate' || which === 'footWall') {
       if (!mold.foot) return;
       const f = mold.foot;
       if (which === 'footPlate') exportMesh(f.plate, stlName('plug disk'));
-      else exportMesh(which === 'footWall' ? f.wall : f.wallB, stlName(f.wallsSame ? 'plug wall' : which === 'footWall' ? 'plug wall A' : 'plug wall B'));
+      else exportMesh(f.walls[k], stlName(f.wallsSame ? 'plug wall' : `plug wall ${'ABCD'[k]}`));
       return;
     }
     if (which === 'baseWall' && mold.sharedBaseWall) { exportMesh(mold.baseWallPrint, stlName('base wall')); return; }
@@ -266,7 +266,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
         box(mold.sharedBaseWall ? 'Base wall' : `Base walls 1-${N}`, mold.baseWallStats, mold.sharedBaseWall ? 'the base end + the other halves; goes round every pour' : 'one per piece (its boss fits that piece\'s foot disc)'),
         ...(mold.foot ? [
           box('Plug disk', mold.foot.plateStats, 'the plug cup\'s bottom: the vase\'s foot, recess up'),
-          box('Plug walls A + B', mold.foot.wallStats, 'each; clip together round the disk, printed standing on their ledge'),
+          box(mold.foot.wallsSame ? `Plug wall ×${mold.foot.walls.length}` : `Plug walls (${mold.foot.walls.length})`, mold.foot.wallStats, `${mold.foot.wallsSame ? `print ${mold.foot.walls.length}` : 'each'}; clip together round the disk, printed standing on their ledge`),
         ] : []),
       ];
     }
@@ -776,20 +776,15 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                       className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
                       Export Plug Disk STL
                     </button>
-                    <button disabled={!!mold.error} onClick={() => thirdsExport('footWall')} style={{ color: UI_MUTED }}
-                      title={mold.foot.wallsSame
-                        ? 'Plug cup wall — PRINT TWO: half the cup, with the groove that gives the plug its ridge and a ledge for the disk. V ridges on one clip flange, grooves on the other; turn the second one half a turn and they clip together. Prints standing on its ledge'
-                        : 'Plug cup wall A: half the cup, with the groove that gives the plug its ridge and a ledge for the disk. V ridges on one clip flange, grooves on the other (wall B the other way round). Prints standing on its ledge'}
-                      className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
-                      {mold.foot.wallsSame ? 'Export Plug Wall STL (×2)' : 'Export Plug Wall A STL'}
-                    </button>
-                    {!mold.foot.wallsSame && (
-                      <button disabled={!!mold.error} onClick={() => thirdsExport('footWallB')} style={{ color: UI_MUTED }}
-                        title="Plug cup wall B: the other half of the cup (this bottom outline is not the same after a half turn, so the two walls differ)"
+                    {(mold.foot.wallsSame ? [0] : mold.foot.walls.map((_, k) => k)).map((k) => (
+                      <button key={k} disabled={!!mold.error} onClick={() => thirdsExport('footWall', k)} style={{ color: UI_MUTED }}
+                        title={mold.foot!.wallsSame
+                          ? `Plug cup wall — PRINT ${mold.foot!.walls.length}: one of the ${mold.foot!.walls.length} walls that clip round the disk, with the groove that gives the plug its ridge and a ledge for the disk. V ridges on one clip flange, grooves on the other. Prints standing on its ledge`
+                          : `Plug cup wall ${'ABCD'[k]} of ${mold.foot!.walls.length}: the walls differ because the bottom outline does not repeat from wall to wall. V ridges on one clip flange, grooves on the other. Prints standing on its ledge`}
                         className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
-                        Export Plug Wall B STL
+                        {mold.foot!.wallsSame ? `Export Plug Wall STL (×${mold.foot!.walls.length})` : `Export Plug Wall ${'ABCD'[k]} STL`}
                       </button>
-                    )}
+                    ))}
                   </>
                 )}
               </div>
@@ -918,6 +913,15 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 {sl('footSlopeWidth', 'Slope Width', 'mm', 'Width of the sloped ramp from the foot up to the recessed centre')}
                 {sl('footHeight', 'Depth', 'mm', 'How far the centre is recessed. 0 gives a flat bottom on its own piece')}
                 <Toggle label="Smooth Inside" checked={params.footSmoothInner} onChange={(v) => setParam('footSmoothInner', v)} tooltip="Build the ramp and recessed centre from the smooth contour so surface texture doesn't carry into the recess" />
+                {mold.style === 'splitThirds' && mold.foot && (
+                  <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug"
+                    title="The plug is cast in a cup of clip-together walls. A textured bottom edge can grip them where its ribs point along a wall's pull, so the app uses the fewest walls (2 to 4) that all pull straight off, and turns the seams to suit">
+                    Plug cup: {mold.foot.walls.length} walls{mold.foot.wallsSame ? `, all the same (print ${mold.foot.walls.length})` : ', each different'}.
+                  </p>
+                )}
+                {mold.style === 'splitThirds' && mold.foot?.plugNote && (
+                  <p className="text-[11px] text-amber-400 mt-1 leading-snug">{mold.foot.plugNote}</p>
+                )}
               </>
             )}
           </Section>}
@@ -1278,7 +1282,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 {mold.foot && (
                   <>
                     <StatRow label="Plug disk" value={`${mold.foot.plateStats.sizeX.toFixed(0)} x ${mold.foot.plateStats.sizeY.toFixed(0)} x ${mold.foot.plateStats.sizeZ.toFixed(0)} mm`} tooltip="The plug cup's bottom disk" />
-                    <StatRow label="Plug wall" value={`${mold.foot.wallStats.sizeX.toFixed(0)} x ${mold.foot.wallStats.sizeY.toFixed(0)} x ${mold.foot.wallStats.sizeZ.toFixed(0)} mm`} tooltip="Each plug cup wall (A and B), standing on its ledge" />
+                    <StatRow label="Plug wall" value={`${mold.foot.wallStats.sizeX.toFixed(0)} x ${mold.foot.wallStats.sizeY.toFixed(0)} x ${mold.foot.wallStats.sizeZ.toFixed(0)} mm`} tooltip="Each plug cup wall, standing on its ledge" />
                   </>
                 )}
               </>
