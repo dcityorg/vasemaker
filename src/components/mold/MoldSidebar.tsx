@@ -141,7 +141,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       if (!mold.foot) return;
       const f = mold.foot;
       if (which === 'footPlate') exportMesh(f.plate, stlName('plug disk'));
-      else exportMesh(which === 'footWall' ? f.wall : f.wallB, stlName(which === 'footWall' ? 'plug wall A' : 'plug wall B'));
+      else exportMesh(which === 'footWall' ? f.wall : f.wallB, stlName(f.wallsSame ? 'plug wall' : which === 'footWall' ? 'plug wall A' : 'plug wall B'));
       return;
     }
     if (which === 'baseWall' && mold.sharedBaseWall) { exportMesh(mold.baseWallPrint, stlName('base wall')); return; }
@@ -777,15 +777,19 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                       Export Plug Disk STL
                     </button>
                     <button disabled={!!mold.error} onClick={() => thirdsExport('footWall')} style={{ color: UI_MUTED }}
-                      title="Plug cup wall A: half the cup, with the groove that gives the plug its ridge and a ledge for the disk. V ridges on its two clip flanges. Prints standing on its ledge"
+                      title={mold.foot.wallsSame
+                        ? 'Plug cup wall — PRINT TWO: half the cup, with the groove that gives the plug its ridge and a ledge for the disk. V ridges on one clip flange, grooves on the other; turn the second one half a turn and they clip together. Prints standing on its ledge'
+                        : 'Plug cup wall A: half the cup, with the groove that gives the plug its ridge and a ledge for the disk. V ridges on one clip flange, grooves on the other (wall B the other way round). Prints standing on its ledge'}
                       className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
-                      Export Plug Wall A STL
+                      {mold.foot.wallsSame ? 'Export Plug Wall STL (×2)' : 'Export Plug Wall A STL'}
                     </button>
-                    <button disabled={!!mold.error} onClick={() => thirdsExport('footWallB')} style={{ color: UI_MUTED }}
-                      title="Plug cup wall B: the other half, V grooves on its clip flanges"
-                      className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
-                      Export Plug Wall B STL
-                    </button>
+                    {!mold.foot.wallsSame && (
+                      <button disabled={!!mold.error} onClick={() => thirdsExport('footWallB')} style={{ color: UI_MUTED }}
+                        title="Plug cup wall B: the other half of the cup (this bottom outline is not the same after a half turn, so the two walls differ)"
+                        className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
+                        Export Plug Wall B STL
+                      </button>
+                    )}
                   </>
                 )}
               </div>

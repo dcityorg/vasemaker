@@ -144,9 +144,14 @@ export interface ThirdsKit {
 export interface ThirdsFoot {
   /** The bottom disk, recess up. */
   plate: VaseMesh;
-  /** Cup wall A (ridges on its clip flanges) and B (grooves), standing on their ledge. */
+  /** Cup walls A and B, standing on their ledge. Each has V ridges on one
+   *  clip flange and grooves on the other — A ridges at +x, B at −x — so a
+   *  ridge end meets a groove end at both seams. */
   wall: VaseMesh;
   wallB: VaseMesh;
+  /** B is A turned half a turn (a bottom outline that looks the same after a
+   *  half turn — round, oval, rectangle): one wall STL, printed twice. */
+  wallsSame: boolean;
   plateStats: MeshStats;
   wallStats: MeshStats;
   /** One plug. */
@@ -1401,7 +1406,7 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
   // walls split along the cup's x axis and part sideways, as the pieces do off
   // the plug. The cup's inside is the band less the clearance, so the plug
   // drops into the pieces' bore; the disk is another clearance smaller so it
-  // slides in. Wall A's clip flanges carry the V ridges, wall B's the grooves. ──
+  // slides in. Each wall has V ridges on one clip flange, grooves on the other. ──
   let foot: ThirdsFoot | null = null;
   let footDbg: SplitThirdsMoldMeshes['debug']['foot'] = null;
   let footDisplay: { plate: VaseMesh; walls: VaseMesh; plaster: VaseMesh; reach: number; lift: number } | null = null;
@@ -1480,7 +1485,9 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     const wallBody = (idx: number[], outer: P2[]) => loftSolid(st.map(([w, M]) => ({ outer: [...outer, ...half(L(M), idx).reverse()], holes: [], w })));
     // Clip flange at each end of a wall: from 1 mm inside the wall's outer face
     // out flangeW along the split line, FLANGE_T thick on the wall's own side,
-    // the three V's on its mating face (y = 0) — ridges on A, grooves on B.
+    // the three V's on its mating face (y = 0). Ridges at +x on A and at −x
+    // on B, grooves at the other end (Gary 2026-10-18), so the two walls are
+    // the same part turned half a turn wherever the outline allows it.
     const flangeAt = (xE: number, side: number, ridge: boolean): VaseMesh => {
       const sx = Math.sign(xE) || 1;
       const x0 = xE - sx * 1, x1 = xE + sx * flangeW;
@@ -1493,21 +1500,47 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
       face.push([x1, 0], [x1, side * FLANGE_T], [x0, side * FLANGE_T]);
       return extrudeSolid(face, [], zW0, plugH);
     };
-    const wallOf = (idx: number[], outer: P2[], side: number, ridge: boolean) => [
+    const wallOf = (idx: number[], outer: P2[], side: number) => [
       wallBody(idx, outer),
-      flangeAt(outer[0][0], side, ridge),
-      flangeAt(outer[outer.length - 1][0], side, ridge),
+      ...[outer[0][0], outer[outer.length - 1][0]].map((xE) => flangeAt(xE, side, (xE > 0) === (side > 0))),
     ];
-    const wallAParts = wallOf(idxA, outerA, 1, true);
-    const wallBParts = wallOf(idxB, outerB, -1, false);
+    const wallAParts = wallOf(idxA, outerA, 1);
+    const wallBParts = wallOf(idxB, outerB, -1);
     const wallA = mergeMeshes(wallAParts), wallB = mergeMeshes(wallBParts);
+    // Same part? Every vertex of B turned half a turn about z must land on A,
+    // and every vertex of A on B turned (to 0.01 mm, by a spatial hash). Not
+    // point counts: a sample landing exactly on the split line gives one half
+    // an extra, collinear point (Gary's 30-wave tumbler at Radial 360).
+    const onEachOther = (a: VaseMesh, b: VaseMesh, sb: number): boolean => {
+      const tol = 0.01, cell = 0.05;
+      const grid = new Map<string, number[]>();
+      for (let i = 0; i < a.vertexCount; i++) {
+        const k = `${Math.floor(a.positions[i * 3] / cell)},${Math.floor(a.positions[i * 3 + 1] / cell)},${Math.floor(a.positions[i * 3 + 2] / cell)}`;
+        const arr = grid.get(k);
+        if (arr) arr.push(i); else grid.set(k, [i]);
+      }
+      for (let i = 0; i < b.vertexCount; i++) {
+        const x = sb * b.positions[i * 3], y = sb * b.positions[i * 3 + 1], z = b.positions[i * 3 + 2];
+        const cx = Math.floor(x / cell), cy = Math.floor(y / cell), cz = Math.floor(z / cell);
+        let hit = false;
+        for (let dx = -1; dx <= 1 && !hit; dx++) for (let dy = -1; dy <= 1 && !hit; dy++) for (let dz = -1; dz <= 1 && !hit; dz++) {
+          for (const j of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) {
+            if (Math.hypot(a.positions[j * 3] - x, a.positions[j * 3 + 1] - y, a.positions[j * 3 + 2] - z) <= tol) { hit = true; break; }
+          }
+        }
+        if (!hit) return false;
+      }
+      return true;
+    };
+    const sameAfterHalfTurn = (a: VaseMesh, b: VaseMesh) => onEachOther(a, b, -1) && onEachOther(b, a, -1);
+    const wallsSame = sameAfterHalfTurn(wallA, wallB);
 
     const plugOut = L(-clr);
     let vol = Math.abs(polyArea(plugOut)) * plugH;
     if (recess) vol += (recessD * (Math.abs(polyArea(inset(fw))) + Math.abs(polyArea(inset(fw + sw))))) / 2;
     const diskPrint = translate(disk, 0, 0, -zDisk);
     const wallAPrint = translate(wallA, 0, 0, -zW0), wallBPrint = translate(wallB, 0, 0, -zW0);
-    foot = { plate: diskPrint, wall: wallAPrint, wallB: wallBPrint, plateStats: computeMeshStats(diskPrint), wallStats: computeMeshStats(wallAPrint), plasterVolumeMm3: vol, plugHeight: plugH };
+    foot = { plate: diskPrint, wall: wallAPrint, wallB: wallBPrint, wallsSame, plateStats: computeMeshStats(diskPrint), wallStats: computeMeshStats(wallAPrint), plasterVolumeMm3: vol, plugHeight: plugH };
     let reach = 0;
     for (const [x, y] of L(mOut)) reach = Math.max(reach, Math.hypot(x, y));
     reach += flangeW + 2;
