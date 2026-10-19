@@ -164,12 +164,17 @@ export function cutArc(ring: Ring, rRes: number, cx: number, cy: number, f: Half
  * The inner floor sits one skin above the outer base, so the base is a solid
  * wall and the hollow opens only downward through the bed face.
  *
+ * `openBase` (Split Halves with the plug, 2026-10-18): the inner arcs start at
+ * the base plane too, and the base is an ANNULUS between the two, so the hollow
+ * runs on into the plug band's hollow. The bed face then splits into two
+ * strips, one per side, as Split Thirds' buildVRelief does.
+ *
  * Every face is emitted so that each shared edge is walked in OPPOSITE
  * directions by its two faces (worked through edge by edge — the loops passed
  * to `loop()` below are those traversals, not guesses); ensureOutward then only
  * has to choose the global sign.
  */
-export function buildRelief(outer: Arc[], inner: Arc[]): VaseMesh {
+export function buildRelief(outer: Arc[], inner: Arc[], openBase = false): VaseMesh {
   const b = new MeshBuilder();
   const P: [number, number, number][] = [];
   const v = (p: [number, number, number]) => { P.push(p); return b.vertex(p[0], p[1], p[2]); };
@@ -221,10 +226,19 @@ export function buildRelief(outer: Arc[], inner: Arc[]): VaseMesh {
   const yz = (p: [number, number, number]): P2 => [p[1], p[2]];
   const xy = (p: [number, number, number]): P2 => [p[0], p[1]];
 
-  loop([...O[0].slice().reverse(), Ob0[0], ObN[0]], yz);                                  // base wall
-  loop([...I[0], IbN[0], Ib0[0]], yz);                                                      // hollow ceiling
+  if (openBase) {
+    loop([...O[0].slice().reverse(), Ob0[0], Ib0[0], ...I[0], IbN[0], ObN[0]], yz);         // base annulus
+  } else {
+    loop([...O[0].slice().reverse(), Ob0[0], ObN[0]], yz);                                  // base wall
+    loop([...I[0], IbN[0], Ib0[0]], yz);                                                    // hollow ceiling
+  }
   loop([...O[L], ObN[L], IbN[M], ...I[M].slice().reverse(), Ib0[M], Ob0[L]], yz);           // top annulus
-  loop([...Ob0, ...Ib0.slice().reverse(), ...IbN, ...ObN.slice().reverse()], xy);           // bed face
+  if (openBase) {
+    loop([...Ob0, ...Ib0.slice().reverse()], xy);                                           // bed strip, one side
+    loop([...IbN, ...ObN.slice().reverse()], xy);                                           // bed strip, other side
+  } else {
+    loop([...Ob0, ...Ib0.slice().reverse(), ...IbN, ...ObN.slice().reverse()], xy);         // bed face
+  }
 
   return ensureOutward(b.build());
 }

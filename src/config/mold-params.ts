@@ -56,7 +56,7 @@ export const MOLD_PARAMS = {
   thirdsFlangeWidth:    { min: 10, max: 30, step: 0.5 } as SliderRange,
   thirdsPlugHeight:     { min: 12, max: 40, step: 0.5 } as SliderRange,
   halvesWellSeal:       { min: 1, max: 10, step: 0.5 } as SliderRange,
-  halvesFootMargin:     { min: 3, max: 20, step: 0.5 } as SliderRange,
+  halvesPlugHeight:     { min: 12, max: 40, step: 0.5 } as SliderRange,
 } as const;
 
 /**

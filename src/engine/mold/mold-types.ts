@@ -49,10 +49,10 @@ export function retiredSuccessor(style: MoldStyle): MoldStyle {
 
 /** Move settings that name a hidden style onto its successor. Returns the
  *  style that was replaced (for a notice), or null if nothing changed. */
-/** Split Halves no longer offers a cast-on handle (Gary, 2026-10-16: handles
- *  are to become their own molds — getting handle + vase out together was
- *  chipping the plaster). The code is kept; set true to bring it back. */
-export const HALVES_HANDLE_OFFERED = false;
+/** Split Halves' cast-on handle. Hidden 2026-10-16 (getting handle + vase out
+ *  together was chipping the plaster); back 2026-10-18 — Gary let the next pour
+ *  set much longer and the handle came out fine. */
+export const HALVES_HANDLE_OFFERED = true;
 
 /** Does this mold cast the HandleMaker handle with the vase? */
 export function moldUsesHandle(p: MoldParameters): boolean {
@@ -196,18 +196,17 @@ export interface MoldParameters {
    *  corner. A vase that pours one plate twice always uses 4 — it needs a
    *  bump opposite every dimple. */
   halvesNatchCount: number;
-  /** Split Halves: cast a separate plaster FOOT PIECE (Gary, 2026-10-14). The
-   *  halves stop at the vase's bottom plane with a drafted counterbore in their
-   *  bottom end; the foot piece's raised step plugs into it and its top forms
-   *  the vase bottom — foot ring + recess from the shared footWidth /
-   *  footSlopeWidth / footHeight / footSmoothInner sliders.
-   *  It pulls off straight down, so the recess can't lock the halves. Its own
+  /** Split Halves: the foot is a separate plaster PLUG (Gary, 2026-10-18, as
+   *  Split Thirds'; it replaced the 10-14 counterbore + step foot piece). The
+   *  halves run Plug Height below the vase bottom round a band = the bottom
+   *  outline, with a ring groove; the plug, cast in its own cup, fills it and
+   *  its face forms the vase bottom — foot ring + recess from the shared
+   *  footWidth / footSlopeWidth / footHeight / footSmoothInner sliders. Its own
    *  switch rather than footEnabled, which defaults ON for Pour 3-Pc and would
    *  otherwise change every existing Split Halves mold. */
   halvesFootPiece: boolean;
-  /** How much wider than the vase bottom the counterbore/step is, radially (mm).
-   *  This band is the ledge the halves sit on — the seal against the slip. */
-  halvesFootMargin: number;
+  /** How tall the plug is, from the vase bottom to the bottom of the halves (mm). */
+  halvesPlugHeight: number;
 
   // ── Analysis ──
   /** Plaster material for the weight estimate. */
@@ -304,7 +303,7 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   halvesWellSeal: 3,
   halvesNatchCount: 4,
   halvesFootPiece: false,
-  halvesFootMargin: 8,
+  halvesPlugHeight: 21,
 
   material: 'pottery',
 };

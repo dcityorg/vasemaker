@@ -153,19 +153,21 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     exportMesh(mesh, stlName(`${label}${suffix}`), which === 'master' && k === 0);
   };
   /** Split Halves: print-ready parts, lifted so each sits on the bed. */
-  const halvesExport = (which: 'masterL' | 'masterR' | 'plateL' | 'plateR' | 'wall1' | 'wall2' | 'footPlate' | 'footWall') => {
+  const halvesExport = (which: 'masterL' | 'masterR' | 'plateL' | 'plateR' | 'wellWallL' | 'baseWallL' | 'wellWallR' | 'baseWallR' | 'footPlate' | 'footWall', k = 0) => {
     if (mold.style !== 'splitHalves') return;
     if (which === 'footPlate' || which === 'footWall') {
       if (!mold.foot) return;
-      const plate = which === 'footPlate';
-      exportMesh(translateMesh(plate ? mold.foot.plate : mold.foot.wall, 0, 0, plate ? mold.foot.plateLift : 0), stlName(plate ? 'foot plate' : 'foot wall'));
+      const f = mold.foot;
+      if (which === 'footPlate') exportMesh(f.plate, stlName('plug disk'));
+      else exportMesh(f.walls[k], stlName(f.wallsSame ? 'plug wall' : `plug wall ${'ABCD'[k]}`));
       return;
     }
     const one = mold.oneKit;
     const name: Record<typeof which, string> = {
       masterL: one ? 'master' : 'master L', masterR: 'master R',
       plateL: one ? 'plate' : 'plate L', plateR: 'plate R',
-      wall1: 'wall 1', wall2: 'wall 2',
+      wellWallL: one ? 'well wall' : 'well wall L', baseWallL: one ? 'base wall' : 'base wall L',
+      wellWallR: 'well wall R', baseWallR: 'base wall R',
     };
     const lift = which.startsWith('master') ? mold.layout.masterLift : which.startsWith('plate') ? mold.layout.plateLift : 0;
     exportMesh(translateMesh(mold[which], 0, 0, lift), stlName(name[which]), which === 'masterL');
@@ -242,10 +244,11 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       return [
         box(k ? 'Master' : 'Master L + Master R', mold.masterStats, k ? 'one master, poured twice' : 'mirror images, each'),
         box(k ? 'Plate' : 'Plate L + Plate R', mold.plateStats, k ? 'one plate, poured twice' : 'each'),
-        box('Wall 1 + Wall 2', mold.wallStats, 'each; both walls go round every pour, swapping ends'),
+        box(k ? 'Well wall' : 'Well wall L + Well wall R', mold.wallStats, 'the well end + half of each side' + (k ? '; goes round both pours' : ', each')),
+        box(k ? 'Base wall' : 'Base wall L + Base wall R', mold.baseWallStats, 'the base end + the other half of each side' + (k ? '; goes round both pours' : ', each')),
         ...(mold.foot ? [
-          box('Foot plate', mold.foot.plateStats, 'the foot piece, poured once'),
-          box('Foot wall', mold.foot.wallStats, 'print 2'),
+          box('Plug disk', mold.foot.plateStats, 'the plug cup\'s bottom: the vase\'s foot, recess up'),
+          box(mold.foot.wallsSame ? `Plug wall ×${mold.foot.walls.length}` : `Plug walls (${mold.foot.walls.length})`, mold.foot.wallStats, `${mold.foot.wallsSame ? `print ${mold.foot.walls.length}` : 'each'}; clip together round the disk, printed standing on their ledge`),
         ] : []),
       ];
     }
@@ -343,7 +346,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       plasterVolumeMm3: mold.plasterVolumeMm3,
       bothHalves: isSplitAny,
       totalsFor: isThirds ? 'all three pieces' : undefined,
-      extraPours: mold.style === 'splitHalves' && mold.foot ? [{ label: 'FOOT PIECE (its own pour)', volumeMm3: mold.foot.plasterVolumeMm3 }]
+      extraPours: mold.style === 'splitHalves' && mold.foot ? [{ label: 'PLUG (its own pour, in its cup)', volumeMm3: mold.foot.plasterVolumeMm3 }]
         : mold.style === 'splitThirds' ? (mold.oneKit
           ? [{ label: `EACH PIECE (one pour of ${mold.pieceCount})`, volumeMm3: mold.kits[0]?.plasterVolumeMm3 ?? 0 }]
           : mold.kits.map((kt) => ({ label: `PIECE ${kt.piece + 1} (its own pour)`, volumeMm3: kt.plasterVolumeMm3 }))).concat(
@@ -714,28 +717,37 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                     Export {label} STL
                   </button>
                 ))}
-                <button disabled={!!mold.error} onClick={() => halvesExport('wall1')} style={{ color: UI_MUTED }}
-                  title="Wall 1 — the left half's well end (it carries the collar the well runs into). On the right half's pour it goes on the base end"
-                  className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
-                  Export Wall 1 STL
-                </button>
-                <button disabled={!!mold.error} onClick={() => halvesExport('wall2')} style={{ color: UI_MUTED }}
-                  title="Wall 2 — the right half's well end; the base end on the left half's pour. Wall 1 has ridges at its seams, wall 2 grooves, so they always mate"
-                  className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
-                  Export Wall 2 STL
-                </button>
+                {(mold.oneKit
+                  ? [['wellWallL', 'Well Wall', 'The well end + half of each side; the well runs into its collar. V ridges at its two seams. Goes round both pours'],
+                     ['baseWallL', 'Base Wall', 'The base end + the other half of each side. V grooves at its two seams. Goes round both pours'],
+                    ] as const
+                  : [['wellWallL', 'Well Wall L', 'Left half: the well end + half of each side; the well runs into its collar. V ridges at its seams'],
+                     ['baseWallL', 'Base Wall L', 'Left half: the base end + the other half of each side. V grooves at its seams'],
+                     ['wellWallR', 'Well Wall R', 'Right half: the well end + half of each side. The halves are mirror images, so its walls are its own'],
+                     ['baseWallR', 'Base Wall R', 'Right half: the base end + the other half of each side'],
+                    ] as const
+                ).map(([k, label, tip]) => (
+                  <button key={k} disabled={!!mold.error} title={tip} style={{ color: UI_MUTED }} onClick={() => halvesExport(k)}
+                    className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
+                    Export {label} STL
+                  </button>
+                ))}
                 {mold.foot && (
                   <>
                     <button disabled={!!mold.error} onClick={() => halvesExport('footPlate')} style={{ color: UI_MUTED }}
-                      title="The foot piece's plate: the step pocket and the foot ring + recess, upside down. Plaster is poured onto it"
+                      title="The plug cup's bottom disk: the vase bottom's foot ring and recessed middle, recess up. It drops into the cup walls and rests on their ledge; the plug is poured onto it, vase face down"
                       className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
-                      Export Foot Plate STL
+                      Export Plug Disk STL
                     </button>
-                    <button disabled={!!mold.error} onClick={() => halvesExport('footWall')} style={{ color: UI_MUTED }}
-                      title="The foot piece's wall — print it TWICE; the second copy goes on turned end for end"
-                      className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
-                      Export Foot Wall STL (print 2)
-                    </button>
+                    {(mold.foot.wallsSame ? [0] : mold.foot.walls.map((_, k) => k)).map((k) => (
+                      <button key={k} disabled={!!mold.error} onClick={() => halvesExport('footWall', k)} style={{ color: UI_MUTED }}
+                        title={mold.foot!.wallsSame
+                          ? `Plug cup wall — PRINT ${mold.foot!.walls.length}: one of the ${mold.foot!.walls.length} walls that clip round the disk, with the groove that gives the plug its ridge and a ledge for the disk. V ridges on one clip flange, grooves on the other. Prints standing on its ledge`
+                          : `Plug cup wall ${'ABCD'[k]} of ${mold.foot!.walls.length}: the walls differ because the bottom outline does not repeat from wall to wall. V ridges on one clip flange, grooves on the other. Prints standing on its ledge`}
+                        className="flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium rounded hover:bg-[var(--border-color)] transition-colors disabled:opacity-40">
+                        {mold.foot!.wallsSame ? `Export Plug Wall STL (×${mold.foot!.walls.length})` : `Export Plug Wall ${'ABCD'[k]} STL`}
+                      </button>
+                    ))}
                   </>
                 )}
               </div>
@@ -856,7 +868,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           {isHalves && (
             <>
               <Toggle label="Plates" checked={view.showCottle} onChange={(v) => setView({ showCottle: v })} />
-              <Toggle label="Walls" checked={view.showCottleB} onChange={(v) => setView({ showCottleB: v })} tooltip="Wall 1 and wall 2 round each half. Note they swap ends between the two pours" />
+              <Toggle label="Walls" checked={view.showCottleB} onChange={(v) => setView({ showCottleB: v })} tooltip="The well wall and base wall round each half" />
             </>
           )}
           <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} />
@@ -892,39 +904,34 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             {!isSplit && sl('masterWallThickness', 'Wall', 'mm', isThirds ? 'Printed shell of the hollow master (one piece\'s slice of the vase). It is open on its cut faces so cold water can go in to shrink it free' : isHalves ? 'Printed shell of the hollow half-vase master. It is open on its cut face so cold water can go in to shrink it free' : 'Printed shell thickness of the hollow master')}
             <Toggle label="Keep Texture" checked={params.keepTexture} onChange={(v) => setParam('keepTexture', v)} tooltip="Carry the vase's surface texture onto the master" />
           </Section>
-          {isHalves && <Section title="Foot Piece" titleColor={GROUP_COLORS.structure}>
-            <Toggle label="Enabled" checked={params.halvesFootPiece} onChange={(v) => setParam('halvesFootPiece', v)} tooltip="Cast a third plaster piece for the bottom, so the mug gets a foot ring and a recessed centre. The halves get a shallow counterbore in their bottom end; the foot piece's step plugs into it and pulls off straight down" />
-            {params.halvesFootPiece && (
+          {(isHalves || isThirds) && (() => {
+            // One plaster PLUG foot for both split styles (Split Halves since
+            // 2026-10-18); each keeps its own switch and Plug Height.
+            const on = isThirds ? params.thirdsFootPiece : params.halvesFootPiece;
+            const onKey = isThirds ? 'thirdsFootPiece' : 'halvesFootPiece';
+            const plug = mold.style === 'splitThirds' || mold.style === 'splitHalves' ? mold.foot : null;
+            return <Section title="Foot Piece" titleColor={GROUP_COLORS.structure}>
+            <Toggle label="Enabled" checked={on} onChange={(v) => setParam(onKey, v)} tooltip={`Cast the bottom as a separate plaster piece: a PLUG the shape of the vase bottom that sits inside the ${isThirds ? 'three pieces' : 'two halves'}, held in by a rounded ring. It gives the mug a foot ring and a recessed centre, with no thin plaster wedge where a curled-in bottom meets a ledge. The plug is poured in its own small cup (a bottom disk and clip-together walls)`} />
+            {on && (
               <>
-                {sl('halvesFootMargin', 'Margin', 'mm', 'How much wider than the vase bottom the step is, all round. This band is the ledge the halves sit on, which seals the slip in')}
+                {sl(isThirds ? 'thirdsPlugHeight' : 'halvesPlugHeight', 'Plug Height', 'mm', 'How tall the plug is, from the vase bottom down to the bottom of the mold. The ring sits in the middle. The plug is the mold wall for the bottom of the vase, so keep it near the Plaster thickness so it soaks up water like the sides')}
                 {sl('footWidth', 'Foot Width', 'mm', 'The flat ring at the outer edge of the bottom — what the mug stands on')}
                 {sl('footSlopeWidth', 'Slope Width', 'mm', 'Width of the sloped ramp from the foot up to the recessed centre')}
                 {sl('footHeight', 'Depth', 'mm', 'How far the centre is recessed. 0 gives a flat bottom on its own piece')}
                 <Toggle label="Smooth Inside" checked={params.footSmoothInner} onChange={(v) => setParam('footSmoothInner', v)} tooltip="Build the ramp and recessed centre from the smooth contour so surface texture doesn't carry into the recess" />
-              </>
-            )}
-          </Section>}
-          {isThirds && <Section title="Foot Piece" titleColor={GROUP_COLORS.structure}>
-            <Toggle label="Enabled" checked={params.thirdsFootPiece} onChange={(v) => setParam('thirdsFootPiece', v)} tooltip="Cast the bottom as a fourth plaster piece: a PLUG the shape of the vase bottom that sits inside the three pieces, held in by a rounded ring. It gives the mug a foot ring and a recessed centre, with no thin plaster wedge where a curled-in bottom meets a ledge. The plug is poured in its own small cup (a bottom disk and two clip-together walls)" />
-            {params.thirdsFootPiece && (
-              <>
-                {sl('thirdsPlugHeight', 'Plug Height', 'mm', 'How tall the plug is, from the vase bottom down to the bottom of the mold. The ring sits in the middle. The plug is the mold wall for the bottom of the vase, so keep it near the Plaster thickness so it soaks up water like the sides')}
-                {sl('footWidth', 'Foot Width', 'mm', 'The flat ring at the outer edge of the bottom — what the mug stands on')}
-                {sl('footSlopeWidth', 'Slope Width', 'mm', 'Width of the sloped ramp from the foot up to the recessed centre')}
-                {sl('footHeight', 'Depth', 'mm', 'How far the centre is recessed. 0 gives a flat bottom on its own piece')}
-                <Toggle label="Smooth Inside" checked={params.footSmoothInner} onChange={(v) => setParam('footSmoothInner', v)} tooltip="Build the ramp and recessed centre from the smooth contour so surface texture doesn't carry into the recess" />
-                {mold.style === 'splitThirds' && mold.foot && (
+                {plug && (
                   <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug"
                     title="The plug is cast in a cup of clip-together walls. A textured bottom edge can grip them where its ribs point along a wall's pull, so the app uses the fewest walls (2 to 4) that all pull straight off, and turns the seams to suit">
-                    Plug cup: {mold.foot.walls.length} walls{mold.foot.wallsSame ? `, all the same (print ${mold.foot.walls.length})` : ', each different'}.
+                    Plug cup: {plug.walls.length} walls{plug.wallsSame ? `, all the same (print ${plug.walls.length})` : ', each different'}.
                   </p>
                 )}
-                {mold.style === 'splitThirds' && mold.foot?.plugNote && (
-                  <p className="text-[11px] text-amber-400 mt-1 leading-snug">{mold.foot.plugNote}</p>
+                {plug?.plugNote && (
+                  <p className="text-[11px] text-amber-400 mt-1 leading-snug">{plug.plugNote}</p>
                 )}
               </>
             )}
-          </Section>}
+          </Section>;
+          })()}
           {!isSplitAny && !isThirds && <Section title="Foot Recess" titleColor={GROUP_COLORS.structure}>
             <Toggle label="Enabled" checked={params.footEnabled} onChange={(v) => setParam('footEnabled', v)} tooltip="Recess the master's bottom so cast pieces get a foot ring and a recessed center for glaze" />
             {params.footEnabled && (
@@ -1261,13 +1268,14 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               <>
                 <StatRow label="Master" value={`${mold.masterStats.sizeX.toFixed(0)} x ${mold.masterStats.sizeY.toFixed(0)} x ${mold.masterStats.sizeZ.toFixed(0)} mm`} tooltip="Bounding box lying cut-face down (each master)" />
                 <StatRow label="Plate" value={`${mold.plateStats.sizeX.toFixed(0)} x ${mold.plateStats.sizeY.toFixed(0)} x ${mold.plateStats.sizeZ.toFixed(0)} mm`} tooltip="Each plate. Too big for the bed? Lower Plaster or Clip Flange" />
-                <StatRow label="Wall" value={`${mold.wallStats.sizeX.toFixed(0)} x ${mold.wallStats.sizeY.toFixed(0)} x ${mold.wallStats.sizeZ.toFixed(0)} mm`} tooltip="Each wall — L-shaped, so it can also go diagonally on the bed" />
-                <StatRow label="Plastic" value={`${((mold.masterStats.volumeMm3 + mold.plateStats.volumeMm3 + mold.wallStats.volumeMm3) / 1000).toFixed(0)} cm³ per half`} tooltip="Master + plate + one wall. Before supports" />
+                <StatRow label="Well wall" value={`${mold.wallStats.sizeX.toFixed(0)} x ${mold.wallStats.sizeY.toFixed(0)} x ${mold.wallStats.sizeZ.toFixed(0)} mm`} tooltip="L-shaped, so it can also go diagonally on the bed" />
+                <StatRow label="Base wall" value={`${mold.baseWallStats.sizeX.toFixed(0)} x ${mold.baseWallStats.sizeY.toFixed(0)} x ${mold.baseWallStats.sizeZ.toFixed(0)} mm`} />
+                <StatRow label="Plastic" value={`${((mold.masterStats.volumeMm3 + mold.plateStats.volumeMm3 + mold.wallStats.volumeMm3 + mold.baseWallStats.volumeMm3) / 1000).toFixed(0)} cm³ per half`} tooltip="Master + plate + both walls. Before supports" />
                 <StatRow label="Master STL" value={stlSize(mold.masterStats.triangleCount)} tooltip="Triangle count and approximate binary STL size, each master" />
                 {mold.foot && (
                   <>
-                    <StatRow label="Foot plate" value={`${mold.foot.plateStats.sizeX.toFixed(0)} x ${mold.foot.plateStats.sizeY.toFixed(0)} x ${mold.foot.plateStats.sizeZ.toFixed(0)} mm`} tooltip="The foot piece's plate" />
-                    <StatRow label="Foot wall" value={`${mold.foot.wallStats.sizeX.toFixed(0)} x ${mold.foot.wallStats.sizeY.toFixed(0)} x ${mold.foot.wallStats.sizeZ.toFixed(0)} mm`} tooltip="Each foot wall — print two" />
+                    <StatRow label="Plug disk" value={`${mold.foot.plateStats.sizeX.toFixed(0)} x ${mold.foot.plateStats.sizeY.toFixed(0)} x ${mold.foot.plateStats.sizeZ.toFixed(0)} mm`} tooltip="The plug cup's bottom disk" />
+                    <StatRow label="Plug wall" value={`${mold.foot.wallStats.sizeX.toFixed(0)} x ${mold.foot.wallStats.sizeY.toFixed(0)} x ${mold.foot.wallStats.sizeZ.toFixed(0)} mm`} tooltip="Each plug cup wall, standing on its ledge" />
                   </>
                 )}
               </>
