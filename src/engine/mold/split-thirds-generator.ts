@@ -75,6 +75,8 @@ const SYMMETRY_TOL = 0.05;
 const LAYOUT_GAP = 30;
 /** Width of each plate leg, mm. */
 const LEG_W = 4;
+/** Thickness of the walls' corner legs under the flange corners, mm. */
+const CORNER_LEG_W = 4;
 /** The master and the V plate are ONE print (Gary 2026-10-17: plaster crept
  *  into the seam between them and gripped the master). Under the master's hollow,
  *  two water cavities either side of a GAP that runs the full length up to
@@ -1080,15 +1082,45 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
       ? { V: [onFace(1, zs, rhoWc), onFace(1, zc, rhoWc), [zc, 0, 0], onFace(-1, zc, rhoWc), onFace(-1, zs, rhoWc)], segs: [fA, { o, n: fA.n }, { o, n: fB.n }, fB] }
       : { V: [onFace(-1, zs, rhoWc), onFace(-1, zc, rhoWc), [zc, 0, 0], onFace(1, zc, rhoWc), onFace(1, zs, rhoWc)], segs: [fB, { o, n: fB.n }, { o, n: fA.n }, fA] };
   };
+  /**
+   * Corner leg on face `sgn` (Gary 2026-10-19): the walls print upside down
+   * (top t = H on the bed), so the clip flange's corner square past the wall
+   * corner sat on support only and lifted. A CORNER_LEG_W fin on the diagonal,
+   * from inside the wall corner out to the flange's corner tip, standing on the
+   * flange top and running straight in t to the bed. Outside the plaster.
+   */
+  const cornerLeg = (sgn: number, well: boolean): VaseMesh | null => {
+    const dir = well ? 1 : -1;
+    const zC = well ? zHi + wt : zLo - wt, rC = rW + wt;
+    const F = flangeW;                    // wall outer face → flange outer edge, both ways
+    const q = CORNER_LEG_W / Math.SQRT2;  // the fin is |a − b| ≤ q in (along z, along ρ)
+    const e = 1;                          // into the wall corner
+    if (F <= q + 0.5) return null;
+    const foot: P2[] = [[q - e, -e], [F, F - q], [F, F], [F - q, F], [-e, q - e], [-e, -e]];
+    const mb = new MeshBuilder();
+    const bot: number[] = [], top: number[] = [];
+    for (const [a, b] of foot) {
+      const p = onFace(sgn, zC + dir * a, rC + b, FLANGE_T - EMBED);
+      if (p[2] >= H - 0.5) return null;
+      bot.push(mb.vertex(...p));
+      top.push(mb.vertex(p[0], p[1], H));
+    }
+    const n = foot.length;
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; mb.quad(bot[i], bot[j], top[j], top[i]); }
+    for (let i = 1; i + 1 < n; i++) { mb.tri(bot[0], bot[i + 1], bot[i]); mb.tri(top[0], top[i], top[i + 1]); }
+    return ensureOutward(mb.build());
+  };
   const wallCommon = (well: boolean): VaseMesh[] => {
     const [zs0, zs1] = well ? [zMid, zHi + wt] : [zLo - wt, zMid];
     const [ze0, ze1] = well ? [zHi, zHi + wt] : [zLo - wt, zLo];
     const { V, segs } = flangePath(well);
+    const legs = [cornerLeg(1, well), cornerLeg(-1, well)].filter((l): l is VaseMesh => !!l);
     return [
       sideSlab(1, zs0, zs1), sideSlab(-1, zs0, zs1),
       extrudeSolid(endPoly(rW + wt), [], ze0, ze1, MAP_YZ_X),
       framedSweep(V, segs, flangeCs, false),
       seamBlock(1, well ? 1 : -1, well), seamBlock(-1, well ? 1 : -1, well),
+      ...legs,
     ];
   };
   const baseWallParts = wallCommon(false);
