@@ -40,6 +40,8 @@ const bigBtn = 'flex-1 py-1.5 bg-[var(--bg-secondary)] border border-[var(--bord
 const miniBtn =
   'flex-1 py-1 text-[11px] rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] ' +
   'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)] transition-colors';
+/** The vase tab's per-section Reset link, same look. */
+const resetBtn = 'text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors';
 const selectCls = 'flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs';
 
 const HEIGHT_MODES: { value: SprigHeightMode; label: string; tooltip: string }[] = [
@@ -66,6 +68,8 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
   const rotateCW = useSprigStore((s) => s.rotateCW);
   const loadSvg = useSprigStore((s) => s.loadSvg);
   const reset = useSprigStore((s) => s.reset);
+  const resetFields = useSprigStore((s) => s.resetFields);
+  const resetOrientation = useSprigStore((s) => s.resetOrientation);
   const markSaved = useSprigStore((s) => s.markSaved);
   const savedParams = useSprigStore((s) => s.savedParams);
   const revertToSaved = useSprigStore((s) => s.revertToSaved);
@@ -404,6 +408,9 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
           {/* Sprig */}
           <GroupHeader label="Sprig" color={GROUP_COLORS.structure} />
           <Section title="Size" titleColor={GROUP_COLORS.structure}>
+            <div className="flex justify-end mb-1">
+              <button onClick={resetOrientation} className={resetBtn} title="Back to the drawing as loaded: unturned, unflipped, its own proportions (🔗 on). The longer side keeps its size">Reset</button>
+            </div>
             <SliderRow label="Width" value={params.width} {...SPRIG_PARAMS.width} suffix="mm" onChange={setWidth}
               tooltip="FINISHED width, left to right, after the clay shrinks. The printed relief is scaled up by Shrink" />
             <SliderRow label="Length" value={params.length} {...SPRIG_PARAMS.length} suffix="mm" onChange={setLength}
@@ -421,6 +428,9 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
             </p>
           </Section>
           <Section title="Height" titleColor={GROUP_COLORS.structure}>
+            <div className="flex justify-end mb-1">
+              <button onClick={() => resetFields(['heightMode', 'maxHeight', 'profile', 'roundness', 'detailDepth', 'invert'])} className={resetBtn} title="Height settings back to their defaults">Reset</button>
+            </div>
             <div className="flex items-center gap-2 mb-2">
               <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">From</label>
               <select
@@ -458,10 +468,16 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
               tooltip="Swap black and white inside the drawing's area — the background becomes the raised part" />
           </Section>
           <Section title="Edges" titleColor={GROUP_COLORS.structure}>
+            <div className="flex justify-end mb-1">
+              <button onClick={() => resetFields(['edgeSoftness', 'minEdgeThickness'])} className={resetBtn} title="Edge settings back to their defaults">Reset</button>
+            </div>
             {sl('edgeSoftness', 'Edge Softness', 'mm', 'Width of the slope from the edge up to full height. Higher blends into the vase and helps the cast drop out; 0 = as steep as the grid allows')}
             {sl('minEdgeThickness', 'Min Edge', 'mm', 'The edge stops at this thickness instead of tapering to nothing — a feathered edge at 0 is ragged and fragile, but you can test it')}
           </Section>
           <Section title="Checks" titleColor={GROUP_COLORS.structure}>
+            <div className="flex justify-end mb-1">
+              <button onClick={() => resetFields(['minFeatureWidth'])} className={resetBtn} title="Min Feature back to its default">Reset</button>
+            </div>
             {sl('minFeatureWidth', 'Min Feature', 'mm', 'Parts of the FINISHED sprig narrower than this are painted red: they may tear coming out of the mold or crack drying')}
             {m && (
               <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
@@ -475,6 +491,9 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
           {/* Mold */}
           <GroupHeader label="Mold" color={GROUP_COLORS.surface} />
           <Section title="Mold Size" titleColor={GROUP_COLORS.surface}>
+            <div className="flex justify-end mb-1">
+              <button onClick={() => resetFields(['plasterMargin', 'customCavW', 'customCavL', 'customWallH', 'customWallThickness', 'customFlangeWidth', 'customPlateFloor'])} className={resetBtn} title="Plaster Margin and the Custom box back to their defaults. The chosen size is kept">Reset</button>
+            </div>
             <div className="flex items-center gap-2 mb-2">
               <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Size</label>
               <select
@@ -507,6 +526,9 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
             )}
           </Section>
           <Section title="Print" titleColor={GROUP_COLORS.surface}>
+            <div className="flex justify-end mb-1">
+              <button onClick={() => resetFields(['shrinkPercent', 'resolution'])} className={resetBtn} title="Shrink and Grid back to their defaults">Reset</button>
+            </div>
             {sl('shrinkPercent', 'Shrink', '%', 'Clay shrinkage — the printed relief is scaled up by this so the FINISHED sprig comes out at the size above. In red because a wrong value is silent', '#f87171')}
             {sl('resolution', 'Grid', 'mm', 'Spacing of the relief grid on the printed plate. Finer = smoother and a bigger file')}
           </Section>
@@ -514,6 +536,9 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
           {/* Analysis */}
           <GroupHeader label="Analysis" color={GROUP_COLORS.settings} />
           <Section title="Plaster Estimate" titleColor={GROUP_COLORS.settings}>
+            <div className="flex justify-end mb-1">
+              <button onClick={() => resetFields(['material'])} className={resetBtn} title="Material back to its default">Reset</button>
+            </div>
             <div className="flex items-center gap-2 mb-2">
               <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Material</label>
               <select

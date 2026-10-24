@@ -80,6 +80,11 @@ interface SprigStore {
   loadSvg: (svg: string, name: string, aspect: number) => void;
   /** Restore default SETTINGS; the sprig (drawing, size, orientation) is kept. */
   reset: () => void;
+  /** One section's Reset button: these fields back to their defaults. One undo step. */
+  resetFields: (keys: (keyof SprigParameters)[]) => void;
+  /** Size's Reset: the drawing as it was loaded — unturned, unflipped, own
+   *  proportions, longer side kept. One undo step. */
+  resetOrientation: () => void;
   undo: () => void;
   redo: () => void;
   savedParams: SprigParameters | null;
@@ -130,6 +135,27 @@ export const useSprigStore = create<SprigStore>((set, get) => ({
     }),
 
   reset: () => set((state) => ({ params: { ...DEFAULT_SPRIG_PARAMETERS, ...keepSprig(state.params) } })),
+
+  resetFields: (keys) =>
+    set((state) => {
+      const next = { ...state.params };
+      for (const k of keys) (next as Record<string, unknown>)[k] = DEFAULT_SPRIG_PARAMETERS[k];
+      return { params: next };
+    }),
+
+  resetOrientation: () =>
+    set((state) => {
+      const p = state.params;
+      const long = Math.max(p.width, p.length);
+      const a = p.svgAspect > 0 ? p.svgAspect : 1;
+      return {
+        params: {
+          ...p, rotation: 0, flipX: false, flipY: false, lockAspect: true,
+          width: a >= 1 ? snap(long) : snap(long * a),
+          length: a >= 1 ? snap(long / a) : snap(long),
+        },
+      };
+    }),
 
   undo: () => {
     const restored = sprigHistory.undo(get().params);

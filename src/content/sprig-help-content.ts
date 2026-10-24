@@ -22,7 +22,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'tip', text: 'STANDARD SIZES are the point of the design: every Small, Medium or Long plate fits the same wall pair, so you print the walls ONCE per size and only a plate per sprig after that. That is why the walls of a standard size have no sliders — anything that changed them would make the walls you already printed stop fitting. Use Custom if you need a different box; it makes its own walls.' },
       { type: 'tip', text: 'Everything auto-saves in this browser. Save Settings writes a «name».json with the drawing stored INSIDE it, so the file alone reproduces the sprig, plus a «name».txt bench sheet with the plaster batch and printer-fit numbers.' },
-      { type: 'tip', text: 'Undo and redo (↶ ↷, or Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z) cover the whole design, drawing included. RESET SPRIG SETTINGS restores the default settings and keeps your drawing, its size and which way it faces. REVERT TO SAVED puts everything back to your last saved file.' },
+      { type: 'tip', text: 'Undo and redo (↶ ↷, or Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z) cover the whole design, drawing included. RESET SPRIG SETTINGS restores the default settings and keeps your drawing, its size and which way it faces. Each section also has its own Reset, top right, for just that section (Size\'s puts the drawing back the way it was loaded: unturned, unflipped and in its own proportions). REVERT TO SAVED puts everything back to your last saved file.' },
     ],
   },
   {
