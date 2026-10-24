@@ -305,3 +305,41 @@ function loadImage(url: string, width: number, height: number): Promise<HTMLImag
     img.src = url;
   });
 }
+
+/**
+ * Rasterize for SprigMaker: native aspect, larger side `maxDim` px, and — unlike
+ * `rasterizeSvg` — NO blur and no padding. The sprig engine measures distances
+ * to the shape's edge and builds its own edge ramp, so a blur here would only
+ * blunt the outline it measures. A separate function rather than options on
+ * `rasterizeSvg`, so the vase texture's output cannot change.
+ */
+export async function rasterizeSvgForSprig(svgMarkup: string, maxDim = 2048): Promise<SvgPixelData> {
+  const dims = getSvgDimensions(svgMarkup);
+  let width = maxDim;
+  let height = maxDim;
+  if (dims) {
+    const scale = maxDim / Math.max(dims[0], dims[1]);
+    width = Math.max(1, Math.round(dims[0] * scale));
+    height = Math.max(1, Math.round(dims[1] * scale));
+  }
+  const blob = new Blob([setSvgSize(svgMarkup, width, height)], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await loadImage(url, width, height);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    const rgba = ctx.getImageData(0, 0, width, height).data;
+    const pixels = new Uint8Array(width * height);
+    for (let i = 0; i < pixels.length; i++) {
+      pixels[i] = Math.round(0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2]);
+    }
+    return { pixels, width, height };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}

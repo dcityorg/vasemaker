@@ -173,6 +173,13 @@ export function Sidebar({
           >
             Handle ▸
           </Link>
+          <Link
+            href="/sprig"
+            className="text-xs px-1.5 py-0.5 shrink-0 whitespace-nowrap rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
+            title="Turn an SVG into a sprig and its plaster mold"
+          >
+            Sprig ▸
+          </Link>
           <button
             onClick={doUndo}
             disabled={!canUndo}
@@ -204,7 +211,7 @@ export function Sidebar({
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.48.1</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.49.0</p>
         <div className="flex items-center gap-1 mt-0.5">
           <span className="text-xs text-[var(--text-secondary)] shrink-0">Design Name:</span>
           {editingName ? (
