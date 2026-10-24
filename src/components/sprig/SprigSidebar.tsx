@@ -486,6 +486,16 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                   : `${m.relief.thinSpots} thin part${m.relief.thinSpots === 1 ? '' : 's'}, thinnest ≈ ${m.relief.thinnestWidth.toFixed(1)} mm.`}
               </p>
             )}
+            {m && (
+              <p
+                className={`mt-1 text-[10px] leading-snug px-0.5 ${m.relief.pieces > 1 ? 'text-amber-300' : 'text-[var(--text-secondary)]'}`}
+                title="Separate pieces the cast comes out in. Parts touching only at a corner count as separate — clay does not hold there"
+              >
+                {m.relief.pieces <= 1
+                  ? 'Casts in one piece.'
+                  : `Casts in ${m.relief.pieces} separate pieces${m.relief.smallPieces ? `, ${m.relief.smallPieces} of them tiny (under ${params.minFeatureWidth} × ${params.minFeatureWidth} mm)` : ''}.`}
+              </p>
+            )}
           </Section>
 
           {/* Mold */}

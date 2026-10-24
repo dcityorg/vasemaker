@@ -117,6 +117,10 @@ export interface ReliefField {
   thinSpots: number;
   /** Width of the thinnest one, finished mm (≈ 2 × its widest inscribed radius). */
   thinnestWidth: number;
+  /** Separate pieces the cast comes out in (edge-connected; a corner touch is no bridge). */
+  pieces: number;
+  /** Pieces smaller than Min Feature Width squared — slivers likely to stick in the mold. */
+  smallPieces: number;
   maxHeight: number;
   /** Relief volume above the plate, finished mm³. */
   volume: number;
@@ -330,7 +334,8 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
   for (let k = 0; k < N; k++) if (fringe[k] > 0) { heights[k] = fringe[k]; volume += fringe[k] * step * step; }
 
   const thin = thinParts(mask, dCells, nx, ny, step, p.minFeatureWidth);
-  return { nx, ny, step, x0, y0, heights, mask, ...thin, maxHeight: maxH, volume };
+  const parts = countPieces(mask, nx, ny, (p.minFeatureWidth * p.minFeatureWidth) / (step * step));
+  return { nx, ny, step, x0, y0, heights, mask, ...thin, ...parts, maxHeight: maxH, volume };
 }
 
 /**
@@ -346,6 +351,34 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
  * far from it and stay; the short stub where a leg joins the body is lost.
  */
 const CORNER = 0.42;
+
+/**
+ * Pieces the cast comes out in: 4-connected regions of the mask. Diagonal-only
+ * contact is a zero-width bridge in clay, so it does not join two pieces.
+ * `smallCells` = area below which a piece counts as a sliver.
+ */
+function countPieces(mask: Uint8Array, nx: number, ny: number, smallCells: number) {
+  const seen = new Uint8Array(mask.length);
+  const stack: number[] = [];
+  let pieces = 0, smallPieces = 0;
+  for (let s = 0; s < mask.length; s++) {
+    if (!mask[s] || seen[s]) continue;
+    pieces++;
+    let area = 0;
+    seen[s] = 1; stack.push(s);
+    while (stack.length) {
+      const k = stack.pop()!;
+      area++;
+      const i = k % nx;
+      if (i > 0 && mask[k - 1] && !seen[k - 1]) { seen[k - 1] = 1; stack.push(k - 1); }
+      if (i < nx - 1 && mask[k + 1] && !seen[k + 1]) { seen[k + 1] = 1; stack.push(k + 1); }
+      if (k >= nx && mask[k - nx] && !seen[k - nx]) { seen[k - nx] = 1; stack.push(k - nx); }
+      if (k < mask.length - nx && mask[k + nx] && !seen[k + nx]) { seen[k + nx] = 1; stack.push(k + nx); }
+    }
+    if (area < smallCells) smallPieces++;
+  }
+  return { pieces, smallPieces };
+}
 /** Patches smaller than this many cells are noise, not a feature. */
 const MIN_SPOT = 4;
 
