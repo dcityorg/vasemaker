@@ -46,14 +46,20 @@ export function cropToContent(src: SprigSource): { source: SprigSource; aspect: 
 /**
  * Exact Euclidean distance transform (Felzenszwalb & Huttenlocher): for every
  * cell, the distance in CELLS to the nearest cell where `feature` is set.
- * Infinity everywhere if there is no feature at all.
+ * Infinity everywhere if there is no feature at all. With `nearest`, also
+ * returns which feature cell that is.
  */
-export function distanceTransform(feature: Uint8Array, nx: number, ny: number): Float32Array {
+export function distanceTransform(feature: Uint8Array, nx: number, ny: number): Float32Array;
+export function distanceTransform(feature: Uint8Array, nx: number, ny: number, nearest: true): { dist: Float32Array; nearest: Int32Array };
+export function distanceTransform(feature: Uint8Array, nx: number, ny: number, nearest = false): Float32Array | { dist: Float32Array; nearest: Int32Array } {
   const INF = 1e20;
   const f = new Float64Array(nx * ny);
   for (let i = 0; i < f.length; i++) f[i] = feature[i] ? 0 : INF;
+  // Row of the nearest feature found by the column pass, per cell.
+  const srcRow = new Int32Array(nx * ny);
+  const near = new Int32Array(nx * ny).fill(-1);
   const n = Math.max(nx, ny);
-  const col = new Float64Array(n), d = new Float64Array(n);
+  const col = new Float64Array(n), d = new Float64Array(n), arg = new Int32Array(n);
   const v = new Int32Array(n), z = new Float64Array(n + 1);
   const pass = (len: number) => {
     let k = 0;
@@ -71,21 +77,25 @@ export function distanceTransform(feature: Uint8Array, nx: number, ny: number): 
     for (let q = 0; q < len; q++) {
       while (z[k + 1] < q) k++;
       d[q] = (q - v[k]) * (q - v[k]) + col[v[k]];
+      arg[q] = v[k];
     }
   };
   for (let x = 0; x < nx; x++) {
     for (let y = 0; y < ny; y++) col[y] = f[y * nx + x];
     pass(ny);
-    for (let y = 0; y < ny; y++) f[y * nx + x] = d[y];
+    for (let y = 0; y < ny; y++) { f[y * nx + x] = d[y]; srcRow[y * nx + x] = arg[y]; }
   }
   for (let y = 0; y < ny; y++) {
     for (let x = 0; x < nx; x++) col[x] = f[y * nx + x];
     pass(nx);
-    for (let x = 0; x < nx; x++) f[y * nx + x] = d[x];
+    for (let x = 0; x < nx; x++) {
+      f[y * nx + x] = d[x];
+      if (nearest && d[x] < INF / 2) near[y * nx + x] = srcRow[y * nx + arg[x]] * nx + arg[x];
+    }
   }
   const out = new Float32Array(nx * ny);
   for (let i = 0; i < out.length; i++) out[i] = f[i] >= INF / 2 ? Infinity : Math.sqrt(f[i]);
-  return out;
+  return nearest ? { dist: out, nearest: near } : out;
 }
 
 /** The relief on a regular grid, cell CENTRES at x0 + i·step, y0 + j·step. */
@@ -114,6 +124,9 @@ export interface ReliefField {
 
 /** Empty cells kept round the shape so the grid border is always plate-flat. */
 const BORDER = 2;
+/** The edge distance is measured on a grid this many times finer (odd, so
+ *  every coarse cell centre is also a fine cell centre). */
+const FINE = 3;
 /** Crease-smoothing radius as a fraction of Roundness. */
 const BLUR = 0.15;
 /** Gray modes count anything darker than nearly-white as part of the shape. */
@@ -220,13 +233,45 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
     }
   }
 
-  // Distance to the edge, mm, measured from each cell's centre to the boundary
-  // half a cell beyond the last inside cell.
+  // Whole-cell distances (the thin-part check works in these).
   const outside = new Uint8Array(N);
   for (let i = 0; i < N; i++) outside[i] = mask[i] ? 0 : 1;
   const dCells = distanceTransform(outside, nx, ny);
+
+  // Distance to the edge, mm, for the profile — measured on a grid FINE times
+  // finer, with the sub-cell correction below. On a steep profile any error in
+  // the distance is multiplied by the slope, and whole-cell distances showed as
+  // ribbing round every edge (0.1 mm at 0.2 mm cells, measured on a disc).
+  const fx = nx * FINE, fy = ny * FINE, fs = step / FINE;
+  const fInk = new Float32Array(fx * fy);
+  const fOut = new Uint8Array(fx * fy).fill(1);
+  const ix0 = x0 - (step * (FINE - 1)) / (2 * FINE), iy0 = y0 - (step * (FINE - 1)) / (2 * FINE);
+  for (let j = 0; j < fy; j++) {
+    for (let i = 0; i < fx; i++) {
+      const u = (ix0 + i * fs + W / 2) / W, v = (iy0 + j * fs + L / 2) / L;
+      let s = sample(u, v);
+      if (s < 0) continue;
+      if (p.invert) s = 1 - s;
+      fInk[j * fx + i] = s;
+      if (s > threshold) fOut[j * fx + i] = 0;
+    }
+  }
+  const edt = distanceTransform(fOut, fx, fy, true);
+  // Sub-cell edge position: the nearest outside cell's own ink says where the
+  // outline crosses — at ink ≈ threshold it runs through that cell's centre, at
+  // ink 0 about half a cell back toward the inside.
   const dist = new Float32Array(N);
-  for (let i = 0; i < N; i++) dist[i] = mask[i] ? Math.max(0, dCells[i] - 0.5) * step : 0;
+  const c = (FINE - 1) / 2;
+  for (let j = 0; j < ny; j++) {
+    for (let i = 0; i < nx; i++) {
+      const k = j * nx + i;
+      if (!mask[k]) continue;
+      const fk = (j * FINE + c) * fx + i * FINE + c;
+      const o = edt.nearest[fk];
+      const sub = o >= 0 ? 0.5 * Math.min(1, fInk[o] / threshold) : 0;
+      dist[k] = Math.max(0.5 / FINE, edt.dist[fk] - 0.5 + sub) * fs;
+    }
+  }
 
   // Shape value 0..1.
   const f = new Float32Array(N);
@@ -238,14 +283,15 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
     else f[i] = 1;
   }
   if (inflate && p.roundness > 0) {
-    // Smooth the crease, but fade the smoothing out toward the edge: a masked
-    // blur averages only inside cells, so right at the edge it would lift the
-    // profile and turn a rounded edge into a step.
+    // Smooth the crease, but not within reach of the edge: a masked blur
+    // averages only inside cells, so near the edge it lifts the profile (a
+    // rounded edge turns into a step) and copies the grid's stair-steps into
+    // the slope as ribbing. Two box passes reach 2·r, so blend in beyond that.
     const rMm = BLUR * p.roundness;
     const raw = f.slice();
     maskedBlur(f, mask, nx, ny, Math.round(rMm / step));
     for (let i = 0; i < N; i++) {
-      if (mask[i]) f[i] = raw[i] + (f[i] - raw[i]) * smoothstep(Math.min(1, dist[i] / (2 * rMm)));
+      if (mask[i]) f[i] = raw[i] + (f[i] - raw[i]) * smoothstep(Math.min(1, Math.max(0, (dist[i] - 2 * rMm) / (2 * rMm))));
     }
   }
 
@@ -263,6 +309,25 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
     if (h > maxH) maxH = h;
     volume += h * step * step;
   }
+
+  // Antialias the outline. The mask is all-or-nothing per cell, so the edge
+  // wall would follow the grid in 0.2 mm stairs; a cell just OUTSIDE that is
+  // partly inked instead rises in proportion to its ink, to at most the height
+  // of the inside cell beside it. Moves the outline by under a cell, never adds
+  // anything where there is no ink.
+  const fringe = new Float32Array(N);
+  for (let j = 1; j < ny - 1; j++) {
+    for (let i = 1; i < nx - 1; i++) {
+      const k = j * nx + i;
+      if (mask[k] || ink[k] <= 0) continue;
+      const nb = Math.max(
+        mask[k - 1] ? heights[k - 1] : 0, mask[k + 1] ? heights[k + 1] : 0,
+        mask[k - nx] ? heights[k - nx] : 0, mask[k + nx] ? heights[k + nx] : 0,
+      );
+      if (nb > 0) fringe[k] = nb * Math.min(1, ink[k] / threshold);
+    }
+  }
+  for (let k = 0; k < N; k++) if (fringe[k] > 0) { heights[k] = fringe[k]; volume += fringe[k] * step * step; }
 
   const thin = thinParts(mask, dCells, nx, ny, step, p.minFeatureWidth);
   return { nx, ny, step, x0, y0, heights, mask, ...thin, maxHeight: maxH, volume };
@@ -325,9 +390,31 @@ function thinParts(mask: Uint8Array, dCells: Float32Array, nx: number, ny: numbe
     }
     if (count < MIN_SPOT) { for (const m of members) thin[m] = 0; continue; }
     spots++;
+    // Widest point of the patch AND of the unswept shape around it: a patch can
+    // be just the last few cells of a round tip, whose own cells all sit near
+    // the edge although the part they belong to is nearly wide enough. Grown by
+    // less than `keep`, the ring never reaches the swept (wide-enough) area —
+    // patches are at least `keep` from it — so a thin leg on a big body still
+    // reads its own width, not the body's.
+    let ring = members;
+    const near = new Set(members);
+    for (let layer = 0; layer < Math.floor(keep) && ring.length; layer++) {
+      const next: number[] = [];
+      for (const c of ring) {
+        const cx = c % nx, cy = (c - cx) / nx;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const x = cx + dx, y = cy + dy;
+          if (x < 0 || y < 0 || x >= nx || y >= ny) continue;
+          const k = y * nx + x;
+          if (mask[k] && !near.has(k)) { near.add(k); next.push(k); }
+        }
+      }
+      ring = next;
+    }
+    near.forEach((c) => { maxD = Math.max(maxD, Math.max(0, dCells[c] - 0.5) * step); });
     // + one cell: the distance is measured from cell centres, and a 1-cell-wide
-    // strip would otherwise read as zero width.
-    thinnest = Math.min(thinnest, 2 * maxD + step);
+    // strip would otherwise read as zero width. Never reported as wide enough.
+    thinnest = Math.min(thinnest, Math.min(2 * maxD + step, minWidth - 0.1));
   }
   return { thin, thinSpots: spots, thinnestWidth: thinnest };
 }

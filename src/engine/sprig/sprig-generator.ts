@@ -175,7 +175,8 @@ export function generateSprigMold(p: SprigParameters, src: SprigSource): SprigMo
 
   const plasterB = new MeshBuilder();
   const corners: P2[] = [[layout.cavX0, layout.cavY0], [layout.cavX1, layout.cavY0], [layout.cavX1, layout.cavY1], [layout.cavX0, layout.cavY1]];
-  const lo = corners.map(([x, y]) => plasterB.vertex(x, y, 0));
+  // Display only: lifted a hair off the plate top so the two faces don't z-fight.
+  const lo = corners.map(([x, y]) => plasterB.vertex(x, y, 0.05));
   const hi = corners.map(([x, y]) => plasterB.vertex(x, y, box.wallH));
   for (let k = 0; k < 4; k++) { const n = (k + 1) % 4; plasterB.quad(lo[k], lo[n], hi[n], hi[k]); }
   plasterB.tri(lo[0], lo[2], lo[1]); plasterB.tri(lo[0], lo[3], lo[2]);
