@@ -7,7 +7,7 @@
  * All lengths are FINISHED mm. The generator scales the result up by Shrink.
  */
 
-import { backingOn, type SprigParameters } from './sprig-types';
+import { backingOn, hasText, sprigPlacement, type SprigParameters } from './sprig-types';
 
 /** Grayscale image, 0 = black … 255 = white, row-major, row 0 at the TOP. */
 export interface SprigSource {
@@ -130,6 +130,9 @@ export interface ReliefField {
   maxHeight: number;
   /** Relief volume above the plate, finished mm³. */
   volume: number;
+  /** Finished footprint: drawing ∪ text plus any backing border, mm. */
+  footW: number;
+  footL: number;
 }
 
 /** Empty cells kept round the shape so the grid border is always plate-flat. */
@@ -216,21 +219,42 @@ function sampler(src: SprigSource, p: Pick<SprigParameters, 'rotation' | 'flipX'
   };
 }
 
+/** Text drawn by the browser (lib/sprig-text.ts): a SprigSource (0 = ink)
+ *  plus the size its inked box stands for, finished mm. */
+export interface TextLayer extends SprigSource {
+  mmW: number;
+  mmH: number;
+}
+
+/** Raised and cut letters: width of the slope at the letter edge, mm — enough
+ *  draft to release, little enough that a 1.5 mm stroke still reaches height. */
+const TEXT_EDGE = 0.3;
+/** A cut never goes closer than this to the bottom of the sheet, mm. */
+export const CUT_FLOOR = 0.4;
+
+/** The grid every layer is built on: coarse cells plus the FINE-times-finer grid. */
+interface Grid {
+  nx: number; ny: number; step: number; x0: number; y0: number;
+  fx: number; fy: number; fs: number; ix0: number; iy0: number;
+}
+
+/** Fine cell sitting on coarse cell (i, j)'s centre. */
+const centreOf = (g: Grid) => {
+  const c = (FINE - 1) / 2;
+  return (i: number, j: number) => (j * FINE + c) * g.fx + i * FINE + c;
+};
+
 /**
- * Build the height field. `step` is the finished-mm grid spacing (Resolution ÷
- * the shrink factor, so the PRINTED grid is Resolution).
+ * One layer's heights on the grid: sample `inkAt` (mm → ink 0..1, −1 outside
+ * the layer's area) on the fine grid, clean up, measure the edge distance, and
+ * apply p's height settings with an antialiased outline. `maskAt` = a
+ * picture's outline (see SprigSource.mask). Shared by the drawing and the text.
  */
-export function buildRelief(src: SprigSource, p: SprigParameters, step: number): ReliefField {
-  const W = p.width, L = p.length;
-  const backed = backingOn(p);
-  const bb = backed ? Math.max(0, p.backingBorder) : 0;
-  // Room for the backing border, plus the always-flat border ring.
-  const pad = BORDER + (bb > 0 ? Math.ceil(bb / step) + 1 : 0);
-  const nx = Math.max(1, Math.ceil(W / step)) + 2 * pad;
-  const ny = Math.max(1, Math.ceil(L / step)) + 2 * pad;
-  const x0 = -((nx - 1) * step) / 2, y0 = -((ny - 1) * step) / 2;
-  const sample = sampler(src, p);
-  const sampleMask = src.mask ? sampler(src, p, src.mask) : null;
+function buildLayer(
+  g: Grid, p: SprigParameters,
+  inkAt: (x: number, y: number) => number, maskAt: ((x: number, y: number) => number) | null,
+) {
+  const { nx, ny, step, x0, y0, fx, fy, fs, ix0, iy0 } = g;
   // A picture's lightest tone: this fraction of the darkest's height.
   const lightest = Math.min(1, Math.max(0, p.imageLightest / 100));
   const gray = p.heightMode === 'gray' || p.heightMode === 'inflateGray';
@@ -239,25 +263,23 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
 
   // Sample on a grid FINE times finer (the edge distance below needs it).
   // Fine cell (i·FINE + c) sits exactly on coarse cell i's centre.
-  const fx = nx * FINE, fy = ny * FINE, fs = step / FINE;
   const fInk = new Float32Array(fx * fy);
   // How far toward the outline each cell is, 0..1 (1 = at or inside it): the
   // sub-cell edge position and the antialiased fringe both read this.
   const fCov = new Float32Array(fx * fy);
   const fOut = new Uint8Array(fx * fy).fill(1);
-  const fIn = new Uint8Array(fx * fy);   // inside the drawing's area
-  const ix0 = x0 - (step * (FINE - 1)) / (2 * FINE), iy0 = y0 - (step * (FINE - 1)) / (2 * FINE);
+  const fIn = new Uint8Array(fx * fy);   // inside the layer's area
   for (let j = 0; j < fy; j++) {
     for (let i = 0; i < fx; i++) {
-      const u = (ix0 + i * fs + W / 2) / W, v = (iy0 + j * fs + L / 2) / L;
-      let s = sample(u, v);
-      if (s < 0) continue;              // outside the drawing: always plate
+      const x = ix0 + i * fs, y = iy0 + j * fs;
+      let s = inkAt(x, y);
+      if (s < 0) continue;              // outside the layer: always plate
       if (p.invert) s = 1 - s;          // invert only INSIDE the drawing's area
       const fk = j * fx + i;
       fIn[fk] = 1;
-      if (sampleMask) {
+      if (maskAt) {
         // A picture: the mask is the outline; Invert swaps tones, not the outline.
-        const m = sampleMask(u, v);
+        const m = maskAt(x, y);
         fCov[fk] = Math.min(1, m / 0.5);
         if (m >= 0.5) { fOut[fk] = 0; fInk[fk] = lightest + (1 - lightest) * s; }
       } else {
@@ -269,8 +291,7 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
   }
   cleanUp(fOut, fInk, fCov, fIn, fx, fy, fs, p);
 
-  const c = (FINE - 1) / 2;
-  const centre = (i: number, j: number) => (j * FINE + c) * fx + i * FINE + c;
+  const centre = centreOf(g);
   const ink = new Float32Array(N);
   const mask = new Uint8Array(N);
   for (let j = BORDER; j < ny - BORDER; j++) {
@@ -283,11 +304,6 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
   // A hairline joined up on the fine grid can still break into crumbs on this
   // one (an antenna 0.1 mm wide on a 0.2 mm grid), so drop tiny pieces here too.
   if (p.removeTiny) countPieces(mask, nx, ny, (p.minFeatureWidth * p.minFeatureWidth) / (step * step), true);
-
-  // Whole-cell distances (the thin-part check works in these).
-  const outside = new Uint8Array(N);
-  for (let i = 0; i < N; i++) outside[i] = mask[i] ? 0 : 1;
-  const dCells = distanceTransform(outside, nx, ny);
 
   // Distance to the edge, mm, for the profile — measured on a grid FINE times
   // finer, with the sub-cell correction below. On a steep profile any error in
@@ -375,13 +391,88 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
       if (nb > 0) fringe[k] = nb * cover;
     }
   }
-  let maxH = 0, volume = 0;
   for (let k = 0; k < N; k++) {
     if (mask[k]) heights[k] *= Math.min(1, 0.5 + dist[k] / step);
     else if (fringe[k] > 0) heights[k] = fringe[k];
-    if (heights[k] > maxH) maxH = heights[k];
-    volume += heights[k] * step * step;
   }
+  return { heights, mask, fOut };
+}
+
+/** Settings for the text layer: flat letters of the given height with a small
+ *  edge slope, none of the drawing's clean-up (it would eat the i's dot). */
+function textParams(p: SprigParameters, height: number): SprigParameters {
+  return {
+    ...p, heightMode: 'flat', maxHeight: height, edgeSoftness: TEXT_EDGE,
+    minEdgeThickness: Math.min(p.minEdgeThickness, height), invert: false,
+    removeTiny: false, wholeShapesOnly: false, roundThin: false,
+  };
+}
+
+/**
+ * Build the height field. `step` is the finished-mm grid spacing (Resolution ÷
+ * the shrink factor, so the PRINTED grid is Resolution). `text` = the rendered
+ * text, if any (positioned by sprigPlacement); with none, and the drawing on,
+ * the grid and heights are exactly the drawing-only ones.
+ */
+export function buildRelief(src: SprigSource, p: SprigParameters, step: number, text: TextLayer | null = null): ReliefField {
+  const textOn = !!text && hasText(p);
+  const place = sprigPlacement(p, textOn ? { w: text!.mmW, h: text!.mmH } : null);
+  const W = p.width, L = p.length;
+  const backed = backingOn(p);
+  const bb = backed ? Math.max(0, p.backingBorder) : 0;
+  // Room for the backing border, plus the always-flat border ring.
+  const pad = BORDER + (bb > 0 ? Math.ceil(bb / step) + 1 : 0);
+  const nx = Math.max(1, Math.ceil(place.w / step)) + 2 * pad;
+  const ny = Math.max(1, Math.ceil(place.l / step)) + 2 * pad;
+  const x0 = -((nx - 1) * step) / 2, y0 = -((ny - 1) * step) / 2;
+  const fx = nx * FINE, fy = ny * FINE, fs = step / FINE;
+  const g: Grid = {
+    nx, ny, step, x0, y0, fx, fy, fs,
+    ix0: x0 - (step * (FINE - 1)) / (2 * FINE), iy0: y0 - (step * (FINE - 1)) / (2 * FINE),
+  };
+  const N = nx * ny;
+  const centre = centreOf(g);
+
+  // ── The drawing ──
+  let heights = new Float32Array(N);
+  let mask = new Uint8Array(N);
+  let fOut = new Uint8Array(fx * fy).fill(1);
+  if (p.drawingOn) {
+    const sample = sampler(src, p);
+    const sampleMask = src.mask ? sampler(src, p, src.mask) : null;
+    const u = (x: number) => (x - place.dx + W / 2) / W, v = (y: number) => (y - place.dy + L / 2) / L;
+    ({ heights, mask, fOut } = buildLayer(g, p,
+      (x, y) => sample(u(x), v(y)),
+      sampleMask ? (x, y) => sampleMask(u(x), v(y)) : null));
+  }
+
+  // ── Text: its own layer, never rotated or flipped with the drawing ──
+  let cutLayer: Float32Array | null = null;
+  if (textOn) {
+    const t = text!;
+    const sample = sampler(t, { rotation: 0, flipX: false, flipY: false });
+    const inkAt = (x: number, y: number) => sample((x - place.tx + t.mmW / 2) / t.mmW, (y - place.ty + t.mmH / 2) / t.mmH);
+    if (p.textStyle === 'raised') {
+      // Stands on whatever is under it — plate, drawing, or (below) the sheet —
+      // and counts as shape for the backing, the piece count and Thin Parts.
+      const lay = buildLayer(g, textParams(p, p.textDepth), inkAt, null);
+      for (let k = 0; k < N; k++) {
+        heights[k] += lay.heights[k];
+        if (lay.mask[k]) mask[k] = 1;
+      }
+      for (let k = 0; k < fOut.length; k++) if (!lay.fOut[k]) fOut[k] = 0;
+    } else {
+      // Cut in AFTER the backing is added, never closer than CUT_FLOOR to the
+      // bottom of the sheet. Not shape: a hole in what is there.
+      const depth = backed ? Math.min(p.textDepth, Math.max(0, p.backingThickness - CUT_FLOOR)) : p.textDepth;
+      if (depth > 0) cutLayer = buildLayer(g, textParams(p, depth), inkAt, null).heights;
+    }
+  }
+
+  // Whole-cell distances (the thin-part check works in these).
+  const outside = new Uint8Array(N);
+  for (let i = 0; i < N; i++) outside[i] = mask[i] ? 0 : 1;
+  const dCells = distanceTransform(outside, nx, ny);
 
   // Backing: a sheet the drawing sits on, so separate pieces cast as one.
   // Max Height stays the drawing's own height, on top of the sheet.
@@ -390,7 +481,7 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
   if (backed) {
     let sd: (i: number, j: number) => number;
     if (p.backing === 'plaque') {
-      const hw = W / 2 + bb, hl = L / 2 + bb;
+      const hw = place.w / 2 + bb, hl = place.l / 2 + bb;
       const rc = Math.min(Math.max(0, p.backingCorner), hw, hl);
       sd = (i, j) => {
         const qx = Math.abs(x0 + i * step) - (hw - rc), qy = Math.abs(y0 + j * step) - (hl - rc);
@@ -423,13 +514,18 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
         if (d > 0) whole[k] = 1;
       }
     }
-    maxH = 0; volume = 0;
-    for (let k = 0; k < N; k++) { if (heights[k] > maxH) maxH = heights[k]; volume += heights[k] * step * step; }
   }
+  if (cutLayer) for (let k = 0; k < N; k++) heights[k] = Math.max(0, heights[k] - cutLayer[k]);
+
+  let maxH = 0, volume = 0;
+  for (let k = 0; k < N; k++) { if (heights[k] > maxH) maxH = heights[k]; volume += heights[k] * step * step; }
 
   const thin = thinParts(mask, dCells, nx, ny, step, p.minFeatureWidth);
   const parts = countPieces(whole, nx, ny, (p.minFeatureWidth * p.minFeatureWidth) / (step * step));
-  return { nx, ny, step, x0, y0, heights, mask, ...thin, ...parts, bridgedGap, maxHeight: maxH, volume };
+  return {
+    nx, ny, step, x0, y0, heights, mask, ...thin, ...parts, bridgedGap, maxHeight: maxH, volume,
+    footW: place.w + 2 * bb, footL: place.l + 2 * bb,
+  };
 }
 
 /**

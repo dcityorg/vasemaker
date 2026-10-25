@@ -18,6 +18,12 @@ export const SPRIG_PARAMS = {
   imageLightest:   { min: 0, max: 100, step: 5 } as SliderRange,
   svgCloseGaps:    { min: 0, max: 10, step: 0.5 } as SliderRange,
 
+  textHeight:  { min: 3, max: 40, step: 0.5 } as SliderRange,
+  textDepth:   { min: 0.2, max: 4, step: 0.1 } as SliderRange,
+  textGap:     { min: 0, max: 20, step: 0.5 } as SliderRange,
+  textOffsetX: { min: -60, max: 60, step: 0.5 } as SliderRange,
+  textOffsetY: { min: -60, max: 60, step: 0.5 } as SliderRange,
+
   edgeSoftness:     { min: 0, max: 5, step: 0.1 } as SliderRange,
   // Min 0 on purpose: Gary wants to test a sprig whose edge tapers to nothing.
   minEdgeThickness: { min: 0, max: 2, step: 0.05 } as SliderRange,

@@ -10,7 +10,8 @@ import { useSprigStore } from '@/store/sprig-store';
 import { generateSprigMold, type SprigMoldMeshes } from '@/engine/sprig/sprig-generator';
 import { loadSprigSource } from '@/lib/sprig-source';
 import type { SprigSource } from '@/engine/sprig/relief';
-import { isPictureDrawing, pictureKey, svgKey } from '@/engine/sprig/sprig-types';
+import { isPictureDrawing, pictureKey, svgKey, hasText } from '@/engine/sprig/sprig-types';
+import { renderText, textLayerAt, type RenderedText } from '@/lib/sprig-text';
 
 export interface SprigMeshState {
   meshes: SprigMoldMeshes | null;
@@ -18,6 +19,8 @@ export interface SprigMeshState {
   error: string | null;
   /** The prepared image the relief is built from (the picture preview shows it). */
   source: SprigSource | null;
+  /** Rendered text size, finished mm (null = no text), for the mold-size checks. */
+  textSize: { w: number; h: number } | null;
 }
 
 export function useSprigMeshes(): SprigMeshState {
@@ -49,8 +52,29 @@ export function useSprigMeshes(): SprigMeshState {
     return () => { live = false; };
   }, [params.svg, key, picture]);
 
+  // Text is drawn once per text + font; Letter Height only rescales it.
+  const textKey = hasText(params) ? `${params.textFont}|${params.textFontName}|${params.text}` : '';
+  const [rendered, setRendered] = useState<{ key: string; r: RenderedText | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    if (!textKey) { setRendered(null); return; }
+    const p = useSprigStore.getState().params;
+    renderText(p)
+      .then((r) => { if (live) setRendered({ key: textKey, r }); })
+      .catch(() => { if (live) setRendered({ key: textKey, r: null }); });
+    return () => { live = false; };
+  }, [textKey]);
+  const textR = textKey && rendered ? rendered.r : null;
+  const text = useMemo(() => (textR ? textLayerAt(textR, params.textHeight) : null), [textR, params.textHeight]);
+
   const source = loaded?.source ?? null;
-  const meshes = useMemo(() => (source ? generateSprigMold(params, source) : null), [params, source]);
+  const meshes = useMemo(
+    () => (source && (params.drawingOn || text) ? generateSprigMold(params, source, text) : null),
+    [params, source, text],
+  );
   const current = loaded?.svg === params.svg && loaded.key === key;
-  return { meshes, error: current ? loaded.error : null, source };
+  return {
+    meshes, error: current ? loaded.error : null, source,
+    textSize: text ? { w: text.mmW, h: text.mmH } : null,
+  };
 }

@@ -61,6 +61,22 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    id: 'sprig-text',
+    title: 'Text',
+    blocks: [
+      { type: 'paragraph', text: 'Type up to two lines in the TEXT section and they are added to the sprig — beside the drawing, on top of it, or on their own (Show Drawing off). The cast reads the same way as the plate seen from above, so nothing needs mirroring.' },
+      { type: 'keyvalue', items: [
+        { key: 'Font', value: 'Six built-in fonts chosen for casting; they look the same on every computer. The two scripts join their letters, so a word casts in one piece. "Other font on this computer" uses any installed font by name, but a design saved with it only looks right on a computer that has that font.' },
+        { key: 'Letter Height', value: 'Height of a capital letter, finished. Strokes need about 1.5 mm to cast, so 6–8 mm is about the smallest that works in a bold font. Thin Parts paints strokes that are too thin red.' },
+        { key: 'Raised', value: 'The letters stand Raise mm above whatever is under them: the plate, the drawing, or the backing sheet.' },
+        { key: 'Cut In', value: 'The letters are sunk Depth mm into the backing sheet, so turn on Plaque or Outline. At least 0.4 mm of sheet is always kept under them. Nothing small can break off — good for name plates and dates.' },
+        { key: 'Position', value: 'Below, Above, Left or Right of the drawing with Gap between them, or On Top of it. Nudge moves the text from there.' },
+      ] },
+      { type: 'tip', text: 'Raised letters are separate pieces, and so is the dot on an i. A Plaque or Outline backing joins them into one cast, or pick a Script font.' },
+      { type: 'tip', text: 'Rotate and Flip turn the drawing only — the text always stays readable.' },
+    ],
+  },
+  {
     id: 'sprig-picture',
     title: 'Pictures (PNG / JPG)',
     blocks: [

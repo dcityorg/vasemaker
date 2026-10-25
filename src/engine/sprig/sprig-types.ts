@@ -18,6 +18,12 @@ export type SprigRotation = 0 | 90 | 180 | 270;
 export type SprigMoldSize = 's20' | 's40' | 's60' | 's80' | 's100' | 's120' | 's140' | 'long' | 'custom';
 /** Sheet under the drawing that joins separate pieces into one cast. */
 export type SprigBacking = 'none' | 'plaque' | 'outline';
+/** Built-in fonts (lib/sprig-fonts.ts), or a font installed on this computer. */
+export type SprigFont = 'rounded' | 'slab' | 'chunky' | 'classic' | 'script' | 'script2' | 'system';
+/** Letters stand up, or are sunk into what is under them (a backing sheet). */
+export type SprigTextStyle = 'raised' | 'cut';
+/** Where the text sits relative to the drawing. */
+export type SprigTextPosition = 'below' | 'above' | 'left' | 'right' | 'over';
 
 export interface SprigParameters {
   // ── The drawing (embedded, so a settings file reproduces the sprig on its own) ──
@@ -67,6 +73,25 @@ export interface SprigParameters {
   svgCloseGaps: number;
   /** 0 = greys as drawn; 2–5 = that many flat height levels. */
   svgTones: number;
+
+  // ── Text ('' = none). Up to two lines, separated by \n ──
+  text: string;
+  textFont: SprigFont;
+  /** The installed font's name, when textFont is 'system'. */
+  textFontName: string;
+  /** Capital-letter height, finished mm. */
+  textHeight: number;
+  textStyle: SprigTextStyle;
+  /** Raised: how high the letters stand. Cut: how deep they sink. mm. */
+  textDepth: number;
+  textPosition: SprigTextPosition;
+  /** Space between the drawing and the text, mm (not used for 'over'). */
+  textGap: number;
+  /** Nudge, mm: + = right / up (as seen from above). */
+  textOffsetX: number;
+  textOffsetY: number;
+  /** Off = the text alone, no drawing. */
+  drawingOn: boolean;
 
   // ── Edges ──
   /** Width of the ramp from the edge up to full height, mm. 0 = as steep as the grid allows. */
@@ -228,6 +253,18 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   svgCloseGaps: 0,
   svgTones: 0,
 
+  text: '',
+  textFont: 'rounded',
+  textFontName: '',
+  textHeight: 8,
+  textStyle: 'raised',
+  textDepth: 1,
+  textPosition: 'below',
+  textGap: 3,
+  textOffsetX: 0,
+  textOffsetY: 0,
+  drawingOn: true,
+
   edgeSoftness: 1,
   minEdgeThickness: 0.4,
 
@@ -263,6 +300,9 @@ const ENUMS: Partial<Record<keyof SprigParameters, readonly unknown[]>> = {
   moldSize: ['s20', 's40', 's60', 's80', 's100', 's120', 's140', 'long', 'custom'],
   backing: ['none', 'plaque', 'outline'],
   material: ['pottery', 'hydrocal', 'hydrostone'],
+  textFont: ['rounded', 'slab', 'chunky', 'classic', 'script', 'script2', 'system'],
+  textStyle: ['raised', 'cut'],
+  textPosition: ['below', 'above', 'left', 'right', 'over'],
 };
 
 /**
@@ -303,10 +343,55 @@ export function backingOn(p: Pick<SprigParameters, 'backing' | 'backingThickness
   return p.backing !== 'none' && p.backingThickness > 0;
 }
 
-/** Finished footprint (width, length), mm: the drawing plus any backing border. */
-export function sprigFootprint(p: SprigParameters): [number, number] {
+/** Is there text to place? */
+export function hasText(p: Pick<SprigParameters, 'text'>): boolean {
+  return p.text.trim().length > 0;
+}
+
+/** Size of the rendered text block, finished mm (from lib/sprig-text.ts). */
+export interface TextSize { w: number; h: number }
+
+/**
+ * Where the drawing and the text sit, finished mm, with the whole sprig (both,
+ * before any backing border) centred on the origin. `text` null = no text, and
+ * then the drawing is centred exactly as it always was.
+ */
+export function sprigPlacement(p: SprigParameters, text: TextSize | null) {
+  const draw = p.drawingOn;
+  const W = draw ? p.width : 0, L = draw ? p.length : 0;
+  let tx = 0, ty = 0;
+  if (text && draw) {
+    const g = Math.max(0, p.textGap);
+    if (p.textPosition === 'below') ty = -(L / 2 + g + text.h / 2);
+    else if (p.textPosition === 'above') ty = L / 2 + g + text.h / 2;
+    else if (p.textPosition === 'left') tx = -(W / 2 + g + text.w / 2);
+    else if (p.textPosition === 'right') tx = W / 2 + g + text.w / 2;
+  }
+  if (text) { tx += p.textOffsetX; ty += p.textOffsetY; }
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  const add = (cx: number, cy: number, w: number, h: number) => {
+    x0 = Math.min(x0, cx - w / 2); x1 = Math.max(x1, cx + w / 2);
+    y0 = Math.min(y0, cy - h / 2); y1 = Math.max(y1, cy + h / 2);
+  };
+  if (draw) add(0, 0, W, L);
+  if (text) add(tx, ty, text.w, text.h);
+  if (!(x1 > x0)) { x0 = x1 = y0 = y1 = 0; }
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  return {
+    /** Drawing centre. */
+    dx: -cx, dy: -cy,
+    /** Text centre. */
+    tx: tx - cx, ty: ty - cy,
+    /** Extent of drawing ∪ text. */
+    w: x1 - x0, l: y1 - y0,
+  };
+}
+
+/** Finished footprint (width, length), mm: drawing and text plus any backing border. */
+export function sprigFootprint(p: SprigParameters, text: TextSize | null = null): [number, number] {
   const b = backingOn(p) ? Math.max(0, p.backingBorder) : 0;
-  return [p.width + 2 * b, p.length + 2 * b];
+  const { w, l } = sprigPlacement(p, text);
+  return [w + 2 * b, l + 2 * b];
 }
 
 /** Is the drawing a picture (PNG/JPG data URL) rather than SVG markup? */

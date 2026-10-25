@@ -15,13 +15,16 @@ import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
 import { loadSprigSource, pictureFromFile } from '@/lib/sprig-source';
+import { SPRIG_FONTS } from '@/lib/sprig-fonts';
+import { systemFontFound } from '@/lib/sprig-text';
 import { GRAY_INK, type SprigSource } from '@/engine/sprig/relief';
 import { translateMesh } from '@/engine/handle/mesh3';
 import { fitsBox, MIN_PLASTER_BEHIND } from '@/engine/sprig/sprig-generator';
 import {
   mergeSprigParameters, sizeLabel, SPRIG_SIZES, SIZE_MENU,
   type SprigParameters, type SprigHeightMode, type SprigProfile, type SprigMoldSize,
-  sprigFootprint, type SprigBacking, isPictureDrawing, svgPrepared,
+  sprigFootprint, type SprigBacking, isPictureDrawing, svgPrepared, hasText, backingOn,
+  type SprigFont, type SprigTextStyle, type SprigTextPosition,
 } from '@/engine/sprig/sprig-types';
 import type { SprigMeshState } from '@/hooks/use-sprig-meshes';
 import type { PlasterType } from '@/engine/mold/mold-types';
@@ -275,8 +278,9 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
   const est = estimatePlaster(m?.plasterVolumeMm3 ?? 0, params.material);
   const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(2)} k` : n.toFixed(0));
   const inflate = params.heightMode === 'inflate' || params.heightMode === 'inflateGray';
+  const [footW, footL] = sprigFootprint(params, hasText(params) ? sprig.textSize : null);
   const sizeFits = (k: Exclude<SprigMoldSize, 'custom'>) =>
-    fitsBox(sprigFootprint(params)[0] * S, sprigFootprint(params)[1] * S, SPRIG_SIZES[k].cavW, SPRIG_SIZES[k].cavL, params.plasterMargin);
+    fitsBox(footW * S, footL * S, SPRIG_SIZES[k].cavW, SPRIG_SIZES[k].cavL, params.plasterMargin);
   const backingOnUI = params.backing !== 'none' && params.backingThickness > 0;
   const warnings = [...(sprig.error ? [sprig.error] : []), ...(svgError ? [svgError] : []), ...(m?.warnings ?? [])];
 
@@ -581,6 +585,85 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
             {sl('edgeSoftness', 'Edge Softness', 'mm', 'Width of the slope from the edge up to full height. Higher blends into the vase and helps the cast drop out; 0 = as steep as the grid allows')}
             {sl('minEdgeThickness', 'Min Edge', 'mm', 'The edge stops at this thickness instead of tapering to nothing — a feathered edge at 0 is ragged and fragile, but you can test it')}
           </Section>
+          <Section title="Text" titleColor={GROUP_COLORS.structure} tooltip="Words on the sprig: raised letters, or letters cut into a backing sheet">
+            <div className="flex justify-end mb-1">
+              <button onClick={() => resetFields(['textFont', 'textFontName', 'textHeight', 'textStyle', 'textDepth', 'textPosition', 'textGap', 'textOffsetX', 'textOffsetY', 'drawingOn'])} className={resetBtn} title="Text settings back to their defaults. The words are kept">Reset</button>
+            </div>
+            <TextBox value={params.text} onCommit={(v) => setParam('text', v)} />
+            {hasText(params) && (
+              <>
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Font</label>
+                  <select
+                    value={params.textFont}
+                    onChange={(e) => setParam('textFont', e.target.value as SprigFont)}
+                    className={selectCls}
+                    style={{ color: UI_MUTED }}
+                    title="Built-in fonts look the same on every computer. Bold strokes cast best; the two scripts join their letters, so a word casts in one piece"
+                  >
+                    {(Object.keys(SPRIG_FONTS) as (keyof typeof SPRIG_FONTS)[]).map((k) => (
+                      <option key={k} value={k}>{SPRIG_FONTS[k].label}</option>
+                    ))}
+                    <option value="system">Other font on this computer…</option>
+                  </select>
+                </div>
+                {params.textFont === 'system' && <SystemFontBox value={params.textFontName} onCommit={(v) => setParam('textFontName', v)} />}
+                {sl('textHeight', 'Letter Height', 'mm', 'Height of a capital letter, finished. Strokes need about 1.5 mm to cast, so about 6–8 mm is the smallest that works in a bold font')}
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Style</label>
+                  <select
+                    value={params.textStyle}
+                    onChange={(e) => setParam('textStyle', e.target.value as SprigTextStyle)}
+                    className={selectCls}
+                    style={{ color: UI_MUTED }}
+                    title="Raised = the letters stand up. Cut In = the letters are sunk into the backing sheet (turn on Plaque or Outline) — nothing small to break off"
+                  >
+                    <option value="raised">Raised</option>
+                    <option value="cut">Cut In</option>
+                  </select>
+                </div>
+                {sl('textDepth', params.textStyle === 'raised' ? 'Raise' : 'Depth', 'mm', params.textStyle === 'raised'
+                  ? 'How high the letters stand above what is under them'
+                  : 'How deep the letters sink. At least 0.4 mm of sheet is always kept under them')}
+                {params.textStyle === 'cut' && !backingOn(params) && (
+                  <p className="text-[10px] leading-snug text-[#e0a040] px-0.5 mb-1">
+                    Cut In letters sink into a backing sheet. Turn on Plaque or Outline under Backing.
+                  </p>
+                )}
+                {params.drawingOn && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Position</label>
+                    <select
+                      value={params.textPosition}
+                      onChange={(e) => setParam('textPosition', e.target.value as SprigTextPosition)}
+                      className={selectCls}
+                      style={{ color: UI_MUTED }}
+                      title="Where the text sits beside the drawing. On Top = over the middle of the drawing"
+                    >
+                      <option value="below">Below</option>
+                      <option value="above">Above</option>
+                      <option value="left">Left</option>
+                      <option value="right">Right</option>
+                      <option value="over">On Top</option>
+                    </select>
+                  </div>
+                )}
+                {params.drawingOn && params.textPosition !== 'over' && sl('textGap', 'Gap', 'mm', 'Space between the drawing and the text')}
+                {sl('textOffsetX', 'Nudge ↔', 'mm', 'Move the text right (+) or left (−)')}
+                {sl('textOffsetY', 'Nudge ↕', 'mm', 'Move the text up (+) or down (−), as seen from above')}
+                <Toggle label="Show Drawing" checked={params.drawingOn} onChange={(v) => setParam('drawingOn', v)}
+                  tooltip="Off = the text alone, with no drawing" />
+                {m && params.textStyle === 'raised' && !backingOn(params) && m.relief.pieces > 1 && (
+                  <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
+                    Separate letters cast as separate pieces. A Plaque or Outline backing joins them, or use a Script font.
+                  </p>
+                )}
+                {sprig.textSize === null && (
+                  <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">Drawing the text…</p>
+                )}
+              </>
+            )}
+          </Section>
           <Section title="Backing" titleColor={GROUP_COLORS.structure} tooltip="A thin sheet under the drawing, so separate pieces cast as one">
             <div className="flex justify-end mb-1">
               <button onClick={() => resetFields(['backing', 'backingThickness', 'backingBorder', 'backingCorner', 'backingEdge'])} className={resetBtn} title="Backing back to its defaults (none)">Reset</button>
@@ -763,6 +846,55 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
       </div>
 
       {pasteOpen && <PasteDialog onClose={() => setPasteOpen(false)} onApply={(text) => applySvg(text, 'pasted SVG')} />}
+    </div>
+  );
+}
+
+/** The sprig's words: up to two lines, committed after a pause in typing so the
+ *  relief is not rebuilt on every key, and on blur. */
+function TextBox({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  const committed = useRef(value);
+  useEffect(() => { if (value !== committed.current) { committed.current = value; setDraft(value); } }, [value]);
+  useEffect(() => {
+    if (draft === committed.current) return;
+    const t = setTimeout(() => { committed.current = draft; onCommit(draft); }, 500);
+    return () => clearTimeout(t);
+  }, [draft, onCommit]);
+  return (
+    <textarea
+      value={draft}
+      rows={2}
+      placeholder="Type text here (up to two lines)"
+      onChange={(e) => setDraft(e.target.value.split('\n').slice(0, 2).join('\n'))}
+      onBlur={() => { if (draft !== committed.current) { committed.current = draft; onCommit(draft); } }}
+      className="w-full mb-2 px-2 py-1 text-sm rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] resize-none"
+      title="The words on the sprig. Up to two lines; each line is centred"
+    />
+  );
+}
+
+/** Name of a font installed on this computer, with a found / not found note. */
+function SystemFontBox({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const found = value.trim() ? systemFontFound(value) : null;
+  return (
+    <div className="mb-2">
+      <input
+        value={draft}
+        placeholder="Font name, e.g. Futura"
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => onCommit(draft)}
+        onKeyDown={(e) => { if (e.key === 'Enter') onCommit(draft); }}
+        className="w-full px-2 py-1 text-sm rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)]"
+        title="Type the font's name as your computer lists it (Font Book on a Mac)"
+      />
+      <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mt-0.5">
+        {found === false
+          ? 'Not found on this computer — a fallback font is being used.'
+          : 'Only looks right on a computer that has this font. A saved design opened elsewhere falls back to another font.'}
+      </p>
     </div>
   );
 }

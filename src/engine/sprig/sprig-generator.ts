@@ -19,11 +19,11 @@ import { buildWall, buildPlateRidges, seamMaxVWidth, type MoldLayout } from '../
 import { mergeMeshes } from '../mold/ring-mesh';
 import { computeMeshStats, type MeshStats } from '../mesh-stats';
 import type { VaseMesh } from '../types';
-import { buildRelief, type ReliefField, type SprigSource } from './relief';
+import { buildRelief, CUT_FLOOR, type ReliefField, type SprigSource, type TextLayer } from './relief';
 import {
   sprigBox, SPRIG_SIZES, STANDARD_BOX, STANDARD_ORDER,
-  type SprigBox, type SprigMoldSize, type SprigParameters,
-  sprigFootprint,
+  type SprigBox, type SprigMoldSize, type SprigParameters, type TextSize,
+  sprigFootprint, hasText, backingOn,
 } from './sprig-types';
 
 /** HandleMaker's poured V seal (vWidth / vHeight / vClearance defaults). */
@@ -65,12 +65,12 @@ export function fitsBox(w: number, l: number, cavW: number, cavL: number, margin
   return w + 2 * margin <= cavW + 1e-6 && l + 2 * margin <= cavL + 1e-6;
 }
 
-/** Smallest standard size the sprig fits, or null. */
-export function smallestFit(p: SprigParameters): Exclude<SprigMoldSize, 'custom'> | null {
+/** Smallest standard size the sprig fits, or null. `text` = the rendered text's size. */
+export function smallestFit(p: SprigParameters, text: TextSize | null = null): Exclude<SprigMoldSize, 'custom'> | null {
   const S = 1 + p.shrinkPercent / 100;
+  const [fw, fl] = sprigFootprint(p, text);
   for (const k of STANDARD_ORDER) {
     const s = SPRIG_SIZES[k];
-    const [fw, fl] = sprigFootprint(p);
     if (fitsBox(fw * S, fl * S, s.cavW, s.cavL, p.plasterMargin)) return k;
   }
   return null;
@@ -160,13 +160,14 @@ function buildReliefPlate(relief: ReliefField, S: number, layout: MoldLayout): {
   return { mesh, thin: flags };
 }
 
-export function generateSprigMold(p: SprigParameters, src: SprigSource): SprigMoldMeshes {
+export function generateSprigMold(p: SprigParameters, src: SprigSource, text: TextLayer | null = null): SprigMoldMeshes {
   const S = 1 + p.shrinkPercent / 100;
   const box = sprigBox(p);
   const layout = sprigLayout(box);
 
   // Finished-mm grid step chosen so the PRINTED grid spacing is Resolution.
-  const relief = buildRelief(src, p, Math.max(0.05, p.resolution) / S);
+  const relief = buildRelief(src, p, Math.max(0.05, p.resolution) / S, text);
+  const textSize = text && hasText(p) ? { w: text.mmW, h: text.mmH } : null;
   const { mesh: reliefPlate, thin } = buildReliefPlate(relief, S, layout);
   const plate = mergeMeshes([reliefPlate, ...buildPlateRidges(layout)]);
   const thinFlags = new Float32Array(plate.vertexCount);
@@ -187,15 +188,14 @@ export function generateSprigMold(p: SprigParameters, src: SprigSource): SprigMo
   const reliefVolMaster = relief.volume * S * S * S;
   const plasterVolumeMm3 = Math.max(0, box.cavW * box.cavL * box.wallH - reliefVolMaster);
 
-  const [footW, footL] = sprigFootprint(p);
-  const masterW = footW * S, masterL = footL * S, masterH = relief.maxHeight * S;
+  const masterW = relief.footW * S, masterL = relief.footL * S, masterH = relief.maxHeight * S;
   const plasterBehind = box.wallH - masterH;
   const fits = fitsBox(masterW, masterL, box.cavW, box.cavL, p.plasterMargin);
 
   const warnings: string[] = [];
   if (!fits) {
-    const best = smallestFit(p);
-    const turned = smallestFit({ ...p, width: p.length, length: p.width });
+    const best = smallestFit(p, textSize);
+    const turned = textSize ? null : smallestFit({ ...p, width: p.length, length: p.width });
     let w = `The sprig (${masterW.toFixed(0)} × ${masterL.toFixed(0)} mm printed) plus ${p.plasterMargin} mm of plaster round it does not fit this mold.`;
     if (best) w += ` ${SPRIG_SIZES[best].label} fits it.`;
     else if (turned) w += ` Turned 90° it would fit ${SPRIG_SIZES[turned].label}.`;
@@ -204,6 +204,10 @@ export function generateSprigMold(p: SprigParameters, src: SprigSource): SprigMo
   }
   if (plasterBehind < MIN_PLASTER_BEHIND) {
     warnings.push(`Only ${plasterBehind.toFixed(1)} mm of plaster behind the tallest point — under ${MIN_PLASTER_BEHIND} mm the mold can crack. Lower Max Height${p.moldSize === 'custom' ? ' or raise Wall Height' : ''}.`);
+  }
+  if (textSize && p.textStyle === 'cut') {
+    if (!backingOn(p)) warnings.push('Cut In letters sink into a backing sheet — turn on Plaque or Outline under Backing, or they only show where they cross the drawing.');
+    else if (p.textDepth > p.backingThickness - CUT_FLOOR) warnings.push(`Letters cut ${Math.max(0, p.backingThickness - CUT_FLOOR).toFixed(1)} mm deep, not ${p.textDepth} — at least ${CUT_FLOOR} mm of sheet is kept under them. Thicken the backing to cut deeper.`);
   }
   if (relief.thinSpots > 0) {
     warnings.push(`${relief.thinSpots} part${relief.thinSpots === 1 ? '' : 's'} narrower than ${p.minFeatureWidth} mm (red) — thinnest ≈ ${relief.thinnestWidth.toFixed(1)} mm. They may tear coming out of the mold or crack drying.`);
