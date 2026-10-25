@@ -15,7 +15,7 @@ export type SprigHeightMode = 'flat' | 'gray' | 'inflate' | 'inflateGray';
 /** Cross-section of an inflated shape, edge to middle. */
 export type SprigProfile = 'round' | 'pillow' | 'angular';
 export type SprigRotation = 0 | 90 | 180 | 270;
-export type SprigMoldSize = 'small' | 'medium' | 'long' | 'custom';
+export type SprigMoldSize = 's20' | 's40' | 's60' | 's80' | 's100' | 's120' | 's140' | 'long' | 'custom';
 /** Sheet under the drawing that joins separate pieces into one cast. */
 export type SprigBacking = 'none' | 'plaque' | 'outline';
 
@@ -141,14 +141,34 @@ export const STANDARD_BOX = {
  *  196 mm across. Gary can thin it (Plate Thickness, down to 1 mm). */
 export const DEFAULT_PLATE_THICKNESS = 5;
 
+/** Named by their inside size (Gary 2026-10-25: a full set kept on hand) — a
+ *  number says which box to reach for; a word ladder (smaller, larger…) does not.
+ *  Menu order is this order. */
 export const SPRIG_SIZES: Record<Exclude<SprigMoldSize, 'custom'>, { label: string; cavW: number; cavL: number }> = {
-  small: { label: 'Small 60×60', cavW: 60, cavL: 60 },
-  medium: { label: 'Medium 100×100', cavW: 100, cavL: 100 },
+  s20: { label: '20×20', cavW: 20, cavL: 20 },
+  s40: { label: '40×40', cavW: 40, cavL: 40 },
+  s60: { label: '60×60', cavW: 60, cavL: 60 },
+  s80: { label: '80×80', cavW: 80, cavL: 80 },
+  s100: { label: '100×100', cavW: 100, cavL: 100 },
+  s120: { label: '120×120', cavW: 120, cavL: 120 },
+  s140: { label: '140×140', cavW: 140, cavL: 140 },
   long: { label: 'Long 160×60', cavW: 160, cavL: 60 },
 };
 
-/** Standard sizes, smallest plate first — the order auto-pick tries them in. */
-export const STANDARD_ORDER: Exclude<SprigMoldSize, 'custom'>[] = ['small', 'long', 'medium'];
+/** Sizes before 2026-10-25, for old files and stored settings. */
+const LEGACY_SIZES: Record<string, SprigMoldSize> = { small: 's60', medium: 's100' };
+
+/** Standard sizes in menu order. */
+export const SIZE_MENU = Object.keys(SPRIG_SIZES) as Exclude<SprigMoldSize, 'custom'>[];
+
+/** Standard sizes, smallest PLATE first (the walls and flange add the same
+ *  border to each) — the order auto-pick tries them in. Long sits between
+ *  100×100 and 120×120. */
+export const STANDARD_ORDER = [...SIZE_MENU].sort((a, b) => {
+  const border = 2 * (STANDARD_BOX.wallThickness + STANDARD_BOX.flangeWidth);
+  const area = (k: typeof a) => (SPRIG_SIZES[k].cavW + border) * (SPRIG_SIZES[k].cavL + border);
+  return area(a) - area(b);
+});
 
 export function sprigBox(p: SprigParameters): SprigBox {
   if (p.moldSize === 'custom') {
@@ -168,7 +188,7 @@ export function sprigBox(p: SprigParameters): SprigBox {
 export function sizeLabel(p: SprigParameters): string {
   if (p.moldSize === 'custom') return `Custom ${p.customCavW}x${p.customCavL}`;
   const s = SPRIG_SIZES[p.moldSize];
-  return `${p.moldSize[0].toUpperCase()}${p.moldSize.slice(1)} ${s.cavW}x${s.cavL}`;
+  return `${p.moldSize === 'long' ? 'Long ' : ''}${s.cavW}x${s.cavL}`;
 }
 
 export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
@@ -210,7 +230,7 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   wholeShapesOnly: false,
   roundThin: false,
 
-  moldSize: 'small',
+  moldSize: 's60',
   plasterMargin: 8,
   shrinkPercent: 12,
   resolution: 0.2,
@@ -228,7 +248,7 @@ const ENUMS: Partial<Record<keyof SprigParameters, readonly unknown[]>> = {
   heightMode: ['flat', 'gray', 'inflate', 'inflateGray'],
   profile: ['round', 'pillow', 'angular'],
   rotation: [0, 90, 180, 270],
-  moldSize: ['small', 'medium', 'long', 'custom'],
+  moldSize: ['s20', 's40', 's60', 's80', 's100', 's120', 's140', 'long', 'custom'],
   backing: ['none', 'plaque', 'outline'],
   material: ['pottery', 'hydrocal', 'hydrostone'],
 };
@@ -241,7 +261,8 @@ const ENUMS: Partial<Record<keyof SprigParameters, readonly unknown[]>> = {
 export function mergeSprigParameters(raw: unknown): SprigParameters {
   const out: SprigParameters = { ...DEFAULT_SPRIG_PARAMETERS };
   if (!raw || typeof raw !== 'object') return out;
-  const src = raw as Record<string, unknown>;
+  const src = { ...(raw as Record<string, unknown>) };
+  if (typeof src.moldSize === 'string' && LEGACY_SIZES[src.moldSize]) src.moldSize = LEGACY_SIZES[src.moldSize];
   for (const key of Object.keys(DEFAULT_SPRIG_PARAMETERS) as (keyof SprigParameters)[]) {
     const v = src[key];
     if (v === undefined || typeof v !== typeof DEFAULT_SPRIG_PARAMETERS[key]) continue;

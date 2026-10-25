@@ -19,7 +19,7 @@ import type { SprigSource } from '@/engine/sprig/relief';
 import { translateMesh } from '@/engine/handle/mesh3';
 import { fitsBox, MIN_PLASTER_BEHIND } from '@/engine/sprig/sprig-generator';
 import {
-  mergeSprigParameters, sizeLabel, SPRIG_SIZES, STANDARD_ORDER,
+  mergeSprigParameters, sizeLabel, SPRIG_SIZES, SIZE_MENU,
   type SprigParameters, type SprigHeightMode, type SprigProfile, type SprigMoldSize,
   sprigFootprint, type SprigBacking, isPictureDrawing,
 } from '@/engine/sprig/sprig-types';
@@ -634,7 +634,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                 style={{ color: UI_MUTED }}
                 title="Standard sizes share one wall pair each — print it once. ✓ = this sprig fits"
               >
-                {STANDARD_ORDER.map((k) => (
+                {SIZE_MENU.map((k) => (
                   <option key={k} value={k}>{SPRIG_SIZES[k].label}{sizeFits(k) ? ' ✓' : ' — too small'}</option>
                 ))}
                 <option value="custom">Custom</option>
