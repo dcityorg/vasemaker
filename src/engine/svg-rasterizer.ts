@@ -343,3 +343,35 @@ export async function rasterizeSvgForSprig(svgMarkup: string, maxDim = 2048): Pr
     URL.revokeObjectURL(url);
   }
 }
+
+/**
+ * SprigMaker's SVG → picture path: full-colour RGBA on white paper, for
+ * image-prep.ts (fill outlines, tone steps). White means paper, exactly as in
+ * rasterizeSvgForSprig; the colours are kept so the background cut can see them.
+ */
+export async function rasterizeSvgRgbaForSprig(svgMarkup: string, maxDim = 1024): Promise<{ data: Uint8ClampedArray; width: number; height: number }> {
+  const dims = getSvgDimensions(svgMarkup);
+  let width = maxDim;
+  let height = maxDim;
+  if (dims) {
+    const scale = maxDim / Math.max(dims[0], dims[1]);
+    width = Math.max(1, Math.round(dims[0] * scale));
+    height = Math.max(1, Math.round(dims[1] * scale));
+  }
+  const blob = new Blob([setSvgSize(svgMarkup, width, height)], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await loadImage(url, width, height);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    const { data } = ctx.getImageData(0, 0, width, height);
+    return { data, width, height };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}

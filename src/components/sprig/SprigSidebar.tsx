@@ -15,13 +15,13 @@ import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
 import { loadSprigSource, pictureFromFile } from '@/lib/sprig-source';
-import type { SprigSource } from '@/engine/sprig/relief';
+import { GRAY_INK, type SprigSource } from '@/engine/sprig/relief';
 import { translateMesh } from '@/engine/handle/mesh3';
 import { fitsBox, MIN_PLASTER_BEHIND } from '@/engine/sprig/sprig-generator';
 import {
   mergeSprigParameters, sizeLabel, SPRIG_SIZES, SIZE_MENU,
   type SprigParameters, type SprigHeightMode, type SprigProfile, type SprigMoldSize,
-  sprigFootprint, type SprigBacking, isPictureDrawing,
+  sprigFootprint, type SprigBacking, isPictureDrawing, svgPrepared,
 } from '@/engine/sprig/sprig-types';
 import type { SprigMeshState } from '@/hooks/use-sprig-meshes';
 import type { PlasterType } from '@/engine/mold/mold-types';
@@ -115,7 +115,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
         return 'That does not look like SVG code.';
       }
       try {
-        const r = await loadSprigSource(markup);
+        const r = await loadSprigSource(markup, undefined, { fill: params.svgFill, closeGaps: params.svgCloseGaps, tones: params.svgTones });
         if (!r) return 'That SVG draws nothing darker than white — there is no shape to raise.';
         loadSvg(markup, name, r.aspect);
         return null;
@@ -478,6 +478,42 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
               )}
             </Section>
           )}
+          {!isPictureDrawing(params.svg) && (
+            <Section title="SVG" titleColor={GROUP_COLORS.structure} tooltip="How the SVG becomes a shape: fill outline drawings solid, and group its shades into height steps">
+              <div className="flex justify-end mb-1">
+                <button onClick={() => resetFields(['svgFill', 'svgCloseGaps', 'svgTones', 'imageLightest'])} className={resetBtn} title="SVG settings back to their defaults (read as drawn)">Reset</button>
+              </div>
+              {sprig.source && <PicturePreview source={sprig.source} threshold={params.heightMode === 'gray' || params.heightMode === 'inflateGray' ? GRAY_INK : 0.5} />}
+              <Toggle label="Fill Outlines" checked={params.svgFill} onChange={(v) => setParam('svgFill', v)}
+                tooltip="For line drawings: the inside of every closed outline becomes part of the shape, with the lines on top, instead of only the lines. Off = only what is drawn" />
+              {params.svgFill && sl('svgCloseGaps', 'Close Gaps', 'px', 'Closes small breaks in an outline so its inside fills instead of leaking away with the background. Pixels of the drawing at 1024 px across')}
+              <div className="flex items-center gap-2 mb-2">
+                <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Tones</label>
+                <select
+                  value={params.svgTones}
+                  onChange={(e) => setParam('svgTones', Number(e.target.value))}
+                  className={selectCls}
+                  style={{ color: UI_MUTED }}
+                  title="As drawn = each shade's darkness is its height. Steps = the SVG's shades grouped into that many flat levels, darkest highest — clean terraces that release well. Colours count by how dark they are"
+                >
+                  <option value={0}>As drawn</option>
+                  <option value={2}>2 steps</option>
+                  <option value={3}>3 steps</option>
+                  <option value={4}>4 steps</option>
+                  <option value={5}>5 steps</option>
+                </select>
+              </div>
+              {svgPrepared(params) && (params.heightMode === 'gray' || params.heightMode === 'inflateGray') &&
+                sl('imageLightest', 'Lightest', '%', params.heightMode === 'gray'
+                  ? 'Height of the lightest tone (and of a filled outline\'s white inside), as a % of Max Height'
+                  : 'How much of Detail Depth the lightest tone is spared: 100% = no cut at all, 0% = the full Detail Depth')}
+              {params.heightMode !== 'gray' && params.heightMode !== 'inflateGray' && (
+                <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
+                  Height From is {params.heightMode === 'flat' ? 'Flat' : 'Inflate'}, so shades are not used — only the outline. Pick Gray or Inflate + Gray detail to use them.
+                </p>
+              )}
+            </Section>
+          )}
           <Section title="Size" titleColor={GROUP_COLORS.structure}>
             <div className="flex justify-end mb-1">
               <button onClick={resetOrientation} className={resetBtn} title="Back to the drawing as loaded: unturned, unflipped, its own proportions (🔗 on). The longer side keeps its size">Reset</button>
@@ -731,14 +767,17 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
   );
 }
 
-/** The prepared picture: background cut away (shown as a red tint), the shape
- *  in its height levels, darkest = highest. What the relief is built from. */
-function PicturePreview({ source }: { source: SprigSource }) {
+/** The prepared drawing: background cut away (shown as a red tint), the shape
+ *  in its height levels, darkest = highest. What the relief is built from. An
+ *  SVG read as drawn has no mask: there, anything no darker than `threshold`
+ *  (the relief's own cut-off) is background. */
+function PicturePreview({ source, threshold = 0.5 }: { source: SprigSource; threshold?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = ref.current;
-    if (!c || !source.mask) return;
-    const { width: w, height: h, pixels, mask } = source;
+    if (!c) return;
+    const { width: w, height: h, pixels } = source;
+    const mask = source.mask ?? pixels.map((v) => (1 - v / 255 > threshold ? 0 : 255));
     c.width = w;
     c.height = h;
     const ctx = c.getContext('2d')!;
@@ -752,7 +791,7 @@ function PicturePreview({ source }: { source: SprigSource }) {
       img.data[i * 4 + 3] = 255;
     }
     ctx.putImageData(img, 0, 0);
-  }, [source]);
+  }, [source, threshold]);
   return (
     <div className="mb-2">
       <canvas ref={ref} className="w-full max-h-40 object-contain rounded border border-[var(--border-color)]" style={{ imageRendering: 'auto' }} />

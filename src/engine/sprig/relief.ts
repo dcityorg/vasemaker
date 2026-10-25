@@ -140,7 +140,7 @@ const FINE = 3;
 /** Crease-smoothing radius as a fraction of Roundness. */
 const BLUR = 0.15;
 /** Gray modes count anything darker than nearly-white as part of the shape. */
-const GRAY_INK = 0.02;
+export const GRAY_INK = 0.02;
 
 const smoothstep = (t: number) => t * t * (3 - 2 * t);
 

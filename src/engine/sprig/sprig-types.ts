@@ -60,6 +60,14 @@ export interface SprigParameters {
   /** Height of the lightest tone as a % of the darkest's (Gray modes). */
   imageLightest: number;
 
+  // ── SVG (an SVG with both of these off is read as drawn, as before) ──
+  /** Fill closed outlines solid (flood fill from the edge, like a picture). */
+  svgFill: boolean;
+  /** Close gaps in an outline before filling, pixels of a 1024 px drawing. */
+  svgCloseGaps: number;
+  /** 0 = greys as drawn; 2–5 = that many flat height levels. */
+  svgTones: number;
+
   // ── Edges ──
   /** Width of the ramp from the edge up to full height, mm. 0 = as steep as the grid allows. */
   edgeSoftness: number;
@@ -216,6 +224,10 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   imageTones: 3,
   imageLightest: 40,
 
+  svgFill: false,
+  svgCloseGaps: 0,
+  svgTones: 0,
+
   edgeSoftness: 1,
   minEdgeThickness: 0.4,
 
@@ -300,6 +312,16 @@ export function sprigFootprint(p: SprigParameters): [number, number] {
 /** Is the drawing a picture (PNG/JPG data URL) rather than SVG markup? */
 export function isPictureDrawing(svg: string): boolean {
   return svg.startsWith('data:image/') && !svg.startsWith('data:image/svg');
+}
+
+/** Does this SVG go through the picture pipeline (fill and/or tone steps)? */
+export function svgPrepared(p: Pick<SprigParameters, 'svgFill' | 'svgTones'>): boolean {
+  return p.svgFill || p.svgTones >= 2;
+}
+
+/** The SVG settings that change the prepared image, as one cache key ('' = read as drawn). */
+export function svgKey(p: Pick<SprigParameters, 'svgFill' | 'svgCloseGaps' | 'svgTones'>): string {
+  return svgPrepared(p) ? `${p.svgFill ? 1 : 0}|${p.svgFill ? p.svgCloseGaps : 0}|${p.svgTones}` : '';
 }
 
 /** The picture settings that change the prepared image (not Lightest, which

@@ -33,8 +33,12 @@ export interface ImagePrepOptions {
   closeGaps: number;
   /** Blur radius inside the shape, pixels (kills JPEG speckle). */
   smooth: number;
-  /** 0 = smooth tones; 2–5 = that many flat levels. */
+  /** 0 = smooth tones (stretched); 2–5 = that many flat levels; −1 = as drawn
+   *  (tone = darkness, unstretched — an SVG's own greys). */
   tones: number;
+  /** false = every non-background pixel is shape, reachable from the edge or
+   *  not (an SVG's empty outline stays empty). Default true. */
+  fill?: boolean;
 }
 
 /** Full background slider = this RGB distance (black to white is 441). */
@@ -95,7 +99,8 @@ export function prepareImage(img: RgbaImage, o: ImagePrepOptions): { source: Spr
     if (k < N - w) seed(k + w);
   }
   let back = filled;
-  if (r > 0) {
+  if (o.fill === false) back = cand;
+  else if (r > 0) {
     const d = distanceTransform(filled, w, h);
     back = new Uint8Array(N);
     for (let k = 0; k < N; k++) back[k] = filled[k] || (cand[k] && d[k] <= r + 0.5) ? 1 : 0;
@@ -194,6 +199,10 @@ export function toneMap(lum: Float32Array, inside: Uint8Array, tones: number): F
   let total = 0;
   for (let c = 0; c < lum.length; c++) if (inside[c]) { hist[Math.min(255, Math.max(0, Math.round(lum[c])))]++; total++; }
   const tone = new Float32Array(lum.length);
+  if (tones === -1) {
+    for (let c = 0; c < lum.length; c++) tone[c] = Math.min(1, Math.max(0, 1 - lum[c] / 255));
+    return tone;
+  }
   if (total === 0) return tone;
   const pct = (q: number) => {
     let acc = 0;

@@ -42,6 +42,25 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    id: 'sprig-svg',
+    title: 'SVG drawings',
+    blocks: [
+      { type: 'paragraph', text: 'The SVG section shows what SprigMaker made of the drawing (dark red = background, darker gray = higher), and has two settings for the kinds of SVG you will meet. With both off, the SVG is read exactly as drawn.' },
+      { type: 'list', items: [
+        'SOLID SILHOUETTES (one colour — most icons and clip art): work as they are. Nothing to change',
+        'LINE ART (outlines with an empty inside): only the lines become shape. Turn on FILL OUTLINES and the inside of each closed outline fills solid, with the lines standing on top. Close Gaps mends small breaks in an outline',
+        'SEVERAL COLOURS OR SHADES (clip art, and what image-to-SVG converters make): in Gray or Inflate + Gray detail each shade’s darkness is its height. TONES groups them into 2–5 flat steps, which cast and release cleanly',
+        'GRADIENTS: rare; As drawn turns them into smooth slopes',
+      ] },
+      { type: 'keyvalue', items: [
+        { key: 'Fill Outlines', value: 'The inside of a closed outline becomes part of the shape. White inside it stands at the Lightest height in the Gray modes. Off: white is always paper.' },
+        { key: 'Tones', value: 'AS DRAWN: each shade’s darkness is its height. STEPS: the shades grouped into that many flat levels, darkest highest.' },
+        { key: 'Lightest', value: 'Shown once Fill or Steps is on, in the Gray modes: the height of the lightest level, as for pictures.' },
+      ] },
+      { type: 'tip', text: 'Colours count by how dark they are, so a red and a green of the same darkness stand at the same height. If two areas should differ, give them different shades of gray in the SVG.' },
+    ],
+  },
+  {
     id: 'sprig-picture',
     title: 'Pictures (PNG / JPG)',
     blocks: [

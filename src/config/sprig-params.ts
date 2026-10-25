@@ -16,6 +16,7 @@ export const SPRIG_PARAMS = {
   imageCloseGaps:  { min: 0, max: 10, step: 0.5 } as SliderRange,
   imageSmooth:     { min: 0, max: 5, step: 1 } as SliderRange,
   imageLightest:   { min: 0, max: 100, step: 5 } as SliderRange,
+  svgCloseGaps:    { min: 0, max: 10, step: 0.5 } as SliderRange,
 
   edgeSoftness:     { min: 0, max: 5, step: 0.1 } as SliderRange,
   // Min 0 on purpose: Gary wants to test a sprig whose edge tapers to nothing.

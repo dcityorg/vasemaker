@@ -10,7 +10,7 @@ import { useSprigStore } from '@/store/sprig-store';
 import { generateSprigMold, type SprigMoldMeshes } from '@/engine/sprig/sprig-generator';
 import { loadSprigSource } from '@/lib/sprig-source';
 import type { SprigSource } from '@/engine/sprig/relief';
-import { isPictureDrawing, pictureKey } from '@/engine/sprig/sprig-types';
+import { isPictureDrawing, pictureKey, svgKey } from '@/engine/sprig/sprig-types';
 
 export interface SprigMeshState {
   meshes: SprigMoldMeshes | null;
@@ -23,15 +23,16 @@ export interface SprigMeshState {
 export function useSprigMeshes(): SprigMeshState {
   const params = useSprigStore((s) => s.params);
   const picture = isPictureDrawing(params.svg);
-  // Only a picture's own settings re-prepare it; an SVG ignores them.
-  const key = picture ? `${params.svg.length}:${pictureKey(params)}` : '';
+  // Only the drawing's own kind of settings re-prepare it.
+  const key = picture ? `${params.svg.length}:${pictureKey(params)}` : svgKey(params);
   const [loaded, setLoaded] = useState<{ svg: string; key: string; source: SprigSource | null; error: string | null } | null>(null);
 
   useEffect(() => {
     let live = true;
     const svg = params.svg;
     const p = useSprigStore.getState().params;
-    loadSprigSource(svg, { background: p.imageBackground, closeGaps: p.imageCloseGaps, smooth: p.imageSmooth, tones: p.imageTones })
+    loadSprigSource(svg, { background: p.imageBackground, closeGaps: p.imageCloseGaps, smooth: p.imageSmooth, tones: p.imageTones },
+      { fill: p.svgFill, closeGaps: p.svgCloseGaps, tones: p.svgTones })
       .then((r) => {
         if (!live) return;
         setLoaded(r

@@ -7,7 +7,7 @@
  * same few drawings.
  */
 
-import { rasterizeSvgForSprig } from '@/engine/svg-rasterizer';
+import { rasterizeSvgForSprig, rasterizeSvgRgbaForSprig } from '@/engine/svg-rasterizer';
 import { cropToContent, type SprigSource } from '@/engine/sprig/relief';
 import { prepareImage, type ImagePrepOptions, type RgbaImage } from '@/engine/sprig/image-prep';
 import { isPictureDrawing } from '@/engine/sprig/sprig-types';
@@ -25,6 +25,10 @@ const decoded = new Map<string, Promise<RgbaImage>>();
 /** Longer side a loaded picture is kept at: 0.08 mm a pixel on an 80 mm sprig,
  *  well under the 0.2 mm grid, and small enough to live in a settings file. */
 const PICTURE_MAX = 1024;
+
+/** An SVG's background is transparent (or a white sheet): a small tolerance
+ *  catches the white and the antialiased fringe, never a drawn colour. */
+const SVG_BACKGROUND = 10;
 
 function remember<T>(map: Map<string, Promise<T>>, key: string, make: () => Promise<T>): Promise<T> {
   const hit = map.get(key);
@@ -61,13 +65,25 @@ function decodePicture(url: string): Promise<RgbaImage> {
 /**
  * Null when there is no shape (an SVG drawing nothing darker than paper, or a
  * picture that is all background). Rejects if it cannot be drawn/decoded.
- * `picture` is required for a picture and ignored for an SVG.
+ * `picture` is required for a picture and ignored for an SVG. `svgPrep` (SVG
+ * only): fill outlines and/or group tones by running the SVG through the
+ * picture pipeline; omitted or both off = read as drawn, exactly as before.
  */
-export function loadSprigSource(svg: string, picture?: ImagePrepOptions): Promise<LoadedSprigSource | null> {
+export function loadSprigSource(
+  svg: string, picture?: ImagePrepOptions, svgPrep?: { fill: boolean; closeGaps: number; tones: number },
+): Promise<LoadedSprigSource | null> {
   if (isPictureDrawing(svg)) {
     const o = picture ?? { background: 20, closeGaps: 0, smooth: 1, tones: 3 };
     const key = `${svg}#${o.background}|${o.closeGaps}|${o.smooth}|${o.tones}`;
     return remember(cache, key, () => decodePicture(svg).then((img) => prepareImage(img, o)));
+  }
+  if (svgPrep && (svgPrep.fill || svgPrep.tones >= 2)) {
+    const o: ImagePrepOptions = {
+      background: SVG_BACKGROUND, closeGaps: svgPrep.fill ? svgPrep.closeGaps : 0, smooth: 0,
+      tones: svgPrep.tones >= 2 ? svgPrep.tones : -1, fill: svgPrep.fill,
+    };
+    const key = `${svg}#svg|${o.fill ? 1 : 0}|${o.closeGaps}|${o.tones}`;
+    return remember(cache, key, () => rasterizeSvgRgbaForSprig(svg).then((img) => prepareImage(img, o)));
   }
   return remember(cache, svg, () => rasterizeSvgForSprig(svg).then((px) => cropToContent(px)));
 }
