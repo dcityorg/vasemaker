@@ -623,7 +623,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
           <GroupHeader label="Mold" color={GROUP_COLORS.surface} />
           <Section title="Mold Size" titleColor={GROUP_COLORS.surface}>
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['plasterMargin', 'customCavW', 'customCavL', 'customWallH', 'customWallThickness', 'customFlangeWidth', 'customPlateFloor'])} className={resetBtn} title="Plaster Margin and the Custom box back to their defaults. The chosen size is kept">Reset</button>
+              <button onClick={() => resetFields(['plasterMargin', 'customCavW', 'customCavL', 'customWallH', 'customWallThickness', 'customFlangeWidth', 'plateThickness'])} className={resetBtn} title="Plaster Margin, Plate Thickness and the Custom box back to their defaults. The chosen size is kept">Reset</button>
             </div>
             <div className="flex items-center gap-2 mb-2">
               <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Size</label>
@@ -641,6 +641,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
               </select>
             </div>
             {sl('plasterMargin', 'Plaster Margin', 'mm', 'Plaster between the sprig and the walls. Only decides whether the sprig fits — it never changes the walls')}
+            {sl('plateThickness', 'Plate Thickness', 'mm', 'The printed plate under its top face. The walls sit on top of the plate, so this never changes them — any thickness fits the size\'s wall pair. Stiffness goes as the cube of this: a thin plate saves plastic but can bow under setting plaster, more on the bigger sizes')}
             {params.moldSize === 'custom' && (
               <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
                 <p className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)] mt-1 mb-1">Custom box</p>
@@ -649,7 +650,6 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                 {sl('customWallH', 'Wall Height', 'mm', 'Plaster depth — pour to the top of the walls')}
                 {sl('customWallThickness', 'Wall Thickness', 'mm')}
                 {sl('customFlangeWidth', 'Clip Flange', 'mm', 'Binder-clip flange — also carries the three V seals')}
-                {sl('customPlateFloor', 'Plate Thickness', 'mm', 'Plate under its top face. Stiffness goes as the cube of this')}
                 <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
                   A custom box needs its own walls. Changing any of these makes a new wall.
                 </p>

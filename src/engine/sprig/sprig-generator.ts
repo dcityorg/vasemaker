@@ -219,5 +219,5 @@ export function generateSprigMold(p: SprigParameters, src: SprigSource): SprigMo
 /** True when nothing that shapes a wall depends on the sprig — the standard-size promise. */
 export function isStandardBox(box: SprigBox): boolean {
   return box.wallH === STANDARD_BOX.wallH && box.wallThickness === STANDARD_BOX.wallThickness
-    && box.flangeWidth === STANDARD_BOX.flangeWidth && box.plateFloor === STANDARD_BOX.plateFloor;
+    && box.flangeWidth === STANDARD_BOX.flangeWidth;
 }

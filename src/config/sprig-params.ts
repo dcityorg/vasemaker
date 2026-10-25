@@ -31,6 +31,7 @@ export const SPRIG_PARAMS = {
   plasterMargin: { min: 3, max: 25, step: 1 } as SliderRange,
   shrinkPercent: { min: 0, max: 25, step: 0.5 } as SliderRange,
   resolution:    { min: 0.1, max: 0.5, step: 0.05 } as SliderRange,
+  plateThickness: { min: 1, max: 10, step: 0.2 } as SliderRange,
 
   customCavW:          { min: 30, max: 250, step: 5 } as SliderRange,
   customCavL:          { min: 30, max: 250, step: 5 } as SliderRange,
@@ -38,5 +39,4 @@ export const SPRIG_PARAMS = {
   customWallThickness: { min: 2, max: 8, step: 0.5 } as SliderRange,
   // Three V seals and their grooves need ~10.5 mm (seamMaxVWidth shrinks the V below that).
   customFlangeWidth:   { min: 10, max: 24, step: 1 } as SliderRange,
-  customPlateFloor:    { min: 2, max: 10, step: 0.2 } as SliderRange,
 };

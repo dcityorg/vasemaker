@@ -96,6 +96,10 @@ export interface SprigParameters {
   /** Relief grid spacing on the PRINTED plate, mm. */
   resolution: number;
   material: PlasterType;
+  /** Printed plate under its top face, mm — every size. The walls stand on the
+   *  plate's top face and never read this, so it does not break a standard
+   *  size's shared wall pair. */
+  plateThickness: number;
 
   // ── Custom box (ignored for the standard sizes, whose box is fixed) ──
   customCavW: number;
@@ -103,7 +107,6 @@ export interface SprigParameters {
   customWallH: number;
   customWallThickness: number;
   customFlangeWidth: number;
-  customPlateFloor: number;
 }
 
 /** The box a mold is built in. Plate and walls both read this one object, so
@@ -131,10 +134,12 @@ export const STANDARD_BOX = {
   wallH: 25,
   wallThickness: 4,
   flangeWidth: 14,
-  /** A plain slab under plaster — thicker than HandleMaker's 3.6 because nothing
-   *  else stiffens it, and the Long plate is 196 mm across. */
-  plateFloor: 5,
 } as const;
+
+/** Default plate thickness: a plain slab under plaster, thicker than
+ *  HandleMaker's 3.6 because nothing else stiffens it, and the Long plate is
+ *  196 mm across. Gary can thin it (Plate Thickness, down to 1 mm). */
+export const DEFAULT_PLATE_THICKNESS = 5;
 
 export const SPRIG_SIZES: Record<Exclude<SprigMoldSize, 'custom'>, { label: string; cavW: number; cavL: number }> = {
   small: { label: 'Small 60×60', cavW: 60, cavL: 60 },
@@ -153,11 +158,11 @@ export function sprigBox(p: SprigParameters): SprigBox {
       wallH: p.customWallH,
       wallThickness: p.customWallThickness,
       flangeWidth: p.customFlangeWidth,
-      plateFloor: p.customPlateFloor,
+      plateFloor: p.plateThickness,
     };
   }
   const s = SPRIG_SIZES[p.moldSize];
-  return { cavW: s.cavW, cavL: s.cavL, ...STANDARD_BOX };
+  return { cavW: s.cavW, cavL: s.cavL, ...STANDARD_BOX, plateFloor: p.plateThickness };
 }
 
 export function sizeLabel(p: SprigParameters): string {
@@ -210,13 +215,13 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   shrinkPercent: 12,
   resolution: 0.2,
   material: 'pottery',
+  plateThickness: DEFAULT_PLATE_THICKNESS,
 
   customCavW: 120,
   customCavL: 80,
   customWallH: STANDARD_BOX.wallH,
   customWallThickness: STANDARD_BOX.wallThickness,
   customFlangeWidth: STANDARD_BOX.flangeWidth,
-  customPlateFloor: STANDARD_BOX.plateFloor,
 };
 
 const ENUMS: Partial<Record<keyof SprigParameters, readonly unknown[]>> = {
@@ -246,6 +251,12 @@ export function mergeSprigParameters(raw: unknown): SprigParameters {
     (out as unknown as Record<string, unknown>)[key] = v;
   }
   if (!(out.svgAspect > 0)) out.svgAspect = 1;
+  // Before the plate thickness applied to every size it was a Custom-box field;
+  // a custom design saved then keeps its plate.
+  if (src.plateThickness === undefined && out.moldSize === 'custom'
+    && typeof src.customPlateFloor === 'number' && Number.isFinite(src.customPlateFloor)) {
+    out.plateThickness = src.customPlateFloor;
+  }
   return out;
 }
 
