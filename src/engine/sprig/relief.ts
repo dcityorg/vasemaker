@@ -272,19 +272,17 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
   const c = (FINE - 1) / 2;
   const centre = (i: number, j: number) => (j * FINE + c) * fx + i * FINE + c;
   const ink = new Float32Array(N);
-  const cov = new Float32Array(N);
   const mask = new Uint8Array(N);
   for (let j = BORDER; j < ny - BORDER; j++) {
     for (let i = BORDER; i < nx - BORDER; i++) {
       const fk = centre(i, j);
       ink[j * nx + i] = fInk[fk];
-      cov[j * nx + i] = fCov[fk];
       if (!fOut[fk]) mask[j * nx + i] = 1;
     }
   }
   // A hairline joined up on the fine grid can still break into crumbs on this
   // one (an antenna 0.1 mm wide on a 0.2 mm grid), so drop tiny pieces here too.
-  if (p.removeTiny) countPieces(mask, nx, ny, (p.minFeatureWidth * p.minFeatureWidth) / (step * step), true, cov);
+  if (p.removeTiny) countPieces(mask, nx, ny, (p.minFeatureWidth * p.minFeatureWidth) / (step * step), true);
 
   // Whole-cell distances (the thin-part check works in these).
   const outside = new Uint8Array(N);
@@ -310,6 +308,16 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
       dist[k] = Math.max(0.5 / FINE, edt.dist[fk] - 0.5 + sub) * fs;
     }
   }
+  // The same from outside, for the antialiased outline below: distance to the
+  // nearest inside fine cell, less where this cell's own ink says the outline
+  // is nearer (ink ≈ threshold: the outline runs through its centre).
+  const fInside = new Uint8Array(fx * fy);
+  for (let k = 0; k < fInside.length; k++) fInside[k] = fOut[k] ? 0 : 1;
+  const edtIn = distanceTransform(fInside, fx, fy);
+  const distOut = (k: number) => {
+    const fk = centre(k % nx, Math.floor(k / nx));
+    return Math.max(0, edtIn[fk] - 0.5 - 0.5 * fCov[fk]) * fs;
+  };
 
   // Shape value 0..1.
   const f = new Float32Array(N);
@@ -335,37 +343,45 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
 
   const H = p.maxHeight, minE = Math.min(p.minEdgeThickness, H);
   const heights = new Float32Array(N);
-  let maxH = 0, volume = 0;
   for (let i = 0; i < N; i++) {
     if (!mask[i]) continue;
     let hs = H * f[i];
     // Lighter marks inside the shape cut in; black is untouched.
     if (p.heightMode === 'inflateGray') hs -= p.detailDepth * (1 - ink[i]);
     const t = p.edgeSoftness > 0 ? smoothstep(Math.min(1, dist[i] / p.edgeSoftness)) : 1;
-    const h = Math.min(H, Math.max(minE, minE + (hs - minE) * t));
-    heights[i] = h;
-    if (h > maxH) maxH = h;
-    volume += h * step * step;
+    heights[i] = Math.min(H, Math.max(minE, minE + (hs - minE) * t));
   }
 
   // Antialias the outline. The mask is all-or-nothing per cell, so the edge
-  // wall would follow the grid in 0.2 mm stairs; a cell just OUTSIDE that is
-  // partly inked instead rises in proportion to its ink, to at most the height
-  // of the inside cell beside it. Moves the outline by under a cell, never adds
-  // anything where there is no ink.
+  // wall (Min Edge, or the whole height when Flat) would follow the grid in
+  // stairs. Instead each cell within half a cell of the outline takes the
+  // fraction of it that lies inside — from the sub-cell distance, on both
+  // sides: inside cells near the outline drop a little, outside ones rise to
+  // that fraction of their tallest inside neighbour. The wall becomes a
+  // one-cell ramp centred on the true outline. (Until 2026-10-24 this read the
+  // ink at the outside cell's centre, which on a crisp SVG is almost always
+  // all or nothing — so it barely antialiased; Gary saw the stairs.)
   const fringe = new Float32Array(N);
   for (let j = 1; j < ny - 1; j++) {
     for (let i = 1; i < nx - 1; i++) {
       const k = j * nx + i;
-      if (mask[k] || cov[k] <= 0) continue;
+      if (mask[k]) continue;
+      const cover = 0.5 - distOut(k) / step;
+      if (cover <= 0) continue;
       const nb = Math.max(
         mask[k - 1] ? heights[k - 1] : 0, mask[k + 1] ? heights[k + 1] : 0,
         mask[k - nx] ? heights[k - nx] : 0, mask[k + nx] ? heights[k + nx] : 0,
       );
-      if (nb > 0) fringe[k] = nb * cov[k];
+      if (nb > 0) fringe[k] = nb * cover;
     }
   }
-  for (let k = 0; k < N; k++) if (fringe[k] > 0) { heights[k] = fringe[k]; volume += fringe[k] * step * step; }
+  let maxH = 0, volume = 0;
+  for (let k = 0; k < N; k++) {
+    if (mask[k]) heights[k] *= Math.min(1, 0.5 + dist[k] / step);
+    else if (fringe[k] > 0) heights[k] = fringe[k];
+    if (heights[k] > maxH) maxH = heights[k];
+    volume += heights[k] * step * step;
+  }
 
   // Backing: a sheet the drawing sits on, so separate pieces cast as one.
   // Max Height stays the drawing's own height, on top of the sheet.
@@ -567,8 +583,8 @@ const CORNER = 0.42;
  * contact is a zero-width bridge in clay, so it does not join two pieces.
  * `smallCells` = area below which a piece counts as a sliver.
  */
-/** With `remove`, small pieces are also cleared from `mask` (and `alsoClear`). */
-function countPieces(mask: Uint8Array, nx: number, ny: number, smallCells: number, remove = false, alsoClear?: Float32Array) {
+/** With `remove`, small pieces are also cleared from `mask`. */
+function countPieces(mask: Uint8Array, nx: number, ny: number, smallCells: number, remove = false) {
   const seen = new Uint8Array(mask.length);
   const stack: number[] = [];
   const members: number[] = [];
@@ -591,7 +607,7 @@ function countPieces(mask: Uint8Array, nx: number, ny: number, smallCells: numbe
     }
     if (area < smallCells) {
       smallPieces++;
-      if (remove) for (const k of members) { mask[k] = 0; if (alsoClear) alsoClear[k] = 0; }
+      if (remove) for (const k of members) mask[k] = 0;
     }
   }
   return { pieces, smallPieces };
