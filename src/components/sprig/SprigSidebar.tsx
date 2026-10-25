@@ -20,6 +20,7 @@ import { fitsBox, MIN_PLASTER_BEHIND } from '@/engine/sprig/sprig-generator';
 import {
   mergeSprigParameters, sizeLabel, SPRIG_SIZES, STANDARD_ORDER,
   type SprigParameters, type SprigHeightMode, type SprigProfile, type SprigMoldSize,
+  sprigFootprint, type SprigBacking,
 } from '@/engine/sprig/sprig-types';
 import type { SprigMeshState } from '@/hooks/use-sprig-meshes';
 import type { PlasterType } from '@/engine/mold/mold-types';
@@ -246,7 +247,8 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
   const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(2)} k` : n.toFixed(0));
   const inflate = params.heightMode === 'inflate' || params.heightMode === 'inflateGray';
   const sizeFits = (k: Exclude<SprigMoldSize, 'custom'>) =>
-    fitsBox(params.width * S, params.length * S, SPRIG_SIZES[k].cavW, SPRIG_SIZES[k].cavL, params.plasterMargin);
+    fitsBox(sprigFootprint(params)[0] * S, sprigFootprint(params)[1] * S, SPRIG_SIZES[k].cavW, SPRIG_SIZES[k].cavL, params.plasterMargin);
+  const backingOnUI = params.backing !== 'none' && params.backingThickness > 0;
   const warnings = [...(sprig.error ? [sprig.error] : []), ...(svgError ? [svgError] : []), ...(m?.warnings ?? [])];
 
   return (
@@ -474,9 +476,50 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
             {sl('edgeSoftness', 'Edge Softness', 'mm', 'Width of the slope from the edge up to full height. Higher blends into the vase and helps the cast drop out; 0 = as steep as the grid allows')}
             {sl('minEdgeThickness', 'Min Edge', 'mm', 'The edge stops at this thickness instead of tapering to nothing — a feathered edge at 0 is ragged and fragile, but you can test it')}
           </Section>
+          <Section title="Backing" titleColor={GROUP_COLORS.structure} tooltip="A thin sheet under the drawing, so separate pieces cast as one">
+            <div className="flex justify-end mb-1">
+              <button onClick={() => resetFields(['backing', 'backingThickness', 'backingBorder', 'backingCorner', 'backingEdge'])} className={resetBtn} title="Backing back to its defaults (none)">Reset</button>
+            </div>
+            <div className="flex items-center gap-2 mb-2">
+              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Type</label>
+              <select
+                value={params.backing}
+                onChange={(e) => setParam('backing', e.target.value as SprigBacking)}
+                className={selectCls}
+                style={{ color: UI_MUTED }}
+                title="None = the drawing only. Plaque = a tile behind the whole drawing. Outline = a sheet that follows the drawing and fills the gaps between its pieces"
+              >
+                <option value="none">None</option>
+                <option value="plaque">Plaque</option>
+                <option value="outline">Outline</option>
+              </select>
+            </div>
+            {params.backing !== 'none' && (
+              <>
+                {sl('backingThickness', 'Thickness', 'mm', 'Sheet thickness, FINISHED. Max Height sits on top of it. 0 = no sheet: separate pieces')}
+                {sl('backingBorder', 'Border', 'mm', params.backing === 'plaque'
+                  ? 'How far the plaque reaches past the drawing on every side'
+                  : 'How far the sheet reaches past the drawing. 0 = it only fills the gaps between pieces')}
+                {params.backing === 'plaque' && sl('backingCorner', 'Corner', 'mm', 'Rounding of the plaque corners. 0 = square')}
+                {sl('backingEdge', 'Backing Edge', 'mm', 'Width of the slope at the sheet\'s outer edge, so it blends onto the vase and drops out of the mold. Same as Thickness ≈ 45°; 0 = a straight step. Min Edge applies here too')}
+                {m && params.backing === 'outline' && backingOnUI && (
+                  <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
+                    {m.relief.bridgedGap > 0
+                      ? `The sheet crosses gaps up to about ${m.relief.bridgedGap.toFixed(1)} mm to join the pieces.`
+                      : 'No gaps needed filling.'}
+                  </p>
+                )}
+                {backingOnUI && (
+                  <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
+                    Total thickness ≈ {m ? m.relief.maxHeight.toFixed(1) : '…'} mm.
+                  </p>
+                )}
+              </>
+            )}
+          </Section>
           <Section title="Checks" titleColor={GROUP_COLORS.structure}>
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['minFeatureWidth'])} className={resetBtn} title="Min Feature back to its default">Reset</button>
+              <button onClick={() => resetFields(['minFeatureWidth', 'removeTiny', 'wholeShapesOnly', 'roundThin'])} className={resetBtn} title="Min Feature and the clean-up switches back to their defaults">Reset</button>
             </div>
             {sl('minFeatureWidth', 'Min Feature', 'mm', 'Parts of the FINISHED sprig narrower than this are painted red: they may tear coming out of the mold or crack drying')}
             {m && (
@@ -491,11 +534,20 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                 className={`mt-1 text-[10px] leading-snug px-0.5 ${m.relief.pieces > 1 ? 'text-amber-300' : 'text-[var(--text-secondary)]'}`}
                 title="Separate pieces the cast comes out in. Parts touching only at a corner count as separate — clay does not hold there"
               >
-                {m.relief.pieces <= 1
+                {m.relief.pieces === 0
+                  ? 'Nothing left to cast — the clean-up removed it all.'
+                  : m.relief.pieces === 1
                   ? 'Casts in one piece.'
                   : `Casts in ${m.relief.pieces} separate pieces${m.relief.smallPieces ? `, ${m.relief.smallPieces} of them tiny (under ${params.minFeatureWidth} × ${params.minFeatureWidth} mm)` : ''}.`}
               </p>
             )}
+            <p className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)] mt-2 mb-1">Clean up</p>
+            <Toggle label="Remove Tiny Pieces" checked={params.removeTiny} onChange={(v) => setParam('removeTiny', v)}
+              tooltip="Drop pieces smaller than Min Feature × Min Feature — the slivers left where a pattern is cut off. They would stick in the mold or come out as crumbs" />
+            <Toggle label="Whole Shapes Only" checked={params.wholeShapesOnly} onChange={(v) => setParam('wholeShapesOnly', v)}
+              tooltip="Drop every piece that touches the edge of the drawing — the cut-off cells of a pattern. Deletes real parts of a drawing that runs to its own edge" />
+            <Toggle label="Round Off Thin Bits" checked={params.roundThin} onChange={(v) => setParam('roundThin', v)}
+              tooltip="Shave off everything narrower than Min Feature: sharp tips round off and hairlines go. Also trims fine detail you may want, like antennae" />
           </Section>
 
           {/* Mold */}

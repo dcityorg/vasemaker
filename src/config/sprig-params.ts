@@ -16,6 +16,11 @@ export const SPRIG_PARAMS = {
   // Min 0 on purpose: Gary wants to test a sprig whose edge tapers to nothing.
   minEdgeThickness: { min: 0, max: 2, step: 0.05 } as SliderRange,
 
+  backingThickness: { min: 0, max: 4, step: 0.1 } as SliderRange,
+  backingBorder:    { min: 0, max: 15, step: 0.5 } as SliderRange,
+  backingCorner:    { min: 0, max: 20, step: 0.5 } as SliderRange,
+  backingEdge:      { min: 0, max: 5, step: 0.1 } as SliderRange,
+
   minFeatureWidth: { min: 0.5, max: 5, step: 0.1 } as SliderRange,
 
   plasterMargin: { min: 3, max: 25, step: 1 } as SliderRange,

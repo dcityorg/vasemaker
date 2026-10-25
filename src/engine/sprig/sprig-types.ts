@@ -16,6 +16,8 @@ export type SprigHeightMode = 'flat' | 'gray' | 'inflate' | 'inflateGray';
 export type SprigProfile = 'round' | 'pillow' | 'angular';
 export type SprigRotation = 0 | 90 | 180 | 270;
 export type SprigMoldSize = 'small' | 'medium' | 'long' | 'custom';
+/** Sheet under the drawing that joins separate pieces into one cast. */
+export type SprigBacking = 'none' | 'plaque' | 'outline';
 
 export interface SprigParameters {
   // ── The SVG (embedded, so a settings file reproduces the sprig on its own) ──
@@ -51,9 +53,26 @@ export interface SprigParameters {
   /** Height the edge stops at instead of tapering to nothing, mm. 0 allowed (Gary, to test). */
   minEdgeThickness: number;
 
+  // ── Backing (Max Height sits ON TOP of it — Gary 2026-10-24) ──
+  backing: SprigBacking;
+  /** Sheet thickness, mm. 0 = no sheet: separate pieces. */
+  backingThickness: number;
+  /** How far the sheet reaches past the drawing, mm (plaque: past its box). */
+  backingBorder: number;
+  /** Plaque corner radius, mm. */
+  backingCorner: number;
+  /** Width of the slope at the sheet's outer edge, mm. 0 = a straight step. */
+  backingEdge: number;
+
   // ── Checks ──
   /** Parts narrower than this are flagged red, mm, finished size. */
   minFeatureWidth: number;
+  /** Drop pieces smaller than Min Feature squared (clipped slivers). */
+  removeTiny: boolean;
+  /** Drop pieces that touch the edge of the drawing (cut-off pattern cells). */
+  wholeShapesOnly: boolean;
+  /** Shave off everything narrower than Min Feature (sharp tips, hairlines). */
+  roundThin: boolean;
 
   // ── Mold ──
   moldSize: SprigMoldSize;
@@ -156,7 +175,16 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   edgeSoftness: 1,
   minEdgeThickness: 0.4,
 
+  backing: 'none',
+  backingThickness: 1.5,
+  backingBorder: 3,
+  backingCorner: 3,
+  backingEdge: 1.5,
+
   minFeatureWidth: 1.5,
+  removeTiny: false,
+  wholeShapesOnly: false,
+  roundThin: false,
 
   moldSize: 'small',
   plasterMargin: 8,
@@ -177,6 +205,7 @@ const ENUMS: Partial<Record<keyof SprigParameters, readonly unknown[]>> = {
   profile: ['round', 'pillow', 'angular'],
   rotation: [0, 90, 180, 270],
   moldSize: ['small', 'medium', 'long', 'custom'],
+  backing: ['none', 'plaque', 'outline'],
   material: ['pottery', 'hydrocal', 'hydrostone'],
 };
 
@@ -204,4 +233,15 @@ export function mergeSprigParameters(raw: unknown): SprigParameters {
 /** Aspect (width / length) of the shape as it lies in the mold, after rotation. */
 export function orientedAspect(p: Pick<SprigParameters, 'svgAspect' | 'rotation'>): number {
   return p.rotation === 90 || p.rotation === 270 ? 1 / p.svgAspect : p.svgAspect;
+}
+
+/** Is there a sheet under the drawing? */
+export function backingOn(p: Pick<SprigParameters, 'backing' | 'backingThickness'>): boolean {
+  return p.backing !== 'none' && p.backingThickness > 0;
+}
+
+/** Finished footprint (width, length), mm: the drawing plus any backing border. */
+export function sprigFootprint(p: SprigParameters): [number, number] {
+  const b = backingOn(p) ? Math.max(0, p.backingBorder) : 0;
+  return [p.width + 2 * b, p.length + 2 * b];
 }

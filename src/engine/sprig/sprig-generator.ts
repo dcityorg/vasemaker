@@ -23,6 +23,7 @@ import { buildRelief, type ReliefField, type SprigSource } from './relief';
 import {
   sprigBox, SPRIG_SIZES, STANDARD_BOX, STANDARD_ORDER,
   type SprigBox, type SprigMoldSize, type SprigParameters,
+  sprigFootprint,
 } from './sprig-types';
 
 /** HandleMaker's poured V seal (vWidth / vHeight / vClearance defaults). */
@@ -69,7 +70,8 @@ export function smallestFit(p: SprigParameters): Exclude<SprigMoldSize, 'custom'
   const S = 1 + p.shrinkPercent / 100;
   for (const k of STANDARD_ORDER) {
     const s = SPRIG_SIZES[k];
-    if (fitsBox(p.width * S, p.length * S, s.cavW, s.cavL, p.plasterMargin)) return k;
+    const [fw, fl] = sprigFootprint(p);
+    if (fitsBox(fw * S, fl * S, s.cavW, s.cavL, p.plasterMargin)) return k;
   }
   return null;
 }
@@ -185,7 +187,8 @@ export function generateSprigMold(p: SprigParameters, src: SprigSource): SprigMo
   const reliefVolMaster = relief.volume * S * S * S;
   const plasterVolumeMm3 = Math.max(0, box.cavW * box.cavL * box.wallH - reliefVolMaster);
 
-  const masterW = p.width * S, masterL = p.length * S, masterH = relief.maxHeight * S;
+  const [footW, footL] = sprigFootprint(p);
+  const masterW = footW * S, masterL = footL * S, masterH = relief.maxHeight * S;
   const plasterBehind = box.wallH - masterH;
   const fits = fitsBox(masterW, masterL, box.cavW, box.cavL, p.plasterMargin);
 

@@ -51,6 +51,27 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    id: 'sprig-backing',
+    title: 'One Piece or Many — Backing and Clean Up',
+    blocks: [
+      { type: 'paragraph', text: 'The mold is open on the back and scraped flat, so every separate part of the drawing casts as its own piece — each letter of a word, each cell of a Voronoi pattern. Checks shows how many pieces the cast comes out in. Parts touching only at a corner count as separate: clay does not hold there.' },
+      { type: 'paragraph', text: 'Sometimes separate pieces are what you want: they can be laid on the pot one at a time, like mosaic tiles. To cast it in ONE piece, give it a BACKING, a thin sheet the drawing sits on:' },
+      { type: 'keyvalue', items: [
+        { key: 'Plaque', value: 'A tile behind the whole drawing, Border past it on every side, with rounded Corners if you like. A nameplate for text, a paving tile for a pattern.' },
+        { key: 'Outline', value: 'A sheet that follows the drawing, Border past its edge, and fills the gaps between pieces — just enough to join them all, worked out for you. At Border 0 it only fills the gaps. Wide gaps (between words) fill with rounded webbing.' },
+      ] },
+      { type: 'paragraph', text: 'THICKNESS is the sheet; Max Height sits ON TOP of it, so the total is the two added. 0 = no sheet. BACKING EDGE is the slope at the sheet’s outer edge, so it blends onto the pot and drops out of the mold; about the same as Thickness gives 45°. Min Edge applies to it too. The Border counts toward whether the sprig fits a Mold Size.' },
+      { type: 'tip', text: 'With INVERT on, a Plaque turns the drawing into a carved tile: the shapes become shallow pockets floored by the sheet instead of holes.' },
+      { type: 'tip', text: 'A thick sheet is stiff. A 4 mm plaque will not bend onto a small mug; keep sheet and relief thin for a curved pot, and modest so thick parts on a thin sheet do not crack drying.' },
+      { type: 'heading', text: 'Clean up (Checks)' },
+      { type: 'keyvalue', items: [
+        { key: 'Remove Tiny Pieces', value: 'Drops pieces smaller than Min Feature × Min Feature — the slivers left where a pattern is cut off by the edge of the drawing.' },
+        { key: 'Whole Shapes Only', value: 'Drops every piece that touches the edge of the drawing, leaving only whole cells of a pattern. It deletes real parts of a drawing that runs to its own edge.' },
+        { key: 'Round Off Thin Bits', value: 'Shaves off everything narrower than Min Feature: sharp tips round off and hairlines go. It also trims detail you may want, like antennae.' },
+      ] },
+    ],
+  },
+  {
     id: 'sprig-mold',
     title: 'The Mold, Pouring and Casting',
     blocks: [
