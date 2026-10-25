@@ -12,6 +12,11 @@ export const SPRIG_PARAMS = {
   roundness:   { min: 0.5, max: 20, step: 0.5 } as SliderRange,
   detailDepth: { min: 0, max: 3, step: 0.1 } as SliderRange,
 
+  imageBackground: { min: 0, max: 100, step: 1 } as SliderRange,
+  imageCloseGaps:  { min: 0, max: 10, step: 0.5 } as SliderRange,
+  imageSmooth:     { min: 0, max: 5, step: 1 } as SliderRange,
+  imageLightest:   { min: 0, max: 100, step: 5 } as SliderRange,
+
   edgeSoftness:     { min: 0, max: 5, step: 0.1 } as SliderRange,
   // Min 0 on purpose: Gary wants to test a sprig whose edge tapers to nothing.
   minEdgeThickness: { min: 0, max: 2, step: 0.05 } as SliderRange,

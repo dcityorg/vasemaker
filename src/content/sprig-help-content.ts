@@ -9,10 +9,10 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     id: 'sprig-quick-start',
     title: 'Quick Start',
     blocks: [
-      { type: 'paragraph', text: 'A SPRIG is a small relief — a dragonfly, a leaf, a lizard — cast or pressed in its own mold and stuck onto a pot with slip. (Wedgwood’s white jasperware figures are sprigs.) SprigMaker turns a flat SVG drawing into that relief and makes the 3D-printable parts for a ONE-PIECE OPEN plaster mold of it: a plate carrying the relief, and a wall you print twice.' },
+      { type: 'paragraph', text: 'A SPRIG is a small relief — a dragonfly, a leaf, a lizard — cast or pressed in its own mold and stuck onto a pot with slip. (Wedgwood’s white jasperware figures are sprigs.) SprigMaker turns a flat SVG drawing, or a picture, into that relief and makes the 3D-printable parts for a ONE-PIECE OPEN plaster mold of it: a plate carrying the relief, and a wall you print twice.' },
       { type: 'heading', text: 'Basic Workflow' },
       { type: 'list', items: [
-        'Pick a sample drawing, or Load / Paste your own SVG — black is the shape, white is background',
+        'Pick a sample drawing, Load / Paste your own SVG (black is the shape, white is background), or Load Image for a PNG or JPG (see Pictures)',
         'Set Width and Length — the FINISHED sprig, after the clay shrinks',
         'Choose how it gets its height (Height → From) and set Max Height',
         'Check for red: parts narrower than Min Feature are likely to tear or crack',
@@ -42,6 +42,31 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    id: 'sprig-picture',
+    title: 'Pictures (PNG / JPG)',
+    blocks: [
+      { type: 'paragraph', text: 'LOAD IMAGE takes a picture straight in — no converting to SVG first, which would throw away its shading. The Picture section shows what SprigMaker made of it: dark red is cut away as background, and the drawing is shown in its height levels, darker standing higher.' },
+      { type: 'heading', text: 'What works' },
+      { type: 'list', items: [
+        'Clean drawings, clip art and silhouettes on a plain background: bold shapes and a few flat tones',
+        'Line drawings with CLOSED outlines: the inside fills solid and the lines stand on top. Use Close Gaps if the outline has small breaks',
+        'Not photos: their shadows and highlights come from the lighting, not from height, and turn into bumps in the wrong places',
+        'Not fine pencil or etched drawings: anything finer than about 1 mm on the finished sprig cannot be cast or come out of the plaster',
+        'Not stock-photo sites: their pictures carry watermarks (which would be raised too) and are not free to use',
+      ] },
+      { type: 'keyvalue', items: [
+        { key: 'Background', value: 'How different a colour can be from the background and still be cut away. Starts from the colour round the edge of the picture, so off-white or coloured backgrounds work; a transparent PNG’s clear area is always background. Raise it if a halo stays round the drawing, lower it if pale parts disappear. Areas the background cannot reach — inside a closed outline — always stay.' },
+        { key: 'Close Gaps', value: 'Closes small breaks in an outline before the background is cut, so the inside does not leak away with it.' },
+        { key: 'Smooth', value: 'Blurs the speckle inside the drawing that JPEG pictures are full of, before the tones are read.' },
+        { key: 'Tones', value: 'STEPS groups the picture’s greys into 2–5 flat levels, darkest highest: clean terraces that read well and release cleanly. SMOOTH gives every grey its own height, speckle and shading included.' },
+        { key: 'Lightest', value: 'In Gray: the height of the lightest level as a % of Max Height. In Inflate + Gray detail: how much of Detail Depth the lightest level is spared.' },
+      ] },
+      { type: 'tip', text: 'Loading a picture switches Height to Inflate + Gray detail (unless you were already on Gray): the outline gives a rounded body and flat wings, and the tones add detail on top. Tone cannot tell a body from a wing tip of the same grey — both stand the same height.' },
+      { type: 'tip', text: 'On a picture, INVERT swaps which tones stand higher; the outline stays the same.' },
+      { type: 'tip', text: 'Thin lines such as antennae break into crumbs at casting size and show as tiny pieces in Checks. Remove Tiny Pieces or Round Off Thin Bits clears them.' },
+    ],
+  },
+  {
     id: 'sprig-edges',
     title: 'Edges and Thin Parts',
     blocks: [
@@ -65,7 +90,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
       { type: 'tip', text: 'A thick sheet is stiff. A 4 mm plaque will not bend onto a small mug; keep sheet and relief thin for a curved pot, and modest so thick parts on a thin sheet do not crack drying.' },
       { type: 'heading', text: 'Clean up (Checks)' },
       { type: 'keyvalue', items: [
-        { key: 'Remove Tiny Pieces', value: 'Drops pieces smaller than Min Feature × Min Feature — the slivers left where a pattern is cut off by the edge of the drawing.' },
+        { key: 'Remove Tiny Pieces', value: 'Drops pieces smaller than Min Feature × Min Feature — the slivers left where a pattern is cut off by the edge of the drawing, and the crumbs a hairline breaks into.' },
         { key: 'Whole Shapes Only', value: 'Drops every piece that touches the edge of the drawing, leaving only whole cells of a pattern. It deletes real parts of a drawing that runs to its own edge.' },
         { key: 'Round Off Thin Bits', value: 'Shaves off everything narrower than Min Feature: sharp tips round off and hairlines go. It also trims detail you may want, like antennae.' },
       ] },

@@ -20,7 +20,8 @@ export type SprigMoldSize = 'small' | 'medium' | 'long' | 'custom';
 export type SprigBacking = 'none' | 'plaque' | 'outline';
 
 export interface SprigParameters {
-  // ── The SVG (embedded, so a settings file reproduces the sprig on its own) ──
+  // ── The drawing (embedded, so a settings file reproduces the sprig on its own) ──
+  /** SVG markup — or, for a picture, a data:image/… URL (see isPictureDrawing). */
   svg: string;
   svgName: string;
   /** Width / height of the SVG's DRAWN content (whitespace cropped), in the
@@ -46,6 +47,18 @@ export interface SprigParameters {
   detailDepth: number;
   /** Swap black and white inside the SVG's area. */
   invert: boolean;
+
+  // ── Picture (PNG/JPG only; an SVG ignores these) ──
+  /** How far a colour may be from the background's and still count as background, 0–100. */
+  imageBackground: number;
+  /** Close gaps in an outline before filling, picture pixels. */
+  imageCloseGaps: number;
+  /** Blur inside the shape, picture pixels (JPEG speckle). */
+  imageSmooth: number;
+  /** 0 = smooth tones; 2–5 = that many flat height levels. */
+  imageTones: number;
+  /** Height of the lightest tone as a % of the darkest's (Gray modes). */
+  imageLightest: number;
 
   // ── Edges ──
   /** Width of the ramp from the edge up to full height, mm. 0 = as steep as the grid allows. */
@@ -172,6 +185,12 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   detailDepth: 0.6,
   invert: false,
 
+  imageBackground: 20,
+  imageCloseGaps: 0,
+  imageSmooth: 1,
+  imageTones: 3,
+  imageLightest: 40,
+
   edgeSoftness: 1,
   minEdgeThickness: 0.4,
 
@@ -244,4 +263,15 @@ export function backingOn(p: Pick<SprigParameters, 'backing' | 'backingThickness
 export function sprigFootprint(p: SprigParameters): [number, number] {
   const b = backingOn(p) ? Math.max(0, p.backingBorder) : 0;
   return [p.width + 2 * b, p.length + 2 * b];
+}
+
+/** Is the drawing a picture (PNG/JPG data URL) rather than SVG markup? */
+export function isPictureDrawing(svg: string): boolean {
+  return svg.startsWith('data:image/') && !svg.startsWith('data:image/svg');
+}
+
+/** The picture settings that change the prepared image (not Lightest, which
+ *  the relief applies), as one cache key. */
+export function pictureKey(p: Pick<SprigParameters, 'imageBackground' | 'imageCloseGaps' | 'imageSmooth' | 'imageTones'>): string {
+  return `${p.imageBackground}|${p.imageCloseGaps}|${p.imageSmooth}|${p.imageTones}`;
 }

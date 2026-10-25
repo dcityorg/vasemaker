@@ -14,6 +14,10 @@ export interface SprigSource {
   pixels: Uint8Array;
   width: number;
   height: number;
+  /** A picture's outline (image-prep.ts), same layout: 0 = shape, 255 =
+   *  background. When present it decides what is shape, and `pixels` is
+   *  normalised tone only — so a light area inside the outline still counts. */
+  mask?: Uint8Array;
 }
 
 /** Lighter than this counts as paper when cropping (antialiasing fringes). */
@@ -187,8 +191,8 @@ function maskedBlur(val: Float32Array, mask: Uint8Array, nx: number, ny: number,
  * along y with v = 1 at the TOP of the drawing — undoing flip then rotation.
  * Returns ink 0..1 (1 = black), or −1 outside the drawing.
  */
-function sampler(src: SprigSource, p: Pick<SprigParameters, 'rotation' | 'flipX' | 'flipY'>) {
-  const { pixels, width: w, height: h } = src;
+function sampler(src: SprigSource, p: Pick<SprigParameters, 'rotation' | 'flipX' | 'flipY'>, pixels = src.pixels) {
+  const { width: w, height: h } = src;
   return (u: number, v: number): number => {
     if (p.flipX) u = 1 - u;
     if (p.flipY) v = 1 - v;
@@ -226,6 +230,9 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
   const ny = Math.max(1, Math.ceil(L / step)) + 2 * pad;
   const x0 = -((nx - 1) * step) / 2, y0 = -((ny - 1) * step) / 2;
   const sample = sampler(src, p);
+  const sampleMask = src.mask ? sampler(src, p, src.mask) : null;
+  // A picture's lightest tone: this fraction of the darkest's height.
+  const lightest = Math.min(1, Math.max(0, p.imageLightest / 100));
   const gray = p.heightMode === 'gray' || p.heightMode === 'inflateGray';
   const threshold = gray ? GRAY_INK : 0.5;
   const N = nx * ny;
@@ -234,6 +241,9 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
   // Fine cell (i·FINE + c) sits exactly on coarse cell i's centre.
   const fx = nx * FINE, fy = ny * FINE, fs = step / FINE;
   const fInk = new Float32Array(fx * fy);
+  // How far toward the outline each cell is, 0..1 (1 = at or inside it): the
+  // sub-cell edge position and the antialiased fringe both read this.
+  const fCov = new Float32Array(fx * fy);
   const fOut = new Uint8Array(fx * fy).fill(1);
   const fIn = new Uint8Array(fx * fy);   // inside the drawing's area
   const ix0 = x0 - (step * (FINE - 1)) / (2 * FINE), iy0 = y0 - (step * (FINE - 1)) / (2 * FINE);
@@ -243,24 +253,38 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
       let s = sample(u, v);
       if (s < 0) continue;              // outside the drawing: always plate
       if (p.invert) s = 1 - s;          // invert only INSIDE the drawing's area
-      fIn[j * fx + i] = 1;
-      fInk[j * fx + i] = s;
-      if (s > threshold) fOut[j * fx + i] = 0;
+      const fk = j * fx + i;
+      fIn[fk] = 1;
+      if (sampleMask) {
+        // A picture: the mask is the outline; Invert swaps tones, not the outline.
+        const m = sampleMask(u, v);
+        fCov[fk] = Math.min(1, m / 0.5);
+        if (m >= 0.5) { fOut[fk] = 0; fInk[fk] = lightest + (1 - lightest) * s; }
+      } else {
+        fInk[fk] = s;
+        fCov[fk] = s > 0 ? Math.min(1, s / threshold) : 0;
+        if (s > threshold) fOut[fk] = 0;
+      }
     }
   }
-  cleanUp(fOut, fInk, fIn, fx, fy, fs, p);
+  cleanUp(fOut, fInk, fCov, fIn, fx, fy, fs, p);
 
   const c = (FINE - 1) / 2;
   const centre = (i: number, j: number) => (j * FINE + c) * fx + i * FINE + c;
   const ink = new Float32Array(N);
+  const cov = new Float32Array(N);
   const mask = new Uint8Array(N);
   for (let j = BORDER; j < ny - BORDER; j++) {
     for (let i = BORDER; i < nx - BORDER; i++) {
       const fk = centre(i, j);
       ink[j * nx + i] = fInk[fk];
+      cov[j * nx + i] = fCov[fk];
       if (!fOut[fk]) mask[j * nx + i] = 1;
     }
   }
+  // A hairline joined up on the fine grid can still break into crumbs on this
+  // one (an antenna 0.1 mm wide on a 0.2 mm grid), so drop tiny pieces here too.
+  if (p.removeTiny) countPieces(mask, nx, ny, (p.minFeatureWidth * p.minFeatureWidth) / (step * step), true, cov);
 
   // Whole-cell distances (the thin-part check works in these).
   const outside = new Uint8Array(N);
@@ -282,7 +306,7 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
       if (!mask[k]) continue;
       const fk = centre(i, j);
       const o = edt.nearest[fk];
-      const sub = o >= 0 ? 0.5 * Math.min(1, fInk[o] / threshold) : 0;
+      const sub = o >= 0 ? 0.5 * fCov[o] : 0;
       dist[k] = Math.max(0.5 / FINE, edt.dist[fk] - 0.5 + sub) * fs;
     }
   }
@@ -333,12 +357,12 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
   for (let j = 1; j < ny - 1; j++) {
     for (let i = 1; i < nx - 1; i++) {
       const k = j * nx + i;
-      if (mask[k] || ink[k] <= 0) continue;
+      if (mask[k] || cov[k] <= 0) continue;
       const nb = Math.max(
         mask[k - 1] ? heights[k - 1] : 0, mask[k + 1] ? heights[k + 1] : 0,
         mask[k - nx] ? heights[k - nx] : 0, mask[k + nx] ? heights[k + nx] : 0,
       );
-      if (nb > 0) fringe[k] = nb * Math.min(1, ink[k] / threshold);
+      if (nb > 0) fringe[k] = nb * cov[k];
     }
   }
   for (let k = 0; k < N; k++) if (fringe[k] > 0) { heights[k] = fringe[k]; volume += fringe[k] * step * step; }
@@ -412,9 +436,12 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number):
  *  wholeShapesOnly — pieces touching the edge of the drawing are dropped.
  * Removed cells lose their ink too, so nothing is antialiased back in.
  */
-function cleanUp(fOut: Uint8Array, fInk: Float32Array, fIn: Uint8Array, fx: number, fy: number, fs: number, p: SprigParameters) {
+function cleanUp(
+  fOut: Uint8Array, fInk: Float32Array, fCov: Float32Array, fIn: Uint8Array,
+  fx: number, fy: number, fs: number, p: SprigParameters,
+) {
   const N = fx * fy;
-  const drop = (k: number) => { fOut[k] = 1; fInk[k] = 0; };
+  const drop = (k: number) => { fOut[k] = 1; fInk[k] = 0; fCov[k] = 0; };
   if (p.roundThin && p.minFeatureWidth > 0) {
     const r = p.minFeatureWidth / 2 / fs;
     const dIn = distanceTransform(fOut, fx, fy);
@@ -540,25 +567,32 @@ const CORNER = 0.42;
  * contact is a zero-width bridge in clay, so it does not join two pieces.
  * `smallCells` = area below which a piece counts as a sliver.
  */
-function countPieces(mask: Uint8Array, nx: number, ny: number, smallCells: number) {
+/** With `remove`, small pieces are also cleared from `mask` (and `alsoClear`). */
+function countPieces(mask: Uint8Array, nx: number, ny: number, smallCells: number, remove = false, alsoClear?: Float32Array) {
   const seen = new Uint8Array(mask.length);
   const stack: number[] = [];
+  const members: number[] = [];
   let pieces = 0, smallPieces = 0;
   for (let s = 0; s < mask.length; s++) {
     if (!mask[s] || seen[s]) continue;
     pieces++;
     let area = 0;
+    members.length = 0;
     seen[s] = 1; stack.push(s);
     while (stack.length) {
       const k = stack.pop()!;
       area++;
+      if (remove) members.push(k);
       const i = k % nx;
       if (i > 0 && mask[k - 1] && !seen[k - 1]) { seen[k - 1] = 1; stack.push(k - 1); }
       if (i < nx - 1 && mask[k + 1] && !seen[k + 1]) { seen[k + 1] = 1; stack.push(k + 1); }
       if (k >= nx && mask[k - nx] && !seen[k - nx]) { seen[k - nx] = 1; stack.push(k - nx); }
       if (k < mask.length - nx && mask[k + nx] && !seen[k + nx]) { seen[k + nx] = 1; stack.push(k + nx); }
     }
-    if (area < smallCells) smallPieces++;
+    if (area < smallCells) {
+      smallPieces++;
+      if (remove) for (const k of members) { mask[k] = 0; if (alsoClear) alsoClear[k] = 0; }
+    }
   }
   return { pieces, smallPieces };
 }

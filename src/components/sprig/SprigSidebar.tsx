@@ -14,13 +14,14 @@ import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib
 import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
-import { loadSprigSource } from '@/lib/sprig-source';
+import { loadSprigSource, pictureFromFile } from '@/lib/sprig-source';
+import type { SprigSource } from '@/engine/sprig/relief';
 import { translateMesh } from '@/engine/handle/mesh3';
 import { fitsBox, MIN_PLASTER_BEHIND } from '@/engine/sprig/sprig-generator';
 import {
   mergeSprigParameters, sizeLabel, SPRIG_SIZES, STANDARD_ORDER,
   type SprigParameters, type SprigHeightMode, type SprigProfile, type SprigMoldSize,
-  sprigFootprint, type SprigBacking,
+  sprigFootprint, type SprigBacking, isPictureDrawing,
 } from '@/engine/sprig/sprig-types';
 import type { SprigMeshState } from '@/hooks/use-sprig-meshes';
 import type { PlasterType } from '@/engine/mold/mold-types';
@@ -98,6 +99,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
   const nameInputRef = useRef<HTMLInputElement>(null);
   const settingsInputRef = useRef<HTMLInputElement>(null);
   const svgInputRef = useRef<HTMLInputElement>(null);
+  const pictureInputRef = useRef<HTMLInputElement>(null);
 
   // ── SVG in ──
 
@@ -133,6 +135,33 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
     reader.onload = () => void applySvg(reader.result as string, name);
     reader.readAsText(file);
     e.target.value = '';
+  };
+
+  // ── Picture in ──
+
+  /** A PNG/JPG: shrink it, prepare it with the current Picture settings to
+   *  measure the shape, then hand it over as one undoable step. A picture's
+   *  tones are the point, so Flat/Inflate move to Inflate + Gray detail. */
+  const handlePictureFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const name = file.name.replace(/\.[a-z0-9]+$/i, '');
+    let problem: string | null = null;
+    try {
+      const url = await pictureFromFile(file);
+      const r = await loadSprigSource(url, {
+        background: params.imageBackground, closeGaps: params.imageCloseGaps, smooth: params.imageSmooth, tones: params.imageTones,
+      });
+      if (!r) problem = 'Everything in that picture counts as background. Try a picture with a plain background, or lower Background after loading.';
+      else {
+        loadSvg(url, name, r.aspect);
+        if (params.heightMode === 'flat' || params.heightMode === 'inflate') setParam('heightMode', 'inflateGray');
+      }
+    } catch {
+      problem = 'That picture could not be opened. Try saving it as PNG or JPG.';
+    }
+    setSvgError(problem);
   };
 
   // ── Exports ──
@@ -289,7 +318,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
             ?
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">SVG sprig + one-piece plaster mold</p>
+        <p className="text-xs text-[var(--text-secondary)]">SVG or picture sprig + one-piece plaster mold</p>
         <div className="flex items-center gap-1 mt-1">
           <span className="text-xs text-[var(--text-secondary)] shrink-0">Design Name:</span>
           {editingName ? (
@@ -346,7 +375,11 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
             <button onClick={() => setPasteOpen(true)} className={btn} style={{ color: UI_MUTED }} title="Paste SVG code into a box">
               Paste SVG
             </button>
+            <button onClick={() => pictureInputRef.current?.click()} className={btn} style={{ color: UI_MUTED }} title="Load a PNG or JPG — a clean drawing on a plain background works best; darker tones stand higher">
+              Load Image
+            </button>
             <input ref={svgInputRef} type="file" accept=".svg,image/svg+xml" onChange={handleSvgFile} className="hidden" />
+            <input ref={pictureInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => void handlePictureFile(e)} className="hidden" />
           </div>
           <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 -mt-1 truncate" title={params.svgName}>
             Drawing: {params.svgName}
@@ -409,6 +442,42 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
 
           {/* Sprig */}
           <GroupHeader label="Sprig" color={GROUP_COLORS.structure} />
+          {isPictureDrawing(params.svg) && (
+            <Section title="Picture" titleColor={GROUP_COLORS.structure} tooltip="How the picture becomes a shape: what counts as background, and how its tones become heights">
+              <div className="flex justify-end mb-1">
+                <button onClick={() => resetFields(['imageBackground', 'imageCloseGaps', 'imageSmooth', 'imageTones', 'imageLightest'])} className={resetBtn} title="Picture settings back to their defaults">Reset</button>
+              </div>
+              {sprig.source?.mask && <PicturePreview source={sprig.source} />}
+              {sl('imageBackground', 'Background', '', 'How different a colour can be from the background and still be cut away. Raise it if a halo or speckle round the drawing stays; lower it if pale parts of the drawing disappear. Areas the background cannot reach (inside a closed outline) always stay')}
+              {sl('imageCloseGaps', 'Close Gaps', 'px', 'For outline drawings: closes small breaks in the outline so its inside fills solid instead of being cut away with the background')}
+              {sl('imageSmooth', 'Smooth', 'px', 'Blurs speckle inside the drawing before the tones are read (JPEG pictures are full of it). 0 = none')}
+              <div className="flex items-center gap-2 mb-2">
+                <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Tones</label>
+                <select
+                  value={params.imageTones}
+                  onChange={(e) => setParam('imageTones', Number(e.target.value))}
+                  className={selectCls}
+                  style={{ color: UI_MUTED }}
+                  title="Steps = the picture's greys grouped into that many flat levels, darkest highest — clean terraces that release well. Smooth = every grey its own height (shows speckle and shading)"
+                >
+                  <option value={2}>2 steps</option>
+                  <option value={3}>3 steps</option>
+                  <option value={4}>4 steps</option>
+                  <option value={5}>5 steps</option>
+                  <option value={0}>Smooth</option>
+                </select>
+              </div>
+              {(params.heightMode === 'gray' || params.heightMode === 'inflateGray') &&
+                sl('imageLightest', 'Lightest', '%', params.heightMode === 'gray'
+                  ? 'Height of the lightest tone, as a % of Max Height (the darkest tone)'
+                  : 'How much of Detail Depth the lightest tone is spared: 100% = no cut at all, 0% = the full Detail Depth')}
+              {params.heightMode !== 'gray' && params.heightMode !== 'inflateGray' && (
+                <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
+                  Height From is {params.heightMode === 'flat' ? 'Flat' : 'Inflate'}, so the tones are not used — only the outline. Pick Gray or Inflate + Gray detail to use them.
+                </p>
+              )}
+            </Section>
+          )}
           <Section title="Size" titleColor={GROUP_COLORS.structure}>
             <div className="flex justify-end mb-1">
               <button onClick={resetOrientation} className={resetBtn} title="Back to the drawing as loaded: unturned, unflipped, its own proportions (🔗 on). The longer side keeps its size">Reset</button>
@@ -658,6 +727,38 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
       </div>
 
       {pasteOpen && <PasteDialog onClose={() => setPasteOpen(false)} onApply={(text) => applySvg(text, 'pasted SVG')} />}
+    </div>
+  );
+}
+
+/** The prepared picture: background cut away (shown as a red tint), the shape
+ *  in its height levels, darkest = highest. What the relief is built from. */
+function PicturePreview({ source }: { source: SprigSource }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c || !source.mask) return;
+    const { width: w, height: h, pixels, mask } = source;
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d')!;
+    const img = ctx.createImageData(w, h);
+    for (let i = 0; i < w * h; i++) {
+      const bg = mask[i] >= 128;
+      const v = pixels[i];
+      img.data[i * 4] = bg ? 90 : v;
+      img.data[i * 4 + 1] = bg ? 40 : v;
+      img.data[i * 4 + 2] = bg ? 40 : v;
+      img.data[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }, [source]);
+  return (
+    <div className="mb-2">
+      <canvas ref={ref} className="w-full max-h-40 object-contain rounded border border-[var(--border-color)]" style={{ imageRendering: 'auto' }} />
+      <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mt-0.5">
+        Dark red = cut away as background. Darker gray stands higher.
+      </p>
     </div>
   );
 }
