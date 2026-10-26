@@ -52,6 +52,7 @@ Also in the app, each on its own page:
 - **MoldMaker** — turns your vase into 3D-printable parts for a plaster slip-casting mold (Pour 3-Pc, Split Halves, Split Thirds)
 - **HandleMaker** — design a mug or vase handle and print the parts for its two-part plaster mold
 - **SprigMaker** — turn an SVG, a PNG/JPG picture, or text into a small raised decoration (a sprig) and print its one-piece plaster mold, in standard box sizes
+- **See the finished piece** — the vase, handle and sprig pages can each show the vase in 3-D with the handle and sprigs on it (sprigs drape over any texture)
 
 ## Getting Started
 
