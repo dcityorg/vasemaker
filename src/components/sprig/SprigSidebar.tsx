@@ -604,7 +604,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                     {(Object.keys(SPRIG_FONTS) as (keyof typeof SPRIG_FONTS)[]).map((k) => (
                       <option key={k} value={k}>{SPRIG_FONTS[k].label}</option>
                     ))}
-                    <option value="system">Other font on this computer…</option>
+                    <option value="system">Installed font…</option>
                   </select>
                 </div>
                 {params.textFont === 'system' && <SystemFontBox value={params.textFontName} onCommit={(v) => setParam('textFontName', v)} />}
