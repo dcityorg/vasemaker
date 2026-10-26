@@ -35,7 +35,9 @@ export function retiredStyleNotice(style: MoldStyle): string {
 }
 import { createHistory } from './history';
 
-export const DEFAULT_SETTINGS_NAME = 'mold settings';
+export const DEFAULT_SETTINGS_NAME = 'mold design';
+/** Still the default name? 'mold settings' was the default until 2026-10-25. */
+export const isMoldUnnamed = (name: string) => !name.trim() || name === DEFAULT_SETTINGS_NAME || name === 'mold settings';
 const STORAGE_KEY = 'vasemaker-mold-settings';
 
 /** Which parts are visible in the mold viewport. */
@@ -238,7 +240,7 @@ function readStored(): void {
       savedByStyle,
       styleNotice: retired ? retiredStyleNotice(retired) : null,
       settingsName:
-        typeof data.settingsName === 'string' && data.settingsName.trim()
+        typeof data.settingsName === 'string' && !isMoldUnnamed(data.settingsName)
           ? data.settingsName
           : DEFAULT_SETTINGS_NAME,
       savedParams: savedByStyle[params.moldStyle] ?? null,

@@ -9,6 +9,11 @@ import { DEFAULT_PARAMETERS } from './defaults';
 // Re-export preset data and types from config
 export type { Preset } from '@/config/presets';
 export { BUILT_IN_PRESETS } from '@/config/presets';
+import { BUILT_IN_PRESETS as PRESET_LIST } from '@/config/presets';
+/** No name yet: none, 'Untitled', or just the name of the preset it started
+ *  from (saving under that would give every vase from it the same file name). */
+export const isVaseUnnamed = (name: string | null) =>
+  !name || !name.trim() || name === 'Untitled' || PRESET_LIST.some((p) => p.name === name);
 
 /**
  * Deep merge a partial parameter set with defaults.

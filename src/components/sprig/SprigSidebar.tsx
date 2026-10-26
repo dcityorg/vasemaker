@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
-import { useSprigStore, useSprigHistory, sprigHistory, DEFAULT_SPRIG_SETTINGS_NAME } from '@/store/sprig-store';
+import { useSprigStore, useSprigHistory, sprigHistory, isSprigUnnamed } from '@/store/sprig-store';
+import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { SPRIG_PARAMS } from '@/config/sprig-params';
 import { SPRIG_SAMPLES } from '@/config/sprig-samples';
 import { PLASTER_MATERIALS } from '@/config/mold-params';
@@ -96,10 +97,8 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
     return () => window.removeEventListener('keydown', onKey);
   }, [onKey]);
 
-  const [editingName, setEditingName] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [svgError, setSvgError] = useState<string | null>(null);
-  const nameInputRef = useRef<HTMLInputElement>(null);
   const settingsInputRef = useRef<HTMLInputElement>(null);
   const svgInputRef = useRef<HTMLInputElement>(null);
   const pictureInputRef = useRef<HTMLInputElement>(null);
@@ -182,7 +181,9 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
 
   const handleSaveSettings = async () => {
     const json = JSON.stringify({ app: 'VaseMaker', type: 'sprig-settings', settings: params }, null, 2);
-    const chosenName = await saveDesignFile(json, settingsName || DEFAULT_SPRIG_SETTINGS_NAME);
+    const name = await ensureNamed('Sprig', isSprigUnnamed(settingsName), settingsName, setSettingsName);
+    if (!name) return;
+    const chosenName = await saveDesignFile(json, name);
     if (chosenName === null) return;
     markSaved(params, chosenName);
     if (!m) return;
@@ -325,34 +326,8 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
           </button>
         </div>
         <p className="text-xs text-[var(--text-secondary)]">SVG or picture sprig + one-piece plaster mold</p>
-        <div className="flex items-center gap-1 mt-1">
-          <span className="text-xs text-[var(--text-secondary)] shrink-0">Design Name:</span>
-          {editingName ? (
-            <input
-              ref={nameInputRef}
-              type="text"
-              defaultValue={settingsName}
-              placeholder={DEFAULT_SPRIG_SETTINGS_NAME}
-              className="text-xs text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1 py-0.5 flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') { setSettingsName(e.currentTarget.value); setEditingName(false); }
-                else if (e.key === 'Escape') setEditingName(false);
-              }}
-              onBlur={(e) => { setSettingsName(e.currentTarget.value); setEditingName(false); }}
-            />
-          ) : (
-            <p
-              className="text-xs text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] transition-colors flex-1 min-w-0"
-              title="Click to rename this sprig design — it names the settings and plate files"
-              onClick={() => {
-                setEditingName(true);
-                requestAnimationFrame(() => { nameInputRef.current?.focus(); nameInputRef.current?.select(); });
-              }}
-            >
-              {settingsName}
-            </p>
-          )}
-        </div>
+        <DesignNameRow what="Sprig" name={settingsName} unnamed={isSprigUnnamed(settingsName)} onRename={setSettingsName} />
+        <NamePromptHost />
       </div>
 
       <div className="flex-1 overflow-y-auto sidebar-scroll">
@@ -405,7 +380,11 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
           {/* STL exports */}
           <div className="border-t-[3px] border-[#555] pt-2 flex flex-col gap-2">
             <button
-              onClick={() => m && exportMesh(m.plate, m.layout.plateThk, `${settingsName || 'sprig'} plate`, true)}
+              onClick={async () => {
+                if (!m) return;
+                const name = await ensureNamed('Sprig', isSprigUnnamed(settingsName), settingsName, setSettingsName);
+                if (name) exportMesh(m.plate, m.layout.plateThk, `${name} plate`, true);
+              }}
               disabled={!m}
               className={bigBtn + ' disabled:opacity-40'}
               style={{ color: UI_MUTED }}

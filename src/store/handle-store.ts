@@ -21,6 +21,8 @@ import type { HandlePreset } from '@/config/handle-presets';
 import { createHistory } from './history';
 
 export const DEFAULT_HANDLE_SETTINGS_NAME = 'handle design';
+/** Still the default name (shown in yellow; Save asks for one first)? */
+export const isHandleUnnamed = (name: string) => !name.trim() || name === DEFAULT_HANDLE_SETTINGS_NAME;
 const STORAGE_KEY = 'vasemaker-handle-settings';
 const MAX_SPINE_POINTS = MAX_CURVE_POINTS;
 const MIN_SPINE_POINTS = 3;

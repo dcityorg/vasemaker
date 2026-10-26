@@ -21,6 +21,8 @@ import { smallestFit } from '@/engine/sprig/sprig-generator';
 import { createHistory } from './history';
 
 export const DEFAULT_SPRIG_SETTINGS_NAME = 'sprig design';
+/** Still the default name (shown in yellow; Save asks for one first)? */
+export const isSprigUnnamed = (name: string) => !name.trim() || name === DEFAULT_SPRIG_SETTINGS_NAME;
 const STORAGE_KEY = 'vasemaker-sprig-settings';
 const SAVE_DEBOUNCE_MS = 500;
 /** Width/Length snap, mm. */

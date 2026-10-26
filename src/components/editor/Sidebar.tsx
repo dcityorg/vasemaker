@@ -5,7 +5,8 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
 import { useHistoryStore } from '@/store/history';
-import { BUILT_IN_PRESETS } from '@/presets';
+import { BUILT_IN_PRESETS, isVaseUnnamed } from '@/presets';
+import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { generateSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
 import { UI_MUTED } from '@/config/colors';
@@ -44,9 +45,7 @@ export function Sidebar({
   const { canUndo, canRedo } = useHistoryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const nameInputRef = useRef<HTMLInputElement>(null);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
-  const [editingName, setEditingName] = useState(false);
   const [presetDropdownOpen, setPresetDropdownOpen] = useState(false);
   const presetDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -98,7 +97,9 @@ export function Sidebar({
   const handleExportSTL = async () => {
     const params = getParams();
     const mesh = generateMesh(params);
-    const stlName = designName ? `${designName}.stl` : 'vasemaker-export.stl';
+    const name = await ensureNamed('Vase', isVaseUnnamed(designName), designName ?? '', onDesignNameChange);
+    if (!name) return;
+    const stlName = `${name}.stl`;
     const buffer = generateSTL(mesh);
     const blob = new Blob([buffer], { type: 'application/octet-stream' });
     if (await saveSTLFile(blob, stlName)) dcCountExport();
@@ -107,7 +108,8 @@ export function Sidebar({
   const handleSaveDesign = async () => {
     const params = getParams();
     const json = JSON.stringify(params, null, 2);
-    const suggestedName = designName || 'vase-design';
+    const suggestedName = await ensureNamed('Vase', isVaseUnnamed(designName), designName ?? '', onDesignNameChange);
+    if (!suggestedName) return;
     const chosenName = await saveDesignFile(json, suggestedName);
     if (chosenName !== null) {
       onDesignNameChange(chosenName);
@@ -214,47 +216,9 @@ export function Sidebar({
           </button>
         </div>
         <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.49.0</p>
-        <div className="flex items-center gap-1 mt-0.5">
-          <span className="text-xs text-[var(--text-secondary)] shrink-0">Design Name:</span>
-          {editingName ? (
-            <input
-              ref={nameInputRef}
-              type="text"
-              defaultValue={designName || ''}
-              placeholder="Untitled"
-              className="text-xs text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1 py-0.5 flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const val = e.currentTarget.value.trim();
-                  onDesignNameChange(val || null);
-                  setEditingName(false);
-                } else if (e.key === 'Escape') {
-                  setEditingName(false);
-                }
-              }}
-              onBlur={(e) => {
-                const val = e.currentTarget.value.trim();
-                onDesignNameChange(val || null);
-                setEditingName(false);
-              }}
-            />
-          ) : (
-            <p
-              className="text-xs text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] transition-colors flex-1 min-w-0"
-              title="Click to rename design"
-              onClick={() => {
-                setEditingName(true);
-                requestAnimationFrame(() => {
-                  nameInputRef.current?.focus();
-                  nameInputRef.current?.select();
-                });
-              }}
-            >
-              {isDirty && <span className="text-[var(--accent)]">* </span>}
-              {designName || 'Untitled'}
-            </p>
-          )}
-        </div>
+        <DesignNameRow what="Vase" name={designName ?? ''} unnamed={isVaseUnnamed(designName)} dirty={isDirty}
+          onRename={(v) => onDesignNameChange(v || null)} />
+        <NamePromptHost />
       </div>
 
       {/* Scrollable area — toolbar + parameter controls */}

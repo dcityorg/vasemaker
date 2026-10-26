@@ -3,9 +3,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
-import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_SETTINGS_NAME, DEFAULT_PART_COLOR, retiredStyleNotice } from '@/store/mold-store';
+import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_PART_COLOR, retiredStyleNotice, isMoldUnnamed } from '@/store/mold-store';
+import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { useVaseStore } from '@/store/vase-store';
-import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME } from '@/store/handle-store';
+import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME, isHandleUnnamed } from '@/store/handle-store';
+import { isVaseUnnamed } from '@/presets';
 import { mergeHandleParameters, DEFAULT_HANDLE_PARAMETERS } from '@/engine/handle/handle-types';
 import type { HandleParameters } from '@/engine/handle/handle-types';
 import { SplitTopView } from './SplitTopView';
@@ -99,26 +101,26 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   const [warnExport, setWarnExport] = useState(false);
   /** Split 2-Pc / Split Halves have two gated exports; which one the warning dialog continues. */
   const splitTarget = useRef<'A' | 'B'>('A');
-  const [editingName, setEditingName] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /**
-   * Name used for the settings + bench-sheet files. Until the user names the
-   * profile themselves it follows the VASE design name, so Save Settings lands
-   * beside the STL exports instead of a generic "mold settings" (Gary, 2026-07-30).
-   * With " mold" on the end (2026-10-10): the vase's own file is «vase».json, and
-   * once Save Settings can save the vase too, the two would overwrite each other.
-   */
-  const moldFileName = (vaseName: string | null) =>
-    (settingsName === DEFAULT_SETTINGS_NAME && vaseName ? `${vaseName} mold` : settingsName) || DEFAULT_SETTINGS_NAME;
-  const fileName = moldFileName(designName);
+  /** The mold's OWN name (Gary, 2026-10-25). Until then it borrowed the vase's
+   *  («vase» mold), so two molds of one vase saved under the same name; now it
+   *  stays "mold design", in yellow, until named, and Save/Export ask first. */
+  const fileName = settingsName;
+  /** This mold's name for a file, asking for one first if it has none. */
+  const moldName = () => {
+    const n = useMoldStore.getState().settingsName;
+    return ensureNamed('Mold', isMoldUnnamed(n), n, setSettingsName);
+  };
   /** Save Settings' "also save the vase / handle?" box — which boxes are ticked. */
   const [saveAll, setSaveAll] = useState<{ vase: boolean; handle: boolean } | null>(null);
 
   /** `count`: only the main part counts as an export (DCity/ANALYTICS.md §2 — one
    *  event per mold, not per file), so shells, cottle and tray B pass false. */
-  const exportMesh = async (mesh: VaseMesh, name: string, count = false) => {
+  const exportMesh = async (mesh: VaseMesh, part: string, count = false) => {
+    const mn = await moldName();
+    if (!mn) return;
+    const name = `${mn} ${part}.stl`;
     const buffer = generateSTL(mesh);
     const blob = new Blob([buffer], { type: 'application/octet-stream' });
     if ((await saveSTLFile(blob, name)) && count) dcCountExport();
@@ -177,7 +179,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     const mb = (84 + tris * 50) / (1024 * 1024);
     return `${tris >= 1000 ? `${(tris / 1000).toFixed(0)}k` : tris} tris · ${mb < 1 ? `${(mb * 1024).toFixed(0)} KB` : `${mb.toFixed(1)} MB`}`;
   };
-  const stlName = (part: string) => (designName ? `${designName} ${part}.stl` : `${part}.stl`);
+  /** Part label; exportMesh puts the mold's name in front. */
+  const stlName = (part: string) => part;
 
   // Main export: the part carrying the vase form — gated by the undercut warning.
   const doExportMain = () => {
@@ -312,7 +315,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     // Read the names fresh: a save just before this may have renamed them.
     const designName = useVaseStore.getState().designName;
     const handleName = useHandleStore.getState().settingsName;
-    const fileName = moldFileName(designName);
+    const fileName = await moldName();
+    if (!fileName) return;
     // The vase is EMBEDDED, not referenced (2026-08-09). A mold is derived from
     // a vase — the master IS the vase, scaled — so mold settings alone can never
     // reproduce a mold. Before this, reopening a mold file a day later silently
@@ -376,7 +380,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   /** Save the CURRENT vase design to a file (same format as the Vase tab's
    *  Save Design — a bare params object) before it is replaced. */
   const saveCurrentVase = async (): Promise<boolean> => {
-    const chosen = await saveDesignFile(JSON.stringify(vaseParams, null, 2), designName || 'vase-design');
+    const vn = useVaseStore.getState().designName;
+    const name = await ensureNamed('Vase', isVaseUnnamed(vn), vn ?? '', (n) => useVaseStore.setState({ designName: n }));
+    if (!name) return false;
+    const chosen = await saveDesignFile(JSON.stringify(vaseParams, null, 2), name);
     if (chosen === null) return false;
     useVaseStore.setState({ designName: chosen, isDirty: false });
     return true;
@@ -386,7 +393,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
    *  format, without its bench sheet) before it is replaced. */
   const saveCurrentHandle = async (): Promise<boolean> => {
     const json = JSON.stringify({ app: 'VaseMaker', type: 'handle-settings', settings: handleParams }, null, 2);
-    const chosen = await saveDesignFile(json, handleName || DEFAULT_HANDLE_SETTINGS_NAME);
+    const hn = useHandleStore.getState().settingsName;
+    const name = await ensureNamed('Handle', isHandleUnnamed(hn), hn, (n) => useHandleStore.getState().setSettingsName(n));
+    if (!name) return false;
+    const chosen = await saveDesignFile(json, name);
     if (chosen === null) return false;
     useHandleStore.getState().markSaved(handleParams, chosen);
     return true;
@@ -556,45 +566,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             <button onClick={() => setStyleNotice(null)} title="Dismiss" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">✕</button>
           </p>
         )}
-        {/* Settings profile name — filled by Load/Save Settings, click to rename */}
-        <div className="flex items-center gap-1 mt-0.5">
-          <span className="text-xs text-[var(--text-secondary)] shrink-0">Settings File:</span>
-          {editingName ? (
-            <input
-              ref={nameInputRef}
-              type="text"
-              defaultValue={fileName}
-              placeholder={DEFAULT_SETTINGS_NAME}
-              className="text-xs text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1 py-0.5 flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setSettingsName(e.currentTarget.value);
-                  setEditingName(false);
-                } else if (e.key === 'Escape') {
-                  setEditingName(false);
-                }
-              }}
-              onBlur={(e) => {
-                setSettingsName(e.currentTarget.value);
-                setEditingName(false);
-              }}
-            />
-          ) : (
-            <p
-              className="text-xs text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] transition-colors flex-1 min-w-0"
-              title="Click to rename the settings profile"
-              onClick={() => {
-                setEditingName(true);
-                requestAnimationFrame(() => {
-                  nameInputRef.current?.focus();
-                  nameInputRef.current?.select();
-                });
-              }}
-            >
-              {fileName}
-            </p>
-          )}
-        </div>
+        <DesignNameRow what="Mold" name={settingsName} unnamed={isMoldUnnamed(settingsName)} onRename={setSettingsName} />
+        <NamePromptHost />
       </div>
 
       <div className="flex-1 overflow-y-auto sidebar-scroll">

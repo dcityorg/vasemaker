@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
 import { BezierCurveEditor, EDITOR_CHROME } from '@/components/parameters/BezierCurveEditor';
 import { evaluatePiecewiseBezier } from '@/engine/bezier';
-import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME } from '@/store/handle-store';
+import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME, isHandleUnnamed } from '@/store/handle-store';
+import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { HANDLE_PARAMS } from '@/config/handle-params';
 import { HANDLE_PRESETS } from '@/config/handle-presets';
 import { PLASTER_MATERIALS } from '@/config/mold-params';
@@ -88,8 +89,6 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   }, [onKey]);
 
   const [presetId, setPresetId] = useState('');
-  const [editingName, setEditingName] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /** `count`: only the handle master counts as an export (DCity/ANALYTICS.md §2 —
@@ -97,14 +96,18 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   const exportMesh = async (mesh: VaseMesh, lift: number, part: string, count = false) => {
     const positioned = lift !== 0 ? translateMesh(mesh, 0, 0, lift) : mesh;
     const blob = new Blob([generateSTL(positioned)], { type: 'application/octet-stream' });
-    if ((await saveSTLFile(blob, `${settingsName || 'handle'} ${part}.stl`)) && count) dcCountExport();
+    const name = await ensureNamed('Handle', isHandleUnnamed(settingsName), settingsName, setSettingsName);
+    if (!name) return;
+    if ((await saveSTLFile(blob, `${name} ${part}.stl`)) && count) dcCountExport();
   };
 
   // ── Settings files (the full handle design + mold settings) ──
 
   const handleSaveSettings = async () => {
     const json = JSON.stringify({ app: 'VaseMaker', type: 'handle-settings', settings: params }, null, 2);
-    const chosenName = await saveDesignFile(json, settingsName || DEFAULT_HANDLE_SETTINGS_NAME);
+    const name = await ensureNamed('Handle', isHandleUnnamed(settingsName), settingsName, setSettingsName);
+    if (!name) return;
+    const chosenName = await saveDesignFile(json, name);
     if (chosenName === null) return; // cancelled — don't offer the text file either
     markSaved(params, chosenName);
     // Companion bench sheet, same as MoldMaker: plaster batch + printer fit so
@@ -314,45 +317,8 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           </button>
         </div>
         <p className="text-xs text-[var(--text-secondary)]">Handle + two-part plaster mold</p>
-        {/* Design/settings name — click to rename, used as the export filename */}
-        <div className="flex items-center gap-1 mt-1">
-          <span className="text-xs text-[var(--text-secondary)] shrink-0">Design Name:</span>
-          {editingName ? (
-            <input
-              ref={nameInputRef}
-              type="text"
-              defaultValue={settingsName}
-              placeholder={DEFAULT_HANDLE_SETTINGS_NAME}
-              className="text-xs text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1 py-0.5 flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setSettingsName(e.currentTarget.value);
-                  setEditingName(false);
-                } else if (e.key === 'Escape') {
-                  setEditingName(false);
-                }
-              }}
-              onBlur={(e) => {
-                setSettingsName(e.currentTarget.value);
-                setEditingName(false);
-              }}
-            />
-          ) : (
-            <p
-              className="text-xs text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] transition-colors flex-1 min-w-0"
-              title="Click to rename this handle design"
-              onClick={() => {
-                setEditingName(true);
-                requestAnimationFrame(() => {
-                  nameInputRef.current?.focus();
-                  nameInputRef.current?.select();
-                });
-              }}
-            >
-              {settingsName}
-            </p>
-          )}
-        </div>
+        <DesignNameRow what="Handle" name={settingsName} unnamed={isHandleUnnamed(settingsName)} onRename={setSettingsName} />
+        <NamePromptHost />
       </div>
 
       <div className="flex-1 overflow-y-auto sidebar-scroll">
