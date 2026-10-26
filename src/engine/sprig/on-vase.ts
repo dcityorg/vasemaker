@@ -24,8 +24,18 @@ import { sampleSpine } from '../handle/spine';
 import { vaseOutlineForHandle, placeHandle, sweepHandle, resweep, meshSweep, outlineAt } from '../mold/split-handle';
 import type { P2 } from '../handle/mesh3';
 
-/** Sprig skin stands this far off the vase so a zero-height edge doesn't flicker into it. */
-const LIFT = 0.05;
+/**
+ * Relief lower than this is drawn just UNDER the vase skin (0 → −SHOW_MIN,
+ * rising to SHOW_MIN at SHOW_MIN, then true height). The outline's antialias
+ * ring (cells just outside the edge raised to a fraction of their neighbour)
+ * is only ~0.02–0.1 mm tall at Edge Lip 0 — thinner than a printed layer, and
+ * invisible on the plate — but lifted onto the vase in sprig colour it read as
+ * a paper-thin stepped skirt (Gary, 2026-10-25). Hidden, the visible edge is
+ * where the relief really rises, which also follows the outline more smoothly.
+ * Preview only; the plate is untouched.
+ */
+const SHOW_MIN = 0.1;
+const shownHeight = (h: number) => (h >= SHOW_MIN ? h : 2 * h - SHOW_MIN);
 /** The sampled surface is capped: a preview does not need a 500-row vase. */
 const MAX_ROWS = 400;
 const MAX_AROUND = 720;
@@ -133,7 +143,7 @@ export function wrapSprig(s: VaseSurface, relief: ReliefField, pl: OnVasePlaceme
       const p10 = P[((r0 + 1) * na + a0) * 3 + k], p11 = P[((r0 + 1) * na + a1) * 3 + k];
       // Position on the SAME two triangles the vase mesh draws (each quad split
       // bottom-left → top-right, generateMesh). A smooth (bilinear) surface
-      // differs from those flat triangles by more than LIFT on fluting, and the
+      // differs from those flat triangles by tenths of a mm on fluting, and the
       // vase then cut through the sprig's thin edge — a jagged outline.
       out[off + k] = fa >= fr
         ? p00 + fa * (p01 - p00) + fr * (p11 - p01)
@@ -211,7 +221,7 @@ export function wrapSprig(s: VaseSurface, relief: ReliefField, pl: OnVasePlaceme
         const perim = perimAt(rf) || 1;
         const u = lerp(uc, rf) + x / perim;
         sample(rf, u, tmp, 0);
-        const h = relief.heights[gj * relief.nx + gi] + LIFT;
+        const h = shownHeight(relief.heights[gj * relief.nx + gi]);
         positions.push(tmp[0] + tmp[3] * h, tmp[1] + tmp[4] * h, tmp[2] + tmp[5] * h);
       }
     }
