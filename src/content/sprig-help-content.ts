@@ -106,7 +106,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     title: 'Edges and Thin Parts',
     blocks: [
       { type: 'paragraph', text: 'EDGE SOFTNESS is the width of the slope from the edge up to full height. Higher makes the sprig blend into the pot instead of sitting on it like a sticker, and helps the cast drop out of the mold. At 0 the edge is as steep as the grid allows.' },
-      { type: 'paragraph', text: 'MIN EDGE is the thickness the edge stops at, so it ends in a thin lip rather than tapering to nothing. An edge feathered all the way to 0 is ragged and fragile — but 0 is allowed, to test it. You smooth the lip onto the pot with a tool anyway.' },
+      { type: 'paragraph', text: 'EDGE LIP raises every part of the relief thinner than it up to that thickness, so the edge ends in a small step instead of tapering to the plate. It flattens thin parts too, so it is 0 by default. Try 0.3–0.5 only if cast edges tear or crumble when you take them out of the mold.' },
       { type: 'paragraph', text: 'MIN FEATURE paints red any part of the FINISHED sprig narrower than it — a dragonfly’s legs, a lizard’s toes. Those tear coming out of the mold or crack while drying. The check rolls a disc of that diameter round inside the shape; whatever it cannot reach is too thin. A tapering tip always ends in a little red, because tips are thin.' },
     ],
   },
@@ -120,7 +120,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
         { key: 'Plaque', value: 'A tile behind the whole drawing, Border past it on every side, with rounded Corners if you like. A nameplate for text, a paving tile for a pattern.' },
         { key: 'Outline', value: 'A sheet that follows the drawing, Border past its edge, and fills the gaps between pieces — just enough to join them all, worked out for you. At Border 0 it only fills the gaps. Wide gaps (between words) fill with rounded webbing.' },
       ] },
-      { type: 'paragraph', text: 'THICKNESS is the sheet; Max Height sits ON TOP of it, so the total is the two added. 0 = no sheet. BACKING EDGE is the slope at the sheet’s outer edge, so it blends onto the pot and drops out of the mold; about the same as Thickness gives 45°. Min Edge applies to it too. The Border counts toward whether the sprig fits a Mold Size.' },
+      { type: 'paragraph', text: 'THICKNESS is the sheet; Max Height sits ON TOP of it, so the total is the two added. 0 = no sheet. BACKING EDGE is the slope at the sheet’s outer edge, so it blends onto the pot and drops out of the mold; about the same as Thickness gives 45°. Edge Lip applies to it too. The Border counts toward whether the sprig fits a Mold Size.' },
       { type: 'tip', text: 'With INVERT on, a Plaque turns the drawing into a carved tile: the shapes become shallow pockets floored by the sheet instead of holes.' },
       { type: 'tip', text: 'A thick sheet is stiff. A 4 mm plaque will not bend onto a small mug; keep sheet and relief thin for a curved pot, and modest so thick parts on a thin sheet do not crack drying.' },
       { type: 'heading', text: 'Clean up (Checks)' },

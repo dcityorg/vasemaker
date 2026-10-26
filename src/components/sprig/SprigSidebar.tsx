@@ -583,7 +583,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
               <button onClick={() => resetFields(['edgeSoftness', 'minEdgeThickness'])} className={resetBtn} title="Edge settings back to their defaults">Reset</button>
             </div>
             {sl('edgeSoftness', 'Edge Softness', 'mm', 'Width of the slope from the edge up to full height. Higher blends into the vase and helps the cast drop out; 0 = as steep as the grid allows')}
-            {sl('minEdgeThickness', 'Min Edge', 'mm', 'The edge stops at this thickness instead of tapering to nothing — a feathered edge at 0 is ragged and fragile, but you can test it')}
+            {sl('minEdgeThickness', 'Edge Lip', 'mm', 'Raises the thinnest parts to at least this thickness, so the edge ends in a small step. 0 = the edge tapers smoothly to the plate. Try 0.3–0.5 only if cast edges tear or crumble coming out of the mold')}
           </Section>
           <Section title="Text" titleColor={GROUP_COLORS.structure} tooltip="Words on the sprig: raised letters, or letters cut into a backing sheet">
             <div className="flex justify-end mb-1">
@@ -689,7 +689,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                   ? 'How far the plaque reaches past the drawing on every side'
                   : 'How far the sheet reaches past the drawing. 0 = it only fills the gaps between pieces')}
                 {params.backing === 'plaque' && sl('backingCorner', 'Corner', 'mm', 'Rounding of the plaque corners. 0 = square')}
-                {sl('backingEdge', 'Backing Edge', 'mm', 'Width of the slope at the sheet\'s outer edge, so it blends onto the vase and drops out of the mold. Same as Thickness ≈ 45°; 0 = a straight step. Min Edge applies here too')}
+                {sl('backingEdge', 'Backing Edge', 'mm', 'Width of the slope at the sheet\'s outer edge, so it blends onto the vase and drops out of the mold. Same as Thickness ≈ 45°; 0 = a straight step. Edge Lip applies here too')}
                 {m && params.backing === 'outline' && backingOnUI && (
                   <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
                     {m.relief.bridgedGap > 0

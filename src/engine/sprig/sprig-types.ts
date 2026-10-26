@@ -266,7 +266,9 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   drawingOn: true,
 
   edgeSoftness: 1,
-  minEdgeThickness: 0.4,
+  // 0 (Gary 2026-10-25): a lip raises every part thinner than it, and flattens
+  // the shape. Untested whether a feathered edge tears in the cast.
+  minEdgeThickness: 0,
 
   backing: 'none',
   backingThickness: 1.5,
