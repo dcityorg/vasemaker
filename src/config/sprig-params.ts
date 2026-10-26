@@ -23,6 +23,7 @@ export const SPRIG_PARAMS = {
   textGap:     { min: 0, max: 20, step: 0.5 } as SliderRange,
   textOffsetX: { min: -60, max: 60, step: 0.5 } as SliderRange,
   textOffsetY: { min: -60, max: 60, step: 0.5 } as SliderRange,
+  textRotation: { min: -180, max: 180, step: 1 } as SliderRange,
 
   edgeSoftness:     { min: 0, max: 5, step: 0.1 } as SliderRange,
   // Min 0 on purpose: Gary wants to test a sprig whose edge tapers to nothing.

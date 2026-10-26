@@ -72,6 +72,9 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
   const setWidth = useSprigStore((s) => s.setWidth);
   const setLength = useSprigStore((s) => s.setLength);
   const rotateCW = useSprigStore((s) => s.rotateCW);
+  /** Text ↺/↻: a quarter turn, kept in −180…180. */
+  const turnText = (by: number) =>
+    setParam('textRotation', ((((useSprigStore.getState().params.textRotation + by) % 360) + 540) % 360) - 180);
   const loadSvg = useSprigStore((s) => s.loadSvg);
   const reset = useSprigStore((s) => s.reset);
   const resetFields = useSprigStore((s) => s.resetFields);
@@ -568,7 +571,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
           </Section>
           <Section title="Text" titleColor={GROUP_COLORS.structure} tooltip="Words on the sprig: raised letters, or letters cut into a backing sheet">
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['textFont', 'textFontName', 'textHeight', 'textStyle', 'textDepth', 'textPosition', 'textGap', 'textOffsetX', 'textOffsetY', 'drawingOn'])} className={resetBtn} title="Text settings back to their defaults. The words are kept">Reset</button>
+              <button onClick={() => resetFields(['textFont', 'textFontName', 'textHeight', 'textStyle', 'textDepth', 'textPosition', 'textGap', 'textOffsetX', 'textOffsetY', 'textRotation', 'drawingOn'])} className={resetBtn} title="Text settings back to their defaults. The words are kept">Reset</button>
             </div>
             <TextBox value={params.text} onCommit={(v) => setParam('text', v)} />
             {hasText(params) && (
@@ -632,6 +635,11 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                 {params.drawingOn && params.textPosition !== 'over' && sl('textGap', 'Gap', 'mm', 'Space between the drawing and the text')}
                 {sl('textOffsetX', 'Nudge ↔', 'mm', 'Move the text right (+) or left (−)')}
                 {sl('textOffsetY', 'Nudge ↕', 'mm', 'Move the text up (+) or down (−), as seen from above')}
+                <div className="flex gap-1.5 my-1">
+                  <button className={miniBtn} onClick={() => turnText(-90)} title="Turn the text a quarter to the left (counter-clockwise)">↺ 90°</button>
+                  <button className={miniBtn} onClick={() => turnText(90)} title="Turn the text a quarter to the right (clockwise)">↻ 90°</button>
+                </div>
+                {sl('textRotation', 'Text Angle', '°', 'Turn the text to any angle, clockwise (+) or counter-clockwise (−), as seen from above. The drawing\'s Rotate does not turn the text')}
                 <Toggle label="Show Drawing" checked={params.drawingOn} onChange={(v) => setParam('drawingOn', v)}
                   tooltip="Off = the text alone, with no drawing" />
                 {m && params.textStyle === 'raised' && !backingOn(params) && m.relief.pieces > 1 && (

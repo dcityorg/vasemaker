@@ -90,6 +90,9 @@ export interface SprigParameters {
   /** Nudge, mm: + = right / up (as seen from above). */
   textOffsetX: number;
   textOffsetY: number;
+  /** Turn, degrees clockwise as seen from above, −180…180. Any angle; the
+   *  ↺/↻ buttons step it by 90. Separate from the drawing's Rotate. */
+  textRotation: number;
   /** Off = the text alone, no drawing. */
   drawingOn: boolean;
 
@@ -266,6 +269,7 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   textGap: 3,
   textOffsetX: 0,
   textOffsetY: 0,
+  textRotation: 0,
   drawingOn: true,
 
   edgeSoftness: 1,

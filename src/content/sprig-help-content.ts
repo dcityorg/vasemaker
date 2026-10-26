@@ -73,7 +73,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
         { key: 'Position', value: 'Below, Above, Left or Right of the drawing with Gap between them, or On Top of it. Nudge moves the text from there.' },
       ] },
       { type: 'tip', text: 'Raised letters are separate pieces, and so is the dot on an i. A Plaque or Outline backing joins them into one cast, or pick a Script font.' },
-      { type: 'tip', text: 'Rotate and Flip turn the drawing only — the text always stays readable.' },
+      { type: 'tip', text: 'Rotate and Flip turn the drawing only. To turn the text, use ↺ 90° / ↻ 90° in the Text section, or Text Angle for any angle (+ = clockwise as seen from above). Turned text stays the same Letter Height; the mold size makes room for its new shape.' },
     ],
   },
   {

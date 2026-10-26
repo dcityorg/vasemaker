@@ -52,8 +52,8 @@ export function useSprigMeshes(): SprigMeshState {
     return () => { live = false; };
   }, [params.svg, key, picture]);
 
-  // Text is drawn once per text + font; Letter Height only rescales it.
-  const textKey = hasText(params) ? `${params.textFont}|${params.textFontName}|${params.text}` : '';
+  // Text is drawn once per text + font + turn; Letter Height only rescales it.
+  const textKey = hasText(params) ? `${params.textFont}|${params.textFontName}|${params.textRotation}|${params.text}` : '';
   const [rendered, setRendered] = useState<{ key: string; r: RenderedText | null } | null>(null);
   useEffect(() => {
     let live = true;

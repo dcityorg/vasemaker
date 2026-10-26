@@ -52,11 +52,17 @@ export function systemFontFound(name: string): boolean {
   });
 }
 
-export function renderText(p: Pick<SprigParameters, 'text' | 'textFont' | 'textFontName'>): Promise<RenderedText | null> {
+export function renderText(p: Pick<SprigParameters, 'text' | 'textFont' | 'textFontName' | 'textRotation'>): Promise<RenderedText | null> {
   const lines = p.text.split('\n').slice(0, 2).map((l) => l.trimEnd());
   if (!lines.some((l) => l.trim())) return Promise.resolve(null);
   const { css, weight } = textFont(p);
-  const key = `${css}|${weight}|${lines.join('\n')}`;
+  // Turned on the canvas itself, clockwise (canvas y runs down, and the picture
+  // is read as seen from above). The crop then gives the turned text's own box,
+  // so placement and the mold-size fit follow; the cap height is unchanged, so
+  // Letter Height still means the same thing.
+  const turn = (((p.textRotation % 360) + 540) % 360) - 180;
+  const rad = (turn * Math.PI) / 180, cs = Math.abs(Math.cos(rad)), sn = Math.abs(Math.sin(rad));
+  const key = `${css}|${weight}|${turn}|${lines.join('\n')}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const job = (async () => {
@@ -78,19 +84,23 @@ export function renderText(p: Pick<SprigParameters, 'text' | 'textFont' | 'textF
         const m = ctx.measureText(l);
         return Math.max(m.width, m.actualBoundingBoxLeft + m.actualBoundingBoxRight);
       }));
-      const side = Math.max(widest + 2 * margin, lines.length * lineStep + 2 * margin);
+      const w0 = widest + 2 * margin, h0 = lines.length * lineStep + 2 * margin;
+      const side = Math.max(w0 * cs + h0 * sn, w0 * sn + h0 * cs);
       if (side <= MAX_SIDE) break;
       capPx *= MAX_SIDE / side;
     }
-    canvas.width = Math.ceil(widest + 2 * margin);
-    canvas.height = Math.ceil(lines.length * lineStep + 2 * margin);
+    const w0 = widest + 2 * margin, h0 = lines.length * lineStep + 2 * margin;
+    canvas.width = Math.ceil(w0 * cs + h0 * sn);
+    canvas.height = Math.ceil(w0 * sn + h0 * cs);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#000000';
     ctx.font = fontAt(size);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    lines.forEach((l, i) => ctx.fillText(l, canvas.width / 2, margin + size + i * lineStep));
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(rad);
+    lines.forEach((l, i) => ctx.fillText(l, 0, margin + size + i * lineStep - h0 / 2));
     const rgba = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
     const pixels = new Uint8Array(canvas.width * canvas.height);
     for (let i = 0; i < pixels.length; i++) pixels[i] = rgba[i * 4];
