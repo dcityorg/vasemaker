@@ -342,8 +342,9 @@ const ENUMS: Partial<Record<keyof SprigParameters, readonly unknown[]>> = {
  * only (and enum values from their list), so an old file gains new defaults
  * and stale fields are dropped — the mergeHandleParameters pattern.
  */
-export function mergeSprigParameters(raw: unknown): SprigParameters {
-  const out: SprigParameters = { ...DEFAULT_SPRIG_PARAMETERS };
+/** `base` supplies whatever the file lacks — the sprig defaults, or the mark's. */
+export function mergeSprigParameters(raw: unknown, base: SprigParameters = DEFAULT_SPRIG_PARAMETERS): SprigParameters {
+  const out: SprigParameters = { ...base };
   if (!raw || typeof raw !== 'object') return out;
   const src = { ...(raw as Record<string, unknown>) };
   if (typeof src.moldSize === 'string' && LEGACY_SIZES[src.moldSize]) src.moldSize = LEGACY_SIZES[src.moldSize];

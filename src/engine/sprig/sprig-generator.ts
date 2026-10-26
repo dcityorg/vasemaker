@@ -160,20 +160,27 @@ function buildReliefPlate(relief: ReliefField, S: number, layout: MoldLayout): {
   return { mesh, thin: flags };
 }
 
-export function generateSprigMold(p: SprigParameters, src: SprigSource, text: TextLayer | null = null): SprigMoldMeshes {
+/**
+ * `bare` (the Mark tab): the plate is just the relief on a flat slab the size
+ * of the cavity — no seal ridges and no flange round it, because a mark has no
+ * mold of its own. Walls are still built (from the normal box) so the result
+ * keeps its shape; nothing shows them.
+ */
+export function generateSprigMold(p: SprigParameters, src: SprigSource, text: TextLayer | null = null, opts: { bare?: boolean } = {}): SprigMoldMeshes {
   const S = 1 + p.shrinkPercent / 100;
   const box = sprigBox(p);
-  const layout = sprigLayout(box);
+  const wallLayout = sprigLayout(box);
+  const layout = opts.bare ? sprigLayout({ ...box, wallThickness: 0, flangeWidth: 0 }) : wallLayout;
 
   // Finished-mm grid step chosen so the PRINTED grid spacing is Resolution.
   const relief = buildRelief(src, p, Math.max(0.05, p.resolution) / S, text);
   const textSize = text && hasText(p) ? { w: text.mmW, h: text.mmH } : null;
   const { mesh: reliefPlate, thin } = buildReliefPlate(relief, S, layout);
-  const plate = mergeMeshes([reliefPlate, ...buildPlateRidges(layout)]);
+  const plate = opts.bare ? reliefPlate : mergeMeshes([reliefPlate, ...buildPlateRidges(layout)]);
   const thinFlags = new Float32Array(plate.vertexCount);
   thinFlags.set(thin);
 
-  const wall = buildWall(layout, { collars: false });
+  const wall = buildWall(wallLayout, { collars: false });
   const wallB = rotate180Z(wall, 0, 0);
 
   const plasterB = new MeshBuilder();

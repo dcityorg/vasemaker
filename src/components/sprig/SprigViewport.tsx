@@ -7,7 +7,7 @@ import { OrbitControls, GizmoHelper, GizmoViewcube } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { GroundGrid } from '@/components/viewport/SceneHelpers';
 import { LIGHTING } from '@/config/viewport';
-import { useSprigStore } from '@/store/sprig-store';
+import { useSprigDesign } from './sprig-design-context';
 import type { VaseMesh } from '@/engine/types';
 import type { SprigMoldMeshes } from '@/engine/sprig/sprig-generator';
 import { RememberCamera } from '@/components/viewport/RememberCamera';
@@ -68,16 +68,21 @@ function Part({ geometry, color, opacity, flat, vertexColors = false }: {
 }
 
 export function SprigViewport({ sprig }: { sprig: SprigMoldMeshes | null }) {
+  const design = useSprigDesign();
+  const useSprigStore = design.useStore;
+  // The mark has no On Vase view (the Vase tab will show it on the bottom).
   const onVase = useSprigStore((s) => s.view.onVase);
   const showHandle = useSprigStore((s) => s.params.onVaseHandle);
   const flat = useSprigStore((s) => s.view.flatShading);
-  return onVase
+  return onVase && design.kind === 'sprig'
     ? <OnVaseView sprig={sprig} showHandle={showHandle} cameraId="sprig-vase" flat={flat} />
     : <MoldView sprig={sprig} />;
 }
 
 function MoldView({ sprig }: { sprig: SprigMoldMeshes | null }) {
-  const view = useSprigStore((s) => s.view);
+  const design = useSprigDesign();
+  const isMark = design.kind === 'mark';
+  const view = design.useStore((s) => s.view);
   const controlsRef = useRef<OrbitControlsImpl>(null);
 
   const tint = view.showThin && sprig && sprig.relief.thinSpots > 0 ? sprig.thinFlags : null;
@@ -127,10 +132,10 @@ function MoldView({ sprig }: { sprig: SprigMoldMeshes | null }) {
         <GroundGrid radius={gridR} height={gridR} />
 
         <group position={[0, 0, lift]}>
-          {view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.4} flat={view.flatShading} />}
+          {!isMark && view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.4} flat={view.flatShading} />}
           {view.showPlate && plateGeo && <Part geometry={plateGeo} color={PLATE_COLOR} opacity={1} flat={view.flatShading} vertexColors={!!tint} />}
-          {view.showWallA && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} />}
-          {view.showWallB && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} />}
+          {!isMark && view.showWallA && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} />}
+          {!isMark && view.showWallB && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} />}
         </group>
 
         <GizmoHelper alignment="top-right" margin={[70, 70]}>
@@ -158,7 +163,7 @@ function MoldView({ sprig }: { sprig: SprigMoldMeshes | null }) {
           minDistance={20}
           maxDistance={2500}
         />
-        <RememberCamera id="sprig" />
+        <RememberCamera id={isMark ? 'mark' : 'sprig'} />
       </Canvas>
 
       {/* Home — straight down, the drawing the right way up */}
@@ -166,7 +171,7 @@ function MoldView({ sprig }: { sprig: SprigMoldMeshes | null }) {
         onClick={() => snapView(new THREE.Vector3(0, 0, 1))}
         className="absolute top-[104px] right-[26px] w-8 h-8 rounded border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-colors text-base leading-none"
         style={{ backgroundColor: 'rgba(28, 30, 34, 0.85)' }}
-        title="Home: look straight down on the sprig, the right way up (keeps your zoom)"
+        title={`Home: look straight down on the ${isMark ? 'mark' : 'sprig'}, the right way up (keeps your zoom)`}
       >
         ⌂
       </button>

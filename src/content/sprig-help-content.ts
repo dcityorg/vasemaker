@@ -26,6 +26,20 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    id: 'sprig-mark',
+    title: 'Mark — Your Maker\'s Mark',
+    blocks: [
+      { type: 'paragraph', text: 'The MARK tab, at the top of this panel, designs a maker\'s mark for the bottom of a piece: initials, a symbol, a logo. It uses the same controls as a sprig (samples, SVG, pictures, text, height, edges, checks), but it is a separate design. Switching tabs never changes the other one, and each has its own name, undo and Revert to Saved.' },
+      { type: 'list', items: [
+        'One mark, kept in this browser like everything else. Save Settings writes it to its own «name».json, with the drawing inside',
+        'Shown at its FINISHED size, as it reads looking at the bottom of the piece. There is no Shrink here: the vase or the mold that carries the mark scales it with everything else',
+        'No mold, no Backing and no Cut In letters: whether the mark is pressed into the bottom or stands up from it is chosen where it is placed',
+        'Load Settings takes a sprig file as well as a mark file, so a sprig you already drew can become your mark (and the other way round)',
+      ] },
+      { type: 'tip', text: 'Stamping the mark onto the vase bottom and into the molds is not built yet. That comes next, in a Bottom section on the Vase tab.' },
+    ],
+  },
+  {
     id: 'sprig-height',
     title: 'Height — from a Flat Drawing',
     blocks: [

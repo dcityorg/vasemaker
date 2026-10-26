@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
-import { useSprigStore, useSprigHistory, sprigHistory, isSprigUnnamed } from '@/store/sprig-store';
+import { asMark } from '@/store/sprig-store';
+import { useSprigDesign } from './sprig-design-context';
 import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { SPRIG_PARAMS } from '@/config/sprig-params';
@@ -57,12 +58,25 @@ const HEIGHT_MODES: { value: SprigHeightMode; label: string; tooltip: string }[]
   { value: 'inflateGray', label: 'Inflate + Gray detail', tooltip: 'Inflate, and lighter-gray marks inside the shape (eyes, scales, veins) cut in by up to Detail Depth. Pure white counts as background, so draw details in gray' },
 ];
 
-export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
+export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   sprig: SprigMeshState;
+  /** Which design the tabs show: the sprig, or the maker's mark for the bottom. */
+  tab: 'sprig' | 'mark';
+  onTab: (t: 'sprig' | 'mark') => void;
   helpOpen: boolean;
   onToggleHelp: () => void;
 }) {
   const m = sprig.meshes;
+  // The design these controls edit (Sprig | Mark tabs) — same controls, own store.
+  const design = useSprigDesign();
+  const useSprigStore = design.useStore;
+  const sprigHistory = design.history;
+  const useSprigHistory = design.useHistory;
+  const isMark = tab === 'mark';
+  /** "Sprig" or "Mark", for names, prompts and messages. */
+  const What = isMark ? 'Mark' : 'Sprig';
+  const what = What.toLowerCase();
+  const fileType = isMark ? 'mark-settings' : 'sprig-settings';
   const params = useSprigStore((s) => s.params);
   const view = useSprigStore((s) => s.view);
   const settingsName = useSprigStore((s) => s.settingsName);
@@ -183,13 +197,14 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
   // ── Settings files ──
 
   const handleSaveSettings = async () => {
-    const json = JSON.stringify({ app: 'VaseMaker', type: 'sprig-settings', settings: params }, null, 2);
-    const name = await ensureNamed('Sprig', isSprigUnnamed(settingsName), settingsName, setSettingsName);
+    const json = JSON.stringify({ app: 'VaseMaker', type: fileType, settings: params }, null, 2);
+    const name = await ensureNamed(What, design.isUnnamed(settingsName), settingsName, setSettingsName);
     if (!name) return;
     const chosenName = await saveDesignFile(json, name);
     if (chosenName === null) return;
     markSaved(params, chosenName);
-    if (!m) return;
+    // A mark has no mold, so no bench sheet.
+    if (!m || isMark) return;
     const dim = (n: number) => `${n.toFixed(0)} mm`;
     const L = m.layout;
     await saveTextFile(buildPrintReport({
@@ -227,22 +242,25 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
   const applySettingsText = (text: string, baseName: string) => {
     try {
       const parsed = JSON.parse(text);
-      if (!parsed || typeof parsed !== 'object' || parsed.type !== 'sprig-settings') {
+      // Either kind loads into either tab: a sprig can become a mark, and a
+      // mark can be cast as a sprig.
+      if (!parsed || typeof parsed !== 'object' || (parsed.type !== 'sprig-settings' && parsed.type !== 'mark-settings')) {
         if (parsed && typeof parsed === 'object' && ('radius' in parsed || 'profilePoints' in parsed)) {
           alert('That file is a vase design. Load it with Load Design on the Vase tab.');
         } else if (parsed && typeof parsed === 'object' && (parsed.type === 'mold-settings' || parsed.type === 'handle-settings')) {
           alert(`That file is a ${parsed.type === 'mold-settings' ? 'mold' : 'handle'} settings file. Load it on the ${parsed.type === 'mold-settings' ? 'Mold' : 'Handle'} tab.`);
         } else {
-          alert('Invalid sprig settings file.');
+          alert(`Invalid ${what} settings file.`);
         }
         return;
       }
-      const loaded = mergeSprigParameters(parsed.settings);
+      const merged = mergeSprigParameters(parsed.settings, design.defaults);
+      const loaded = isMark ? asMark(merged) : merged;
       sprigHistory.skipNextRecord();
       useSprigHistory.getState().clear();
       useSprigStore.setState({ params: loaded, savedParams: loaded, settingsName: baseName });
     } catch {
-      alert('Invalid sprig settings file.');
+      alert(`Invalid ${what} settings file.`);
     }
   };
 
@@ -312,8 +330,21 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
           </button>
         </div>
         <ToolNav current="sprig" helpOpen={helpOpen} onToggleHelp={onToggleHelp} />
-        <p className="text-xs text-[var(--text-secondary)]">SVG or picture sprig + one-piece plaster mold</p>
-        <DesignNameRow what="Sprig" name={settingsName} unnamed={isSprigUnnamed(settingsName)} onRename={setSettingsName} />
+        <div className="grid grid-cols-2 gap-1 my-1.5">
+          {([['sprig', 'Sprig', 'A sprig: a relief cast in its own one-piece plaster mold, to press onto a pot'],
+             ['mark', 'Mark', 'Your maker\'s mark for the bottom of a piece — initials, a symbol, a logo. One mark, kept in this browser and saved to its own file']] as const).map(([t, label, tip]) => (
+            <button key={t} onClick={() => onTab(t)} title={tip}
+              className={`px-2 py-1 text-xs rounded border transition-colors ${tab === t ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)]'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-[var(--text-secondary)]">
+          {isMark
+            ? 'Maker\'s mark for the bottom of a piece. Stamping it on the vase and the molds is not built yet.'
+            : 'SVG or picture sprig + one-piece plaster mold'}
+        </p>
+        <DesignNameRow what={What} name={settingsName} unnamed={design.isUnnamed(settingsName)} onRename={setSettingsName} />
         <NamePromptHost />
       </div>
 
@@ -355,21 +386,21 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
 
           {/* Settings files */}
           <div className="border-t-[3px] border-[#555] pt-2 flex gap-2">
-            <button onClick={handleLoadSettings} className={btn} style={{ color: UI_MUTED }} title="Load a sprig design (drawing included) from JSON">
+            <button onClick={handleLoadSettings} className={btn} style={{ color: UI_MUTED }} title={`Load a ${what} design (drawing included) from JSON. A sprig file can be loaded as a mark, and a mark as a sprig`}>
               Load Settings
             </button>
-            <button onClick={handleSaveSettings} className={btn} style={{ color: UI_MUTED }} title="Save the sprig design — the drawing is stored inside the file — plus a .txt bench sheet">
+            <button onClick={handleSaveSettings} className={btn} style={{ color: UI_MUTED }} title={isMark ? 'Save the mark — the drawing is stored inside the file' : 'Save the sprig design — the drawing is stored inside the file — plus a .txt bench sheet'}>
               Save Settings
             </button>
             <input ref={settingsInputRef} type="file" accept=".json" onChange={handleSettingsFile} className="hidden" />
           </div>
 
-          {/* STL exports */}
-          <div className="border-t-[3px] border-[#555] pt-2 flex flex-col gap-2">
+          {/* STL exports — a mark has no mold of its own */}
+          {!isMark && <div className="border-t-[3px] border-[#555] pt-2 flex flex-col gap-2">
             <button
               onClick={async () => {
                 if (!m) return;
-                const name = await ensureNamed('Sprig', isSprigUnnamed(settingsName), settingsName, setSettingsName);
+                const name = await ensureNamed('Sprig', design.isUnnamed(settingsName), settingsName, setSettingsName);
                 if (name) exportMesh(m.plate, m.layout.plateThk, `${name} plate`, true);
               }}
               disabled={!m}
@@ -393,7 +424,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                 Standard size: print this wall pair once — every {SPRIG_SIZES[params.moldSize].label} plate fits it.
               </p>
             )}
-          </div>
+          </div>}
         </div>
 
         <div className="px-3 py-3">
@@ -405,15 +436,23 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
 
           {/* View */}
           <GroupHeader label="View" color={GROUP_COLORS.settings} />
-          <div className="grid grid-cols-2 gap-1 mb-2">
+          {!isMark && <div className="grid grid-cols-2 gap-1 mb-2">
             {([[false, 'Mold', 'The plate, walls and plaster you print and pour'], [true, 'On Vase', 'The sprig laid onto your current VaseMaker vase, to judge size and placement']] as const).map(([on, label, tip]) => (
               <button key={label} onClick={() => setView({ onVase: on })} title={tip}
                 className={`px-2 py-1 text-xs rounded border transition-colors ${view.onVase === on ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)]'}`}>
                 {label}
               </button>
             ))}
-          </div>
-          {!view.onVase ? (
+          </div>}
+          {isMark ? (
+            <>
+              <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature red" />
+              <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals — shows the grid the mark is made of" />
+              <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
+                The mark at its finished size, as seen on the bottom of the piece from below.
+              </p>
+            </>
+          ) : !view.onVase ? (
             <>
               <Toggle label="Plate" checked={view.showPlate} onChange={(v) => setView({ showPlate: v })} />
               <Toggle label="Wall A" checked={view.showWallA} onChange={(v) => setView({ showWallA: v })} tooltip="First wall in its assembled position" />
@@ -446,7 +485,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
           )}
 
           {/* Sprig */}
-          <GroupHeader label="Sprig" color={GROUP_COLORS.structure} />
+          <GroupHeader label={What} color={GROUP_COLORS.structure} />
           {isPictureDrawing(params.svg) && (
             <Section title="Picture" titleColor={GROUP_COLORS.structure} tooltip="How the picture becomes a shape: what counts as background, and how its tones become heights">
               <div className="flex justify-end mb-1">
@@ -610,7 +649,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                 </div>
                 {params.textFont === 'system' && <SystemFontBox value={params.textFontName} onCommit={(v) => setParam('textFontName', v)} />}
                 {sl('textHeight', 'Letter Height', 'mm', 'Height of a capital letter, finished. Strokes need about 1.5 mm to cast, so about 6–8 mm is the smallest that works in a bold font')}
-                <div className="flex items-center gap-2 mb-2">
+                {!isMark && <div className="flex items-center gap-2 mb-2">
                   <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Style</label>
                   <select
                     value={params.textStyle}
@@ -622,7 +661,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                     <option value="raised">Raised</option>
                     <option value="cut">Cut In</option>
                   </select>
-                </div>
+                </div>}
                 {sl('textDepth', params.textStyle === 'raised' ? 'Raise' : 'Depth', 'mm', params.textStyle === 'raised'
                   ? 'How high the letters stand above what is under them'
                   : 'How deep the letters sink. At least 0.4 mm of sheet is always kept under them')}
@@ -659,7 +698,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                 {sl('textRotation', 'Text Angle', '°', 'Turn the text to any angle, clockwise (+) or counter-clockwise (−), as seen from above. The drawing\'s Rotate does not turn the text')}
                 <Toggle label="Show Drawing" checked={params.drawingOn} onChange={(v) => setParam('drawingOn', v)}
                   tooltip="Off = the text alone, with no drawing" />
-                {m && params.textStyle === 'raised' && !backingOn(params) && m.relief.pieces > 1 && (
+                {!isMark && m && params.textStyle === 'raised' && !backingOn(params) && m.relief.pieces > 1 && (
                   <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
                     Separate letters cast as separate pieces. A Plaque or Outline backing joins them, or use a Script font.
                   </p>
@@ -670,7 +709,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
               </>
             )}
           </Section>
-          <Section title="Backing" titleColor={GROUP_COLORS.structure} tooltip="A thin sheet under the drawing, so separate pieces cast as one">
+          {!isMark && <Section title="Backing" titleColor={GROUP_COLORS.structure} tooltip="A thin sheet under the drawing, so separate pieces cast as one">
             <div className="flex justify-end mb-1">
               <button onClick={() => resetFields(['backing', 'backingThickness', 'backingBorder', 'backingCorner', 'backingEdge'])} className={resetBtn} title="Backing back to its defaults (none)">Reset</button>
             </div>
@@ -710,7 +749,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                 )}
               </>
             )}
-          </Section>
+          </Section>}
           <Section title="Checks" titleColor={GROUP_COLORS.structure}>
             <div className="flex justify-end mb-1">
               <button onClick={() => resetFields(['minFeatureWidth', 'removeTiny', 'wholeShapesOnly', 'roundThin'])} className={resetBtn} title="Min Feature and the clean-up switches back to their defaults">Reset</button>
@@ -723,7 +762,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                   : `${m.relief.thinSpots} thin part${m.relief.thinSpots === 1 ? '' : 's'}, thinnest ≈ ${m.relief.thinnestWidth.toFixed(1)} mm.`}
               </p>
             )}
-            {m && (
+            {!isMark && m && (
               <p
                 className={`mt-1 text-[10px] leading-snug px-0.5 ${m.relief.pieces > 1 ? 'text-amber-300' : 'text-[var(--text-secondary)]'}`}
                 title="Separate pieces the cast comes out in. Parts touching only at a corner count as separate — clay does not hold there"
@@ -744,6 +783,18 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
               tooltip="Shave off everything narrower than Min Feature: sharp tips round off and hairlines go. Also trims fine detail you may want, like antennae" />
           </Section>
 
+          {/* A mark: no mold of its own, and no Shrink — the vase or the mold
+              that carries it applies its own. Only the grid spacing matters. */}
+          {isMark && (
+            <Section title="Resolution" titleColor={GROUP_COLORS.structure}>
+              <div className="flex justify-end mb-1">
+                <button onClick={() => resetFields(['resolution'])} className={resetBtn} title="Resolution back to its default">Reset</button>
+              </div>
+              {sl('resolution', 'Resolution', 'mm', 'Spacing of the points that make up the mark. Smaller = crisper edges but a heavier vase mesh')}
+            </Section>
+          )}
+
+          {!isMark && <>
           {/* Mold */}
           <GroupHeader label="Mold" color={GROUP_COLORS.surface} />
           <Section title="Mold Size" titleColor={GROUP_COLORS.surface}>
@@ -826,6 +877,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
               <StatRow label="Wall STL" value={stlSize(m.wallStats.triangleCount)} />
             </Section>
           )}
+          </>}
 
           {savedParams && savedParams !== params && (
             <button
@@ -843,7 +895,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
             style={{ color: UI_MUTED }}
             title="Restore the default settings. Your drawing, its size and which way it faces are not touched"
           >
-            Reset Sprig Settings
+            Reset {What} Settings
           </button>
           <p className="mt-1 text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
             Keeps your drawing and its size. Undoable with ↶.

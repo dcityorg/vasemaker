@@ -6,11 +6,11 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { useSprigStore } from '@/store/sprig-store';
+import { useSprigDesign } from '@/components/sprig/sprig-design-context';
 import { generateSprigMold, type SprigMoldMeshes } from '@/engine/sprig/sprig-generator';
 import { loadSprigSource } from '@/lib/sprig-source';
 import type { SprigSource } from '@/engine/sprig/relief';
-import { isPictureDrawing, pictureKey, svgKey, hasText } from '@/engine/sprig/sprig-types';
+import { isPictureDrawing, pictureKey, svgKey, hasText, sprigFootprint, type SprigParameters } from '@/engine/sprig/sprig-types';
 import { renderText, textLayerAt, type RenderedText } from '@/lib/sprig-text';
 
 export interface SprigMeshState {
@@ -23,7 +23,25 @@ export interface SprigMeshState {
   textSize: { w: number; h: number } | null;
 }
 
+/** Border of plate shown round a mark, mm. */
+const MARK_PLATE_BORDER = 3;
+
+/**
+ * The Mark tab shows the mark itself, not a mold: finished size (no Shrink — the
+ * vase or the mold applies its own) on a plate just bigger than it. Display
+ * only; the stored mark is untouched.
+ */
+function markDisplayParams(p: SprigParameters, text: { w: number; h: number } | null): SprigParameters {
+  const [w, l] = sprigFootprint(p, text);
+  return {
+    ...p, shrinkPercent: 0, moldSize: 'custom', plasterMargin: 0,
+    customCavW: Math.ceil(w + 2 * MARK_PLATE_BORDER), customCavL: Math.ceil(l + 2 * MARK_PLATE_BORDER),
+  };
+}
+
 export function useSprigMeshes(): SprigMeshState {
+  const design = useSprigDesign();
+  const useSprigStore = design.useStore;
   const params = useSprigStore((s) => s.params);
   const picture = isPictureDrawing(params.svg);
   // Only the drawing's own kind of settings re-prepare it.
@@ -68,9 +86,14 @@ export function useSprigMeshes(): SprigMeshState {
   const text = useMemo(() => (textR ? textLayerAt(textR, params.textHeight) : null), [textR, params.textHeight]);
 
   const source = loaded?.source ?? null;
+  const isMark = design.kind === 'mark';
   const meshes = useMemo(
-    () => (source && (params.drawingOn || text) ? generateSprigMold(params, source, text) : null),
-    [params, source, text],
+    () => (source && (params.drawingOn || text)
+      ? (isMark
+        ? generateSprigMold(markDisplayParams(params, text ? { w: text.mmW, h: text.mmH } : null), source, text, { bare: true })
+        : generateSprigMold(params, source, text))
+      : null),
+    [params, source, text, isMark],
   );
   const current = loaded?.svg === params.svg && loaded.key === key;
   return {
