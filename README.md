@@ -47,6 +47,12 @@ Create SVG texture patterns with our companion app **[PatternMaker](https://patt
 - **50-step undo/redo** — Cmd+Z / Cmd+Shift+Z
 - **Real-time preview** — instant feedback as you adjust parameters
 
+Also in the app, each on its own page:
+
+- **MoldMaker** — turns your vase into 3D-printable parts for a plaster slip-casting mold (Pour 3-Pc, Split Halves, Split Thirds)
+- **HandleMaker** — design a mug or vase handle and print the parts for its two-part plaster mold
+- **SprigMaker** — turn an SVG, a PNG/JPG picture, or text into a small raised decoration (a sprig) and print its one-piece plaster mold, in standard box sizes
+
 ## Getting Started
 
 ```bash

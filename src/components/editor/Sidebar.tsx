@@ -215,7 +215,7 @@ export function Sidebar({
             ? Help
           </button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.49.0</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.50.0</p>
         <DesignNameRow what="Vase" name={designName ?? ''} unnamed={isVaseUnnamed(designName)} dirty={isDirty}
           onRename={(v) => onDesignNameChange(v || null)} />
         <NamePromptHost />
