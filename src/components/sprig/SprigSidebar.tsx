@@ -633,8 +633,8 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
                   </div>
                 )}
                 {params.drawingOn && params.textPosition !== 'over' && sl('textGap', 'Gap', 'mm', 'Space between the drawing and the text')}
-                {sl('textOffsetX', 'Nudge ↔', 'mm', 'Move the text right (+) or left (−)')}
-                {sl('textOffsetY', 'Nudge ↕', 'mm', 'Move the text up (+) or down (−), as seen from above')}
+                {sl('textOffsetX', 'Nudge ↔', 'mm', 'Move the text right (+) or left (−). The whole sprig stays centred in the mold, so the drawing shifts the other way by half')}
+                {sl('textOffsetY', 'Nudge ↕', 'mm', 'Move the text up (+) or down (−), as seen from above. The whole sprig stays centred in the mold, so the drawing shifts the other way by half')}
                 <div className="flex gap-1.5 my-1">
                   <button className={miniBtn} onClick={() => turnText(-90)} title="Turn the text a quarter to the left (counter-clockwise)">↺ 90°</button>
                   <button className={miniBtn} onClick={() => turnText(90)} title="Turn the text a quarter to the right (clockwise)">↻ 90°</button>

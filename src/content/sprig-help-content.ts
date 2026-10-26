@@ -70,7 +70,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
         { key: 'Letter Height', value: 'Height of a capital letter, finished. Strokes need about 1.5 mm to cast, so 6–8 mm is about the smallest that works in a bold font. Thin Parts paints strokes that are too thin red.' },
         { key: 'Raised', value: 'The letters stand Raise mm above whatever is under them: the plate, the drawing, or the backing sheet.' },
         { key: 'Cut In', value: 'The letters are sunk Depth mm into the backing sheet, so turn on Plaque or Outline. At least 0.4 mm of sheet is always kept under them. Nothing small can break off — good for name plates and dates.' },
-        { key: 'Position', value: 'Below, Above, Left or Right of the drawing with Gap between them, or On Top of it. Nudge moves the text from there.' },
+        { key: 'Position', value: 'Below, Above, Left or Right of the drawing with Gap between them, or On Top of it. Nudge moves the text from there. The whole sprig, drawing and text together, stays centred in the mold so it fits the smallest size, so a nudge also shifts the drawing the other way by half.' },
       ] },
       { type: 'tip', text: 'Raised letters are separate pieces, and so is the dot on an i. A Plaque or Outline backing joins them into one cast, or pick a Script font.' },
       { type: 'tip', text: 'Rotate and Flip turn the drawing only. To turn the text, use ↺ 90° / ↻ 90° in the Text section, or Text Angle for any angle (+ = clockwise as seen from above). Turned text stays the same Letter Height; the mold size makes room for its new shape.' },
