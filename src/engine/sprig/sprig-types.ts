@@ -160,13 +160,16 @@ export interface SprigBox {
  * Box numbers every standard size shares. FIXED, deliberately — no slider: the
  * whole point of a standard size is that its walls are printed once and fit
  * every plate made for it, so nothing that shapes a wall may vary between two
- * sprigs of the same size. Wall/flange/V numbers are HandleMaker's poured ones.
+ * sprigs of the same size. V numbers are HandleMaker's poured ones.
  */
 export const STANDARD_BOX = {
   /** 8 mm Max Height × 12% shrink leaves 16 mm of plaster behind the sprig. */
   wallH: 25,
-  wallThickness: 4,
-  flangeWidth: 14,
+  // 3 / 10 (Gary 2026-10-25; were HandleMaker's 4 / 14). At 10 mm the three
+  // flange Vs narrow to 1.83 mm (seamMaxVWidth) — the same as Split Thirds,
+  // which already pours on a 10 mm flange with this V code.
+  wallThickness: 3,
+  flangeWidth: 10,
 } as const;
 
 /** Default plate thickness: a plain slab under plaster, thicker than
