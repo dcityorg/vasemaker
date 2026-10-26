@@ -215,7 +215,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
         { label: 'Shrink', value: `${params.shrinkPercent}%` },
         { label: 'Plaster behind', value: `${m.plasterBehind.toFixed(1)} mm` },
         { label: 'Height', value: HEIGHT_MODES.find((h) => h.value === params.heightMode)?.label ?? params.heightMode },
-        { label: 'Grid', value: `${params.resolution} mm` },
+        { label: 'Resolution', value: `${params.resolution} mm` },
       ],
     }), chosenName);
   };
@@ -543,7 +543,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
               <button onClick={() => resetFields(['heightMode', 'maxHeight', 'profile', 'roundness', 'detailDepth', 'invert'])} className={resetBtn} title="Height settings back to their defaults">Reset</button>
             </div>
             <div className="flex items-center gap-2 mb-2">
-              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">From</label>
+              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="How the heights are made: one height, from the drawing's grays, or rising from the edge like a balloon">Shaping</label>
               <select
                 value={params.heightMode}
                 onChange={(e) => setParam('heightMode', e.target.value as SprigHeightMode)}
@@ -582,7 +582,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
             <div className="flex justify-end mb-1">
               <button onClick={() => resetFields(['edgeSoftness', 'minEdgeThickness'])} className={resetBtn} title="Edge settings back to their defaults">Reset</button>
             </div>
-            {sl('edgeSoftness', 'Edge Softness', 'mm', 'Width of the slope from the edge up to full height. Higher blends into the vase and helps the cast drop out; 0 = as steep as the grid allows')}
+            {sl('edgeSoftness', 'Edge Softness', 'mm', 'Width of the slope from the edge up to full height. Higher blends into the vase and helps the cast drop out; 0 = as steep as the Resolution allows')}
             {sl('minEdgeThickness', 'Edge Lip', 'mm', 'Raises the thinnest parts to at least this thickness, so the edge ends in a small step. 0 = the edge tapers smoothly to the plate. Try 0.3–0.5 only if cast edges tear or crumble coming out of the mold')}
           </Section>
           <Section title="Text" titleColor={GROUP_COLORS.structure} tooltip="Words on the sprig: raised letters, or letters cut into a backing sheet">
@@ -777,10 +777,10 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
           </Section>
           <Section title="Print" titleColor={GROUP_COLORS.surface}>
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['shrinkPercent', 'resolution'])} className={resetBtn} title="Shrink and Grid back to their defaults">Reset</button>
+              <button onClick={() => resetFields(['shrinkPercent', 'resolution'])} className={resetBtn} title="Shrink and Resolution back to their defaults">Reset</button>
             </div>
             {sl('shrinkPercent', 'Shrink', '%', 'Clay shrinkage — the printed relief is scaled up by this so the FINISHED sprig comes out at the size above. In red because a wrong value is silent', '#f87171')}
-            {sl('resolution', 'Grid', 'mm', 'Spacing of the relief grid on the printed plate. Finer = smoother and a bigger file')}
+            {sl('resolution', 'Resolution', 'mm', 'Resolution: the spacing of the points that make up the relief on the printed plate. Smaller = a smoother surface but a larger file')}
           </Section>
 
           {/* Analysis */}

@@ -105,7 +105,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     id: 'sprig-edges',
     title: 'Edges and Thin Parts',
     blocks: [
-      { type: 'paragraph', text: 'EDGE SOFTNESS is the width of the slope from the edge up to full height. Higher makes the sprig blend into the pot instead of sitting on it like a sticker, and helps the cast drop out of the mold. At 0 the edge is as steep as the grid allows.' },
+      { type: 'paragraph', text: 'EDGE SOFTNESS is the width of the slope from the edge up to full height. Higher makes the sprig blend into the pot instead of sitting on it like a sticker, and helps the cast drop out of the mold. At 0 the edge is as steep as the Resolution allows.' },
       { type: 'paragraph', text: 'EDGE LIP raises every part of the relief thinner than it up to that thickness, so the edge ends in a small step instead of tapering to the plate. It flattens thin parts too, so it is 0 by default. Try 0.3–0.5 only if cast edges tear or crumble when you take them out of the mold.' },
       { type: 'paragraph', text: 'MIN FEATURE paints red any part of the FINISHED sprig narrower than it — a dragonfly’s legs, a lizard’s toes. Those tear coming out of the mold or crack while drying. The check rolls a disc of that diameter round inside the shape; whatever it cannot reach is too thin. A tapering tip always ends in a little red, because tips are thin.' },
     ],
@@ -149,7 +149,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
         'Bend it onto the pot while it is still soft enough. A slip cast may already be firm by the time it shrinks free; try bending one onto a mug before relying on it.',
       ] },
       { type: 'tip', text: 'SHRINK scales the printed relief up so the FINISHED sprig comes out at the Width, Length and Max Height you set. It is in red because a wrong value is silent.' },
-      { type: 'tip', text: 'GRID is the spacing of the relief on the printed plate. 0.2 mm is finer than a layer; going finer mostly grows the file.' },
+      { type: 'tip', text: 'RESOLUTION is the spacing of the points that make up the relief on the printed plate. Smaller = a smoother surface but a larger file. 0.2 mm is already as fine as a printed layer, so going smaller mostly grows the file.' },
     ],
   },
 ];
