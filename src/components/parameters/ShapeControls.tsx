@@ -9,6 +9,7 @@ import { BezierCurveEditor } from './BezierCurveEditor';
 import { ProfileEditorPanel } from './ProfileEditorPanel';
 import { UI_MUTED, GROUP_COLORS } from '@/config/colors';
 import { SliderRow, Section, GroupHeader, Toggle } from './ui';
+import { BottomControls } from './BottomControls';
 
 /** Shape parameter sliders for a specific shape (bottom or top) */
 function ShapeParamControls({ shape, isTop }: { shape: ShapeType; isTop: boolean }) {
@@ -154,6 +155,8 @@ export function ShapeControls() {
           </>
         )}
       </Section>
+
+      <BottomControls />
 
       <Section title="Bottom Shape" tooltip="Cross-section shape at the base of the vase" titleColor={GROUP_COLORS.structure}>
         <div className="flex items-center gap-2 mb-2">

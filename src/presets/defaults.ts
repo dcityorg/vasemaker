@@ -146,6 +146,15 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
   minWallThickness: 0.4,
   innerOffsetMode: 'radial',
 
+  // The foot numbers are the molds' long-standing defaults (mold-types.ts).
+  bottom: {
+    footWidth: 5, footSlopeWidth: 1, footHeight: 1, footSmoothInner: false,
+    recessPrint: false,
+    markOn: false, markStyle: 'impressed', markDepth: 0.8, markSize: 100,
+    markAngle: 0, markOffsetX: 0, markOffsetY: 0,
+    mark: null, markName: '',
+  },
+
   smoothZones: { enabled: false, basePercent: 0, rimPercent: 0, baseFade: 0, rimFade: 0 },
 
   color: APPEARANCE.defaultColor,

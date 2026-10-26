@@ -36,7 +36,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
         'No mold, no Backing and no Cut In letters: whether the mark is pressed into the bottom or stands up from it is chosen where it is placed',
         'Load Settings takes a sprig file as well as a mark file, so a sprig you already drew can become your mark (and the other way round)',
       ] },
-      { type: 'tip', text: 'Stamping the mark onto the vase bottom and into the molds is not built yet. That comes next, in a Bottom section on the Vase tab.' },
+      { type: 'tip', text: 'To put the mark on a vase, open the Vase tab\u2019s Foot & Mark section and turn Mark on \u2014 the vase takes a copy of it. The plastic print gets it now; the molds come in a later version.' },
     ],
   },
   {

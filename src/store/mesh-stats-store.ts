@@ -11,9 +11,12 @@ import type { MeshStats } from '@/engine/mesh-stats';
 interface MeshStatsStore {
   stats: MeshStats | null;
   setStats: (stats: MeshStats) => void;
+  /** Foot / mark warnings from the last mesh build (Bottom section). */
+  bottomNotes: string[];
 }
 
 export const useMeshStatsStore = create<MeshStatsStore>((set) => ({
   stats: null,
   setStats: (stats) => set({ stats }),
+  bottomNotes: [],
 }));

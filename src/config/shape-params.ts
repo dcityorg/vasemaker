@@ -297,6 +297,17 @@ export const SHELL = {
   minWallThickness: { min: 0.1, max: 10, step: 0.1 } as SliderRange,
 } as const;
 
+/** Bottom section — the foot (same ranges as the Mold tab's) and the mark. */
+export const BOTTOM = {
+  footWidth:      { min: 0, max: 20, step: 0.5 } as SliderRange,
+  footSlopeWidth: { min: 0.2, max: 10, step: 0.1 } as SliderRange,
+  footHeight:     { min: 0, max: 5, step: 0.1 } as SliderRange,
+  markDepth:      { min: 0.2, max: 3, step: 0.1 } as SliderRange,
+  markSize:       { min: 20, max: 300, step: 5 } as SliderRange,
+  markAngle:      { min: 0, max: 360, step: 1 } as SliderRange,
+  markOffset:     { min: -40, max: 40, step: 0.5 } as SliderRange,
+} as const;
+
 /** Default vase appearance */
 export const APPEARANCE = {
   defaultColor: '#6d9fff',

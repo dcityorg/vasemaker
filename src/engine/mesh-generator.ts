@@ -36,6 +36,7 @@ import {
   RowContext,
 } from './surfaces';
 import { computeNormals } from './normals';
+import { bottomUse, buildBottomPatch, getBottomMarkField } from './bottom';
 import { setSvgPatternData } from './svg-pattern';
 
 /** Number of intermediate rings for rounded rim */
@@ -77,7 +78,56 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   // ============================================================
   // Shell mode (wallThickness > 0)
   // ============================================================
-  return generateShellMesh(params, rowContexts, vRes, rRes, wt, bt, hasBase, texturesEnabled, simplexPerm, woodGrainPerm);
+  const use = bottomUse(params.bottom, hasBase, getBottomMarkField());
+  if (!use.recess && !use.mark) {
+    return generateShellMesh(params, rowContexts, vRes, rRes, wt, bt, hasBase, texturesEnabled, simplexPerm, woodGrainPerm);
+  }
+  return withBottom(
+    generateShellMesh(params, rowContexts, vRes, rRes, wt, bt, hasBase, texturesEnabled, simplexPerm, woodGrainPerm, true),
+    params, rowContexts, rRes, texturesEnabled, simplexPerm, woodGrainPerm, use,
+  );
+}
+
+/**
+ * Add the foot / mark underside (engine/bottom.ts) to a shell mesh built
+ * without its outer bottom disc. The ring at z = 0 is the same computeVertex
+ * call the disc used, so it meets the wall exactly as the disc did.
+ */
+function withBottom(
+  mesh: VaseMesh, params: VaseParameters, rowContexts: RowContext[], rRes: number,
+  texturesEnabled: boolean, simplexPerm: Uint8Array | null, woodGrainPerm: Uint8Array | null,
+  use: { recess: boolean; mark: boolean },
+): VaseMesh {
+  const row = rowContexts[0];
+  const [cx, cy] = computeCenter(row);
+  const ring0 = new Float32Array(rRes * 3);
+  const smooth = new Float32Array(rRes * 3);
+  for (let t = 0; t < rRes; t++) {
+    const [x, y] = computeVertex(row, t, 0, 0, params, rRes, texturesEnabled, simplexPerm, woodGrainPerm);
+    ring0[t * 3] = x; ring0[t * 3 + 1] = y;
+    const [sx, sy] = computeVertex(row, t, 0, 0, params, rRes, false, simplexPerm, woodGrainPerm);
+    smooth[t * 3] = sx; smooth[t * 3 + 1] = sy;
+  }
+  let floorZ = params.bottomThickness;
+  for (const r of rowContexts) if (r.height >= params.bottomThickness) { floorZ = r.height; break; }
+  const b = params.bottom;
+  const patch = buildBottomPatch(ring0, b.footSmoothInner ? smooth : ring0, cx, cy, rRes, b, getBottomMarkField(), floorZ, use);
+
+  const nv0 = mesh.positions.length / 3;
+  const positions = new Float32Array(mesh.positions.length + patch.positions.length);
+  positions.set(mesh.positions);
+  positions.set(patch.positions, mesh.positions.length);
+  const indices = new Uint32Array(mesh.indices.length + patch.indices.length);
+  indices.set(mesh.indices);
+  for (let i = 0; i < patch.indices.length; i++) indices[mesh.indices.length + i] = patch.indices[i] + nv0;
+  const normals = new Float32Array(positions.length);
+  computeNormals(positions, indices, normals);
+  return {
+    positions, normals, indices,
+    vertexCount: positions.length / 3,
+    triangleCount: indices.length / 3,
+    bottomNotes: patch.notes,
+  };
 }
 
 /**
@@ -188,7 +238,9 @@ function generateShellMesh(
   hasBase: boolean,
   texturesEnabled: boolean,
   simplexPerm: Uint8Array | null,
-  woodGrainPerm: Uint8Array | null
+  woodGrainPerm: Uint8Array | null,
+  /** The foot / mark underside replaces the outer disc (withBottom). */
+  skipOuterDisc = false
 ): VaseMesh {
   // Determine the first inner row: if bottomThickness > 0, the inner surface
   // starts at the height corresponding to bottomThickness.
@@ -213,7 +265,7 @@ function generateShellMesh(
   const rimVerts = params.rimShape === 'rounded' ? (rimSteps + 1) * rRes : 0;
   const flatRimVerts = params.rimShape === 'flat' ? 2 * rRes : 0;
   // Bottom cap: outer disc at z=0, inner disc at z=innerStartStep height
-  const bottomOuterDiscVerts = hasBase ? 1 + rRes : 0;
+  const bottomOuterDiscVerts = hasBase && !skipOuterDisc ? 1 + rRes : 0;
   const bottomInnerDiscVerts = hasBase ? 1 + rRes : 0;
   // Bottom ring (no base): annulus at z=0 connecting outer to inner wall
   const hasBottomRing = !hasBase;
@@ -380,7 +432,7 @@ function generateShellMesh(
     const [cx, cy] = computeCenter(bottomRow);
 
     // Outer disc: center + ring at z=0
-    {
+    if (!skipOuterDisc) {
       const cIdx = bottomOuterDiscOffset * 3;
       positions[cIdx] = cx;
       positions[cIdx + 1] = cy;
@@ -450,7 +502,7 @@ function generateShellMesh(
   const innerQuads = (innerRows - 1) * rRes;
   const rimQuads = params.rimShape === 'rounded' ? rimSteps * rRes : 0;
   const flatRimQuads = params.rimShape === 'flat' ? rRes : 0;
-  const bottomOuterDiscTris = hasBase ? rRes : 0;
+  const bottomOuterDiscTris = hasBase && !skipOuterDisc ? rRes : 0;
   const bottomInnerDiscTris = hasBase ? rRes : 0;
   // Bottom ring (no base): annulus at z=0 connecting outer wall to inner wall
   const bottomRingQuads = hasBottomRing ? rRes : 0;
@@ -632,7 +684,7 @@ function generateShellMesh(
   if (hasBase) {
     // Outer disc (z=0) — triangle fan, normals pointing down
     const outerCenter = bottomOuterDiscOffset;
-    for (let tStep = 0; tStep < rRes; tStep++) {
+    for (let tStep = 0; tStep < (skipOuterDisc ? 0 : rRes); tStep++) {
       const tNext = (tStep + 1) % rRes;
       const a = bottomOuterDiscOffset + 1 + tStep;
       const b = bottomOuterDiscOffset + 1 + tNext;

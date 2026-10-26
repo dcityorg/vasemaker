@@ -1,3 +1,5 @@
+import type { SprigParameters } from './sprig/sprig-types';
+
 /** All available cross-section shape types */
 export type ShapeType =
   | 'Butterfly1'
@@ -267,6 +269,9 @@ export interface VaseParameters {
   minWallThickness: number;     // mm, minimum wall thickness when smoothInner is on
   innerOffsetMode: 'radial' | 'perpendicular'; // how inner surface is offset from outer
 
+  // Bottom — the foot ring and the maker's mark (local-docs/bottom-mark-plan.md)
+  bottom: BottomSettings;
+
   // Smooth zones — suppress ripples & textures near base/rim
   smoothZones: {
     enabled: boolean;             // master toggle
@@ -288,6 +293,33 @@ export interface VaseParameters {
   };
 }
 
+/**
+ * The bottom of the piece (2026-10-26, Gary). The FOOT is the same four numbers
+ * the molds have always used, now owned by the vase so the Vase tab can check a
+ * mark against it. The foot only changes the PLA print when `recessPrint` is on
+ * (off by default, so existing designs print as before).
+ *
+ * The MARK is a COPY of the Sprig page's Mark design (`mark`), so a vase file
+ * carries its own mark to another computer. Offsets and Angle are as seen
+ * LOOKING UP at the bottom, where the mark is read.
+ */
+export interface BottomSettings {
+  footWidth: number;        // mm, flat ring the piece stands on
+  footSlopeWidth: number;   // mm, slope from the ring up into the recess
+  footHeight: number;       // mm, recess depth
+  footSmoothInner: boolean; // recess follows the untextured outline
+  recessPrint: boolean;     // recess the PLA print too
+  markOn: boolean;
+  markStyle: 'impressed' | 'raised';
+  markDepth: number;        // mm into (impressed) or out of (raised) the bottom
+  markSize: number;         // % of the size it was drawn at
+  markAngle: number;        // degrees, counter-clockwise as seen from below
+  markOffsetX: number;      // mm, right as seen from below
+  markOffsetY: number;      // mm, up as seen from below
+  mark: SprigParameters | null;
+  markName: string;
+}
+
 /** Filament materials with known densities (see PRINT_CHECK in config/shape-params.ts) */
 export type FilamentType = 'pla' | 'petg' | 'abs' | 'tpu';
 
@@ -298,4 +330,6 @@ export interface VaseMesh {
   indices: Uint32Array;      // triangle indices
   vertexCount: number;
   triangleCount: number;
+  /** Warnings about the foot and the mark (generateMesh only). */
+  bottomNotes?: string[];
 }

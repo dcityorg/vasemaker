@@ -20,6 +20,7 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import {
   DEFAULT_SPRIG_PARAMETERS,
+  DEFAULT_MARK_PARAMETERS,
   mergeSprigParameters,
   orientedAspect,
   type SprigParameters,
@@ -28,27 +29,14 @@ import {
 import { smallestFit } from '@/engine/sprig/sprig-generator';
 import { createHistory, type History } from './history';
 
+export { DEFAULT_MARK_PARAMETERS };
+
 export const DEFAULT_SPRIG_SETTINGS_NAME = 'sprig design';
 export const DEFAULT_MARK_SETTINGS_NAME = 'mark design';
 /** Still the default name (shown in yellow; Save asks for one first)? */
 export const isSprigUnnamed = (name: string) => !name.trim() || name === DEFAULT_SPRIG_SETTINGS_NAME;
 export const isMarkUnnamed = (name: string) => !name.trim() || name === DEFAULT_MARK_SETTINGS_NAME;
 
-/**
- * A new mark: the default drawing at a size that fits the bottom of a pot, one
- * flat height with a short edge slope — a stamp, not a domed sprig. No
- * backing: a mark is impressed into or raised from the bottom itself.
- */
-export const DEFAULT_MARK_PARAMETERS: SprigParameters = {
-  ...DEFAULT_SPRIG_PARAMETERS,
-  width: 20,
-  length: Math.round((20 / DEFAULT_SPRIG_PARAMETERS.svgAspect) * 2) / 2,
-  heightMode: 'flat',
-  maxHeight: 0.8,
-  edgeSoftness: 0.3,
-  minFeatureWidth: 1,
-  moldSize: 's20',
-};
 
 /** A mark has no backing and no cut-in letters (Impressed / Raised is the
  *  vase's choice, phase 2). Applied whenever params enter the mark store from

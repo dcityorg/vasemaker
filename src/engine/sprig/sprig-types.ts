@@ -342,6 +342,22 @@ const ENUMS: Partial<Record<keyof SprigParameters, readonly unknown[]>> = {
  * only (and enum values from their list), so an old file gains new defaults
  * and stale fields are dropped — the mergeHandleParameters pattern.
  */
+/**
+ * A new mark: the default drawing at a size that fits the bottom of a pot, one
+ * flat height with a short edge slope — a stamp, not a domed sprig. No
+ * backing: a mark is impressed into or raised from the bottom itself.
+ */
+export const DEFAULT_MARK_PARAMETERS: SprigParameters = {
+  ...DEFAULT_SPRIG_PARAMETERS,
+  width: 20,
+  length: Math.round((20 / DEFAULT_SPRIG_PARAMETERS.svgAspect) * 2) / 2,
+  heightMode: 'flat',
+  maxHeight: 0.8,
+  edgeSoftness: 0.3,
+  minFeatureWidth: 1,
+  moldSize: 's20',
+};
+
 /** `base` supplies whatever the file lacks — the sprig defaults, or the mark's. */
 export function mergeSprigParameters(raw: unknown, base: SprigParameters = DEFAULT_SPRIG_PARAMETERS): SprigParameters {
   const out: SprigParameters = { ...base };

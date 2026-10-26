@@ -48,6 +48,7 @@ export function VaseMeshComponent() {
     geo.computeBoundingSphere();
 
     useMeshStatsStore.getState().setStats(computeMeshStats(vaseMesh));
+    useMeshStatsStore.setState({ bottomNotes: vaseMesh.bottomNotes ?? [] });
   }, [vaseMesh]);
 
   // Overhang highlighting — per-vertex colors blending vase color → red where the

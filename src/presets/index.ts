@@ -5,6 +5,7 @@
 
 import type { VaseParameters, CurvePointType, BezierPoint } from '@/engine/types';
 import { DEFAULT_PARAMETERS } from './defaults';
+import { mergeSprigParameters, DEFAULT_MARK_PARAMETERS } from '@/engine/sprig/sprig-types';
 
 // Re-export preset data and types from config
 export type { Preset } from '@/config/presets';
@@ -59,8 +60,14 @@ function normalizeCurves(params: VaseParameters): VaseParameters {
   const offsetXTypes = matchTypeLength(pointsX.length, rawOffset.pointTypesX);
   const offsetYTypes = matchTypeLength(pointsY.length, rawOffset.pointTypesY);
 
+  // A stored mark is a sprig design: fill in anything an older copy lacks.
+  const bottom = params.bottom.mark
+    ? { ...params.bottom, mark: { ...mergeSprigParameters(params.bottom.mark, DEFAULT_MARK_PARAMETERS), backing: 'none' as const, textStyle: 'raised' as const } }
+    : params.bottom;
+
   return {
     ...params,
+    bottom,
     profilePointTypes: profileTypes,
     bezierTwist: { ...params.bezierTwist, points: twistPoints, pointTypes: twistTypes },
     bezierOffset: {

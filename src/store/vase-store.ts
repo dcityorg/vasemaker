@@ -101,6 +101,7 @@ interface VaseStore {
 
   // Actions — print check
   setPrintCheck: (update: Partial<VaseParameters['printCheck']>) => void;
+  setBottom: (update: Partial<VaseParameters['bottom']>) => void;
 
   // Actions — resolution
   setResolution: (update: Partial<VaseParameters['resolution']>) => void;
@@ -545,6 +546,11 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
           ...update,
         },
       },
+    })),
+
+  setBottom: (update) =>
+    set((state) => ({
+      params: { ...state.params, bottom: { ...DEFAULT_PARAMETERS.bottom, ...state.params.bottom, ...update } },
     })),
 
   // Resolution

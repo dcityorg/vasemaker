@@ -474,6 +474,35 @@ export const HELP_SECTIONS: HelpSection[] = [
     ],
   },
 
+  // ─── Foot & Mark ──────────────────────────────────────────────
+  {
+    id: 'foot-mark',
+    title: 'Foot & Mark — the Bottom',
+    blocks: [
+      { type: 'paragraph', text: 'The Foot & Mark section (under Shell) sets the bottom of the piece: the foot ring it stands on, and your maker\u2019s mark. It needs a solid bottom \u2014 Base and Wall above zero.' },
+      { type: 'heading', text: 'Foot' },
+      { type: 'keyvalue', items: [
+        { key: 'Foot Width', value: 'The flat ring at the outer edge that the piece stands on' },
+        { key: 'Slope Width', value: 'The slope from the ring up into the recessed middle' },
+        { key: 'Depth', value: 'How far the middle is recessed. A raised mark must be no taller than this, or the piece rocks' },
+        { key: 'Smooth Inside', value: 'Make the slope and recess from the smooth outline, so a texture does not run into the recess' },
+        { key: 'Recess Print', value: 'Off (the default): the plastic print keeps a flat bottom. On: the print gets the foot ring and recess too' },
+      ] },
+      { type: 'paragraph', text: 'The foot follows the shape of your vase\u2019s bottom \u2014 you never draw it. For now the molds still take their foot from the Mold tab; it moves here in a later version.' },
+      { type: 'heading', text: 'Mark' },
+      { type: 'paragraph', text: 'Draw your mark on the Sprig page, Mark tab (a drawing, a picture or text). Turn Mark on here and the vase takes a copy of it, which is saved in the vase file. If you change the mark later, press "Use the Mark tab\u2019s mark" to bring the new one in.' },
+      { type: 'keyvalue', items: [
+        { key: 'Impressed', value: 'Pressed into the bottom' },
+        { key: 'Raised', value: 'Stands out of the bottom, inside the recess' },
+        { key: 'Depth / Height', value: 'How deep, or how tall, its tallest part is' },
+        { key: 'Size', value: 'A percentage of the size it was drawn at' },
+        { key: 'Angle, Move Right, Move Up', value: 'Turn and place it, as seen LOOKING UP at the bottom' },
+      ] },
+      { type: 'tip', text: 'The mark is placed the way you read it when you turn the piece over, so it is never back to front. Turn the view to look up at the bottom to check it.' },
+      { type: 'paragraph', text: 'Amber notes warn when the mark is deeper than the base allows (it is limited so 0.6 mm of base is left), when a raised mark is taller than the recess, or when it runs onto the foot ring.' },
+    ],
+  },
+
   // ─── 6. MoldMaker ─────────────────────────────────────────────
   {
     id: 'moldmaker',
