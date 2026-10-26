@@ -127,6 +127,7 @@ function withBottom(
     vertexCount: positions.length / 3,
     triangleCount: indices.length / 3,
     bottomNotes: patch.notes,
+    bottomStart: nv0,
   };
 }
 

@@ -14,7 +14,7 @@ import { useMarkStore, hydrateMarkSettingsFromStorage } from '@/store/sprig-stor
 import { BOTTOM } from '@/config/shape-params';
 import { GROUP_COLORS } from '@/config/colors';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
-import { SliderRow, Section, Toggle } from './ui';
+import { SliderRow, Section, Toggle, GroupHeader } from './ui';
 
 /** The Sprig page opens on this tab (SprigEditor). */
 const SPRIG_TAB_KEY = 'vasemaker-sprig-tab';
@@ -53,6 +53,8 @@ export function BottomControls() {
   const resetPlace = () => setBottom({ markSize: 100, markAngle: 0, markOffsetX: 0, markOffsetY: 0 });
 
   return (
+    <>
+    <GroupHeader label="Bottom" color={GROUP_COLORS.structure} />
     <Section title="Foot & Mark" defaultOpen={false} active={active} titleColor={GROUP_COLORS.structure}
       tooltip="The foot ring the piece stands on, and your maker's mark on the bottom">
       {!hasBase ? (
@@ -125,5 +127,6 @@ export function BottomControls() {
         </>
       )}
     </Section>
+    </>
   );
 }

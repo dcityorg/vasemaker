@@ -63,6 +63,9 @@ export function VaseMeshComponent() {
     }
 
     const { positions, normals, vertexCount } = vaseMesh;
+    // The foot recess and the mark face down by design (a short bridge the
+    // slicer handles); tinting them only hides the mark (Gary).
+    const bottomStart = vaseMesh.bottomStart ?? vertexCount;
     const base = new THREE.Color(color);
     const colors = new Float32Array(vertexCount * 3);
     const rampStart = (overhangAngle * Math.PI) / 180;
@@ -72,7 +75,7 @@ export function VaseMeshComponent() {
       const nz = normals[i * 3 + 2];
       const z = positions[i * 3 + 2];
       let f = 0;
-      if (nz < 0 && z > BUILD_PLATE_Z) {
+      if (nz < 0 && z > BUILD_PLATE_Z && i < bottomStart) {
         // angle the surface tilts past vertical, measured via the downward normal
         const tilt = Math.asin(Math.min(1, -nz));
         f = Math.min(1, Math.max(0, (tilt - rampStart) / rampWidth));

@@ -5,6 +5,7 @@ import { TextureControls } from './TextureControls';
 import { SmoothingControls } from './SmoothingControls';
 import { TwistControls } from './TwistControls';
 import { SettingsControls } from './SettingsControls';
+import { BottomControls } from './BottomControls';
 
 export function DimensionControls({ designName }: { designName?: string | null }) {
   return (
@@ -13,6 +14,7 @@ export function DimensionControls({ designName }: { designName?: string | null }
       <TextureControls designName={designName} />
       <SmoothingControls />
       <TwistControls />
+      <BottomControls />
       <SettingsControls />
     </>
   );

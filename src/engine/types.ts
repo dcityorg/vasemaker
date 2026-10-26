@@ -332,4 +332,6 @@ export interface VaseMesh {
   triangleCount: number;
   /** Warnings about the foot and the mark (generateMesh only). */
   bottomNotes?: string[];
+  /** First vertex of the foot / mark underside; the overhang tint leaves it alone. */
+  bottomStart?: number;
 }
