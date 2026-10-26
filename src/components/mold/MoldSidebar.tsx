@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
 import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_PART_COLOR, retiredStyleNotice, isMoldUnnamed } from '@/store/mold-store';
+import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { useVaseStore } from '@/store/vase-store';
 import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME, isHandleUnnamed } from '@/store/handle-store';
@@ -525,23 +526,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             ↷
           </button>
         </div>
-        <div className="flex items-center gap-2 mt-1.5">
-          <Link
-            href="/"
-            className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors"
-            style={{ color: UI_MUTED }}
-            title="Back to the vase designer"
-          >
-            ◂ Vase
-          </Link>
-          <button
-            onClick={onToggleHelp}
-            className={`ml-auto text-xs px-2 py-1 rounded border transition-colors ${helpOpen ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)]'}`}
-            title="Show or hide the help panel"
-          >
-            ? Help
-          </button>
-        </div>
+        <ToolNav current="mold" helpOpen={helpOpen} onToggleHelp={onToggleHelp} />
         <p className="text-xs text-[var(--text-secondary)]">Plaster slip-casting mold from your vase</p>
         {/* Mold style switcher — only ACTIVE_MOLD_STYLES (Pour 3-Pc, Split Halves) since 2026-10-14. */}
         <div className="grid grid-cols-3 gap-1 mt-2">

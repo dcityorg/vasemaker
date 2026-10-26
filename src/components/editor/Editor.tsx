@@ -5,6 +5,9 @@ import { Sidebar } from './Sidebar';
 import { HelpPanel } from './HelpPanel';
 import { Viewport } from '@/components/viewport/Viewport';
 import { useVaseStore, hydrateVaseDesignFromStorage } from '@/store/vase-store';
+import { hydrateHandleSettingsFromStorage } from '@/store/handle-store';
+import { hydrateMoldSettingsFromStorage } from '@/store/mold-store';
+import { hydrateSprigSettingsFromStorage } from '@/store/sprig-store';
 import { CAPTURE_SIZE_PRESETS, CUSTOM_SIZE_INDEX } from '@/config/capture';
 import type { CaptureFormat } from '@/config/capture';
 
@@ -17,7 +20,8 @@ export function Editor() {
 
   // Restore the design you were last working on. On mount, never at module
   // init — during render the first client pass would differ from the SSR HTML.
-  useEffect(() => { hydrateVaseDesignFromStorage(); }, []);
+  // The handle, mold and sprig settings feed Show Handle / Show Sprig.
+  useEffect(() => { hydrateVaseDesignFromStorage(); hydrateHandleSettingsFromStorage(); hydrateMoldSettingsFromStorage(); hydrateSprigSettingsFromStorage(); }, []);
 
   // Design name — lives in the vase store so capture, exports, and the /mold
   // route all share it (and it survives Vase ↔ Mold navigation)

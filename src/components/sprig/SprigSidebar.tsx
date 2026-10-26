@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
 import { useSprigStore, useSprigHistory, sprigHistory, isSprigUnnamed } from '@/store/sprig-store';
+import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { SPRIG_PARAMS } from '@/config/sprig-params';
 import { SPRIG_SAMPLES } from '@/config/sprig-samples';
@@ -311,23 +311,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
             ↷
           </button>
         </div>
-        <div className="flex items-center gap-2 mt-1.5">
-          <Link
-            href="/"
-            className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors"
-            style={{ color: UI_MUTED }}
-            title="Back to the vase designer"
-          >
-            ◂ Vase
-          </Link>
-          <button
-            onClick={onToggleHelp}
-            className={`ml-auto text-xs px-2 py-1 rounded border transition-colors ${helpOpen ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)]'}`}
-            title="Show or hide the help panel"
-          >
-            ? Help
-          </button>
-        </div>
+        <ToolNav current="sprig" helpOpen={helpOpen} onToggleHelp={onToggleHelp} />
         <p className="text-xs text-[var(--text-secondary)]">SVG or picture sprig + one-piece plaster mold</p>
         <DesignNameRow what="Sprig" name={settingsName} unnamed={isSprigUnnamed(settingsName)} onRename={setSettingsName} />
         <NamePromptHost />
@@ -441,7 +425,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
           ) : (
             <>
               <div className="flex justify-end mb-1">
-                <button onClick={() => resetFields(['onVaseHeight', 'onVaseAngle', 'onVaseTilt', 'onVaseCopies', 'onVaseHandle', 'onVaseHandleAngle', 'onVaseHandleTop'])} className={resetBtn} title="On Vase placement back to its defaults">Reset</button>
+                <button onClick={() => resetFields(['onVaseHeight', 'onVaseAngle', 'onVaseTilt', 'onVaseCopies', 'onVaseHandle'])} className={resetBtn} title="On Vase placement back to its defaults">Reset</button>
               </div>
               <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
                 The vase is the one open in VaseMaker; change it there. The sprig drapes over any texture, the way soft clay pressed on does.
@@ -451,12 +435,11 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
               {sl('onVaseTilt', 'Tilt', '°', 'Turn the sprig on the vase wall, clockwise (+) as you look at it')}
               {sl('onVaseCopies', 'Repeat', '', 'Copies spaced evenly round the vase')}
               <Toggle label="Show Handle" checked={params.onVaseHandle} onChange={(v) => setParam('onVaseHandle', v)}
-                tooltip="Put the HandleMaker handle on the vase, to place sprigs beside it" />
+                tooltip="Put the HandleMaker handle on the vase, to place sprigs beside it. Where it sits is set in HandleMaker (Top Below Rim)" />
               {params.onVaseHandle && (
-                <>
-                  {sl('onVaseHandleAngle', 'Handle At', '°', 'Where round the vase the handle sits')}
-                  {sl('onVaseHandleTop', 'Below Rim', 'mm', 'How far below the rim the top of the handle joins the vase')}
-                </>
+                <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
+                  The handle sits where HandleMaker puts it — change its height there (Top Below Rim).
+                </p>
               )}
               <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals" />
             </>

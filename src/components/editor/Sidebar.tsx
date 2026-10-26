@@ -1,11 +1,11 @@
 'use client';
 
-import Link from 'next/link';
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
 import { useHistoryStore } from '@/store/history';
 import { BUILT_IN_PRESETS, isVaseUnnamed } from '@/presets';
+import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { generateSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
@@ -185,36 +185,7 @@ export function Sidebar({
             &#x2195;
           </button>
         </div>
-        <div className="flex items-center gap-1 mt-1.5">
-          <Link
-            href="/mold"
-            className="text-xs px-1.5 py-0.5 shrink-0 whitespace-nowrap rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
-            title="Make a plaster casting mold from this vase"
-          >
-            Mold ▸
-          </Link>
-          <Link
-            href="/handle"
-            className="text-xs px-1.5 py-0.5 shrink-0 whitespace-nowrap rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
-            title="Design a handle and its plaster casting mold"
-          >
-            Handle ▸
-          </Link>
-          <Link
-            href="/sprig"
-            className="text-xs px-1.5 py-0.5 shrink-0 whitespace-nowrap rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
-            title="Turn an SVG into a sprig and its plaster mold"
-          >
-            Sprig ▸
-          </Link>
-          <button
-            onClick={onToggleHelp}
-            className={`ml-auto text-xs px-1.5 py-0.5 rounded border transition-colors ${helpOpen ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)]'}`}
-            title="Show or hide the help panel"
-          >
-            ? Help
-          </button>
-        </div>
+        <ToolNav current="vase" helpOpen={helpOpen} onToggleHelp={onToggleHelp} />
         <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.50.0</p>
         <DesignNameRow what="Vase" name={designName ?? ''} unnamed={isVaseUnnamed(designName)} dirty={isDirty}
           onRename={(v) => onDesignNameChange(v || null)} />

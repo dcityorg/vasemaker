@@ -2,7 +2,7 @@
 
 /**
  * Side view of the finished mug with the handle on it — what HandleMaker's main
- * window shows while Show Mug is on. The mug stands upright at true size and
+ * window shows in View → Side. The mug stands upright at true size and
  * the handle is placed exactly as the Split 2-Pc mold will place it (same
  * placement function), so Sher can judge proportions the way she does when she
  * draws them by hand, while still editing in the profile editor.
@@ -201,7 +201,7 @@ export function MugSideView() {
         </>}
         <div className="mt-1 opacity-70">Cut through the handle at Split Angle {m.seamAngle}° · grid 10 mm</div>
         <div className="opacity-70">Scroll to zoom · drag to move · double-click to fit</div>
-        <div className="opacity-70">Turn off Show Mug for the 3-D mold view</div>
+        <div className="opacity-70">View → Mold for the 3-D mold view</div>
       </div>
 
       {m.error && (

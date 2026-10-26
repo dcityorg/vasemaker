@@ -12,6 +12,7 @@ import { CAMERA, ORBIT_CONTROLS, LIGHTING } from '@/config/viewport';
 import { useVaseStore } from '@/store/vase-store';
 import type { CaptureFormat } from '@/config/capture';
 import { RememberCamera } from '@/components/viewport/RememberCamera';
+import { VasePageExtras, MugNotes, useVaseExtras } from '@/components/viewport/OnVase';
 
 interface ViewportProps {
   captureActive?: boolean;
@@ -40,6 +41,7 @@ export function Viewport({
   const radius = useVaseStore((s) => s.params.radius);
   const height = useVaseStore((s) => s.params.height);
   const containerRef = useRef<HTMLDivElement>(null);
+  const extras = useVaseExtras((s) => s.showHandle || s.showSprig);
 
   // Frame rect reported by CaptureOverlay — used by CaptureRenderer for cropping
   const [frameInfo, setFrameInfo] = useState({
@@ -88,6 +90,7 @@ export function Viewport({
 
         {/* The vase */}
         <VaseMeshComponent />
+        {extras && <VasePageExtras />}
 
         {/* XYZ orientation gizmo */}
         {showRulers && <group name="__capture_gizmo"><AxisGizmo /></group>}
@@ -120,6 +123,8 @@ export function Viewport({
         />
         <RememberCamera id="vase" />
       </Canvas>
+
+      {extras && <MugNotes />}
 
       {/* Capture frame overlay (HTML layer, outside Canvas) */}
       {captureActive && (

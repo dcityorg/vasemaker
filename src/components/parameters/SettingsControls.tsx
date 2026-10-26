@@ -7,6 +7,7 @@ import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import type { FilamentType } from '@/engine/types';
 import { SliderRow, Section, GroupHeader, Toggle } from './ui';
+import { useVaseExtras } from '@/components/viewport/OnVase';
 
 /** Right-aligned label/value row for the Print Check stats */
 function StatRow({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
@@ -21,6 +22,7 @@ function StatRow({ label, value, tooltip }: { label: string; value: string; tool
 export function SettingsControls() {
   const params = useVaseStore((s) => s.params);
   const { setColor, setShowRulers, setResolution, setFlatShading, setPrintCheck } = useVaseStore();
+  const extras = useVaseExtras();
   const stats = useMeshStatsStore((s) => s.stats);
 
   const printCheck = params.printCheck ?? DEFAULT_PARAMETERS.printCheck;
@@ -57,6 +59,10 @@ export function SettingsControls() {
           />
         </div>
         <Toggle label="Show Rulers" checked={params.showRulers ?? false} onChange={setShowRulers} tooltip="Display axis lines and dimension markers (mm) in the 3D view" />
+        <Toggle label="Show Handle" checked={extras.showHandle} onChange={(v) => useVaseExtras.setState({ showHandle: v })}
+          tooltip="The handle from HandleMaker on the vase, placed the way the mold puts it (its height is HandleMaker's Top Below Rim)" />
+        <Toggle label="Show Sprig" checked={extras.showSprig} onChange={(v) => useVaseExtras.setState({ showSprig: v })}
+          tooltip="The sprig from SprigMaker on the vase, where SprigMaker places it (View → On Vase there)" />
         {/* Was "Show Facets" in Resolution until 2026-07-30. Same param — it
             reads as an appearance choice and matches the Mold/Handle tabs,
             where it lives with the other view toggles. */}

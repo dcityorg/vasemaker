@@ -28,8 +28,6 @@ export const SPRIG_PARAMS = {
   onVaseAngle: { min: -180, max: 180, step: 1 } as SliderRange,
   onVaseTilt: { min: -180, max: 180, step: 1 } as SliderRange,
   onVaseCopies: { min: 1, max: 12, step: 1 } as SliderRange,
-  onVaseHandleAngle: { min: -180, max: 180, step: 1 } as SliderRange,
-  onVaseHandleTop: { min: 0, max: 100, step: 1 } as SliderRange,
 
   edgeSoftness:     { min: 0, max: 5, step: 0.1 } as SliderRange,
   // Min 0 on purpose: Gary wants to test a sprig whose edge tapers to nothing.

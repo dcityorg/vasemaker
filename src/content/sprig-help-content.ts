@@ -135,13 +135,13 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     id: 'sprig-onvase',
     title: 'Seeing It on the Vase',
     blocks: [
-      { type: 'paragraph', text: 'View → ON VASE shows the sprig on the vase that is open in VaseMaker (change the vase there). It is a preview for size and placement; nothing here changes the mold.' },
+      { type: 'paragraph', text: 'View → ON VASE shows the sprig on the vase that is open in VaseMaker (change the vase there). It is a preview for size and placement; nothing here changes the mold. The placement set here is the one HandleMaker (View → On Vase → Show Sprig) and VaseMaker (Appearance → Show Sprig) show too.' },
       { type: 'keyvalue', items: [
         { key: 'Height', value: 'Where the sprig\'s centre sits, as a % of the vase\'s height.' },
         { key: 'Around', value: 'Where round the vase it sits. ⌂ turns the view to face it.' },
         { key: 'Tilt', value: 'Turns the sprig on the wall, clockwise as you look at it.' },
         { key: 'Repeat', value: 'Copies spaced evenly round the vase. A note appears if they would overlap.' },
-        { key: 'Show Handle', value: 'Puts the HandleMaker handle on the vase (Handle At = where round, Below Rim = how far below the rim its top joins), so sprigs can be placed beside it.' },
+        { key: 'Show Handle', value: 'Puts the HandleMaker handle on the vase, so sprigs can be placed beside it. Its height is HandleMaker\'s Top Below Rim — one handle position for every page.' },
       ] },
       { type: 'paragraph', text: 'The sprig DRAPES over any texture on the vase, the way soft clay pressed on does: over fluting it bulges out on the ridges and dips into the grooves, and the texture never pokes through. Real clay smooths some of that out, so the preview shows the most the texture can show through.' },
       { type: 'tip', text: 'Around measures the distance round the vase at that height, and up measures along the wall, so a sloping or oval vase is handled. What it cannot show is the clay stretching: on a round-bellied pot a real sprig stretches a little when you bend it on, so trust the preview for size and placement, and expect the exact shape to be close rather than perfect.' },

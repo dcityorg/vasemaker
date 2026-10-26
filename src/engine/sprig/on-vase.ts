@@ -275,5 +275,15 @@ export function handleOnVase(vase: VaseParameters, handle: HandleParameters, ang
   const full = resweep(sw, pl, ring, sw.frames.map((_, i) => i));
   const a = (angle * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
   const [cx, cy] = outline.center;
-  return meshSweep(full, (z, u, h) => [cx + u * ca - h * sa, cy + u * sa + h * ca, z]);
+  // The ends are buried until their SHALLOWEST edge is 0.6 mm in; where the
+  // handle meets the wall steeply the far edge then goes deeper than the wall
+  // is thick and showed through the inside (Gary, 2026-10-25). The mold does
+  // not care (that end sits in the master's hollow); the preview pulls any
+  // point deeper than mid-wall back to mid-wall, out of sight inside it.
+  const keep = vase.wallThickness > 0 ? vase.wallThickness / 2 : 0.05;
+  return meshSweep(full, (z, u, h) => {
+    const rr = Math.hypot(u, h), floor = outlineAt(outline.sil, z) - keep;
+    if (rr > 1e-6 && rr < floor) { const k = floor / rr; u *= k; h *= k; }
+    return [cx + u * ca - h * sa, cy + u * sa + h * ca, z];
+  });
 }

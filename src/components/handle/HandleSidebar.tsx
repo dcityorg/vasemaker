@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
 import { BezierCurveEditor, EDITOR_CHROME } from '@/components/parameters/BezierCurveEditor';
 import { evaluatePiecewiseBezier } from '@/engine/bezier';
 import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME, isHandleUnnamed } from '@/store/handle-store';
+import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { HANDLE_PARAMS } from '@/config/handle-params';
 import { HANDLE_PRESETS } from '@/config/handle-presets';
@@ -299,23 +299,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             ↷
           </button>
         </div>
-        <div className="flex items-center gap-2 mt-1.5">
-          <Link
-            href="/"
-            className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors"
-            style={{ color: UI_MUTED }}
-            title="Back to the vase designer"
-          >
-            ◂ Vase
-          </Link>
-          <button
-            onClick={onToggleHelp}
-            className={`ml-auto text-xs px-2 py-1 rounded border transition-colors ${helpOpen ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)]'}`}
-            title="Show or hide the help panel"
-          >
-            ? Help
-          </button>
-        </div>
+        <ToolNav current="handle" helpOpen={helpOpen} onToggleHelp={onToggleHelp} />
         <p className="text-xs text-[var(--text-secondary)]">Handle + two-part plaster mold</p>
         <DesignNameRow what="Handle" name={settingsName} unnamed={isHandleUnnamed(settingsName)} onRename={setSettingsName} />
         <NamePromptHost />
@@ -434,6 +418,36 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
 
           {/* View toggles */}
           <GroupHeader label="View" color={GROUP_COLORS.settings} />
+          {/* Mold = the parts you print; Side = the flat mug view; On Vase = the
+              3-D mug (shared with SprigMaker and VaseMaker). */}
+          <div className="grid grid-cols-3 gap-1 mb-2">
+            {([
+              ['mold', 'Mold', 'The parts you print and pour', { showMug: false, onVase: false }],
+              ['side', 'Side', 'A flat side view of the finished mug with this handle on it — placed the way the mold puts it', { showMug: true, onVase: false }],
+              ['vase', 'On Vase', 'The finished mug in 3-D, with the sprig from SprigMaker if you like', { showMug: true, onVase: true }],
+            ] as const).map(([id, label, tip, set]) => {
+              const on = id === 'mold' ? !showMug : id === 'side' ? showMug && !view.onVase : showMug && view.onVase;
+              return (
+                <button key={id} onClick={() => setView(set)} title={tip}
+                  className={`px-2 py-1 text-xs rounded border transition-colors ${on ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)]'}`}>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          {showMug && view.onVase && (
+            <>
+              <Toggle label="Show Sprig" checked={view.showSprig} onChange={(v) => setView({ showSprig: v })}
+                tooltip="The sprig from SprigMaker on the mug, where SprigMaker places it" />
+              {view.showSprig && (
+                <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
+                  Move the sprig in SprigMaker (View → On Vase → Height, Around, Tilt, Repeat).
+                </p>
+              )}
+              <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals" />
+            </>
+          )}
+          {!showMug && <>
           <Toggle label="Handle" checked={view.showHandle} onChange={(v) => setView({ showHandle: v })} />
           <Toggle label="Wells" checked={view.showWells} onChange={(v) => setView({ showWells: v })} tooltip="Hide to see the finished handle — its ends cut flat and parallel to the vase wall" />
           <Toggle label="Plate" checked={view.showPlate} onChange={(v) => setView({ showPlate: v })} />
@@ -477,6 +491,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             </div>
           )}
 
+          </>}
           {/* Handle */}
           <GroupHeader label="Handle" color={GROUP_COLORS.structure} />
           <Section title="Drawing Area" titleColor={GROUP_COLORS.structure} defaultOpen={false} tooltip="Size of the profile editor's window only — moving these never changes the handle. Widen one to give yourself room to drag a control point further out">
@@ -515,12 +530,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               overlayPaths={[...outlinePaths, ...(mug?.paths ?? [])]}
               overlayColors={[...outlinePaths.map(() => '#e05555'), ...(mug?.paths ?? []).map(() => '#9fb3c8')]}
             />
-            <Toggle
-              label="Show Mug"
-              checked={showMug}
-              onChange={(v) => setView({ showMug: v })}
-              tooltip="Show the mug from VaseMaker: a grey outline here, and the main window becomes a side view of the finished mug with this handle on it — placed the way the Split 2-Pc mold will put it. Keep editing the handle here; the side view follows live"
-            />
+            {/* The mug is shown by View → Side or On Vase (it was a Show Mug switch here). */}
             {showMug && (
               <>
                 <SliderRow
@@ -530,7 +540,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
                   max={MOLD_PARAMS.handleTopDrop.max}
                   step={MOLD_PARAMS.handleTopDrop.step}
                   suffix="mm"
-                  tooltip="Where the top of the handle meets the vase, down from the rim. Shared with the Mold tab's Split 2-Pc Handle section"
+                  tooltip="Where the top of the handle meets the vase, down from the rim. One setting for every page: the Mold tab's split-mold handle, and the mug in SprigMaker and VaseMaker"
                   onChange={(v) => setMoldParam('handleTopDrop', v)}
                 />
                 {mug?.error && <p className="text-[11px] text-red-400 mt-1 leading-snug">{mug.error}</p>}

@@ -106,11 +106,10 @@ export interface SprigParameters {
   onVaseTilt: number;
   /** Copies spaced evenly round the vase. */
   onVaseCopies: number;
-  /** Show the HandleMaker handle on the vase. */
+  /** Show the HandleMaker handle on the vase. WHERE it goes is HandleMaker's
+   *  (Top Below Rim) and the Mold page's split angle — one handle position for
+   *  every page (Gary, 2026-10-25). */
   onVaseHandle: boolean;
-  onVaseHandleAngle: number;
-  /** Handle top below the rim, mm. */
-  onVaseHandleTop: number;
 
   // ── Edges ──
   /** Width of the ramp from the edge up to full height, mm. 0 = as steep as the grid allows. */
@@ -289,13 +288,12 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   drawingOn: true,
 
   onVaseHeight: 50,
-  onVaseAngle: 0,
+  // A quarter turn from the handle (which sits at the split angle, 0 by
+  // default): facing the sprig, the handle is on your right.
+  onVaseAngle: -90,
   onVaseTilt: 0,
   onVaseCopies: 1,
   onVaseHandle: false,
-  // A quarter turn round from the sprig: seen from the front, the handle is on the right.
-  onVaseHandleAngle: 90,
-  onVaseHandleTop: 20,
 
   edgeSoftness: 1,
   // 0 (Gary 2026-10-25): a lip raises every part thinner than it, and flattens
@@ -358,6 +356,12 @@ export function mergeSprigParameters(raw: unknown): SprigParameters {
     (out as unknown as Record<string, unknown>)[key] = v;
   }
   if (!(out.svgAspect > 0)) out.svgAspect = 1;
+  // On Vase had its own Handle At slider for a few hours on 2026-10-25; the
+  // handle now sits at the split angle (0 by default). Keep the sprig where it
+  // was RELATIVE to the handle.
+  if (typeof src.onVaseHandleAngle === 'number' && Number.isFinite(src.onVaseHandleAngle)) {
+    out.onVaseAngle = ((((out.onVaseAngle - src.onVaseHandleAngle) % 360) + 540) % 360) - 180;
+  }
   // Before the plate thickness applied to every size it was a Custom-box field;
   // a custom design saved then keeps its plate.
   if (src.plateThickness === undefined && out.moldSize === 'custom'

@@ -54,10 +54,17 @@ export interface HandleView {
    *  window becomes a side view of the finished mug. null = automatic (on when
    *  the Mold tab is Split 2-Pc with its handle on). */
   showMug: boolean | null;
+  /** The 3-D mug (the On Vase view) instead of the flat side view. Only
+   *  while the mug is shown: the View buttons set both together. */
+  onVase: boolean;
+  /** On Vase: the sprig from SprigMaker on the mug too. */
+  showSprig: boolean;
 }
 
 const DEFAULT_VIEW: HandleView = {
   showMug: null,
+  onVase: false,
+  showSprig: false,
   showHandle: true,
   showWells: true,
   showPlate: true,
