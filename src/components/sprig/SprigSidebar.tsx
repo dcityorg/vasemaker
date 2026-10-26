@@ -421,12 +421,46 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
 
           {/* View */}
           <GroupHeader label="View" color={GROUP_COLORS.settings} />
-          <Toggle label="Plate" checked={view.showPlate} onChange={(v) => setView({ showPlate: v })} />
-          <Toggle label="Wall A" checked={view.showWallA} onChange={(v) => setView({ showWallA: v })} tooltip="First wall in its assembled position" />
-          <Toggle label="Wall B" checked={view.showWallB} onChange={(v) => setView({ showWallB: v })} tooltip="Second copy of the same wall, turned 180°" />
-          <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour" />
-          <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature Width red" />
-          <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals — shows the grid the plate will actually print, and the V ridges as creases" />
+          <div className="grid grid-cols-2 gap-1 mb-2">
+            {([[false, 'Mold', 'The plate, walls and plaster you print and pour'], [true, 'On Vase', 'The sprig laid onto your current VaseMaker vase, to judge size and placement']] as const).map(([on, label, tip]) => (
+              <button key={label} onClick={() => setView({ onVase: on })} title={tip}
+                className={`px-2 py-1 text-xs rounded border transition-colors ${view.onVase === on ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)]'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {!view.onVase ? (
+            <>
+              <Toggle label="Plate" checked={view.showPlate} onChange={(v) => setView({ showPlate: v })} />
+              <Toggle label="Wall A" checked={view.showWallA} onChange={(v) => setView({ showWallA: v })} tooltip="First wall in its assembled position" />
+              <Toggle label="Wall B" checked={view.showWallB} onChange={(v) => setView({ showWallB: v })} tooltip="Second copy of the same wall, turned 180°" />
+              <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour" />
+              <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature Width red" />
+              <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals — shows the grid the plate will actually print, and the V ridges as creases" />
+            </>
+          ) : (
+            <>
+              <div className="flex justify-end mb-1">
+                <button onClick={() => resetFields(['onVaseHeight', 'onVaseAngle', 'onVaseTilt', 'onVaseCopies', 'onVaseHandle', 'onVaseHandleAngle', 'onVaseHandleTop'])} className={resetBtn} title="On Vase placement back to its defaults">Reset</button>
+              </div>
+              <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
+                The vase is the one open in VaseMaker; change it there. The sprig drapes over any texture, the way soft clay pressed on does.
+              </p>
+              {sl('onVaseHeight', 'Height', '%', 'Height of the sprig\'s centre on the vase, as a % of the vase\'s height')}
+              {sl('onVaseAngle', 'Around', '°', 'Where round the vase the sprig sits')}
+              {sl('onVaseTilt', 'Tilt', '°', 'Turn the sprig on the vase wall, clockwise (+) as you look at it')}
+              {sl('onVaseCopies', 'Repeat', '', 'Copies spaced evenly round the vase')}
+              <Toggle label="Show Handle" checked={params.onVaseHandle} onChange={(v) => setParam('onVaseHandle', v)}
+                tooltip="Put the HandleMaker handle on the vase, to place sprigs beside it" />
+              {params.onVaseHandle && (
+                <>
+                  {sl('onVaseHandleAngle', 'Handle At', '°', 'Where round the vase the handle sits')}
+                  {sl('onVaseHandleTop', 'Below Rim', 'mm', 'How far below the rim the top of the handle joins the vase')}
+                </>
+              )}
+              <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals" />
+            </>
+          )}
 
           {/* Sprig */}
           <GroupHeader label="Sprig" color={GROUP_COLORS.structure} />

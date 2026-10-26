@@ -37,6 +37,8 @@ export interface SprigView {
   /** Red tint over parts narrower than Min Feature Width. */
   showThin: boolean;
   flatShading: boolean;
+  /** The On Vase preview instead of the mold parts. */
+  onVase: boolean;
 }
 
 const DEFAULT_VIEW: SprigView = {
@@ -46,6 +48,7 @@ const DEFAULT_VIEW: SprigView = {
   showPlaster: false,
   showThin: true,
   flatShading: false,
+  onVase: false,
 };
 
 const snap = (v: number) => Math.max(MIN_SIZE, Math.round(v / SIZE_STEP) * SIZE_STEP);

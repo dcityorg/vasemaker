@@ -7,13 +7,16 @@ import { HelpPanel } from '@/components/editor/HelpPanel';
 import { SPRIG_HELP_SECTIONS } from '@/content/sprig-help-content';
 import { useSprigMeshes } from '@/hooks/use-sprig-meshes';
 import { hydrateSprigSettingsFromStorage } from '@/store/sprig-store';
+import { hydrateVaseDesignFromStorage } from '@/store/vase-store';
+import { hydrateHandleSettingsFromStorage } from '@/store/handle-store';
 
 /** SprigMaker layout — sidebar left, 3D preview middle, optional help right. */
 export function SprigEditor() {
   const sprig = useSprigMeshes();
   const [helpOpen, setHelpOpen] = useState(false);
-  // Restore the persisted sprig after mount (post-hydration, client only).
-  useEffect(() => { hydrateSprigSettingsFromStorage(); }, []);
+  // Restore the persisted sprig after mount (post-hydration, client only) — and
+  // the vase + handle, which the On Vase view shows.
+  useEffect(() => { hydrateSprigSettingsFromStorage(); hydrateVaseDesignFromStorage(); hydrateHandleSettingsFromStorage(); }, []);
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <SprigSidebar sprig={sprig} helpOpen={helpOpen} onToggleHelp={() => setHelpOpen((v) => !v)} />

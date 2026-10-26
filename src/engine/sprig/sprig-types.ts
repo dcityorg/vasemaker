@@ -96,6 +96,22 @@ export interface SprigParameters {
   /** Off = the text alone, no drawing. */
   drawingOn: boolean;
 
+  // ── On Vase preview (Phase 1b). Where the sprig and the handle go on the
+  //    current VaseMaker vase. Preview only — nothing here changes the mold. ──
+  /** Sprig centre height, % of the vase's height. */
+  onVaseHeight: number;
+  /** Degrees around the vase (the vase's own angle, + = counter-clockwise from above). */
+  onVaseAngle: number;
+  /** Degrees, + = clockwise as seen from outside. */
+  onVaseTilt: number;
+  /** Copies spaced evenly round the vase. */
+  onVaseCopies: number;
+  /** Show the HandleMaker handle on the vase. */
+  onVaseHandle: boolean;
+  onVaseHandleAngle: number;
+  /** Handle top below the rim, mm. */
+  onVaseHandleTop: number;
+
   // ── Edges ──
   /** Width of the ramp from the edge up to full height, mm. 0 = as steep as the grid allows. */
   edgeSoftness: number;
@@ -271,6 +287,15 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   textOffsetY: 0,
   textRotation: 0,
   drawingOn: true,
+
+  onVaseHeight: 50,
+  onVaseAngle: 0,
+  onVaseTilt: 0,
+  onVaseCopies: 1,
+  onVaseHandle: false,
+  // A quarter turn round from the sprig: seen from the front, the handle is on the right.
+  onVaseHandleAngle: 90,
+  onVaseHandleTop: 20,
 
   edgeSoftness: 1,
   // 0 (Gary 2026-10-25): a lip raises every part thinner than it, and flattens

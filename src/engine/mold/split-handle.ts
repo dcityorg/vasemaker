@@ -322,7 +322,7 @@ export function meshSweep(sw: HandleSweep, map: (z: number, u: number, h: number
  * HandleMaker's mug overlay. Resolution is capped — this redraws while Sher
  * drags, and a 2-D outline does not need the mold's mesh density.
  */
-export function vaseOutlineForHandle(vase: VaseParameters, seamAngle: number, keepTexture: boolean): { sil: P2[]; silFar: P2[]; rimZ: number } {
+export function vaseOutlineForHandle(vase: VaseParameters, seamAngle: number, keepTexture: boolean): { sil: P2[]; silFar: P2[]; rimZ: number; center: P2 } {
   const v: VaseParameters = { ...vase, resolution: { ...vase.resolution, vertical: Math.min(vase.resolution.vertical, 160), radial: Math.min(vase.resolution.radial, 240) } };
   const p = prepareVaseParams(v, 1, keepTexture);
   const stack = buildOuterRings(p, keepTexture && p.textures.enabled !== false);
@@ -334,6 +334,8 @@ export function vaseOutlineForHandle(vase: VaseParameters, seamAngle: number, ke
     // `sil` it is the vase's full profile through the handle.
     silFar: splitSilhouette(stack.rings, p.resolution.radial, cx, cy, -Math.cos(a), -Math.sin(a)),
     rimZ: stack.heights[stack.heights.length - 1],
+    /** The point u is measured from (the base ring's centre) — SprigMaker's On Vase needs it. */
+    center: [cx, cy],
   };
 }
 
