@@ -486,11 +486,10 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Slope Width', value: 'The slope from the ring up into the recessed middle' },
         { key: 'Depth', value: 'How far the middle is recessed. A raised mark must be no taller than this, or the piece rocks' },
         { key: 'Smooth Inside', value: 'Make the slope and recess from the smooth outline, so a texture does not run into the recess' },
-        { key: 'Recess Print', value: 'Off (the default): the plastic print keeps a flat bottom. On: the print gets the foot ring and recess too' },
       ] },
-      { type: 'paragraph', text: 'The foot follows the shape of your vase\u2019s bottom \u2014 you never draw it. For now the molds still take their foot from the Mold tab; it moves here in a later version.' },
+      { type: 'paragraph', text: 'One Foot switch (off by default) decides the bottom everywhere: the plastic print and every mold style. A foot is usually for pieces cast from a mold. It follows the shape of your vase\u2019s bottom \u2014 you never draw it.' },
       { type: 'heading', text: 'Mark' },
-      { type: 'paragraph', text: 'Draw your mark on the Sprig page, Mark tab (a drawing, a picture or text). Turn Mark on here and the vase takes a copy of it, which is saved in the vase file. If you change the mark later, press "Use the Mark tab\u2019s mark" to bring the new one in.' },
+      { type: 'paragraph', text: 'Draw your mark on the Sprig page, Mark tab (a drawing, a picture or text). Turn Mark on here and the vase takes a copy of it, which is saved in the vase file. It goes on the plastic print and on the Split Halves / Split Thirds plug disk (not yet on Pour 3-Pc). If you change the mark later, press "Use the Mark tab\u2019s mark" to bring the new one in.' },
       { type: 'keyvalue', items: [
         { key: 'Impressed', value: 'Pressed into the bottom' },
         { key: 'Raised', value: 'Stands out of the bottom, inside the recess' },

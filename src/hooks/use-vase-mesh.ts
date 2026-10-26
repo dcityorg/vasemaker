@@ -70,7 +70,7 @@ export function useVaseMesh(): VaseMesh {
  * its finished size (no Shrink — a mold scales the whole master). Null when
  * the mark is off, there is no base to put it in, or it is still drawing.
  */
-function useBottomMark() {
+export function useBottomMark() {
   const b = useVaseStore((s) => s.params.bottom);
   const hasBase = useVaseStore((s) => s.params.wallThickness > 0 && s.params.bottomThickness > 0);
   const mark = b?.markOn && hasBase ? b.mark : null;

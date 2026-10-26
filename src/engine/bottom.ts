@@ -15,7 +15,7 @@
  * from-below frame.
  */
 
-import type { BottomSettings } from './types';
+import type { BottomSettings, VaseParameters } from './types';
 import type { ReliefField } from './sprig/relief';
 import { offsetRingRadial } from './mold/ring-mesh';
 
@@ -35,9 +35,16 @@ export function getBottomMarkField(): ReliefField | null { return markField; }
 
 /** What the bottom needs, given the settings and whether there is a base. */
 export function bottomUse(b: BottomSettings | undefined, hasBase: boolean, field: ReliefField | null) {
-  const recess = !!b && hasBase && b.recessPrint && b.footHeight > 0 && b.footSlopeWidth > 0;
+  const recess = !!b && hasBase && b.footOn && b.footHeight > 0 && b.footSlopeWidth > 0;
   const mark = !!b && hasBase && b.markOn && !!b.mark && !!field && field.maxHeight > 0;
   return { recess, mark };
+}
+
+/** The mark for a mold's plug disk, or null (mark off / not built yet). A
+ *  mold's piece has a clay bottom, so the vase's Base does not limit it. */
+export function plugMark(v: VaseParameters, scale: number) {
+  const f = markField;
+  return bottomUse(v.bottom, true, f).mark ? { field: f!, b: v.bottom, scale } : null;
 }
 
 type Ring = Float32Array;
@@ -130,10 +137,6 @@ export function buildBottomPatch(
   const notes: string[] = [];
   const maxRecess = Math.max(0, floorZ - MIN_FLOOR);
 
-  // The foot as the molds will make it — the mark is checked against this
-  // even when the PLA print is not recessed.
-  const moldFoot = footRings(footBase, cx, cy, n, b.footWidth, b.footSlopeWidth, b.footHeight);
-
   let h = 0;
   let foot: [Ring, Ring] | null = null;
   if (use.recess) {
@@ -158,20 +161,15 @@ export function buildBottomPatch(
       d = dd;
     }
     if (sgn < 0) {
-      if (!b.recessPrint) {
-        notes.push('A raised mark stands below the bottom of the plastic print, which would sit on it. Turn on "Recess the plastic print too", or use Impressed.');
-        if (d > b.footHeight + 1e-6) notes.push(`On a mold, the raised mark (${d} mm) would also stand below the ${b.footHeight} mm recess — the piece will rock.`);
-      } else if (d > h + 1e-6) {
-        notes.push(`The raised mark stands ${(d - h).toFixed(1)} mm below the foot ring — the piece will rock. Lower its Height or deepen the recess.`);
-      }
+      if (!b.footOn) notes.push('Foot is off, so a raised mark stands below the bottom and the piece would sit on it. Turn Foot on, or use Impressed.');
+      else if (d > h + 1e-6) notes.push(`The raised mark stands ${(d - h).toFixed(1)} mm below the foot ring — the piece will rock. Lower its Height or deepen the recess.`);
     }
 
     // Where is it? Check every marked cell on the outline of the mark.
-    const recessEdge = moldFoot ? moldFoot[1] : ring0;
-    let offFloor = false, offRecess = false;
+    let offFloor = false;
     const { nx, ny, heights } = field;
     const cut = INK * field.maxHeight;
-    for (let j = 0; j < ny && !(offFloor && offRecess); j++) {
+    for (let j = 0; j < ny && !offFloor; j++) {
       for (let i = 0; i < nx; i++) {
         const k = j * nx + i;
         if (heights[k] <= cut) continue;
@@ -179,14 +177,12 @@ export function buildBottomPatch(
           || heights[k - 1] <= cut || heights[k + 1] <= cut || heights[k - nx] <= cut || heights[k + nx] <= cut;
         if (!edge) continue;
         const [x, y] = S.world(i, j);
-        if (!offFloor && !insidePolygon(x, y, plate, n)) offFloor = true;
-        if (!offRecess && !insidePolygon(x, y, recessEdge, n)) offRecess = true;
+        if (!insidePolygon(x, y, plate, n)) { offFloor = true; break; }
       }
     }
     if (offFloor) notes.push(foot
       ? 'Part of the mark runs onto the foot ring and is left off — make it smaller or move it in.'
       : 'Part of the mark runs off the bottom and is left off — make it smaller or move it in.');
-    else if (offRecess && moldFoot) notes.push('Part of the mark runs onto the foot ring the molds make — make it smaller or move it in.');
 
     // Rings under the mark, a cell apart (or 0.25 mm, if finer), then one
     // flat strip out to the floor's edge.

@@ -9,6 +9,9 @@ import { useVaseStore } from '@/store/vase-store';
 import { useMoldStore } from '@/store/mold-store';
 import { useHandleStore } from '@/store/handle-store';
 import { moldUsesHandle } from '@/engine/mold/mold-types';
+import { moldWithVaseFoot } from '@/engine/mold/vase-foot';
+import { setBottomMarkField } from '@/engine/bottom';
+import { useBottomMark } from './use-vase-mesh';
 import { generateMoldMeshes } from '@/engine/mold/mold-generator';
 import { generateOnePieceMold } from '@/engine/mold/one-piece-generator';
 import { generatePourTwoPieceMold } from '@/engine/mold/pour-two-piece-generator';
@@ -29,12 +32,17 @@ export type AnyMoldMeshes = MoldMeshes | OnePieceMoldMeshes | PourTwoPieceMoldMe
 
 export function useMoldMeshes(): AnyMoldMeshes {
   const vaseParams = useVaseStore((s) => s.params);
-  const moldParams = useMoldStore((s) => s.params);
+  // The foot is the vase's (Vase tab, Foot & Mark); the mold's own foot
+  // fields only carry old files in.
+  const storedMold = useMoldStore((s) => s.params);
+  const moldParams = useMemo(() => moldWithVaseFoot(storedMold, vaseParams), [storedMold, vaseParams]);
+  const markField = useBottomMark();
   // The Split 2-Pc handle is HandleMaker's live design. Only depend on it when
   // it is used, so editing a handle doesn't rebuild every other style.
   const handleParams = useHandleStore((s) => s.params);
   const handleDep = moldUsesHandle(moldParams) ? handleParams : null;
   return useMemo(() => {
+    setBottomMarkField(markField);
     switch (moldParams.moldStyle) {
       case 'onePiece':
         return generateOnePieceMold(vaseParams, moldParams);
@@ -51,5 +59,5 @@ export function useMoldMeshes(): AnyMoldMeshes {
       default:
         return generateMoldMeshes(vaseParams, moldParams);
     }
-  }, [vaseParams, moldParams, handleDep]);
+  }, [vaseParams, moldParams, handleDep, markField]);
 }

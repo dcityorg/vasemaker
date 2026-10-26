@@ -44,6 +44,7 @@ import type { HandleParameters } from '../handle/handle-types';
 import { sampleSpine } from '../handle/spine';
 import { splitSilhouette, placeHandle, surfaceLookup, sweepHandle, meshSweep, resweep, halfProfile, channelProfile, type HandlePlacement, type HandleSweep } from './split-handle';
 import { cutArc, buildRelief, buildFloor, halfSectionArea, undercutOf, type Arc, type HalfFrame } from './split-two-piece-generator';
+import { plugMark } from '../bottom';
 import { buildPlugCup, RING_H, RING_W, RING_US, ringBump, type PlugFoot, type PlugDebug } from './plug-cup';
 
 /** Feature-into-host overlap for slicer union (HandleMaker's EMBED). */
@@ -1205,6 +1206,7 @@ export function generateSplitHalvesMold(
     const cup = buildPlugCup({
       ring0, c0x, c0y, rRes, smoothBase: outerStack.smoothBase, plugH, clr, wt, flangeW, floorT,
       footSmoothInner: mold.footSmoothInner, footHeight: mold.footHeight, footWidth: mold.footWidth, footSlopeWidth: mold.footSlopeWidth,
+      mark: plugMark(vase, scale),
     });
     if (typeof cup === 'string') return errorResult(cup);
     footOut = cup.foot; footDisplay = cup.display;

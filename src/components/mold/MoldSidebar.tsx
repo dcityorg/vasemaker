@@ -9,6 +9,7 @@ import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/paramet
 import { useVaseStore } from '@/store/vase-store';
 import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME, isHandleUnnamed } from '@/store/handle-store';
 import { isVaseUnnamed } from '@/presets';
+import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { mergeHandleParameters, DEFAULT_HANDLE_PARAMETERS } from '@/engine/handle/handle-types';
 import type { HandleParameters } from '@/engine/handle/handle-types';
 import { SplitTopView } from './SplitTopView';
@@ -23,6 +24,7 @@ import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport, type ReportPart } from '@/lib/print-report';
 import { mergeMoldParameters, retireMoldStyle, ACTIVE_MOLD_STYLES, moldUsesHandle, HALVES_HANDLE_OFFERED } from '@/engine/mold/mold-types';
 import { translateMesh } from '@/engine/handle/mesh3';
+import { moldWithVaseFoot, footFromMoldSettings, isLegacyFootFile, sameFoot, type FootSettings } from '@/engine/mold/vase-foot';
 import type { AnyMoldMeshes } from '@/hooks/use-mold-meshes';
 import type { MoldParameters, MoldStyle, PlasterType } from '@/engine/mold/mold-types';
 import type { VaseMesh } from '@/engine/types';
@@ -72,7 +74,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
    *  Only the designs that DIFFER from what is open are carried — a matching
    *  one needs no decision and is left alone. */
   const [vaseChoice, setVaseChoice] = useState<{
-    settings: unknown; fileName: string;
+    settings: unknown;
+    legacyFoot: FootSettings | null; fileName: string;
     vase: unknown | null; vaseName: string | null;
     handle: HandleParameters | null; handleName: string | null;
     /** The file carries a handle at all (to show "same as open" for it). */
@@ -327,7 +330,9 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     const json = JSON.stringify({
       app: 'VaseMaker',
       type: 'mold-settings',
-      settings: params,
+      // The foot fields carry the VASE's foot (what this mold actually uses),
+      // so an older copy of the app reading this file builds the same bottom.
+      settings: moldWithVaseFoot(params, vaseParams),
       vase: vaseParams,
       vaseName: designName,
       // The handle travels too, but only when this mold uses it (Split 2-Pc
@@ -368,10 +373,20 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     }), chosenName);
   };
 
-  /** Apply the mold half of a settings file. */
-  const applyMoldOnly = (settings: unknown, baseName: string) => {
+  /** Apply the mold half of a settings file. `legacyFoot`: the foot of a file
+   *  from before the foot moved to the vase — what was poured, so it wins
+   *  (bottom-mark-plan.md) and goes onto the open vase. */
+  const applyMoldOnly = (settings: unknown, baseName: string, legacyFoot: FootSettings | null = null) => {
     const { params: loaded, retired } = retireMoldStyle(mergeMoldParameters(settings));
-    setStyleNotice(retired ? retiredStyleNotice(retired) : null);
+    let footNotice: string | null = null;
+    const vb = useVaseStore.getState().params.bottom;
+    if (legacyFoot && vb && !sameFoot(legacyFoot, vb)) {
+      useVaseStore.getState().setBottom(legacyFoot);
+      footNotice = legacyFoot.footOn
+        ? `This mold's foot (${legacyFoot.footWidth} / ${legacyFoot.footSlopeWidth} / ${legacyFoot.footHeight} mm) is now the vase's foot — the foot is set on the Vase tab.`
+        : 'This mold had a flat bottom, so the vase\'s Foot is now off — the foot is set on the Vase tab.';
+    }
+    setStyleNotice([retired ? retiredStyleNotice(retired) : null, footNotice].filter(Boolean).join(' ') || null);
     moldHistory.skipNextRecord();
     useMoldHistory.getState().clear();
     // Only the file's own style changes; the other tabs keep their settings.
@@ -416,7 +431,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
         settingsName: c.handleName?.trim() || DEFAULT_HANDLE_SETTINGS_NAME,
       });
     }
-    applyMoldOnly(c.settings, c.fileName);
+    applyMoldOnly(c.settings, c.fileName, c.legacyFoot);
     setVaseChoice(null);
   };
 
@@ -438,17 +453,25 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       // for missing a parameter added since.
       // Same rule for the handle (files since 2026-10-10, Split 2-Pc with the
       // handle on): merged before comparing, and only a difference is asked about.
-      const fileVase = parsed.vase && typeof parsed.vase === 'object' ? parsed.vase : null;
+      // A file from before the foot moved to the vase keeps its foot in the
+      // mold settings: carry it into the file's vase (and, without one, onto
+      // the open vase), so the bottom comes out as it was poured.
+      const legacyFoot = isLegacyFootFile(parsed.vase) ? footFromMoldSettings(parsed.settings) : null;
+      const rawVase = parsed.vase && typeof parsed.vase === 'object' ? parsed.vase : null;
+      const fileVase = rawVase && legacyFoot
+        ? { ...rawVase, bottom: { ...DEFAULT_PARAMETERS.bottom, ...legacyFoot } }
+        : rawVase;
       const vaseDiffers = !!fileVase &&
         JSON.stringify(applyPreset({ parameters: fileVase as Partial<VaseParameters> })) !== JSON.stringify(vaseParams);
       const fileHandle = parsed.handle && typeof parsed.handle === 'object' ? mergeHandleParameters(parsed.handle) : null;
       const handleDiffers = !!fileHandle && JSON.stringify(fileHandle) !== JSON.stringify(handleParams);
       if (!vaseDiffers && !handleDiffers) {
-        applyMoldOnly(parsed.settings, baseName);
+        applyMoldOnly(parsed.settings, baseName, legacyFoot);
         return;
       }
       setVaseChoice({
         settings: parsed.settings,
+        legacyFoot,
         fileName: baseName,
         vase: vaseDiffers ? fileVase : null,
         vaseName: typeof parsed.vaseName === 'string' ? parsed.vaseName : null,
@@ -875,10 +898,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             {on && (
               <>
                 {sl(isThirds ? 'thirdsPlugHeight' : 'halvesPlugHeight', 'Plug Height', 'mm', 'How tall the plug is, from the vase bottom down to the bottom of the mold. The ring sits in the middle. The plug is the mold wall for the bottom of the vase, so keep it near the Plaster thickness so it soaks up water like the sides')}
-                {sl('footWidth', 'Foot Width', 'mm', 'The flat ring at the outer edge of the bottom — what the mug stands on')}
-                {sl('footSlopeWidth', 'Slope Width', 'mm', 'Width of the sloped ramp from the foot up to the recessed centre')}
-                {sl('footHeight', 'Depth', 'mm', 'How far the centre is recessed. 0 gives a flat bottom on its own piece')}
-                <Toggle label="Smooth Inside" checked={params.footSmoothInner} onChange={(v) => setParam('footSmoothInner', v)} tooltip="Build the ramp and recessed centre from the smooth contour so surface texture doesn't carry into the recess" />
+                <VaseBottomNote where="plug" />
+                {plug?.markNote && (
+                  <p className="text-[11px] text-amber-400 mt-1 leading-snug">{plug.markNote}</p>
+                )}
                 {plug && (
                   <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug"
                     title="The plug is cast in a cup of clip-together walls. A textured bottom edge can grip them where its ribs point along a wall's pull, so the app uses the fewest walls (2 to 4) that all pull straight off, and turns the seams to suit">
@@ -892,17 +915,12 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             )}
           </Section>;
           })()}
-          {!isSplitAny && !isThirds && <Section title="Foot Recess" titleColor={GROUP_COLORS.structure}>
-            <Toggle label="Enabled" checked={params.footEnabled} onChange={(v) => setParam('footEnabled', v)} tooltip="Recess the master's bottom so cast pieces get a foot ring and a recessed center for glaze" />
-            {params.footEnabled && (
-              <>
-                {sl('footWidth', 'Foot Width', 'mm', 'w1 — flat foot ring at the outer edge of the bottom')}
-                {sl('footSlopeWidth', 'Slope Width', 'mm', 'w2 — width of the sloped ramp from the foot up to the recessed center')}
-                {sl('footHeight', 'Depth', 'mm', 'h — how far the center is recessed above the foot plane')}
-                <Toggle label="Smooth Inside" checked={params.footSmoothInner} onChange={(v) => setParam('footSmoothInner', v)} tooltip="Build the ramp and recessed center from the smooth contour so surface texture doesn't carry into the recess" />
-              </>
-            )}
+          {!isSplitAny && !isThirds && <Section title="Foot" titleColor={GROUP_COLORS.structure}>
+            <VaseBottomNote where="master" />
           </Section>}
+          {(isHalves || isThirds) && !(isThirds ? params.thirdsFootPiece : params.halvesFootPiece) && vaseParams.bottom?.markOn && (
+            <p className="text-[11px] text-amber-400 mx-3 mb-2 leading-snug">The vase has a mark; turn Foot Piece on to put it on the plug.</p>
+          )}
 
           {/* Well */}
           <GroupHeader label="Well & Flange" color={GROUP_COLORS.surface} />
@@ -1379,7 +1397,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 {unsaved ? 'Load anyway' : `Load that ${what} too`}
               </button>
               <button
-                onClick={() => { applyMoldOnly(c.settings, c.fileName); setVaseChoice(null); }}
+                onClick={() => { applyMoldOnly(c.settings, c.fileName, c.legacyFoot); setVaseChoice(null); }}
                 className="flex-1 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
                 title={`Use this mold's numbers on the ${what} you already have open`}
               >
@@ -1437,6 +1455,29 @@ function StatRow({ label, value, tooltip }: { label: string; value: string; tool
     <div className="flex items-center justify-between mb-1.5 text-xs" title={tooltip}>
       <span className="text-[var(--text-secondary)]">{label}</span>
       <span className="text-[var(--text-primary)] tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+/**
+ * The foot and the mark are set on the Vase tab (Foot & Mark) since
+ * 2026-10-26; the Mold tab only says what they are and where to change them.
+ * `where`: the plug disk (Halves / Thirds) or a style's master.
+ */
+function VaseBottomNote({ where }: { where: 'plug' | 'master' }) {
+  const b = useVaseStore((s) => s.params.bottom);
+  if (!b) return null;
+  const foot = b.footOn
+    ? `Foot: ${b.footWidth} mm ring, ${b.footSlopeWidth} mm slope, ${b.footHeight} mm recess${b.footSmoothInner ? ', smooth inside' : ''}.`
+    : 'Foot: off — a flat bottom.';
+  const mark = !b.markOn ? null
+    : where === 'plug'
+      ? `Mark: ${b.markName || 'mark'}, ${b.markStyle} ${b.markDepth} mm, on the plug disk.`
+      : `Mark: ${b.markName || 'mark'} — not on this style's master yet; it reaches the plug disk of Split Halves / Thirds.`;
+  return (
+    <div className="text-[11px] text-[var(--text-secondary)] mt-1 mb-1 leading-snug">
+      <p>{foot}{mark && <><br />{mark}</>}</p>
+      <p className="mt-0.5">Set on the Vase tab, Foot &amp; Mark. <Link href="/" className="underline hover:text-[var(--text-primary)]">Vase ▸</Link></p>
     </div>
   );
 }

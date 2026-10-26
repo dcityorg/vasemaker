@@ -341,7 +341,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
         </div>
         <p className="text-xs text-[var(--text-secondary)]">
           {isMark
-            ? 'Maker\'s mark for the bottom of a piece. Put it on a vase in the Vase tab\'s Foot & Mark section (the molds come next).'
+            ? 'Maker\'s mark for the bottom of a piece. Put it on a vase in the Vase tab\'s Foot & Mark section.'
             : 'SVG or picture sprig + one-piece plaster mold'}
         </p>
         <DesignNameRow what={What} name={settingsName} unnamed={design.isUnnamed(settingsName)} onRename={setSettingsName} />

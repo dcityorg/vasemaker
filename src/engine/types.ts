@@ -295,9 +295,10 @@ export interface VaseParameters {
 
 /**
  * The bottom of the piece (2026-10-26, Gary). The FOOT is the same four numbers
- * the molds have always used, now owned by the vase so the Vase tab can check a
- * mark against it. The foot only changes the PLA print when `recessPrint` is on
- * (off by default, so existing designs print as before).
+ * the molds used to keep, now owned by the vase: ONE switch (`footOn`, off by
+ * default, so existing designs print as before) decides the bottom of the
+ * plastic print AND of every mold. An old mold file's own foot numbers are
+ * carried into the vase when it loads (`footFromMoldSettings`).
  *
  * The MARK is a COPY of the Sprig page's Mark design (`mark`), so a vase file
  * carries its own mark to another computer. Offsets and Angle are as seen
@@ -308,7 +309,7 @@ export interface BottomSettings {
   footSlopeWidth: number;   // mm, slope from the ring up into the recess
   footHeight: number;       // mm, recess depth
   footSmoothInner: boolean; // recess follows the untextured outline
-  recessPrint: boolean;     // recess the PLA print too
+  footOn: boolean;          // foot ring + recess, on the print and every mold
   markOn: boolean;
   markStyle: 'impressed' | 'raised';
   markDepth: number;        // mm into (impressed) or out of (raised) the bottom

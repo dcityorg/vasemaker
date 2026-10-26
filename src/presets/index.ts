@@ -61,9 +61,13 @@ function normalizeCurves(params: VaseParameters): VaseParameters {
   const offsetYTypes = matchTypeLength(pointsY.length, rawOffset.pointTypesY);
 
   // A stored mark is a sprig design: fill in anything an older copy lacks.
-  const bottom = params.bottom.mark
-    ? { ...params.bottom, mark: { ...mergeSprigParameters(params.bottom.mark, DEFAULT_MARK_PARAMETERS), backing: 'none' as const, textStyle: 'raised' as const } }
-    : params.bottom;
+  // `recessPrint` (2026-10-26, never released; replaced by `footOn`) is dropped.
+  const { recessPrint: _gone, ...rest } = params.bottom as VaseParameters['bottom'] & { recessPrint?: boolean };
+  void _gone;
+  const bottom: VaseParameters['bottom'] = {
+    ...rest,
+    mark: rest.mark ? { ...mergeSprigParameters(rest.mark, DEFAULT_MARK_PARAMETERS), backing: 'none', textStyle: 'raised' } : null,
+  };
 
   return {
     ...params,

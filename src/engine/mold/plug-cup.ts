@@ -19,6 +19,9 @@ import { offsetRingRadial, mergeMeshes, type Ring } from './ring-mesh';
 import { extrudeSolid, type P2 } from '../handle/mesh3';
 import { seamBandPositions, seamMaxVWidth } from '../handle/mold-parts';
 import { loftSolid } from './split-halves-generator';
+import { markSampler, MIN_FLOOR } from '../bottom';
+import type { BottomSettings } from '../types';
+import type { ReliefField } from '../sprig/relief';
 
 const EMBED = 0.2;
 /** Clip flange thickness (Split Thirds' FLANGE_T). */
@@ -61,6 +64,8 @@ export interface PlugFoot {
   wallsSame: boolean;
   /** Set when even 4 walls would be gripped by a textured bottom edge. */
   plugNote: string | null;
+  /** Set when the mark had to be made shallower to leave the disk a floor. */
+  markNote: string | null;
   plateStats: MeshStats;
   wallStats: MeshStats;
   /** One plug. */
@@ -81,6 +86,9 @@ export interface PlugCupInput {
   /** The style's wall thickness, flange width and plate floor. */
   wt: number; flangeW: number; floorT: number;
   footSmoothInner: boolean; footHeight: number; footWidth: number; footSlopeWidth: number;
+  /** The maker's mark on the disk (the vase's Foot & Mark; `scale` = the
+   *  master's shrink scale, so the mark grows with the outline). */
+  mark?: { field: ReliefField; b: BottomSettings; scale: number } | null;
 }
 
 function polyArea(p: P2[]): number {
@@ -223,7 +231,18 @@ export function buildPlugCup(inp: PlugCupInput): { foot: PlugFoot; display: { pl
       { outer: diskOut, holes: [inset(fw)], w: 0 },
     ]));
   }
-  const disk = mergeMeshes(diskParts);
+  // With a mark the disk is ONE height-field solid instead: the same outline,
+  // foot ring and slope, and the recess floor carrying the mark. Without one
+  // the original build above is untouched (a retrofit's no-mark disk must stay
+  // the disk that was printed).
+  let markNote: string | null = null;
+  let disk: VaseMesh;
+  if (inp.mark) {
+    const md = markedDisk(inp, diskOut, recess ? [inset(fw), inset(fw + sw)] : null, recessD, zDisk);
+    disk = md.mesh; markNote = md.note;
+  } else {
+    disk = mergeMeshes(diskParts);
+  }
 
   // Walls: one loft per half, inside offset by station — the ledge, the
   // plug's straight side, the groove (the ring's own profile, less clr).
@@ -310,11 +329,110 @@ export function buildPlugCup(inp: PlugCupInput): { foot: PlugFoot; display: { pl
   if (recess) vol += (recessD * (Math.abs(polyArea(inset(fw))) + Math.abs(polyArea(inset(fw + sw))))) / 2;
   const diskPrint = translate(disk, 0, 0, -zDisk);
   const wallPrints = wallMeshes.map((m) => translate(m, 0, 0, -zW0));
-  const foot: PlugFoot = { plate: diskPrint, walls: wallPrints, wall: wallPrints[0], wallsSame, plugNote, plateStats: computeMeshStats(diskPrint), wallStats: computeMeshStats(wallPrints[0]), plasterVolumeMm3: vol, plugHeight: plugH };
+  const foot: PlugFoot = { plate: diskPrint, walls: wallPrints, wall: wallPrints[0], wallsSame, plugNote, markNote, plateStats: computeMeshStats(diskPrint), wallStats: computeMeshStats(wallPrints[0]), plasterVolumeMm3: vol, plugHeight: plugH };
   let reach = 0;
   for (const [x, y] of L(mOut)) reach = Math.max(reach, Math.hypot(x, y));
   reach += flangeW + 2;
   const display = { plate: disk, walls: mergeMeshes(wallMeshes), plaster: extrudeSolid(plugOut, [], 0, plugH), reach, lift: -zW0 };
   const dbg: PlugDebug = { plugH, zRing: plugH / 2, recessDepth: recessD, zDisk, zWall0: zW0, disk: diskParts, walls: wallParts, seams, plugOutline: plugOut, base: base };
   return { foot, display, dbg };
+}
+
+/** Rings under the mark at most this far apart, mm. */
+const MARK_RING_MM = 0.25;
+const MAX_MARK_RINGS = 500;
+
+/**
+ * The disk as one closed height field over its outline (cup coords: plan
+ * (x, −y) about the vase axis, z = −vase z). Rings from the outline in: the
+ * outline and the foot ring's inner edge at z = 0, the recess edge at
+ * −recessD, then the recess floor scaled toward the centre with the mark — the
+ * vase's bottom z negated, so the cast piece carries exactly the PLA vase's
+ * mark (read the right way round from below). Sides straight down to zDisk.
+ */
+function markedDisk(
+  inp: PlugCupInput, diskOut: P2[], foot: [P2[], P2[]] | null, recessD: number, zDisk: number,
+): { mesh: VaseMesh; note: string | null } {
+  const { c0x, c0y } = inp;
+  const { field, b, scale } = inp.mark!;
+  const S = markSampler(field, { ...b, markSize: b.markSize * scale, markOffsetX: b.markOffsetX * scale, markOffsetY: b.markOffsetY * scale }, c0x, c0y);
+  const sgn = b.markStyle === 'impressed' ? 1 : -1;
+  let d = Math.max(0, b.markDepth);
+  let note: string | null = null;
+  // An impressed mark is a ridge going DOWN into the disk: keep a floor under it.
+  const room = -zDisk - recessD - MIN_FLOOR;
+  if (sgn > 0 && d > room) {
+    d = Math.max(0, room);
+    note = `The mark is ${d.toFixed(1)} mm deep on the plug disk (not ${b.markDepth}) so the disk keeps a ${MIN_FLOOR} mm floor. A thicker Plate Floor allows more, but it changes the plug walls too — not for a reprint of the disk alone.`;
+  }
+  /** Disk top z at a cup point: minus the vase bottom's height there. */
+  const zAt = (X: number, Y: number) => -(recessD + sgn * d * S.at(c0x + X, c0y - Y));
+
+  const n = diskOut.length;
+  const rings: { pts: P2[]; z: (i: number) => number }[] = [{ pts: diskOut, z: () => 0 }];
+  if (foot) {
+    rings.push({ pts: foot[0], z: () => 0 }, { pts: foot[1], z: () => -recessD });
+  }
+  const plate = foot ? foot[1] : diskOut;
+  let rMin = Infinity, rMax = 0;
+  for (const [x, y] of plate) { const r = Math.hypot(x, y); rMin = Math.min(rMin, r); rMax = Math.max(rMax, r); }
+  if (rMin > 0.2) {
+    const sDense = Math.min(1, S.reach / rMin);
+    const ds = Math.min(S.cellMm, MARK_RING_MM) / rMax;
+    const count = Math.min(MAX_MARK_RINGS, Math.max(1, Math.ceil(sDense / ds)));
+    for (let r = sDense < 1 ? 0 : 1; r < count; r++) {
+      const sc = sDense * (1 - r / count);
+      const pts: P2[] = plate.map(([x, y]) => [x * sc, y * sc]);
+      rings.push({ pts, z: (i) => zAt(pts[i][0], pts[i][1]) });
+    }
+  }
+  const zc = rMin > 0.2 ? zAt(0, 0) : -recessD;
+
+  // Vertices: the top rings, top centre, the bottom ring, bottom centre.
+  const nTop = rings.length * n;
+  const positions = new Float32Array((nTop + 1 + n + 1) * 3);
+  rings.forEach((ring, r) => {
+    for (let i = 0; i < n; i++) {
+      const q = (r * n + i) * 3;
+      positions[q] = ring.pts[i][0]; positions[q + 1] = ring.pts[i][1]; positions[q + 2] = ring.z(i);
+    }
+  });
+  const cTop = nTop, b0 = nTop + 1, cBot = b0 + n;
+  positions[cTop * 3 + 2] = zc;
+  for (let i = 0; i < n; i++) {
+    positions[(b0 + i) * 3] = diskOut[i][0]; positions[(b0 + i) * 3 + 1] = diskOut[i][1]; positions[(b0 + i) * 3 + 2] = zDisk;
+  }
+  positions[cBot * 3 + 2] = zDisk;
+  const idx: number[] = [];
+  for (let r = 0; r + 1 < rings.length; r++) {
+    // The slope (foot ring edge → recess edge) is split along the same
+    // diagonal as the unmarked disk's loft, so it is the same surface exactly.
+    const slope = !!foot && r === 1;
+    for (let t = 0; t < n; t++) {
+      const t1 = (t + 1) % n;
+      const oA = r * n + t, oB = r * n + t1, iA = (r + 1) * n + t, iB = (r + 1) * n + t1;
+      if (slope) idx.push(oA, iA, oB, iA, iB, oB);
+      else idx.push(oA, iA, iB, oA, iB, oB);
+    }
+  }
+  const last = (rings.length - 1) * n;
+  for (let t = 0; t < n; t++) {
+    const t1 = (t + 1) % n;
+    idx.push(cTop, last + t1, last + t);          // top centre
+    idx.push(t, t1, b0 + t1, t, b0 + t1, b0 + t); // side
+    idx.push(cBot, b0 + t, b0 + t1);              // bottom
+  }
+  // One consistent winding throughout; flip it all if it came out inside out.
+  let vol = 0;
+  for (let k = 0; k < idx.length; k += 3) {
+    const a = idx[k] * 3, bq = idx[k + 1] * 3, c = idx[k + 2] * 3;
+    vol += positions[a] * (positions[bq + 1] * positions[c + 2] - positions[bq + 2] * positions[c + 1])
+      - positions[a + 1] * (positions[bq] * positions[c + 2] - positions[bq + 2] * positions[c])
+      + positions[a + 2] * (positions[bq] * positions[c + 1] - positions[bq + 1] * positions[c]);
+  }
+  if (vol < 0) for (let k = 0; k < idx.length; k += 3) { const t = idx[k + 1]; idx[k + 1] = idx[k + 2]; idx[k + 2] = t; }
+  const indices = new Uint32Array(idx);
+  const normals = new Float32Array(positions.length);
+  computeNormals(positions, indices, normals);
+  return { mesh: { positions, normals, indices, vertexCount: positions.length / 3, triangleCount: indices.length / 3 }, note };
 }

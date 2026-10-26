@@ -45,7 +45,7 @@ export function BottomControls() {
     ...(b.mark ? {} : { markDepth: tabMark.maxHeight }),
   });
 
-  const active = b.recessPrint || b.markOn;
+  const active = b.footOn || b.markOn;
   const resetFoot = () => setBottom({
     footWidth: DEFAULT_PARAMETERS.bottom.footWidth, footSlopeWidth: DEFAULT_PARAMETERS.bottom.footSlopeWidth,
     footHeight: DEFAULT_PARAMETERS.bottom.footHeight, footSmoothInner: DEFAULT_PARAMETERS.bottom.footSmoothInner,
@@ -63,19 +63,23 @@ export function BottomControls() {
         <>
           <div className="flex items-center justify-between">
             <div className={sub}>Foot</div>
-            <button onClick={resetFoot} className={linkBtn} title="Foot back to its defaults">Reset</button>
+            {b.footOn && <button onClick={resetFoot} className={linkBtn} title="Foot back to its defaults">Reset</button>}
           </div>
-          <SliderRow label="Foot Width" value={b.footWidth} {...BOTTOM.footWidth} suffix="mm" onChange={(v) => setBottom({ footWidth: v })}
-            tooltip="The flat ring at the outer edge of the bottom — what the piece stands on" />
-          <SliderRow label="Slope Width" value={b.footSlopeWidth} {...BOTTOM.footSlopeWidth} suffix="mm" onChange={(v) => setBottom({ footSlopeWidth: v })}
-            tooltip="Width of the slope from the foot ring up into the recessed middle" />
-          <SliderRow label="Depth" value={b.footHeight} {...BOTTOM.footHeight} suffix="mm" onChange={(v) => setBottom({ footHeight: v })}
-            tooltip="How far the middle is recessed. A raised mark must not be taller than this or the piece rocks" />
-          <Toggle label="Smooth Inside" checked={b.footSmoothInner} onChange={(v) => setBottom({ footSmoothInner: v })}
-            tooltip="Build the slope and recess from the smooth outline, so surface texture does not carry into the recess" />
-          <Toggle label="Recess Print" checked={b.recessPrint} onChange={(v) => setBottom({ recessPrint: v })}
-            tooltip="Recess the plastic print too. Off: the printed vase keeps a flat bottom (molds always get the foot)" />
-          <p className="text-xs text-[var(--text-secondary)] mb-2">For now the molds still take their foot from the Mold tab; these numbers move there next.</p>
+          <Toggle label="Foot" checked={b.footOn} onChange={(v) => setBottom({ footOn: v })}
+            tooltip="A foot ring with a recessed middle, on the plastic print AND on every mold. Off: a flat bottom everywhere" />
+          {b.footOn && (
+            <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
+              <SliderRow label="Foot Width" value={b.footWidth} {...BOTTOM.footWidth} suffix="mm" onChange={(v) => setBottom({ footWidth: v })}
+                tooltip="The flat ring at the outer edge of the bottom — what the piece stands on" />
+              <SliderRow label="Slope Width" value={b.footSlopeWidth} {...BOTTOM.footSlopeWidth} suffix="mm" onChange={(v) => setBottom({ footSlopeWidth: v })}
+                tooltip="Width of the slope from the foot ring up into the recessed middle" />
+              <SliderRow label="Depth" value={b.footHeight} {...BOTTOM.footHeight} suffix="mm" onChange={(v) => setBottom({ footHeight: v })}
+                tooltip="How far the middle is recessed. A raised mark must not be taller than this or the piece rocks" />
+              <Toggle label="Smooth Inside" checked={b.footSmoothInner} onChange={(v) => setBottom({ footSmoothInner: v })}
+                tooltip="Build the slope and recess from the smooth outline, so surface texture does not carry into the recess" />
+            </div>
+          )}
+          <p className="text-xs text-[var(--text-secondary)] mb-2">A foot is usually for pieces cast from a mold. It applies to the plastic print and every mold style.</p>
 
           <div className="flex items-center justify-between">
             <div className={sub}>Mark</div>
@@ -83,7 +87,7 @@ export function BottomControls() {
           </div>
           <Toggle label="Mark" checked={b.markOn}
             onChange={(v) => { if (v && !b.mark) useTabMark(); setBottom({ markOn: v }); }}
-            tooltip="Put your maker's mark (designed on the Sprig page, Mark tab) on the bottom" />
+            tooltip="Put your maker's mark (designed on the Sprig page, Mark tab) on the bottom: the plastic print and the Split Halves / Thirds plug disk" />
           {b.markOn && (
             <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
               <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] mb-1.5">

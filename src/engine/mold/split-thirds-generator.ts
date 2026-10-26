@@ -43,6 +43,7 @@ import { tanDeg, prepareVaseParams, buildOuterRings, buildCavityRings, clampCavi
 import { MeshBuilder, ensureOutward, extrudeSolid, triangulateFace, dedupeLoop, ensureCCW, ensureCW, weldMesh, MAP_YZ_X, type P2 } from '../handle/mesh3';
 import { buildDome, seamBandPositions, seamMaxVWidth } from '../handle/mold-parts';
 import { undercutOf } from './split-two-piece-generator';
+import { plugMark } from '../bottom';
 import { buildPlugCup, RING_H, RING_W, RING_US, ringBump, type PlugFoot } from './plug-cup';
 import { offsetPolygon, clipToXMax, clipToXMin, removeSpikes, signedDist, loftSolid } from './split-halves-generator';
 import type { MoldParameters } from './mold-types';
@@ -1408,6 +1409,7 @@ export function generateSplitThirdsMold(vase: VaseParameters, mold: MoldParamete
     const cup = buildPlugCup({
       ring0, c0x, c0y, rRes, smoothBase: outerStack.smoothBase, plugH, clr, wt, flangeW, floorT,
       footSmoothInner: mold.footSmoothInner, footHeight: mold.footHeight, footWidth: mold.footWidth, footSlopeWidth: mold.footSlopeWidth,
+      mark: plugMark(vase, scale),
     });
     if (typeof cup === 'string') return errorResult(cup, N);
     foot = cup.foot; footDisplay = cup.display; footDbg = cup.dbg;
