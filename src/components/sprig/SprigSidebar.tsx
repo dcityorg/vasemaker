@@ -526,7 +526,7 @@ export function SprigSidebar({ sprig, helpOpen, onToggleHelp }: {
               tooltip="FINISHED width, left to right, after the clay shrinks. The printed relief is scaled up by Shrink" />
             <SliderRow label="Length" value={params.length} {...SPRIG_PARAMS.length} suffix="mm" onChange={setLength}
               tooltip="FINISHED length, bottom to top, after the clay shrinks" />
-            <Toggle label="🔗 Keep Shape" checked={params.lockAspect} onChange={(v) => setParam('lockAspect', v)}
+            <Toggle label="🔗 Lock Proportions" checked={params.lockAspect} onChange={(v) => setParam('lockAspect', v)}
               tooltip="On: Width and Length move together and the drawing keeps its proportions. Off: stretch it" />
             <div className="flex gap-1.5 my-1">
               <button className={miniBtn} onClick={rotateCW} title="Turn a quarter clockwise">↻ 90°</button>
