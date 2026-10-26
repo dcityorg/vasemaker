@@ -21,8 +21,8 @@ export const SPRIG_PARAMS = {
   textHeight:  { min: 3, max: 40, step: 0.5 } as SliderRange,
   textDepth:   { min: 0.2, max: 4, step: 0.1 } as SliderRange,
   textGap:     { min: 0, max: 20, step: 0.5 } as SliderRange,
-  textOffsetX: { min: -60, max: 60, step: 0.5 } as SliderRange,
-  textOffsetY: { min: -60, max: 60, step: 0.5 } as SliderRange,
+  textOffsetX: { min: -250, max: 250, step: 0.5 } as SliderRange,
+  textOffsetY: { min: -250, max: 250, step: 0.5 } as SliderRange,
   textRotation: { min: -180, max: 180, step: 1 } as SliderRange,
 
   edgeSoftness:     { min: 0, max: 5, step: 0.1 } as SliderRange,
