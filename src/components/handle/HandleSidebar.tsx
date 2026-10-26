@@ -279,14 +279,6 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
       <div className="px-4 py-3 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-semibold text-[var(--text-primary)] flex-1">HandleMaker</h1>
-          <Link
-            href="/"
-            className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors"
-            style={{ color: UI_MUTED }}
-            title="Back to the vase designer"
-          >
-            ◂ Vase
-          </Link>
           <button
             onClick={doUndo}
             disabled={!canUndo}
@@ -303,12 +295,22 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           >
             ↷
           </button>
+        </div>
+        <div className="flex items-center gap-2 mt-1.5">
+          <Link
+            href="/"
+            className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors"
+            style={{ color: UI_MUTED }}
+            title="Back to the vase designer"
+          >
+            ◂ Vase
+          </Link>
           <button
             onClick={onToggleHelp}
-            className={`text-sm font-bold leading-none w-6 h-6 rounded-full flex items-center justify-center transition-colors ${helpOpen ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}
-            title="Toggle help panel"
+            className={`ml-auto text-xs px-2 py-1 rounded border transition-colors ${helpOpen ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)]'}`}
+            title="Show or hide the help panel"
           >
-            ?
+            ? Help
           </button>
         </div>
         <p className="text-xs text-[var(--text-secondary)]">Handle + two-part plaster mold</p>

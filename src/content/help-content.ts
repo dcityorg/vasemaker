@@ -486,7 +486,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Split Thirds', value: 'Three plaster pieces split 120° apart, each poured in its own reusable parts. Pieces part at a gentler angle than halves, so some textures that lock two halves release in thirds. Optional plaster plug for the bottom. First set poured October 2026.' },
       ] },
       { type: 'paragraph', text: 'For Pour 3-Pc, one design constraint matters while you\'re still on the Vase tab: to pull out of the plaster, the vase must never get narrower as it rises. Inward-curving profiles, twist, and most textures create undercuts — MoldMaker highlights them in red. If your design narrows on purpose (a mug with a rolled lip, say), use Split Halves or Split Thirds.' },
-      { type: 'paragraph', text: 'Full MoldMaker help — mold anatomy, every setting, the undercut check, and a printing/pouring/casting walkthrough — is on the Mold tab itself: click the ? button next to ◂ Vase.' },
+      { type: 'paragraph', text: 'Full MoldMaker help — mold anatomy, every setting, the undercut check, and a printing/pouring/casting walkthrough — is on the Mold tab itself: click ? Help at the top of the Mold tab.' },
       { type: 'tip', text: 'Preview with Mold ▸ early — the undercut check updates live as you edit, for whichever style you pick.' },
     ],
   },

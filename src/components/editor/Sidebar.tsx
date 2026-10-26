@@ -159,27 +159,6 @@ export function Sidebar({
       <div className="px-3 py-3 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-0.5">
           <h1 className="text-base font-semibold text-[var(--text-primary)] flex-1 whitespace-nowrap">VaseMaker</h1>
-          <Link
-            href="/mold"
-            className="text-xs px-1.5 py-0.5 shrink-0 whitespace-nowrap rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
-            title="Make a plaster casting mold from this vase"
-          >
-            Mold ▸
-          </Link>
-          <Link
-            href="/handle"
-            className="text-xs px-1.5 py-0.5 shrink-0 whitespace-nowrap rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
-            title="Design a handle and its plaster casting mold"
-          >
-            Handle ▸
-          </Link>
-          <Link
-            href="/sprig"
-            className="text-xs px-1.5 py-0.5 shrink-0 whitespace-nowrap rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
-            title="Turn an SVG into a sprig and its plaster mold"
-          >
-            Sprig ▸
-          </Link>
           <button
             onClick={doUndo}
             disabled={!canUndo}
@@ -203,12 +182,35 @@ export function Sidebar({
           >
             &#x2195;
           </button>
+        </div>
+        <div className="flex items-center gap-1 mt-1.5">
+          <Link
+            href="/mold"
+            className="text-xs px-1.5 py-0.5 shrink-0 whitespace-nowrap rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
+            title="Make a plaster casting mold from this vase"
+          >
+            Mold ▸
+          </Link>
+          <Link
+            href="/handle"
+            className="text-xs px-1.5 py-0.5 shrink-0 whitespace-nowrap rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
+            title="Design a handle and its plaster casting mold"
+          >
+            Handle ▸
+          </Link>
+          <Link
+            href="/sprig"
+            className="text-xs px-1.5 py-0.5 shrink-0 whitespace-nowrap rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-secondary)]"
+            title="Turn an SVG into a sprig and its plaster mold"
+          >
+            Sprig ▸
+          </Link>
           <button
             onClick={onToggleHelp}
-            className={`text-sm font-bold leading-none w-6 h-6 shrink-0 rounded-full flex items-center justify-center transition-colors ${helpOpen ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}
-            title="Toggle help panel"
+            className={`ml-auto text-xs px-1.5 py-0.5 rounded border transition-colors ${helpOpen ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)]'}`}
+            title="Show or hide the help panel"
           >
-            ?
+            ? Help
           </button>
         </div>
         <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.49.0</p>

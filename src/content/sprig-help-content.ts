@@ -14,7 +14,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
       { type: 'list', items: [
         'Pick a sample drawing, Load / Paste your own SVG (black is the shape, white is background), or Load Image for a PNG or JPG (see Pictures)',
         'Set Width and Length — the FINISHED sprig, after the clay shrinks',
-        'Choose how it gets its height (Height → From) and set Max Height',
+        'Choose how it gets its height (Height → Shaping) and set Max Height',
         'Check for red: parts narrower than Min Feature are likely to tear or crack',
         'Pick a Mold Size — the smallest one the sprig fits is chosen for you',
         'Export the plate. Export the wall too, the first time you use that size — then print it twice',
@@ -29,7 +29,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     id: 'sprig-height',
     title: 'Height — from a Flat Drawing',
     blocks: [
-      { type: 'paragraph', text: 'An SVG is flat. Height → From decides how it gets a third dimension:' },
+      { type: 'paragraph', text: 'An SVG is flat. Height → Shaping decides how it gets a third dimension:' },
       { type: 'keyvalue', items: [
         { key: 'Flat', value: 'One height for the whole shape. Only the edge is shaped (see Edges).' },
         { key: 'Gray', value: 'Black is Max Height, white is the plate, and every gray is in between. For a drawing that already has shading.' },
