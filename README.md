@@ -41,6 +41,7 @@ Create SVG texture patterns with our companion app **[PatternMaker](https://patt
 - **Twist & Sway** — custom Bezier twist, wave twist, and XY offset curves
 - **Smooth zones** — suppress textures near base/rim for clean edges
 - **Shell mode** — wall thickness, smooth inner wall, flat/rounded rim
+- **Foot & maker's mark** — a recessed foot ring, and your own mark (a drawing, picture or text) impressed or raised on the bottom of the piece; it carries onto the molds too
 - **Image capture** — save viewport screenshots as PNG/JPG at any resolution
 - **STL export** — watertight mesh ready for slicing
 - **Save/Load** — JSON design files, tiny and forward-compatible
@@ -51,7 +52,7 @@ Also in the app, each on its own page:
 
 - **MoldMaker** — turns your vase into 3D-printable parts for a plaster slip-casting mold (Pour 3-Pc, Split Halves, Split Thirds)
 - **HandleMaker** — design a mug or vase handle and print the parts for its two-part plaster mold
-- **SprigMaker** — turn an SVG, a PNG/JPG picture, or text into a small raised decoration (a sprig) and print its one-piece plaster mold, in standard box sizes
+- **SprigMaker** — turn an SVG, a PNG/JPG picture, or text into a small raised decoration (a sprig) and print its one-piece plaster mold, in standard box sizes; its Mark tab designs your maker's mark for the bottom of a piece
 - **See the finished piece** — the vase, handle and sprig pages can each show the vase in 3-D with the handle and sprigs on it (sprigs drape over any texture)
 
 ## Getting Started
