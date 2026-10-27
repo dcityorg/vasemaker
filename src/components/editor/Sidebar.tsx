@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { ToggleAllSectionsButton } from '@/components/parameters/ui';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
 import { useHistoryStore } from '@/store/history';
@@ -44,18 +45,10 @@ export function Sidebar({
   const { loadPreset, getParams, isDirty, markClean, loadDesign, undo: doUndo, redo: doRedo } = useVaseStore();
   const { canUndo, canRedo } = useHistoryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
   const [presetDropdownOpen, setPresetDropdownOpen] = useState(false);
   const presetDropdownRef = useRef<HTMLDivElement>(null);
 
-  const handleToggleAll = useCallback(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-    const details = container.querySelectorAll('details');
-    const allOpen = Array.from(details).every(d => d.open);
-    details.forEach(d => d.open = !allOpen);
-  }, []);
 
   // Close preset dropdown on click outside
   useEffect(() => {
@@ -156,7 +149,7 @@ export function Sidebar({
   const isCustomSize = captureSizeIndex === CUSTOM_SIZE_INDEX;
 
   return (
-    <div className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
+    <div data-sidebar className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
       {/* Header */}
       <div className="px-3 py-3 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-0.5">
@@ -177,13 +170,7 @@ export function Sidebar({
           >
             ↷
           </button>
-          <button
-            onClick={handleToggleAll}
-            className="text-xs leading-none px-1 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors text-[var(--text-secondary)]"
-            title="Expand/collapse all sections"
-          >
-            &#x2195;
-          </button>
+          <ToggleAllSectionsButton />
         </div>
         <ToolNav current="vase" helpOpen={helpOpen} onToggleHelp={onToggleHelp} />
         <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.51.0</p>
@@ -193,7 +180,7 @@ export function Sidebar({
       </div>
 
       {/* Scrollable area — toolbar + parameter controls */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto sidebar-scroll">
+      <div className="flex-1 overflow-y-auto sidebar-scroll">
 
       {/* Toolbar — all file operations grouped together */}
       <div className="px-3 py-2 border-b border-[var(--border-color)] flex flex-col gap-2">

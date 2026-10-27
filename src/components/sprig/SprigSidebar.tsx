@@ -2,7 +2,7 @@
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Section, SliderRow, Toggle, GroupHeader, ResetRow } from '@/components/parameters/ui';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsButton } from '@/components/parameters/ui';
 import { setShowFacets } from '@/store/view-prefs';
 import { asMark, DEFAULT_VIEW } from '@/store/sprig-store';
 import { useSprigDesign } from './sprig-design-context';
@@ -309,7 +309,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   const warnings = [...(sprig.error ? [sprig.error] : []), ...(svgError ? [svgError] : []), ...(m?.warnings ?? [])];
 
   return (
-    <div className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
+    <div data-sidebar className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
       {/* Header */}
       <div className="px-4 py-3 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-2">
@@ -330,6 +330,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           >
             ↷
           </button>
+          <ToggleAllSectionsButton />
         </div>
         <ToolNav current="sprig" helpOpen={helpOpen} onToggleHelp={onToggleHelp} />
         <div className="grid grid-cols-2 gap-1 my-1.5">

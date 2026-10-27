@@ -2,7 +2,7 @@
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Section, SliderRow, Toggle, GroupHeader, ResetRow } from '@/components/parameters/ui';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsButton } from '@/components/parameters/ui';
 import { setShowFacets } from '@/store/view-prefs';
 import { BezierCurveEditor, EDITOR_CHROME } from '@/components/parameters/BezierCurveEditor';
 import { evaluatePiecewiseBezier } from '@/engine/bezier';
@@ -279,7 +279,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   })();
 
   return (
-    <div className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
+    <div data-sidebar className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
       {/* Header */}
       <div className="px-4 py-3 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-2">
@@ -300,6 +300,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           >
             ↷
           </button>
+          <ToggleAllSectionsButton />
         </div>
         <ToolNav current="handle" helpOpen={helpOpen} onToggleHelp={onToggleHelp} />
         <p className="text-xs text-[var(--text-secondary)]">Handle + two-part plaster mold</p>

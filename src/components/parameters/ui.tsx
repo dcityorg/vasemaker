@@ -175,6 +175,28 @@ export function Section({ title, children, defaultOpen = true, active, checked, 
   );
 }
 
+/** The ↕ in each page's header: open every box in this side panel, or close
+ *  them all if they are all open (was Vase only until 2026-10-26, Gary).
+ *  Works on the nearest `data-sidebar` ancestor, so the help panel's own
+ *  accordion is left alone. */
+export function ToggleAllSectionsButton() {
+  return (
+    <button
+      onClick={(e) => {
+        const root = e.currentTarget.closest('[data-sidebar]');
+        if (!root) return;
+        const details = Array.from(root.querySelectorAll('details'));
+        const allOpen = details.every((d) => d.open);
+        details.forEach((d) => { d.open = !allOpen; });
+      }}
+      className="text-xs leading-none px-1 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors text-[var(--text-secondary)]"
+      title="Expand/collapse all sections"
+    >
+      &#x2195;
+    </button>
+  );
+}
+
 /** A section's right-aligned Reset link (the Display boxes, 2026-10-26). */
 export function ResetRow({ onClick, title }: { onClick: () => void; title: string }) {
   return (

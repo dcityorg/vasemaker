@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
-import { Section, SliderRow, Toggle, GroupHeader, ResetRow } from '@/components/parameters/ui';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsButton } from '@/components/parameters/ui';
 import { setShowFacets } from '@/store/view-prefs';
 import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_PART_COLOR, DEFAULT_VIEW, retiredStyleNotice, isMoldUnnamed } from '@/store/mold-store';
 import { ToolNav } from '@/components/parameters/ToolNav';
@@ -529,7 +529,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(2)} k` : n.toFixed(0));
 
   return (
-    <div className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
+    <div data-sidebar className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
       {/* Header */}
       <div className="px-4 py-3 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-2">
@@ -550,6 +550,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           >
             ↷
           </button>
+          <ToggleAllSectionsButton />
         </div>
         <ToolNav current="mold" helpOpen={helpOpen} onToggleHelp={onToggleHelp} />
         <p className="text-xs text-[var(--text-secondary)]">Plaster slip-casting mold from your vase</p>
