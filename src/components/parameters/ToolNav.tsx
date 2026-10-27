@@ -16,10 +16,10 @@ const TOOLS: { id: ToolId; label: string; href: string; title: string }[] = [
   { id: 'vase', label: 'Vase', href: '/', title: 'The vase designer' },
   { id: 'handle', label: 'Handle', href: '/handle', title: 'Design a handle and its plaster casting mold' },
   { id: 'mold', label: 'Mold', href: '/mold', title: 'Make a plaster casting mold from this vase' },
-  { id: 'sprig', label: 'Sprig', href: '/sprig', title: 'Turn a drawing, picture or text into a sprig and its plaster mold' },
+  { id: 'sprig', label: 'Sprig/Mark', href: '/sprig', title: 'Turn a drawing, picture or text into a sprig and its plaster mold, or into a maker\'s mark for the bottom of a piece' },
 ];
 
-const base = 'text-xs px-2 py-0.5 rounded border transition-colors whitespace-nowrap';
+const base = 'text-xs px-1.5 py-0.5 rounded border transition-colors whitespace-nowrap';
 
 export function ToolNav({ current, helpOpen, onToggleHelp }: {
   current: ToolId; helpOpen: boolean; onToggleHelp: () => void;
