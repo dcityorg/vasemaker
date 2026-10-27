@@ -644,8 +644,19 @@ let hydrated = false;
 export function hydrateVaseDesignFromStorage(): void {
   if (hydrated || typeof window === 'undefined') return;
   hydrated = true;
+  adoptStored(window.localStorage.getItem(STORAGE_KEY));
+  // Another tab changed the vase (Gary, 2026-10-26: Foot turned on in the Vase
+  // tab, a Mold tab open beside it kept the old foot until reloaded). Follow it.
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY && e.newValue) adoptStored(e.newValue);
+  });
+}
+
+/** True while a stored design is being taken in, so it is not written straight back. */
+let adopting = false;
+
+function adoptStored(raw: string | null): void {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const data = JSON.parse(raw) as { params?: unknown; designName?: unknown; isDirty?: unknown };
     if (!data.params || typeof data.params !== 'object') return;
@@ -655,11 +666,16 @@ export function hydrateVaseDesignFromStorage(): void {
     skipNextHistoryRecord();
     skipNextDirtyMark();
     useHistoryStore.getState().clear();
-    useVaseStore.setState({
-      params,
-      designName: typeof data.designName === 'string' ? data.designName : null,
-      isDirty: data.isDirty === true,
-    });
+    adopting = true;
+    try {
+      useVaseStore.setState({
+        params,
+        designName: typeof data.designName === 'string' ? data.designName : null,
+        isDirty: data.isDirty === true,
+      });
+    } finally {
+      adopting = false;
+    }
   } catch {
     // Corrupted entry — keep the default preset; the next change overwrites it.
   }
@@ -679,6 +695,9 @@ useVaseStore.subscribe((state) => {
   prevDirty = state.isDirty;
   if (typeof window === 'undefined') return;
   if (saveTimer) clearTimeout(saveTimer);
+  // Taken from storage: it is already there. Writing it back would bounce
+  // between two open tabs for ever.
+  if (adopting) { saveTimer = null; return; }
   saveTimer = setTimeout(() => {
     saveTimer = null;
     try {

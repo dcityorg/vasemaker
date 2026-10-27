@@ -917,6 +917,9 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           })()}
           {!isSplitAny && !isThirds && <Section title="Foot" titleColor={GROUP_COLORS.structure}>
             <VaseBottomNote where="master" />
+            {mold.style === 'pourThreePiece' && mold.markNotes.map((n) => (
+              <p key={n} className="text-[11px] text-amber-400 mt-1 leading-snug">{n}</p>
+            ))}
           </Section>}
           {(isHalves || isThirds) && !(isThirds ? params.thirdsFootPiece : params.halvesFootPiece) && vaseParams.bottom?.markOn && (
             <p className="text-[11px] text-amber-400 mx-3 mb-2 leading-snug">The vase has a mark; turn Foot Piece on to put it on the plug.</p>
@@ -1473,7 +1476,7 @@ function VaseBottomNote({ where }: { where: 'plug' | 'master' }) {
   const mark = !b.markOn ? null
     : where === 'plug'
       ? `Mark: ${b.markName || 'mark'}, ${b.markStyle} ${b.markDepth} mm, on the plug disk.`
-      : `Mark: ${b.markName || 'mark'} — not on this style's master yet; it reaches the plug disk of Split Halves / Thirds.`;
+      : `Mark: ${b.markName || 'mark'}, ${b.markStyle} ${b.markDepth} mm, on the master's bottom.`;
   return (
     <div className="text-[11px] text-[var(--text-secondary)] mt-1 mb-1 leading-snug">
       <p>{foot}{mark && <><br />{mark}</>}</p>

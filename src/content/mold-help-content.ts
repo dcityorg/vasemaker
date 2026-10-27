@@ -244,7 +244,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
         { key: 'Smooth Inside', value: 'Builds the ramp and recessed center from the untextured base contour, keeping surface texture out of the glaze well.' },
       ] },
       { type: 'paragraph', text: 'These are set on the Vase tab, with one Foot switch, because the foot belongs to the piece: the same foot goes on the plastic print and on every mold style. The Mold tab shows what it is. Loading a mold file saved before October 2026 brings that mold\u2019s own foot back onto the vase, so it rebuilds as it was poured.' },
-      { type: 'tip', text: 'The maker\u2019s mark reaches the Split Halves and Split Thirds plug disk. On Pour 3-Pc it is not on the master yet.' },
+      { type: 'tip', text: 'The maker\u2019s mark goes on the Split Halves and Split Thirds plug disk, and on Pour 3-Pc\u2019s center (the master\u2019s bottom). On Pour 3-Pc the foot is molded into the plaster, so adding a mark means printing a new center and pouring a new mold.' },
     ],
   },
 

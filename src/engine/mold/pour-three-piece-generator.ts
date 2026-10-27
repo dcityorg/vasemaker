@@ -46,6 +46,7 @@ import {
   maxDiameterXY,
 } from './mold-generator';
 import { computeUndercutFlags } from './undercut';
+import { plugMark, markSampler, markFloorRings, MIN_FLOOR } from '../bottom';
 import { MeshBuilder, extrudeSolid, ensureOutward, triangulateFace, type P2 } from '../handle/mesh3';
 import { vSeamLayout, vRidgeSection, vGrooveSection, vGrooveDepth, vEdgeMargin, vMaxWidth, sweepContourSection } from './v-seam';
 import type { MoldParameters } from './mold-types';
@@ -79,6 +80,8 @@ export interface PourThreePieceMoldMeshes {
   forcedRound: boolean;
   /** True when one printed half serves both positions — print shell A twice. */
   halvesIdentical: boolean;
+  /** What happened to the vase's mark on the master's bottom, if anything. */
+  markNotes: string[];
 }
 
 function toPrintOrientation(mesh: VaseMesh, zTop: number): void {
@@ -187,7 +190,40 @@ export function generatePourThreePieceMold(vase: VaseParameters, mold: MoldParam
   }
   const floorFlatRing = offsetRingRadial(ledgeRing, tcx, tcy, -wt, floorTopZ, rRes);
 
-  const outerStack: Ring[] = [...footRings, ...outer.rings, ledgeRing, wellTopRing, wellOuterBedRing];
+  // ── The maker's mark on the master's bottom (the vase's Foot & Mark) ──
+  // The master IS the vase scaled, so its bottom carries exactly the PLA
+  // print's mark (bottom.ts markFloorRings), size and offsets × the shrink
+  // scale like the foot's outline; depth as set, like the foot's.
+  const markNotes: string[] = [];
+  let markRings: Ring[] = [];
+  const pm = plugMark(vase, scale);
+  if (pm) {
+    const [bcx, bcy] = outer.centers[0];
+    const b = pm.b;
+    const S = markSampler(pm.field, { ...b, markSize: b.markSize * scale, markOffsetX: b.markOffsetX * scale, markOffsetY: b.markOffsetY * scale }, bcx, bcy);
+    const sgn = b.markStyle === 'impressed' ? 1 : -1;
+    let d = Math.max(0, b.markDepth);
+    let floorZ = Infinity;
+    for (let t = 0; t < rRes; t++) floorZ = Math.min(floorZ, cavityBody[0][t * 3 + 2]);
+    const room = floorZ - footH - MIN_FLOOR;
+    if (sgn > 0 && d > room) {
+      d = Math.max(0, room);
+      markNotes.push(`The mark is limited to ${d.toFixed(1)} mm deep on the master so its wall keeps ${MIN_FLOOR} mm above it — a thicker master Wall allows more.`);
+    }
+    if (sgn < 0) {
+      if (footH <= 0) markNotes.push('Foot is off, so the raised mark stands below the bottom and the piece would sit on it. Turn Foot on, or use Impressed.');
+      else if (d > footH + 1e-6) markNotes.push(`The raised mark stands ${(d - footH).toFixed(1)} mm below the foot ring — the piece will rock.`);
+    }
+    const plate = nF ? footRings[0] : outer.rings[0];
+    const mf = markFloorRings(plate, bcx, bcy, rRes, footH, pm.field, S, sgn, d);
+    if (mf.offFloor) markNotes.push(nF
+      ? 'Part of the mark runs onto the foot ring and is left off — make it smaller or move it in.'
+      : 'Part of the mark runs off the bottom and is left off — make it smaller or move it in.');
+    markRings = mf.rings.reverse(); // innermost first: the stack runs from the centre out and up
+  }
+  const nM = markRings.length;
+
+  const outerStack: Ring[] = [...markRings, ...footRings, ...outer.rings, ledgeRing, wellTopRing, wellOuterBedRing];
   const innerStack: Ring[] = [...cavityBody, floorRiseRing, floorFlatRing, wellInnerTopRing, wellInnerBedRing];
   const vessel = buildRevolvedShell(outerStack, innerStack, rRes, true);
   toPrintOrientation(vessel, zBed);
@@ -268,7 +304,7 @@ export function generatePourThreePieceMold(vase: VaseParameters, mold: MoldParam
   const ridges = seamRings.map((c) => sweepContourSection(vRidgeSection(c, ffT, vw, vh), rRes, stationAt));
   const center = mergeMeshes([vessel, slab, ...ridges]);
 
-  const undercut = computeUndercutFlags(outer.rings, outer.heights, rRes, nF * rRes, center.vertexCount, footH);
+  const undercut = computeUndercutFlags(outer.rings, outer.heights, rRes, (nM + nF) * rRes, center.vertexCount, footH);
 
   // ── Shell halves ──
   const zB = ffT;
@@ -497,5 +533,6 @@ export function generatePourThreePieceMold(vase: VaseParameters, mold: MoldParam
     shellExportDrop: ffT,
     forcedRound,
     halvesIdentical,
+    markNotes,
   };
 }

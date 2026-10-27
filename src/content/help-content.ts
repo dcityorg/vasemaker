@@ -489,7 +489,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'paragraph', text: 'One Foot switch (off by default) decides the bottom everywhere: the plastic print and every mold style. A foot is usually for pieces cast from a mold. It follows the shape of your vase\u2019s bottom \u2014 you never draw it.' },
       { type: 'heading', text: 'Mark' },
-      { type: 'paragraph', text: 'Draw your mark on the Sprig page, Mark tab (a drawing, a picture or text). Turn Mark on here and the vase takes a copy of it, which is saved in the vase file. It goes on the plastic print and on the Split Halves / Split Thirds plug disk (not yet on Pour 3-Pc). If you change the mark later, press "Use the Mark tab\u2019s mark" to bring the new one in.' },
+      { type: 'paragraph', text: 'Draw your mark on the Sprig page, Mark tab (a drawing, a picture or text). Turn Mark on here and the vase takes a copy of it, which is saved in the vase file. It goes on the plastic print, on the Pour 3-Pc center (the master\u2019s bottom) and on the Split Halves / Split Thirds plug disk. If you change the mark later, press "Use the Mark tab\u2019s mark" to bring the new one in.' },
       { type: 'keyvalue', items: [
         { key: 'Impressed', value: 'Pressed into the bottom' },
         { key: 'Raised', value: 'Stands out of the bottom, inside the recess' },

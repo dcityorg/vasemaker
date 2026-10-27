@@ -87,7 +87,7 @@ export function BottomControls() {
           </div>
           <Toggle label="Mark" checked={b.markOn}
             onChange={(v) => { if (v && !b.mark) useTabMark(); setBottom({ markOn: v }); }}
-            tooltip="Put your maker's mark (designed on the Sprig page, Mark tab) on the bottom: the plastic print and the Split Halves / Thirds plug disk" />
+            tooltip="Put your maker's mark (designed on the Sprig page, Mark tab) on the bottom: the plastic print, the Pour 3-Pc center and the Split Halves / Thirds plug disk" />
           {b.markOn && (
             <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
               <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] mb-1.5">

@@ -117,6 +117,57 @@ export function markSampler(field: ReliefField, b: BottomSettings, cx: number, c
   return { at, world, reach, cellMm: step * k };
 }
 
+/**
+ * The recess floor carrying the mark: rings from the floor's edge `plate`
+ * (at z = h) scaled in toward the centre, outermost first, at
+ * z = h + sgn·d·mark. Shared by the PLA vase and Pour 3-Pc's master, which is
+ * the vase scaled — so the cast piece carries the PLA print's mark exactly.
+ * `centreZ` is null when the floor is too small to carry rings.
+ */
+export function markFloorRings(
+  plate: Ring, cx: number, cy: number, n: number, h: number,
+  field: ReliefField, S: ReturnType<typeof markSampler>, sgn: number, d: number,
+): { rings: Ring[]; centreZ: number | null; offFloor: boolean } {
+  // Where is it? Check every marked cell on the outline of the mark.
+  let offFloor = false;
+  const { nx, ny, heights } = field;
+  const cut = INK * field.maxHeight;
+  for (let j = 0; j < ny && !offFloor; j++) {
+    for (let i = 0; i < nx; i++) {
+      const k = j * nx + i;
+      if (heights[k] <= cut) continue;
+      const edge = i === 0 || j === 0 || i === nx - 1 || j === ny - 1
+        || heights[k - 1] <= cut || heights[k + 1] <= cut || heights[k - nx] <= cut || heights[k + nx] <= cut;
+      if (!edge) continue;
+      const [x, y] = S.world(i, j);
+      if (!insidePolygon(x, y, plate, n)) { offFloor = true; break; }
+    }
+  }
+
+  // Rings under the mark, a cell apart (or 0.25 mm, if finer), then one
+  // flat strip out to the floor's edge.
+  const rings: Ring[] = [];
+  let centreZ: number | null = null;
+  const rMin = minRadius(plate, cx, cy, n), rMax = maxRadius(plate, cx, cy, n);
+  if (rMin > 0.2) {
+    const sDense = Math.min(1, S.reach / rMin);
+    const ds = Math.min(S.cellMm, 0.25) / rMax;
+    const count = Math.min(MAX_MARK_RINGS, Math.max(1, Math.ceil(sDense / ds)));
+    const first = sDense < 1 ? 0 : 1; // with the mark reaching the edge, the edge ring itself stays flat
+    for (let r = first; r < count; r++) {
+      const s = sDense * (1 - r / count);
+      const ring = new Float32Array(n * 3);
+      for (let t = 0; t < n; t++) {
+        const x = cx + s * (plate[t * 3] - cx), y = cy + s * (plate[t * 3 + 1] - cy);
+        ring[t * 3] = x; ring[t * 3 + 1] = y; ring[t * 3 + 2] = h + sgn * d * S.at(x, y);
+      }
+      rings.push(ring);
+    }
+    centreZ = h + sgn * d * S.at(cx, cy);
+  }
+  return { rings, centreZ, offFloor };
+}
+
 export interface BottomPatch {
   positions: Float32Array;
   indices: Uint32Array;
@@ -165,44 +216,12 @@ export function buildBottomPatch(
       else if (d > h + 1e-6) notes.push(`The raised mark stands ${(d - h).toFixed(1)} mm below the foot ring — the piece will rock. Lower its Height or deepen the recess.`);
     }
 
-    // Where is it? Check every marked cell on the outline of the mark.
-    let offFloor = false;
-    const { nx, ny, heights } = field;
-    const cut = INK * field.maxHeight;
-    for (let j = 0; j < ny && !offFloor; j++) {
-      for (let i = 0; i < nx; i++) {
-        const k = j * nx + i;
-        if (heights[k] <= cut) continue;
-        const edge = i === 0 || j === 0 || i === nx - 1 || j === ny - 1
-          || heights[k - 1] <= cut || heights[k + 1] <= cut || heights[k - nx] <= cut || heights[k + nx] <= cut;
-        if (!edge) continue;
-        const [x, y] = S.world(i, j);
-        if (!insidePolygon(x, y, plate, n)) { offFloor = true; break; }
-      }
-    }
-    if (offFloor) notes.push(foot
+    const mf = markFloorRings(plate, cx, cy, n, h, field, S, sgn, d);
+    if (mf.offFloor) notes.push(foot
       ? 'Part of the mark runs onto the foot ring and is left off — make it smaller or move it in.'
       : 'Part of the mark runs off the bottom and is left off — make it smaller or move it in.');
-
-    // Rings under the mark, a cell apart (or 0.25 mm, if finer), then one
-    // flat strip out to the floor's edge.
-    const rMin = minRadius(plate, cx, cy, n), rMax = maxRadius(plate, cx, cy, n);
-    if (rMin > 0.2) {
-      const sDense = Math.min(1, S.reach / rMin);
-      const ds = Math.min(S.cellMm, 0.25) / rMax;
-      const count = Math.min(MAX_MARK_RINGS, Math.max(1, Math.ceil(sDense / ds)));
-      const first = sDense < 1 ? 0 : 1; // with the mark reaching the edge, the edge ring itself stays flat
-      for (let r = first; r < count; r++) {
-        const s = sDense * (1 - r / count);
-        const ring = new Float32Array(n * 3);
-        for (let t = 0; t < n; t++) {
-          const x = cx + s * (plate[t * 3] - cx), y = cy + s * (plate[t * 3 + 1] - cy);
-          ring[t * 3] = x; ring[t * 3 + 1] = y; ring[t * 3 + 2] = h + sgn * d * S.at(x, y);
-        }
-        rings.push(ring);
-      }
-      centreZ = h + sgn * d * S.at(cx, cy);
-    }
+    rings.push(...mf.rings);
+    if (mf.centreZ !== null) centreZ = mf.centreZ;
   }
 
   // ── Mesh: rings joined in strips, a fan to the centre ──
