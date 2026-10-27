@@ -61,7 +61,7 @@ export interface SprigView {
   onVase: boolean;
 }
 
-const DEFAULT_VIEW: SprigView = {
+export const DEFAULT_VIEW: SprigView = {
   showPlate: true,
   showWallA: false,
   showWallB: false,

@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
-import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
-import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_PART_COLOR, retiredStyleNotice, isMoldUnnamed } from '@/store/mold-store';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow } from '@/components/parameters/ui';
+import { setShowFacets } from '@/store/view-prefs';
+import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_PART_COLOR, DEFAULT_VIEW, retiredStyleNotice, isMoldUnnamed } from '@/store/mold-store';
 import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { useVaseStore } from '@/store/vase-store';
@@ -824,6 +825,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           {(isSplitAny || isThirds) && mold.error && (
             <p className="text-[11px] text-red-400 mb-2 leading-snug">{mold.error}</p>
           )}
+          <Section title="Display" titleColor={GROUP_COLORS.settings} tooltip="How the preview looks. Nothing here changes what you print">
+          <ResetRow title="Everything in Display back to its default" onClick={() => { setView({ ...DEFAULT_VIEW }); setPartColor(DEFAULT_PART_COLOR); setShowFacets(true); }} />
           <Toggle
             label={mold.style === 'onePiece' ? 'Mold' : isPourClip ? 'Center' : isSplit ? 'Trays' : isHalves || isThirds ? 'Masters' : 'Master'}
             checked={view.showMaster}
@@ -881,6 +884,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             : "Highlight areas (red) where the master narrows as it rises — the plaster above locks them in, so the master can't pull straight up"} />
 
           {!isSplitAny && !isThirds && <Toggle label="Cross-section" checked={view.crossSection} onChange={(v) => setView({ crossSection: v })} tooltip="Slice the assembly to reveal the plaster, well, and cavity" />}
+          </Section>
           {/* Master */}
           <GroupHeader label="Master" color={GROUP_COLORS.structure} />
           <Section title="Master" titleColor={GROUP_COLORS.structure}>

@@ -2,8 +2,9 @@
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
-import { asMark } from '@/store/sprig-store';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow } from '@/components/parameters/ui';
+import { setShowFacets } from '@/store/view-prefs';
+import { asMark, DEFAULT_VIEW } from '@/store/sprig-store';
 import { useSprigDesign } from './sprig-design-context';
 import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
@@ -437,6 +438,8 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
 
           {/* View */}
           <GroupHeader label="View" color={GROUP_COLORS.settings} />
+          <Section title="Display" titleColor={GROUP_COLORS.settings} tooltip="How the preview looks. Nothing here changes what you print">
+          <ResetRow title="The Display switches back to their defaults (stays in this view; the On Vase placement has its own Reset)" onClick={() => { setView({ ...DEFAULT_VIEW, onVase: view.onVase }); setShowFacets(true); }} />
           {!isMark && <div className="grid grid-cols-2 gap-1 mb-2">
             {([[false, 'Mold', 'The plate, walls and plaster you print and pour'], [true, 'On Vase', 'The sprig laid onto your current VaseMaker vase, to judge size and placement']] as const).map(([on, label, tip]) => (
               <button key={label} onClick={() => setView({ onVase: on })} title={tip}
@@ -464,7 +467,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
             </>
           ) : (
             <>
-              <div className="flex justify-end mb-1">
+              <ShowFacetsToggle />
+              <div className="flex items-center justify-between mt-2 mb-1">
+                <span className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)]">Placement</span>
                 <button onClick={() => resetFields(['onVaseHeight', 'onVaseAngle', 'onVaseTilt', 'onVaseCopies', 'onVaseHandle'])} className={resetBtn} title="On Vase placement back to its defaults">Reset</button>
               </div>
               <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
@@ -481,9 +486,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                   The handle sits where HandleMaker puts it — change its height there (Top Below Rim).
                 </p>
               )}
-              <ShowFacetsToggle />
             </>
           )}
+          </Section>
 
           {/* Sprig */}
           <GroupHeader label={What} color={GROUP_COLORS.structure} />

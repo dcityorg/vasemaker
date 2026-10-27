@@ -12,7 +12,8 @@ import { useVaseStore } from '@/store/vase-store';
 import { APPEARANCE, PRINT_CHECK } from '@/config/shape-params';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { GROUP_COLORS } from '@/config/colors';
-import { SliderRow, GroupHeader, Toggle } from './ui';
+import { SliderRow, GroupHeader, Section, Toggle, ResetRow } from './ui';
+import { setShowFacets } from '@/store/view-prefs';
 import { ShowFacetsToggle } from './ShowFacetsToggle';
 import { useVaseExtras } from '@/components/viewport/OnVase';
 
@@ -25,6 +26,14 @@ export function ViewControls() {
   return (
     <>
       <GroupHeader label="View" color={GROUP_COLORS.settings} />
+      <Section title="Display" titleColor={GROUP_COLORS.settings} tooltip="How the preview looks. Nothing here changes what you print">
+      <ResetRow title="Everything in Display back to its default" onClick={() => {
+        useVaseExtras.setState({ showHandle: false, showSprig: false });
+        setColor(APPEARANCE.defaultColor);
+        setShowFacets(true);
+        setPrintCheck({ showOverhangs: DEFAULT_PARAMETERS.printCheck.showOverhangs, overhangAngle: DEFAULT_PARAMETERS.printCheck.overhangAngle });
+        setShowRulers(false);
+      }} />
       <Toggle label="Show Handle" checked={extras.showHandle} onChange={(v) => useVaseExtras.setState({ showHandle: v })}
         tooltip="The handle from HandleMaker on the vase, placed the way the mold puts it (its height is HandleMaker's Top Below Rim)" />
       <Toggle label="Show Sprig" checked={extras.showSprig} onChange={(v) => useVaseExtras.setState({ showSprig: v })}
@@ -65,6 +74,7 @@ export function ViewControls() {
         </div>
       )}
       <Toggle label="Show Rulers" checked={params.showRulers ?? false} onChange={setShowRulers} tooltip="Display axis lines and dimension markers (mm) in the 3D view" />
+      </Section>
     </>
   );
 }

@@ -2,10 +2,11 @@
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow } from '@/components/parameters/ui';
+import { setShowFacets } from '@/store/view-prefs';
 import { BezierCurveEditor, EDITOR_CHROME } from '@/components/parameters/BezierCurveEditor';
 import { evaluatePiecewiseBezier } from '@/engine/bezier';
-import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME, isHandleUnnamed } from '@/store/handle-store';
+import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME, isHandleUnnamed, DEFAULT_VIEW } from '@/store/handle-store';
 import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { HANDLE_PARAMS } from '@/config/handle-params';
@@ -419,6 +420,8 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
 
           {/* View toggles */}
           <GroupHeader label="View" color={GROUP_COLORS.settings} />
+          <Section title="Display" titleColor={GROUP_COLORS.settings} tooltip="How the preview looks. Nothing here changes what you print">
+          <ResetRow title="Everything in Display back to its default (stays in this view: Mold, Side or On Vase)" onClick={() => { setView({ ...DEFAULT_VIEW, showMug: view.showMug, onVase: view.onVase }); setShowFacets(true); }} />
           {/* Mold = the parts you print; Side = the flat mug view; On Vase = the
               3-D mug (shared with SprigMaker and VaseMaker). */}
           <div className="grid grid-cols-3 gap-1 mb-2">
@@ -493,6 +496,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           )}
 
           </>}
+          </Section>
           {/* Handle */}
           <GroupHeader label="Handle" color={GROUP_COLORS.structure} />
           <Section title="Drawing Area" titleColor={GROUP_COLORS.structure} defaultOpen={false} tooltip="Size of the profile editor's window only — moving these never changes the handle. Widen one to give yourself room to drag a control point further out">

@@ -175,6 +175,16 @@ export function Section({ title, children, defaultOpen = true, active, checked, 
   );
 }
 
+/** A section's right-aligned Reset link (the Display boxes, 2026-10-26). */
+export function ResetRow({ onClick, title }: { onClick: () => void; title: string }) {
+  return (
+    <div className="flex justify-end mb-1">
+      <button onClick={onClick} title={title}
+        className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors">Reset</button>
+    </div>
+  );
+}
+
 /** Group header label for visual separation between section groups */
 export function GroupHeader({ label, color }: { label: string; color: string }) {
   return (

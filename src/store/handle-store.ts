@@ -59,7 +59,7 @@ export interface HandleView {
   showSprig: boolean;
 }
 
-const DEFAULT_VIEW: HandleView = {
+export const DEFAULT_VIEW: HandleView = {
   showMug: null,
   onVase: false,
   showSprig: false,

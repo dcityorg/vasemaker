@@ -72,7 +72,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'tip', text: 'Rulers are automatically hidden in captured images. The filename matches your design name if one is set.' },
       { type: 'heading', text: 'View' },
-      { type: 'paragraph', text: 'The View group at the top of the panel holds everything about how you look at the vase, in the same order as on the Mold, Handle and Sprig pages: Show Handle and Show Sprig (the HandleMaker handle and the SprigMaker sprig on the vase), Color, Show Facets, Overhangs (red where the wall leans out past Max Angle), and Show Rulers (axis lines with mm markers, hidden by default).' },
+      { type: 'paragraph', text: 'The Display box (View group, top of the panel) holds everything about how you look at the vase, in the same order as on the Mold, Handle and Sprig pages: Show Handle and Show Sprig (the HandleMaker handle and the SprigMaker sprig on the vase), Color, Show Facets, Overhangs (red where the wall leans out past Max Angle), and Show Rulers (axis lines with mm markers, hidden by default). Its Reset puts all of these back to their defaults, the colour included.' },
       { type: 'heading', text: 'Page layout' },
       { type: 'paragraph', text: 'All four pages are laid out the same way, top to bottom: the name and undo, the page buttons, Load Design / Save Design and the Export buttons, the View group, the design\u2019s own sections (each page has a Resolution section or line among them), then Analysis, and Revert to Saved at the very bottom.' },
       { type: 'heading', text: 'Tooltips' },
@@ -420,7 +420,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Vertical', value: '100\u2013200 for most prints. Up to 500 for fine textures or tall vases.' },
         { key: 'Radial', value: '200\u2013360 for smooth curves. Up to 720 for high-count textures (Square Flute, Fluting).' },
       ] },
-      { type: 'paragraph', text: 'Turn on Show Facets (View group, top of the panel) to preview the actual flat faces that will be in your STL file. If you can see them, increase resolution. With it off, curves are drawn smooth and sharp edges stay sharp, which looks nicer but hides the facets. The switch is shared by all four pages and remembered in this browser.' },
+      { type: 'paragraph', text: 'Turn on Show Facets (View \u2192 Display, top of the panel) to preview the actual flat faces that will be in your STL file. If you can see them, increase resolution. With it off, curves are drawn smooth and sharp edges stay sharp, which looks nicer but hides the facets. The switch is shared by all four pages and remembered in this browser.' },
       { type: 'tip', text: 'For final export, bump radial resolution to 360+. For quick iteration, keep it lower. Dense textures like 80-count Square Flute need 400+ radial to look sharp.' },
 
       { type: 'heading', text: 'Cutout / Lattice Prints' },

@@ -53,7 +53,7 @@ export interface MoldView {
   showUndercuts: boolean;
 }
 
-const DEFAULT_VIEW: MoldView = {
+export const DEFAULT_VIEW: MoldView = {
   showMaster: true,
   showCottle: true,
   showCottleB: true,
