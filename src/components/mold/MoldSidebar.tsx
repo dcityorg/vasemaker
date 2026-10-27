@@ -887,7 +887,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           </Section>
           {/* Master */}
           <GroupHeader label="Master" color={GROUP_COLORS.structure} />
-          <Section title="Master" titleColor={GROUP_COLORS.structure}>
+          {/* Named for what is in it; the MASTER heading above covers this and the Foot box (Gary, 2026-10-26: "Master / Master"). */}
+          <Section title="Shrink & Wall" titleColor={GROUP_COLORS.structure}>
             {sl('shrinkPercent', 'Shrink', '%', 'Clay slip shrinkage — master is scaled up by this to compensate. In red because a wrong value is silent: every pot comes out the wrong size', '#f87171')}
             {!isSplit && sl('masterWallThickness', 'Wall', 'mm', isThirds ? 'Printed shell of the hollow master (one piece\'s slice of the vase). It is open on its cut faces so cold water can go in to shrink it free' : isHalves ? 'Printed shell of the hollow half-vase master. It is open on its cut face so cold water can go in to shrink it free' : 'Printed shell thickness of the hollow master')}
             <Toggle label="Keep Texture" checked={params.keepTexture} onChange={(v) => setParam('keepTexture', v)} tooltip="Carry the vase's surface texture onto the master" />
@@ -1055,7 +1056,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           {isThirds && (
             <>
               <GroupHeader label="Plate & Walls" color={GROUP_COLORS.smoothing} />
-              <Section title="Plate & Walls" titleColor={GROUP_COLORS.smoothing} tooltip="Each piece is poured on its own: the master sits in a pocket in a V-shaped plate, and two walls clip on round it. After the plaster sets: walls off, plate off, then cold water into the master and lift it out">
+              <Section title="Plaster & Seams" titleColor={GROUP_COLORS.smoothing} tooltip="Each piece is poured on its own: the master sits in a pocket in a V-shaped plate, and two walls clip on round it. After the plaster sets: walls off, plate off, then cold water into the master and lift it out">
                 {sl('plasterThickness', 'Plaster', 'mm', 'Plaster round the vase: up to the top of each piece, out to its side walls, and below the base')}
                 {sl('seamAngle', 'Seam Angle', '°', 'Turns all three seams together round the vase — they always stay 120° apart. Put them on the ridges of a texture (or the corners of a 3- or 6-sided shape) and watch the Undercuts view')}
                 <SplitTopView

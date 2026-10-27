@@ -230,6 +230,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
     id: 'mold-master-settings',
     title: 'Master Settings',
     blocks: [
+      { type: 'paragraph', text: 'These are in the MASTER group: the Shrink & Wall box, then the Foot box (Foot Piece on the split styles). The Shrink & Wall box also shows the Resolution the master is built at, which comes from the Vase tab.' },
       { type: 'keyvalue', items: [
         { key: 'Shrink %', value: 'Clay slip shrinks as it dries and fires — commonly around 12%, but check your clay body\'s spec. The vase form is scaled up by this amount so finished pieces match your designed size.' },
         { key: 'Wall', value: 'Printed thickness of the hollow vase form — the center piece on Pour 3-Pc, the master on Split Halves. 3mm is a good default — stiff enough to survive the pour, thin enough to shrink away in cold water.' },
@@ -265,7 +266,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
         { key: 'Wall', value: 'Printed wall thickness of the shell. It mostly just holds liquid plaster, so 3mm is plenty.' },
         { key: 'Draft', value: 'INWARD taper going up — the plaster block is narrower at the top, which saves plaster and helps the halves come away.' },
       ] },
-      { type: 'paragraph', text: 'The Foot Flange and Split Cottle settings are explained in the Pour 3-Pc section. Split Halves\' and Split Thirds\' Plate & Walls, Natches and Foot Piece settings (and Split Halves\' Handle) are in their own sections.' },
+      { type: 'paragraph', text: 'The Foot Flange and Split Cottle settings are explained in the Pour 3-Pc section. Split Halves\' Plate & Walls, Split Thirds\' Plaster & Seams, and both styles\' Natches and Foot Piece settings (and Split Halves\' Handle) are in their own sections.' },
     ],
   },
 
