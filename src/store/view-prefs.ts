@@ -6,8 +6,9 @@
  * Show Facets: on = every flat triangle shows (flat shading), the way to judge
  * Resolution before printing; off = crease shading (curves smooth, edges
  * sharper than 30° kept sharp — components/viewport/crease.ts). New visitors
- * start with it on; turning it off sticks until it is turned back on, or the
- * Vase page's Appearance Reset.
+ * start with it on; turning it off sticks until it is turned back on (the
+ * switch is its own reset: the Vase page's Appearance section, whose Reset
+ * also did it, became the View group on 2026-10-26).
  */
 
 import { create } from 'zustand';

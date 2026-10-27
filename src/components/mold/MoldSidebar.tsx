@@ -441,9 +441,9 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       const parsed = JSON.parse(text);
       if (!parsed || typeof parsed !== 'object' || parsed.type !== 'mold-settings') {
         if (parsed && typeof parsed === 'object' && ('radius' in parsed || 'profilePoints' in parsed)) {
-          alert('That file is a vase design. Load Settings expects a mold settings file — use Load Design on the Vase tab for designs.');
+          alert('That file is a vase design. Load it with Load Design on the Vase tab.');
         } else {
-          alert('Invalid mold settings file.');
+          alert('Not a mold design file.');
         }
         return;
       }
@@ -481,7 +481,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
         fileHasHandle: !!fileHandle,
       });
     } catch {
-      alert('Invalid mold settings file.');
+      alert('Not a mold design file.');
     }
   };
 
@@ -588,17 +588,17 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               onClick={handleLoadSettings}
               className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
               style={{ color: UI_MUTED }}
-              title="Load mold settings from JSON (settings only — not the vase design)"
+              title="Load a mold design (.json). It carries a copy of the vase it was made from; if that differs from the vase open now, you are asked which to keep"
             >
-              Load Settings
+              Load Design
             </button>
             <button
               onClick={handleSaveSettings}
               className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
               style={{ color: UI_MUTED }}
-              title="Save mold settings as JSON (settings only — not the vase design)"
+              title="Save the mold design (.json, with a copy of its vase) plus a .txt bench sheet"
             >
-              Save Settings
+              Save Design
             </button>
             <input
               ref={fileInputRef}
@@ -856,8 +856,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             </>
           )}
           <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} />
-          {!isSplitAny && !isThirds && <Toggle label="Cross-section" checked={view.crossSection} onChange={(v) => setView({ crossSection: v })} tooltip="Slice the assembly to reveal the plaster, well, and cavity" />}
-          {/* Same control as the vase's Appearance → Color. Colours the main
+          {(mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece' || isHalves || isThirds) && (
+            <Toggle label={isHalves || isThirds ? 'Ghost Walls' : 'Ghost Shell'} checked={view.ghostShell} onChange={(v) => setView({ ghostShell: v })} tooltip="Draw the shell translucent to see how the whole assembly fits together. Opaque is clearer for inspecting the flange features — stacked transparent surfaces sort badly at the seam" />
+          )}
+          {/* Same control as the vase's View → Color. Colours the main
               part only; the shell keeps its blue so the two stay distinct. */}
           <div className="flex items-center gap-3 mb-2">
             <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Preview colour of the main part (master, center, mold or trays). The shell stays blue. Undercuts still show red, so avoid a red here">Color</label>
@@ -872,21 +874,24 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             )}
           </div>
           <ShowFacetsToggle />
-          {(mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece' || isHalves || isThirds) && (
-            <Toggle label={isHalves || isThirds ? 'Ghost Walls' : 'Ghost Shell'} checked={view.ghostShell} onChange={(v) => setView({ ghostShell: v })} tooltip="Draw the shell translucent to see how the whole assembly fits together. Opaque is clearer for inspecting the flange features — stacked transparent surfaces sort badly at the seam" />
-          )}
           <Toggle label="Undercuts" checked={view.showUndercuts} onChange={(v) => setView({ showUndercuts: v })} tooltip={isThirds
             ? "Highlight areas (red) where a piece can't pull straight out along its own centre line — a surface facing back toward a seam by more than the piece allows (30° at a seam, more toward the middle). Turn the Seam Angle to put the seams on ridges"
             : isSplitAny
             ? "Highlight areas (red) that face back toward the split line — the plaster half locks onto them and can't pull straight off sideways. Flutes, twist and concave shapes crossing the split do this; necks and bellies don't"
             : "Highlight areas (red) where the master narrows as it rises — the plaster above locks them in, so the master can't pull straight up"} />
 
+          {!isSplitAny && !isThirds && <Toggle label="Cross-section" checked={view.crossSection} onChange={(v) => setView({ crossSection: v })} tooltip="Slice the assembly to reveal the plaster, well, and cavity" />}
           {/* Master */}
           <GroupHeader label="Master" color={GROUP_COLORS.structure} />
           <Section title="Master" titleColor={GROUP_COLORS.structure}>
             {sl('shrinkPercent', 'Shrink', '%', 'Clay slip shrinkage — master is scaled up by this to compensate. In red because a wrong value is silent: every pot comes out the wrong size', '#f87171')}
             {!isSplit && sl('masterWallThickness', 'Wall', 'mm', isThirds ? 'Printed shell of the hollow master (one piece\'s slice of the vase). It is open on its cut faces so cold water can go in to shrink it free' : isHalves ? 'Printed shell of the hollow half-vase master. It is open on its cut face so cold water can go in to shrink it free' : 'Printed shell thickness of the hollow master')}
             <Toggle label="Keep Texture" checked={params.keepTexture} onChange={(v) => setParam('keepTexture', v)} tooltip="Carry the vase's surface texture onto the master" />
+            {/* The mold has no Resolution of its own; say where it is (Gary,
+                2026-10-26: every page names Resolution in the same way). */}
+            <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug" title="The master is the vase, so its facets are the vase's. Raise Vertical / Radial on the Vase tab for a smoother master">
+              Resolution: {vaseParams.resolution.vertical} × {vaseParams.resolution.radial}, from the Vase tab (Settings → Resolution). <Link href="/" className="underline hover:text-[var(--text-primary)]">Vase ▸</Link>
+            </p>
           </Section>
           {(isHalves || isThirds) && (() => {
             // One plaster PLUG foot for both split styles (Split Halves since
@@ -1287,7 +1292,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               onClick={revertToSaved}
               className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
               style={{ color: UI_MUTED }}
-              title="Put the mold settings back to the last Save/Load Settings"
+              title="Put the mold settings back to the last Save Design / Load Design"
             >
               Revert to Saved
             </button>

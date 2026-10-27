@@ -19,6 +19,11 @@ interface VaseStore {
   // Dirty flag — true when params changed since last load/save/preset
   isDirty: boolean;
   markClean: () => void;
+  /** The design as last saved, loaded or picked from the presets — what the
+   *  page was when isDirty last went false. Revert to Saved returns to it. */
+  savedParams: VaseParameters | null;
+  /** Back to savedParams, as one undoable step. */
+  revertToSaved: () => void;
 
   // Design name — used for save/export filenames; shared with the /mold route
   designName: string | null;
@@ -127,10 +132,19 @@ interface VaseStore {
   loadDesign: (raw: unknown, name: string | null) => void;
 }
 
+const INITIAL_PARAMS: VaseParameters = { ...applyPreset(BUILT_IN_PRESETS[0]), color: '#0000ff' };
+
 export const useVaseStore = create<VaseStore>((set, get) => ({
-  params: { ...applyPreset(BUILT_IN_PRESETS[0]), color: '#0000ff' },
+  params: INITIAL_PARAMS,
   isDirty: false,
   markClean: () => set({ isDirty: false }),
+  savedParams: INITIAL_PARAMS,
+  revertToSaved: () => {
+    const saved = get().savedParams;
+    if (!saved) return;
+    skipNextDirtyMark();
+    set({ params: saved, isDirty: false });
+  },
 
   designName: null,
   setDesignName: (name) => set({ designName: name }),
@@ -604,16 +618,21 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
 let _skipNextDirty = false;
 export function skipNextDirtyMark() { _skipNextDirty = true; }
 
-// Subscribe to params changes for undo history + dirty flag
+// Subscribe to params changes for undo history + dirty flag. Whenever the
+// design is clean (saved, loaded, a preset, reverted), it IS the saved
+// design: that is what Revert to Saved goes back to.
 useVaseStore.subscribe(
   (state, prevState) => {
     recordChange(state.params);
     if (state.params !== prevState.params) {
       if (_skipNextDirty) {
         _skipNextDirty = false;
+        if (!state.isDirty && state.savedParams !== state.params) useVaseStore.setState({ savedParams: state.params });
       } else {
         useVaseStore.setState({ isDirty: true });
       }
+    } else if (!state.isDirty && prevState.isDirty && state.savedParams !== state.params) {
+      useVaseStore.setState({ savedParams: state.params });
     }
   },
 );
@@ -655,7 +674,7 @@ let adopting = false;
 function adoptStored(raw: string | null): void {
   try {
     if (!raw) return;
-    const data = JSON.parse(raw) as { params?: unknown; designName?: unknown; isDirty?: unknown };
+    const data = JSON.parse(raw) as { params?: unknown; designName?: unknown; isDirty?: unknown; saved?: unknown };
     if (!data.params || typeof data.params !== 'object') return;
     // Same merge as Load Design, so an entry written by an older version gains
     // any parameters added since instead of loading half-formed.
@@ -670,6 +689,14 @@ function adoptStored(raw: string | null): void {
         designName: typeof data.designName === 'string' ? data.designName : null,
         isDirty: data.isDirty === true,
       });
+      // A clean design is its own saved state (the subscriber records it); a
+      // dirty one brings the saved state it was edited from, if stored.
+      if (data.isDirty === true) {
+        useVaseStore.setState({
+          savedParams: data.saved && typeof data.saved === 'object'
+            ? applyPreset({ parameters: data.saved as Partial<VaseParameters> }) : null,
+        });
+      }
     } finally {
       adopting = false;
     }
@@ -700,7 +727,12 @@ useVaseStore.subscribe((state) => {
     try {
       window.localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ params: prevParams, designName: prevName, isDirty: prevDirty })
+        JSON.stringify({
+          params: prevParams, designName: prevName, isDirty: prevDirty,
+          // Only while dirty: clean, it is the same as params. Keeps Revert to
+          // Saved across a reload without storing the design twice for nothing.
+          ...(prevDirty && useVaseStore.getState().savedParams ? { saved: useVaseStore.getState().savedParams } : {}),
+        })
       );
     } catch {
       // Storage full/blocked — the design just won't persist this session.

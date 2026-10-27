@@ -21,7 +21,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
         'Clip the two walls onto the plate, pour plaster to the top of the walls, let it set, lift the walls off and pull the plate away',
       ] },
       { type: 'tip', text: 'STANDARD SIZES are the point of the design: every plate of one size (20×20 up to 140×140 in 20 mm steps, plus Long 160×60) fits that size’s wall pair, so you print the walls ONCE per size and only a plate per sprig after that. That is why the walls of a standard size have no sliders — anything that changed them would make the walls you already printed stop fitting. Use Custom if you need a different box; it makes its own walls. PLATE THICKNESS is the exception that is allowed on every size: the walls sit on top of the plate, so a thinner or thicker plate still fits the walls you have.' },
-      { type: 'tip', text: 'Everything auto-saves in this browser. Save Settings writes a «name».json with the drawing stored INSIDE it, so the file alone reproduces the sprig, plus a «name».txt bench sheet with the plaster batch and printer-fit numbers.' },
+      { type: 'tip', text: 'Everything auto-saves in this browser. Save Design writes a «name».json with the drawing stored INSIDE it, so the file alone reproduces the sprig, plus a «name».txt bench sheet with the plaster batch and printer-fit numbers.' },
       { type: 'tip', text: 'Undo and redo (↶ ↷, or Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z) cover the whole design, drawing included. RESET SPRIG SETTINGS restores the default settings and keeps your drawing, its size and which way it faces. Each section also has its own Reset, top right, for just that section (Size\'s puts the drawing back the way it was loaded: unturned, unflipped and in its own proportions). REVERT TO SAVED puts everything back to your last saved file.' },
     ],
   },
@@ -31,10 +31,10 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     blocks: [
       { type: 'paragraph', text: 'The MARK tab, at the top of this panel, designs a maker\'s mark for the bottom of a piece: initials, a symbol, a logo. It uses the same controls as a sprig (samples, SVG, pictures, text, height, edges, checks), but it is a separate design. Switching tabs never changes the other one, and each has its own name, undo and Revert to Saved.' },
       { type: 'list', items: [
-        'One mark, kept in this browser like everything else. Save Settings writes it to its own «name».json, with the drawing inside',
+        'One mark, kept in this browser like everything else. Save Design writes it to its own «name».json, with the drawing inside',
         'Shown at its FINISHED size, as it reads looking at the bottom of the piece. There is no Shrink here: the vase or the mold that carries the mark scales it with everything else',
         'No mold, no Backing and no Cut In letters: whether the mark is pressed into the bottom or stands up from it is chosen where it is placed',
-        'Load Settings takes a sprig file as well as a mark file, so a sprig you already drew can become your mark (and the other way round)',
+        'Load Design takes a sprig file as well as a mark file, so a sprig you already drew can become your mark (and the other way round)',
       ] },
       { type: 'tip', text: 'To put the mark on a vase, open the Vase tab\u2019s Foot & Mark section and turn Mark on \u2014 the vase takes a copy of it. It goes on the plastic print, the Pour 3-Pc center and the Split Halves / Split Thirds plug disk.' },
     ],

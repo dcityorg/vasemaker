@@ -2,14 +2,11 @@
 
 import { useVaseStore } from '@/store/vase-store';
 import { useMeshStatsStore } from '@/store/mesh-stats-store';
-import { APPEARANCE, RESOLUTION, PRINT_CHECK } from '@/config/shape-params';
+import { RESOLUTION, PRINT_CHECK } from '@/config/shape-params';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import type { FilamentType } from '@/engine/types';
-import { SliderRow, Section, GroupHeader, Toggle } from './ui';
-import { useVaseExtras } from '@/components/viewport/OnVase';
-import { ShowFacetsToggle } from './ShowFacetsToggle';
-import { useShowFacets, setShowFacets } from '@/store/view-prefs';
+import { SliderRow, Section, GroupHeader } from './ui';
 
 /** Right-aligned label/value row for the Print Check stats */
 function StatRow({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
@@ -23,9 +20,7 @@ function StatRow({ label, value, tooltip }: { label: string; value: string; tool
 
 export function SettingsControls() {
   const params = useVaseStore((s) => s.params);
-  const { setColor, setShowRulers, setResolution, setPrintCheck } = useVaseStore();
-  const facets = useShowFacets();
-  const extras = useVaseExtras();
+  const { setResolution, setPrintCheck } = useVaseStore();
   const stats = useMeshStatsStore((s) => s.stats);
 
   const printCheck = params.printCheck ?? DEFAULT_PARAMETERS.printCheck;
@@ -37,54 +32,29 @@ export function SettingsControls() {
   const filamentAreaMm2 = Math.PI * (PRINT_CHECK.filamentDiameter / 2) ** 2;
   const filamentM = stats ? stats.volumeMm3 / filamentAreaMm2 / 1000 : 0;
 
-  const printCheckActive =
-    printCheck.showOverhangs !== DEFAULT_PARAMETERS.printCheck.showOverhangs ||
-    printCheck.overhangAngle !== DEFAULT_PARAMETERS.printCheck.overhangAngle ||
-    printCheck.material !== DEFAULT_PARAMETERS.printCheck.material;
-
   return (
     <>
+      {/* Resolution: the same name on every page (Gary, 2026-10-26). */}
       <GroupHeader label="Settings" color={GROUP_COLORS.settings} />
-
-      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor || params.showRulers || !facets} tooltip="Visual settings for the 3D preview" titleColor={GROUP_COLORS.settings}>
-        {(params.color !== APPEARANCE.defaultColor || params.showRulers || !facets) && (
-          <div className="flex justify-end mb-1">
-            <button onClick={() => { setColor(APPEARANCE.defaultColor); setShowRulers(false); setShowFacets(true); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
-          </div>
-        )}
-        <div className="flex items-center gap-3 mb-2">
-          <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Preview color for the 3D model">Color</label>
-          <input
-            type="color"
-            value={params.color}
-            onChange={(e) => setColor(e.target.value)}
-            className="w-8 h-8 rounded cursor-pointer border border-[var(--border-color)] bg-transparent p-0"
-          />
+      <Section title="Resolution" defaultOpen={false} tooltip="Mesh density — higher values show finer detail but create larger files" titleColor={GROUP_COLORS.settings} active={
+        params.resolution.vertical !== RESOLUTION.defaults.vertical ||
+        params.resolution.radial !== RESOLUTION.defaults.radial
+      }>
+        <div className="flex justify-end mb-1">
+          <button onClick={() => setResolution({ ...RESOLUTION.defaults })} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <Toggle label="Show Rulers" checked={params.showRulers ?? false} onChange={setShowRulers} tooltip="Display axis lines and dimension markers (mm) in the 3D view" />
-        <Toggle label="Show Handle" checked={extras.showHandle} onChange={(v) => useVaseExtras.setState({ showHandle: v })}
-          tooltip="The handle from HandleMaker on the vase, placed the way the mold puts it (its height is HandleMaker's Top Below Rim)" />
-        <Toggle label="Show Sprig" checked={extras.showSprig} onChange={(v) => useVaseExtras.setState({ showSprig: v })}
-          tooltip="The sprig from SprigMaker on the vase, where SprigMaker places it (View → On Vase there)" />
-        {/* Shared by all four pages and remembered in this browser (2026-10-26).
-            Was the vase's own params.flatShading, saved in design files; that
-            field is now unused. Off = crease shading, not smooth. */}
-        <ShowFacetsToggle />
+        <SliderRow label="Vertical" value={params.resolution.vertical} {...RESOLUTION.vertical} onChange={(v) => setResolution({ vertical: v })} tooltip="Number of rows from bottom to top" />
+        <SliderRow label="Radial" value={params.resolution.radial} {...RESOLUTION.radial} onChange={(v) => setResolution({ radial: v })} tooltip="Number of segments around circumference" />
+        <div className="text-xs text-[var(--text-secondary)] mt-2 opacity-60">
+          Dense or detailed textures require higher resolution. Higher values produce larger STL files.
+        </div>
       </Section>
 
-      <Section title="Print Check" defaultOpen={false} active={printCheckActive} tooltip="Material estimates and overhang warnings for 3D printing" titleColor={GROUP_COLORS.settings}>
-        {printCheckActive && (
-          <div className="flex justify-end mb-1">
-            <button onClick={() => setPrintCheck({ ...DEFAULT_PARAMETERS.printCheck })} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
-          </div>
-        )}
-        {stats && (
-          <StatRow
-            label="Size"
-            value={`${stats.sizeX.toFixed(1)} × ${stats.sizeY.toFixed(1)} × ${stats.sizeZ.toFixed(1)} mm`}
-            tooltip="Bounding box of the mesh (width × depth × height)"
-          />
-        )}
+      {/* Analysis: last, as on Mold / Handle / Sprig. Was "Print Check" in
+          Settings; its Overhangs switch moved to View with the other red
+          highlights. */}
+      <GroupHeader label="Analysis" color={GROUP_COLORS.settings} />
+      <Section title="Plastic Estimate" defaultOpen={false} active={printCheck.material !== DEFAULT_PARAMETERS.printCheck.material} tooltip="How much plastic the print takes" titleColor={GROUP_COLORS.settings}>
         {stats && hasShell ? (
           <>
             <StatRow label="Plastic" value={`${volumeCm3.toFixed(1)} cm³`} tooltip="Solid volume of the printed part (walls + base), from the mesh" />
@@ -111,42 +81,16 @@ export function SettingsControls() {
             Set Wall &gt; 0 in the Shell section to get plastic volume and weight estimates.
           </div>
         )}
-        <Toggle
-          label="Overhangs"
-          checked={printCheck.showOverhangs}
-          onChange={(v) => setPrintCheck({ showOverhangs: v })}
-          tooltip="Highlight surfaces that lean out past the angle below in red — these may droop or need support when printed"
-        />
-        {printCheck.showOverhangs && (
-          <>
-            <SliderRow
-              label="Max Angle"
-              value={printCheck.overhangAngle}
-              {...PRINT_CHECK.overhangAngle}
-              suffix="°"
-              onChange={(v) => setPrintCheck({ overhangAngle: v })}
-              tooltip="Overhang angle from vertical your printer can handle — 45° is a common limit, well-tuned printers manage 60°+"
-            />
-            <div className="text-xs text-[var(--text-secondary)] mb-2 opacity-60">
-              Red areas lean out more than {printCheck.overhangAngle}° from vertical and may droop or need
-              support. The bottom layer sits on the build plate and is not flagged.
-            </div>
-          </>
-        )}
       </Section>
 
-      <Section title="Resolution" defaultOpen={false} tooltip="Mesh density — higher values show finer detail but create larger files" titleColor={GROUP_COLORS.settings} active={
-        params.resolution.vertical !== RESOLUTION.defaults.vertical ||
-        params.resolution.radial !== RESOLUTION.defaults.radial
-      }>
-        <div className="flex justify-end mb-1">
-          <button onClick={() => setResolution({ ...RESOLUTION.defaults })} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
-        </div>
-        <SliderRow label="Vertical" value={params.resolution.vertical} {...RESOLUTION.vertical} onChange={(v) => setResolution({ vertical: v })} tooltip="Number of rows from bottom to top" />
-        <SliderRow label="Radial" value={params.resolution.radial} {...RESOLUTION.radial} onChange={(v) => setResolution({ radial: v })} tooltip="Number of segments around circumference" />
-        <div className="text-xs text-[var(--text-secondary)] mt-2 opacity-60">
-          Dense or detailed textures require higher resolution. Higher values produce larger STL files.
-        </div>
+      <Section title="Printer Fit" defaultOpen={false} tooltip="Whether the print fits your printer" titleColor={GROUP_COLORS.settings}>
+        {stats && (
+          <StatRow
+            label="Size"
+            value={`${stats.sizeX.toFixed(1)} × ${stats.sizeY.toFixed(1)} × ${stats.sizeZ.toFixed(1)} mm`}
+            tooltip="Bounding box of the mesh (width × depth × height)"
+          />
+        )}
       </Section>
     </>
   );

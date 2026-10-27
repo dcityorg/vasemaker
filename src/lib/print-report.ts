@@ -3,7 +3,7 @@
  *
  * Gary's request (2026-07-30): the plaster batch size and the printer-fit
  * numbers are what he needs at the bench, and opening the app just to read them
- * is a nuisance. Save Settings therefore writes «name».txt next to «name».json,
+ * is a nuisance. Save Design therefore writes «name».txt next to «name».json,
  * in MoldMaker (all four styles) and HandleMaker alike.
  *
  * Deliberately only those numbers plus enough identity to know which mold the
@@ -95,6 +95,6 @@ export function buildPrintReport(i: PrintReportInput): string {
     L.push(...rows(i.keySettings), '');
   }
 
-  L.push('Full settings are in the .json file beside this one — load it with Load Settings.', '');
+  L.push('Full settings are in the .json file beside this one — load it with Load Design.', '');
   return L.join('\n');
 }

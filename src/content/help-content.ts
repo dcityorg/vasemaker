@@ -58,6 +58,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'heading', text: 'Save & Load' },
       { type: 'paragraph', text: 'Save Design exports your parameters as a JSON file. Load Design imports a previously saved file. Your design is fully described by the parameters \u2014 no mesh data is stored, so files are tiny. A mold settings file saved on the Mold tab carries a COPY of the vase it was designed for, so a mold can always be reopened complete.' },
       { type: 'paragraph', text: 'If you have unsaved changes and try to load a design or select a preset, you\'ll see a confirmation dialog with options to Save & Continue, Don\'t Save, or Cancel. This prevents accidentally losing your work.' },
+      { type: 'paragraph', text: 'Revert to Saved, at the bottom of the panel, appears once you have changed the design. It puts the vase back the way it was at the last Save Design, Load Design or preset, in one step; Undo brings your changes back.' },
       { type: 'tip', text: 'Your design is kept in this browser automatically, so a reload brings back what you were working on \u2014 the Mold tab depends on that too, since it builds from whatever vase is loaded. That is a safety net, not a filing system: it holds ONE design, and the next one replaces it. Save Design is still how you keep a design you want to come back to, and the asterisk still means "not written to a file".' },
       { type: 'tip', text: 'Chrome and Edge provide the best file management experience \u2014 save dialogs remember the last folder you used, and filenames carry over between Load, Save, and Export. Other browsers (Brave, Firefox, Safari) may not remember directories or read back renamed filenames.' },
       { type: 'heading', text: 'Image Capture' },
@@ -70,8 +71,10 @@ export const HELP_SECTIONS: HelpSection[] = [
         'Click Save Image to download, or Cancel to exit capture mode',
       ] },
       { type: 'tip', text: 'Rulers are automatically hidden in captured images. The filename matches your design name if one is set.' },
-      { type: 'heading', text: 'Appearance' },
-      { type: 'paragraph', text: 'The Appearance section lets you change the preview color and toggle Show Rulers. Rulers display axis lines with dimension markers (mm) in the 3D view \u2014 useful for checking size, hidden by default for a cleaner view.' },
+      { type: 'heading', text: 'View' },
+      { type: 'paragraph', text: 'The View group at the top of the panel holds everything about how you look at the vase, in the same order as on the Mold, Handle and Sprig pages: Show Handle and Show Sprig (the HandleMaker handle and the SprigMaker sprig on the vase), Color, Show Facets, Overhangs (red where the wall leans out past Max Angle), and Show Rulers (axis lines with mm markers, hidden by default).' },
+      { type: 'heading', text: 'Page layout' },
+      { type: 'paragraph', text: 'All four pages are laid out the same way, top to bottom: the name and undo, the page buttons, Load Design / Save Design and the Export buttons, the View group, the design\u2019s own sections (each page has a Resolution section or line among them), then Analysis, and Revert to Saved at the very bottom.' },
       { type: 'heading', text: 'Tooltips' },
       { type: 'paragraph', text: 'Hover over any slider label, toggle, or section header to see a tooltip describing what it does.' },
     ],
@@ -363,12 +366,12 @@ export const HELP_SECTIONS: HelpSection[] = [
     blocks: [
       { type: 'paragraph', text: 'VaseMaker generates watertight STL files ready for slicing. The exported mesh is exactly what you see in the preview (WYSIWYG).' },
 
-      { type: 'heading', text: 'Print Check' },
-      { type: 'paragraph', text: 'The Print Check section (Settings group) estimates material usage and warns about overhangs before you slice.' },
+      { type: 'heading', text: 'Analysis' },
+      { type: 'paragraph', text: 'The Analysis group at the bottom of the panel estimates the print before you slice, and the View group warns about overhangs.' },
       { type: 'keyvalue', items: [
-        { key: 'Size', value: 'Bounding box of the mesh in mm — confirm it fits your printer bed' },
-        { key: 'Plastic / Weight / Filament', value: 'Solid volume of the part, its weight for the chosen material, and the length of 1.75mm filament it uses. Requires Wall > 0.' },
-        { key: 'Overhangs', value: 'On by default — tints surfaces red where they lean out past the Max Angle from vertical. Those areas may droop or need support; toggle off for a clean preview' },
+        { key: 'Plastic Estimate', value: 'Solid volume of the part, its weight for the chosen Material, and the length of 1.75mm filament it uses. Requires Wall > 0.' },
+        { key: 'Printer Fit', value: 'Size: the bounding box of the mesh in mm — confirm it fits your printer bed' },
+        { key: 'Overhangs (View)', value: 'On by default — tints surfaces red where they lean out past the Max Angle from vertical. Those areas may droop or need support; toggle off for a clean preview' },
       ] },
       { type: 'tip', text: 'Estimates assume solid walls (how vases usually slice). Overhang checking is great for catching flared profiles, deep textures, and rounded rims that exceed your printer’s limit — 45° is a safe default, well-tuned printers handle 60°+.' },
 
@@ -417,7 +420,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Vertical', value: '100\u2013200 for most prints. Up to 500 for fine textures or tall vases.' },
         { key: 'Radial', value: '200\u2013360 for smooth curves. Up to 720 for high-count textures (Square Flute, Fluting).' },
       ] },
-      { type: 'paragraph', text: 'Turn on Show Facets (Appearance section) to preview the actual flat faces that will be in your STL file. If you can see them, increase resolution. With it off, curves are drawn smooth and sharp edges stay sharp, which looks nicer but hides the facets. The switch is shared by all four pages and remembered in this browser.' },
+      { type: 'paragraph', text: 'Turn on Show Facets (View group, top of the panel) to preview the actual flat faces that will be in your STL file. If you can see them, increase resolution. With it off, curves are drawn smooth and sharp edges stay sharp, which looks nicer but hides the facets. The switch is shared by all four pages and remembered in this browser.' },
       { type: 'tip', text: 'For final export, bump radial resolution to 360+. For quick iteration, keep it lower. Dense textures like 80-count Square Flute need 400+ radial to look sharp.' },
 
       { type: 'heading', text: 'Cutout / Lattice Prints' },

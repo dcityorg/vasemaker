@@ -156,11 +156,11 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
       const parsed = JSON.parse(text);
       if (!parsed || typeof parsed !== 'object' || parsed.type !== 'handle-settings') {
         if (parsed && typeof parsed === 'object' && ('radius' in parsed || 'profilePoints' in parsed)) {
-          alert('That file is a vase design. Load expects a handle settings file — use Load Design on the Vase tab for vases.');
+          alert('That file is a vase design. Load it with Load Design on the Vase tab.');
         } else if (parsed && typeof parsed === 'object' && parsed.type === 'mold-settings') {
-          alert('That file is a mold settings file. Load it on the Mold tab.');
+          alert('That file is a mold design. Load it on the Mold tab.');
         } else {
-          alert('Invalid handle settings file.');
+          alert('Not a handle design file.');
         }
         return;
       }
@@ -169,7 +169,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
       useHandleHistory.getState().clear();
       useHandleStore.setState({ params: loaded, savedParams: loaded, settingsName: baseName });
     } catch {
-      alert('Invalid handle settings file.');
+      alert('Not a handle design file.');
     }
   };
 
@@ -338,17 +338,17 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               onClick={handleLoadSettings}
               className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
               style={{ color: UI_MUTED }}
-              title="Load a handle design + mold settings from JSON"
+              title="Load a handle design (.json): the handle and its mold settings"
             >
-              Load Settings
+              Load Design
             </button>
             <button
               onClick={handleSaveSettings}
               className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
               style={{ color: UI_MUTED }}
-              title="Save the handle design + mold settings as JSON"
+              title="Save the handle design (.json): the handle and its mold settings, plus a .txt bench sheet"
             >
-              Save Settings
+              Save Design
             </button>
             <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileSelected} className="hidden" />
           </div>
@@ -702,7 +702,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               onClick={revertToSaved}
               className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
               style={{ color: UI_MUTED }}
-              title="Put everything back to the last Save/Load Settings — the whole design, shape included"
+              title="Put everything back to the last Save Design / Load Design — the whole design, shape included"
             >
               Revert to Saved
             </button>

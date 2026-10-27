@@ -249,9 +249,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
         if (parsed && typeof parsed === 'object' && ('radius' in parsed || 'profilePoints' in parsed)) {
           alert('That file is a vase design. Load it with Load Design on the Vase tab.');
         } else if (parsed && typeof parsed === 'object' && (parsed.type === 'mold-settings' || parsed.type === 'handle-settings')) {
-          alert(`That file is a ${parsed.type === 'mold-settings' ? 'mold' : 'handle'} settings file. Load it on the ${parsed.type === 'mold-settings' ? 'Mold' : 'Handle'} tab.`);
+          alert(`That file is a ${parsed.type === 'mold-settings' ? 'mold' : 'handle'} design. Load it on the ${parsed.type === 'mold-settings' ? 'Mold' : 'Handle'} tab.`);
         } else {
-          alert(`Invalid ${what} settings file.`);
+          alert(`Not a ${what} design file.`);
         }
         return;
       }
@@ -261,7 +261,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
       useSprigHistory.getState().clear();
       useSprigStore.setState({ params: loaded, savedParams: loaded, settingsName: baseName });
     } catch {
-      alert(`Invalid ${what} settings file.`);
+      alert(`Not a ${what} design file.`);
     }
   };
 
@@ -388,10 +388,10 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           {/* Settings files */}
           <div className="border-t-[3px] border-[#555] pt-2 flex gap-2">
             <button onClick={handleLoadSettings} className={btn} style={{ color: UI_MUTED }} title={`Load a ${what} design (drawing included) from JSON. A sprig file can be loaded as a mark, and a mark as a sprig`}>
-              Load Settings
+              Load Design
             </button>
             <button onClick={handleSaveSettings} className={btn} style={{ color: UI_MUTED }} title={isMark ? 'Save the mark — the drawing is stored inside the file' : 'Save the sprig design — the drawing is stored inside the file — plus a .txt bench sheet'}>
-              Save Settings
+              Save Design
             </button>
             <input ref={settingsInputRef} type="file" accept=".json" onChange={handleSettingsFile} className="hidden" />
           </div>
@@ -447,8 +447,8 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           </div>}
           {isMark ? (
             <>
-              <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature red" />
               <ShowFacetsToggle />
+              <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature red" />
               <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
                 The mark at its finished size, as seen on the bottom of the piece from below.
               </p>
@@ -459,8 +459,8 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               <Toggle label="Wall A" checked={view.showWallA} onChange={(v) => setView({ showWallA: v })} tooltip="First wall in its assembled position" />
               <Toggle label="Wall B" checked={view.showWallB} onChange={(v) => setView({ showWallB: v })} tooltip="Second copy of the same wall, turned 180°" />
               <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour" />
-              <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature Width red" />
               <ShowFacetsToggle />
+              <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature Width red" />
             </>
           ) : (
             <>
@@ -784,16 +784,17 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               tooltip="Shave off everything narrower than Min Feature: sharp tips round off and hairlines go. Also trims fine detail you may want, like antennae" />
           </Section>
 
-          {/* A mark: no mold of its own, and no Shrink — the vase or the mold
-              that carries it applies its own. Only the grid spacing matters. */}
-          {isMark && (
-            <Section title="Resolution" titleColor={GROUP_COLORS.structure}>
-              <div className="flex justify-end mb-1">
-                <button onClick={() => resetFields(['resolution'])} className={resetBtn} title="Resolution back to its default">Reset</button>
-              </div>
-              {sl('resolution', 'Resolution', 'mm', 'Spacing of the points that make up the mark. Smaller = crisper edges but a heavier vase mesh')}
-            </Section>
-          )}
+          {/* Resolution: its own section on both tabs, last before the Mold
+              group — the same name on every page (Gary, 2026-10-26). */}
+          <Section title="Resolution" titleColor={GROUP_COLORS.structure}>
+            <div className="flex justify-end mb-1">
+              <button onClick={() => resetFields(['resolution'])} className={resetBtn} title="Resolution back to its default">Reset</button>
+            </div>
+            {isMark
+              ? sl('resolution', 'Resolution', 'mm', 'Spacing of the points that make up the mark. Smaller = crisper edges but a heavier vase mesh')
+              : sl('resolution', 'Resolution', 'mm', 'The spacing of the points that make up the relief on the printed plate. Smaller = a smoother surface but a larger file')}
+            <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-1">Smaller is finer (it is a spacing, unlike the Vase and Handle counts).</p>
+          </Section>
 
           {!isMark && <>
           {/* Mold */}
@@ -835,10 +836,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           </Section>
           <Section title="Print" titleColor={GROUP_COLORS.surface}>
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['shrinkPercent', 'resolution'])} className={resetBtn} title="Shrink and Resolution back to their defaults">Reset</button>
+              <button onClick={() => resetFields(['shrinkPercent'])} className={resetBtn} title="Shrink back to its default">Reset</button>
             </div>
             {sl('shrinkPercent', 'Shrink', '%', 'Clay shrinkage — the printed relief is scaled up by this so the FINISHED sprig comes out at the size above. In red because a wrong value is silent', '#f87171')}
-            {sl('resolution', 'Resolution', 'mm', 'Resolution: the spacing of the points that make up the relief on the printed plate. Smaller = a smoother surface but a larger file')}
           </Section>
 
           {/* Analysis */}
@@ -885,7 +885,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               onClick={revertToSaved}
               className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
               style={{ color: UI_MUTED }}
-              title="Put everything back to the last Save/Load Settings, drawing included"
+              title="Put everything back to the last Save Design / Load Design, drawing included"
             >
               Revert to Saved
             </button>
