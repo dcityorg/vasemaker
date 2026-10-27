@@ -11,7 +11,8 @@
  * triangle. three.js has toCreasedNormals, but it hashes every corner as a
  * string — seconds on a 350k-triangle center; this walks the index instead.
  *
- * Display only. It never touches the mesh that is exported.
+ * Display only. It never touches the mesh that is exported. Used when Show
+ * Facets is off (store/view-prefs.ts), on all four pages.
  */
 
 import * as THREE from 'three';
@@ -66,5 +67,20 @@ export function creasedGeometry(mesh: VaseMesh, colors: Float32Array | null, ang
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
   if (col) geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return geo;
+}
+
+/**
+ * A part's display geometry: with facets showing, the mesh's own (indexed,
+ * drawn with flat shading); without, crease shading. `colors` = per-vertex
+ * RGB (undercut / overhang tints) or null.
+ */
+export function partGeometry(mesh: VaseMesh, showFacets: boolean, colors: Float32Array | null = null): THREE.BufferGeometry {
+  if (!showFacets) return creasedGeometry(mesh, colors);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(mesh.normals, 3));
+  geo.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
+  if (colors) geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   return geo;
 }

@@ -1,4 +1,5 @@
 'use client';
+import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
@@ -444,7 +445,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
                   Move the sprig in SprigMaker (View → On Vase → Height, Around, Tilt, Repeat).
                 </p>
               )}
-              <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals" />
+              <ShowFacetsToggle />
             </>
           )}
           {!showMug && <>
@@ -454,7 +455,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           <Toggle label="Wall A" checked={view.showWallA} onChange={(v) => setView({ showWallA: v })} tooltip="First wall in its assembled position — turn one wall off to inspect the wall-to-plate joint" />
           <Toggle label="Wall B" checked={view.showWallB} onChange={(v) => setView({ showWallB: v })} tooltip="Second wall copy (same print, rotated 180°)" />
           <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour volume" />
-          <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals. Smooth shading averages across a V ridge's three faces and renders the sharp apex as a rounded tube — flat shading gives it a crease and puts a hard shadow line in each groove" />
+          <ShowFacetsToggle />
           <Toggle label="Cross-section" checked={view.crossSection} onChange={(v) => setView({ crossSection: v })} tooltip="Slice everything with a movable plane — the clearest way to read the master's shell thickness and the open channel inside it" />
           {view.crossSection && (
             <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">

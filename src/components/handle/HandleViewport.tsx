@@ -2,6 +2,8 @@
 
 import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { partGeometry } from '@/components/viewport/crease';
+import { useShowFacets } from '@/store/view-prefs';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, GizmoHelper, GizmoViewcube } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -18,16 +20,13 @@ const PLATE_COLOR = '#d98a4a';
 const WALL_COLOR = '#c97f45';
 const PLASTER_COLOR = '#e7dfca';
 
-function useGeometry(mesh: VaseMesh | null): THREE.BufferGeometry | null {
+function useGeometry(mesh: VaseMesh | null, facets: boolean): THREE.BufferGeometry | null {
   const geo = useMemo(() => {
     if (!mesh) return null;
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3));
-    g.setAttribute('normal', new THREE.BufferAttribute(mesh.normals, 3));
-    g.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
+    const g = partGeometry(mesh, facets);
     g.computeBoundingSphere();
     return g;
-  }, [mesh]);
+  }, [mesh, facets]);
   useEffect(() => () => geo?.dispose(), [geo]);
   return geo;
 }
@@ -158,12 +157,13 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
    * world +y up the screen. Zoom and pan are left untouched.
    */
   const homeView = () => snapView(new THREE.Vector3(0, 0, 1), [0, -1]);
-  const bodyGeo = useGeometry(handle.masterBody);
-  const wellsGeo = useGeometry(handle.masterWells);
-  const plateGeo = useGeometry(handle.plate);
-  const wallGeo = useGeometry(handle.wall);
-  const wallBGeo = useGeometry(handle.wallB);
-  const plasterGeo = useGeometry(handle.plaster);
+  const facets = useShowFacets();
+  const bodyGeo = useGeometry(handle.masterBody, facets);
+  const wellsGeo = useGeometry(handle.masterWells, facets);
+  const plateGeo = useGeometry(handle.plate, facets);
+  const wallGeo = useGeometry(handle.wall, facets);
+  const wallBGeo = useGeometry(handle.wallB, facets);
+  const plasterGeo = useGeometry(handle.plaster, true);
 
   // Assembly is built with the plate top at z=0; lift everything so the plate
   // bottom rests on the ground grid.
@@ -193,12 +193,12 @@ export function HandleViewport({ handle }: { handle: HandleMeshes }) {
         <GroundGrid radius={gridR} height={gridR} />
 
         <group position={[0, 0, lift]}>
-          {view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.4} flat={view.flatShading} clip={clip} />}
-          {view.showPlate && plateGeo && <Part geometry={plateGeo} color={PLATE_COLOR} opacity={1} flat={view.flatShading} clip={clip} />}
-          {view.showWallA && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} clip={clip} />}
-          {view.showWallB && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} clip={clip} />}
-          {view.showHandle && bodyGeo && <Part geometry={bodyGeo} color={MASTER_COLOR} opacity={1} flat={view.flatShading} clip={clip} />}
-          {view.showHandle && view.showWells && wellsGeo && <Part geometry={wellsGeo} color={WELL_COLOR} opacity={1} flat={view.flatShading} clip={clip} />}
+          {view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.4} flat={facets} clip={clip} />}
+          {view.showPlate && plateGeo && <Part geometry={plateGeo} color={PLATE_COLOR} opacity={1} flat={facets} clip={clip} />}
+          {view.showWallA && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} flat={facets} clip={clip} />}
+          {view.showWallB && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} flat={facets} clip={clip} />}
+          {view.showHandle && bodyGeo && <Part geometry={bodyGeo} color={MASTER_COLOR} opacity={1} flat={facets} clip={clip} />}
+          {view.showHandle && view.showWells && wellsGeo && <Part geometry={wellsGeo} color={WELL_COLOR} opacity={1} flat={facets} clip={clip} />}
         </group>
 
         {/* Clickable orientation cube — snap the view square to the world.

@@ -2,6 +2,8 @@
 
 import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { partGeometry } from '@/components/viewport/crease';
+import { useShowFacets } from '@/store/view-prefs';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, GizmoHelper, GizmoViewcube } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -19,28 +21,24 @@ const PLASTER_COLOR = '#e7dfca';
 const THIN_COLOR = '#e53935';
 
 /** `tint` (per vertex 0..1) blends the base colour to red — the thin-part marks. */
-function useGeometry(mesh: VaseMesh | null, tint?: Float32Array | null, base?: string, smoothNormals = false): THREE.BufferGeometry | null {
+function useGeometry(mesh: VaseMesh | null, facets: boolean, tint?: Float32Array | null, base?: string): THREE.BufferGeometry | null {
   const geo = useMemo(() => {
     if (!mesh) return null;
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3));
-    g.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
-    if (smoothNormals) g.computeVertexNormals();
-    else g.setAttribute('normal', new THREE.BufferAttribute(mesh.normals, 3));
+    let col: Float32Array | null = null;
     if (tint && base) {
       const a = new THREE.Color(base), b = new THREE.Color(THIN_COLOR);
-      const col = new Float32Array(mesh.vertexCount * 3);
+      col = new Float32Array(mesh.vertexCount * 3);
       for (let i = 0; i < mesh.vertexCount; i++) {
         const t = tint[i] ?? 0;
         col[i * 3] = a.r + (b.r - a.r) * t;
         col[i * 3 + 1] = a.g + (b.g - a.g) * t;
         col[i * 3 + 2] = a.b + (b.b - a.b) * t;
       }
-      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
     }
+    const g = partGeometry(mesh, facets, col);
     g.computeBoundingSphere();
     return g;
-  }, [mesh, tint, base, smoothNormals]);
+  }, [mesh, facets, tint, base]);
   useEffect(() => () => geo?.dispose(), [geo]);
   return geo;
 }
@@ -73,7 +71,7 @@ export function SprigViewport({ sprig }: { sprig: SprigMoldMeshes | null }) {
   // The mark has no On Vase view (the Vase tab will show it on the bottom).
   const onVase = useSprigStore((s) => s.view.onVase);
   const showHandle = useSprigStore((s) => s.params.onVaseHandle);
-  const flat = useSprigStore((s) => s.view.flatShading);
+  const flat = useShowFacets();
   return onVase && design.kind === 'sprig'
     ? <OnVaseView sprig={sprig} showHandle={showHandle} cameraId="sprig-vase" flat={flat} />
     : <MoldView sprig={sprig} />;
@@ -86,10 +84,11 @@ function MoldView({ sprig }: { sprig: SprigMoldMeshes | null }) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
 
   const tint = view.showThin && sprig && sprig.relief.thinSpots > 0 ? sprig.thinFlags : null;
-  const plateGeo = useGeometry(sprig?.plate ?? null, tint, PLATE_COLOR);
-  const wallGeo = useGeometry(sprig?.wall ?? null);
-  const wallBGeo = useGeometry(sprig?.wallB ?? null);
-  const plasterGeo = useGeometry(sprig?.plaster ?? null);
+  const facets = useShowFacets();
+  const plateGeo = useGeometry(sprig?.plate ?? null, facets, tint, PLATE_COLOR);
+  const wallGeo = useGeometry(sprig?.wall ?? null, facets);
+  const wallBGeo = useGeometry(sprig?.wallB ?? null, facets);
+  const plasterGeo = useGeometry(sprig?.plaster ?? null, true);
 
   /** Square the view to `dir`, keeping distance and target (HandleMaker's snap). */
   const snapView = (dir: THREE.Vector3) => {
@@ -132,10 +131,10 @@ function MoldView({ sprig }: { sprig: SprigMoldMeshes | null }) {
         <GroundGrid radius={gridR} height={gridR} />
 
         <group position={[0, 0, lift]}>
-          {!isMark && view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.4} flat={view.flatShading} />}
-          {view.showPlate && plateGeo && <Part geometry={plateGeo} color={PLATE_COLOR} opacity={1} flat={view.flatShading} vertexColors={!!tint} />}
-          {!isMark && view.showWallA && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} />}
-          {!isMark && view.showWallB && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} flat={view.flatShading} />}
+          {!isMark && view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.4} flat={facets} />}
+          {view.showPlate && plateGeo && <Part geometry={plateGeo} color={PLATE_COLOR} opacity={1} flat={facets} vertexColors={!!tint} />}
+          {!isMark && view.showWallA && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} flat={facets} />}
+          {!isMark && view.showWallB && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} flat={facets} />}
         </group>
 
         <GizmoHelper alignment="top-right" margin={[70, 70]}>

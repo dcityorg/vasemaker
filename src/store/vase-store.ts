@@ -105,7 +105,6 @@ interface VaseStore {
 
   // Actions — resolution
   setResolution: (update: Partial<VaseParameters['resolution']>) => void;
-  setFlatShading: (flat: boolean) => void;
 
   // Actions — presets
   loadPreset: (preset: Preset) => void;
@@ -558,8 +557,6 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
     set((state) => ({
       params: { ...state.params, resolution: { ...state.params.resolution, ...update } },
     })),
-  setFlatShading: (flat) =>
-    set((state) => ({ params: { ...state.params, flatShading: flat } })),
 
   // Presets
   loadPreset: (preset) => {

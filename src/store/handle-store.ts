@@ -38,8 +38,6 @@ export interface HandleView {
   showWallA: boolean;
   showWallB: boolean;
   showPlaster: boolean;
-  /** Per-face normals — creases the V ridges instead of rounding them off. */
-  flatShading: boolean;
   /** Slice everything with a movable plane, so the hollow master's shell, its
    *  channel plug and the seat-lip groove can be seen at all (they are sealed
    *  voids — no camera angle reaches them). */
@@ -71,7 +69,6 @@ const DEFAULT_VIEW: HandleView = {
   showWallA: false,
   showWallB: false,
   showPlaster: false,
-  flatShading: false,
   crossSection: false,
   crossAxis: 'x',
   crossPos: 0.5,

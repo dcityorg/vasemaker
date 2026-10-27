@@ -147,6 +147,8 @@ export interface VaseParameters {
     vertical: number;
     radial: number;
   };
+  /** UNUSED since 2026-10-26: Show Facets is a per-browser view setting now
+   *  (store/view-prefs.ts). Kept so design files that carry it still load. */
   flatShading: boolean;
 
   // Textures

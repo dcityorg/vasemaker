@@ -1,11 +1,13 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { useVaseMesh } from '@/hooks/use-vase-mesh';
 import { useVaseStore } from '@/store/vase-store';
 import { useMeshStatsStore } from '@/store/mesh-stats-store';
 import { computeMeshStats } from '@/engine/mesh-stats';
+import { partGeometry } from './crease';
+import { useShowFacets } from '@/store/view-prefs';
 
 /** Overhang highlight color */
 const OVERHANG_COLOR = new THREE.Color('#ff2b2b');
@@ -16,58 +18,30 @@ const BUILD_PLATE_Z = 0.05;
 
 /**
  * Renders the vase mesh in the Three.js scene.
- * Updates the BufferGeometry in place when the mesh data changes.
+ * A fresh BufferGeometry per mesh (crease shading needs its own, unindexed).
  */
 export function VaseMeshComponent() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const geometryRef = useRef<THREE.BufferGeometry>(null);
   const vaseMesh = useVaseMesh();
   const color = useVaseStore((s) => s.params.color);
-  const flatShading = useVaseStore((s) => s.params.flatShading);
+  const facets = useShowFacets();
   const showOverhangs = useVaseStore((s) => s.params.printCheck?.showOverhangs ?? false);
   const overhangAngle = useVaseStore((s) => s.params.printCheck?.overhangAngle ?? 45);
 
   useEffect(() => {
-    if (!geometryRef.current) return;
-
-    const geo = geometryRef.current;
-
-    // Update geometry attributes
-    geo.setAttribute(
-      'position',
-      new THREE.BufferAttribute(vaseMesh.positions, 3)
-    );
-    geo.setAttribute(
-      'normal',
-      new THREE.BufferAttribute(vaseMesh.normals, 3)
-    );
-    geo.setIndex(new THREE.BufferAttribute(vaseMesh.indices, 1));
-
-    geo.attributes.position.needsUpdate = true;
-    geo.attributes.normal.needsUpdate = true;
-    geo.computeBoundingSphere();
-
     useMeshStatsStore.getState().setStats(computeMeshStats(vaseMesh));
     useMeshStatsStore.setState({ bottomNotes: vaseMesh.bottomNotes ?? [] });
   }, [vaseMesh]);
 
   // Overhang highlighting — per-vertex colors blending vase color → red where the
   // surface faces downward more steeply than the threshold angle (from vertical).
-  useEffect(() => {
-    if (!geometryRef.current) return;
-    const geo = geometryRef.current;
-
-    if (!showOverhangs) {
-      if (geo.getAttribute('color')) geo.deleteAttribute('color');
-      return;
-    }
-
+  const colors = useMemo(() => {
+    if (!showOverhangs) return null;
     const { positions, normals, vertexCount } = vaseMesh;
     // The foot recess and the mark face down by design (a short bridge the
     // slicer handles); tinting them only hides the mark (Gary).
     const bottomStart = vaseMesh.bottomStart ?? vertexCount;
     const base = new THREE.Color(color);
-    const colors = new Float32Array(vertexCount * 3);
+    const out = new Float32Array(vertexCount * 3);
     const rampStart = (overhangAngle * Math.PI) / 180;
     const rampWidth = (OVERHANG_RAMP_DEG * Math.PI) / 180;
 
@@ -80,26 +54,31 @@ export function VaseMeshComponent() {
         const tilt = Math.asin(Math.min(1, -nz));
         f = Math.min(1, Math.max(0, (tilt - rampStart) / rampWidth));
       }
-      colors[i * 3] = base.r + (OVERHANG_COLOR.r - base.r) * f;
-      colors[i * 3 + 1] = base.g + (OVERHANG_COLOR.g - base.g) * f;
-      colors[i * 3 + 2] = base.b + (OVERHANG_COLOR.b - base.b) * f;
+      out[i * 3] = base.r + (OVERHANG_COLOR.r - base.r) * f;
+      out[i * 3 + 1] = base.g + (OVERHANG_COLOR.g - base.g) * f;
+      out[i * 3 + 2] = base.b + (OVERHANG_COLOR.b - base.b) * f;
     }
-
-    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geo.attributes.color.needsUpdate = true;
+    return out;
   }, [vaseMesh, showOverhangs, overhangAngle, color]);
 
+  // Show Facets off = crease shading (its own unindexed geometry).
+  const geometry = useMemo(() => {
+    const g = partGeometry(vaseMesh, facets, colors);
+    g.computeBoundingSphere();
+    return g;
+  }, [vaseMesh, facets, colors]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+
   return (
-    <mesh ref={meshRef} castShadow receiveShadow>
-      <bufferGeometry ref={geometryRef} />
+    <mesh geometry={geometry} castShadow receiveShadow>
       <meshStandardMaterial
-        key={`${flatShading ? 'flat' : 'smooth'}-${showOverhangs ? 'vc' : 'plain'}`}
+        key={`${facets ? 'flat' : 'smooth'}-${showOverhangs ? 'vc' : 'plain'}`}
         color={showOverhangs ? '#ffffff' : color}
         vertexColors={showOverhangs}
         roughness={0.4}
         metalness={0.1}
         side={THREE.DoubleSide}
-        flatShading={flatShading}
+        flatShading={facets}
       />
     </mesh>
   );

@@ -1,4 +1,5 @@
 'use client';
+import { useShowFacets } from '@/store/view-prefs';
 
 import { useState, useEffect } from 'react';
 import { HandleSidebar } from './HandleSidebar';
@@ -22,7 +23,7 @@ export function HandleEditor() {
   const showMug = useShowMug();
   const onVase = useHandleStore((s) => s.view.onVase);
   const showSprig = useHandleStore((s) => s.view.showSprig);
-  const flat = useHandleStore((s) => s.view.flatShading);
+  const flat = useShowFacets();
   // Restore persisted handle design after mount (post-hydration, client only).
   // The vase + mold settings feed the mug overlay (Split 2-Pc handle placement).
   useEffect(() => { hydrateHandleSettingsFromStorage(); hydrateVaseDesignFromStorage(); hydrateMoldSettingsFromStorage(); hydrateSprigSettingsFromStorage(); }, []);

@@ -1,4 +1,5 @@
 'use client';
+import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Section, SliderRow, Toggle, GroupHeader } from '@/components/parameters/ui';
@@ -447,7 +448,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           {isMark ? (
             <>
               <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature red" />
-              <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals — shows the grid the mark is made of" />
+              <ShowFacetsToggle />
               <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
                 The mark at its finished size, as seen on the bottom of the piece from below.
               </p>
@@ -459,7 +460,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               <Toggle label="Wall B" checked={view.showWallB} onChange={(v) => setView({ showWallB: v })} tooltip="Second copy of the same wall, turned 180°" />
               <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour" />
               <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature Width red" />
-              <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals — shows the grid the plate will actually print, and the V ridges as creases" />
+              <ShowFacetsToggle />
             </>
           ) : (
             <>
@@ -480,7 +481,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                   The handle sits where HandleMaker puts it — change its height there (Top Below Rim).
                 </p>
               )}
-              <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals" />
+              <ShowFacetsToggle />
             </>
           )}
 

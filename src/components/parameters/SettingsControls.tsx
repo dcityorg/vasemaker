@@ -8,6 +8,8 @@ import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import type { FilamentType } from '@/engine/types';
 import { SliderRow, Section, GroupHeader, Toggle } from './ui';
 import { useVaseExtras } from '@/components/viewport/OnVase';
+import { ShowFacetsToggle } from './ShowFacetsToggle';
+import { useShowFacets, setShowFacets } from '@/store/view-prefs';
 
 /** Right-aligned label/value row for the Print Check stats */
 function StatRow({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
@@ -21,7 +23,8 @@ function StatRow({ label, value, tooltip }: { label: string; value: string; tool
 
 export function SettingsControls() {
   const params = useVaseStore((s) => s.params);
-  const { setColor, setShowRulers, setResolution, setFlatShading, setPrintCheck } = useVaseStore();
+  const { setColor, setShowRulers, setResolution, setPrintCheck } = useVaseStore();
+  const facets = useShowFacets();
   const extras = useVaseExtras();
   const stats = useMeshStatsStore((s) => s.stats);
 
@@ -43,10 +46,10 @@ export function SettingsControls() {
     <>
       <GroupHeader label="Settings" color={GROUP_COLORS.settings} />
 
-      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor || params.showRulers || params.flatShading} tooltip="Visual settings for the 3D preview" titleColor={GROUP_COLORS.settings}>
-        {(params.color !== APPEARANCE.defaultColor || params.showRulers || params.flatShading) && (
+      <Section title="Appearance" active={params.color !== APPEARANCE.defaultColor || params.showRulers || !facets} tooltip="Visual settings for the 3D preview" titleColor={GROUP_COLORS.settings}>
+        {(params.color !== APPEARANCE.defaultColor || params.showRulers || !facets) && (
           <div className="flex justify-end mb-1">
-            <button onClick={() => { setColor(APPEARANCE.defaultColor); setShowRulers(false); setFlatShading(false); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
+            <button onClick={() => { setColor(APPEARANCE.defaultColor); setShowRulers(false); setShowFacets(true); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
           </div>
         )}
         <div className="flex items-center gap-3 mb-2">
@@ -63,10 +66,10 @@ export function SettingsControls() {
           tooltip="The handle from HandleMaker on the vase, placed the way the mold puts it (its height is HandleMaker's Top Below Rim)" />
         <Toggle label="Show Sprig" checked={extras.showSprig} onChange={(v) => useVaseExtras.setState({ showSprig: v })}
           tooltip="The sprig from SprigMaker on the vase, where SprigMaker places it (View → On Vase there)" />
-        {/* Was "Show Facets" in Resolution until 2026-07-30. Same param — it
-            reads as an appearance choice and matches the Mold/Handle tabs,
-            where it lives with the other view toggles. */}
-        <Toggle label="Flat Shading" checked={params.flatShading} onChange={setFlatShading} tooltip="Per-face normals instead of smoothed ones — shows the actual polygon facets the STL will contain, and gives sharp edges a crease instead of a rounded highlight" />
+        {/* Shared by all four pages and remembered in this browser (2026-10-26).
+            Was the vase's own params.flatShading, saved in design files; that
+            field is now unused. Off = crease shading, not smooth. */}
+        <ShowFacetsToggle />
       </Section>
 
       <Section title="Print Check" defaultOpen={false} active={printCheckActive} tooltip="Material estimates and overhang warnings for 3D printing" titleColor={GROUP_COLORS.settings}>

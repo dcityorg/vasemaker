@@ -13,6 +13,8 @@
 
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
+import { creasedGeometry } from './crease';
+import { useShowFacets } from '@/store/view-prefs';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -39,7 +41,7 @@ export const useVaseExtras = create<{ showHandle: boolean; showSprig: boolean }>
 /** VaseMaker: the handle and/or sprig inside the vase view's own canvas. */
 export function VasePageExtras() {
   const { showHandle, showSprig } = useVaseExtras();
-  const flat = useVaseStore((s) => s.params.flatShading ?? false);
+  const flat = useShowFacets();
   const vaseMesh = useVaseMesh();
   return showSprig
     ? <SprigSource>{(sprig) => <MugExtras vaseMesh={vaseMesh} sprig={sprig} showHandle={showHandle} flat={flat} />}</SprigSource>
@@ -49,17 +51,23 @@ export function VasePageExtras() {
 /** Notes about what is shown (off the vase, overlap, the handle will not fit). */
 export const useMugNotes = create<{ notes: string[] }>(() => ({ notes: [] }));
 
-function useGeo(mesh: VaseMesh | null, computeNormals: boolean): THREE.BufferGeometry | null {
+/** Facets showing: the mesh as is (flat shaded). Off: crease shading, which
+ *  makes its own normals, so `computeNormals` only matters with facets on. */
+function useGeo(mesh: VaseMesh | null, computeNormals: boolean, flat: boolean): THREE.BufferGeometry | null {
   const geo = useMemo(() => {
     if (!mesh) return null;
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3));
-    g.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
-    if (computeNormals) g.computeVertexNormals();
-    else g.setAttribute('normal', new THREE.BufferAttribute(mesh.normals, 3));
+    let g: THREE.BufferGeometry;
+    if (!flat) g = creasedGeometry(mesh, null);
+    else {
+      g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3));
+      g.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
+      if (computeNormals) g.computeVertexNormals();
+      else g.setAttribute('normal', new THREE.BufferAttribute(mesh.normals, 3));
+    }
     g.computeBoundingSphere();
     return g;
-  }, [mesh, computeNormals]);
+  }, [mesh, computeNormals, flat]);
   useEffect(() => () => geo?.dispose(), [geo]);
   return geo;
 }
@@ -98,8 +106,8 @@ export function MugExtras({ vaseMesh, sprig, showHandle, flat }: {
     () => (showHandle ? handleOnVase(vase, handleParams, handleAngle, topDrop) : null),
     [showHandle, vase, handleParams, handleAngle, topDrop],
   );
-  const sprigGeo = useGeo(wrap?.mesh ?? null, true);
-  const handleGeo = useGeo(handle && typeof handle !== 'string' ? handle : null, true);
+  const sprigGeo = useGeo(wrap?.mesh ?? null, true, flat);
+  const handleGeo = useGeo(handle && typeof handle !== 'string' ? handle : null, true, flat);
 
   useEffect(() => {
     const notes: string[] = [];
@@ -151,7 +159,7 @@ export function OnVaseView({ sprig, showHandle, cameraId, flat }: {
   const handleAngle = useMoldStore((s) => s.params.seamAngle);
   const vaseMesh = useVaseMesh();
   const controlsRef = useRef<OrbitControlsImpl>(null);
-  const vaseGeo = useGeo(vaseMesh, false);
+  const vaseGeo = useGeo(vaseMesh, false, flat);
 
   const H = vase.height;
   const reach = useMemo(() => {

@@ -57,7 +57,6 @@ export interface SprigView {
   showPlaster: boolean;
   /** Red tint over parts narrower than Min Feature Width. */
   showThin: boolean;
-  flatShading: boolean;
   /** The On Vase preview instead of the mold parts. */
   onVase: boolean;
 }
@@ -68,7 +67,6 @@ const DEFAULT_VIEW: SprigView = {
   showWallB: false,
   showPlaster: false,
   showThin: true,
-  flatShading: false,
   onVase: false,
 };
 
