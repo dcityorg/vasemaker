@@ -46,8 +46,9 @@ export interface MoldView {
   showCottle: boolean;
   /** Pour 3-Pc only: the second shell half, so one can be hidden to inspect flange edges. */
   showCottleB: boolean;
-  /** Per-face normals — the V apexes read as creases instead of smooth tubes. */
-  flatShading: boolean;
+  /** Flat = every facet shows (check Resolution). Crease = smooth curves, sharp
+   *  edges (V ridges, grooves). Smooth = averaged everywhere, smears hard edges. */
+  shading: 'flat' | 'crease' | 'smooth';
   /** Draw the shell translucent, to see how the whole assembly fits together. */
   ghostShell: boolean;
   showPlaster: boolean;
@@ -59,7 +60,7 @@ const DEFAULT_VIEW: MoldView = {
   showMaster: true,
   showCottle: true,
   showCottleB: true,
-  flatShading: false,
+  shading: 'crease',
   ghostShell: false,
   showPlaster: false,
   crossSection: false,

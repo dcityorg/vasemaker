@@ -16,6 +16,7 @@ import { useMoldStore } from '@/store/mold-store';
 import type { VaseMesh } from '@/engine/types';
 import type { AnyMoldMeshes } from '@/hooks/use-mold-meshes';
 import { RememberCamera } from '@/components/viewport/RememberCamera';
+import { creasedGeometry } from '@/components/viewport/crease';
 
 const COTTLE_COLOR = '#7ea6d6';
 const PLASTER_COLOR = '#e7dfca';
@@ -25,28 +26,33 @@ const UNDERCUT_COLOR = new THREE.Color('#ff2b2b');
  * When `undercutFlags` (per-vertex 0..1 from the mold generator's straight-pull
  * analysis) and a base color are given, a vertex-color attribute tints flagged
  * vertices red. */
-function useGeometry(mesh: VaseMesh | null, undercutFlags?: Float32Array, baseColor?: string): THREE.BufferGeometry | null {
+function useGeometry(mesh: VaseMesh | null, crease: boolean, undercutFlags?: Float32Array, baseColor?: string): THREE.BufferGeometry | null {
   const geo = useMemo(() => {
     if (!mesh) return null;
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3));
-    geo.setAttribute('normal', new THREE.BufferAttribute(mesh.normals, 3));
-    geo.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
-
+    let colors: Float32Array | null = null;
     if (undercutFlags && baseColor) {
       const base = new THREE.Color(baseColor);
-      const colors = new Float32Array(mesh.vertexCount * 3);
+      colors = new Float32Array(mesh.vertexCount * 3);
       for (let i = 0; i < mesh.vertexCount; i++) {
         const f = undercutFlags[i];
         colors[i * 3] = base.r + (UNDERCUT_COLOR.r - base.r) * f;
         colors[i * 3 + 1] = base.g + (UNDERCUT_COLOR.g - base.g) * f;
         colors[i * 3 + 2] = base.b + (UNDERCUT_COLOR.b - base.b) * f;
       }
-      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    }
+    let geo: THREE.BufferGeometry;
+    if (crease) {
+      geo = creasedGeometry(mesh, colors);
+    } else {
+      geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3));
+      geo.setAttribute('normal', new THREE.BufferAttribute(mesh.normals, 3));
+      geo.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
+      if (colors) geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     }
     geo.computeBoundingSphere();
     return geo;
-  }, [mesh, undercutFlags, baseColor]);
+  }, [mesh, crease, undercutFlags, baseColor]);
   // The parent hook owns the geometry lifetime — dispose the old one when a new
   // one is built or the viewport unmounts (Parts must NOT dispose, since they
   // toggle in/out of the tree while the geometry stays alive here).
@@ -158,19 +164,24 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
     : mold.style === 'splitTwoPiece' ? mold.trays
     : mold.style === 'splitHalves' || mold.style === 'splitThirds' ? mold.masters
     : mold.mold;
-  const masterGeo = useGeometry(mainMesh, view.showUndercuts ? mold.undercutFlags : undefined, view.showUndercuts ? partColor : undefined);
+  // Crease shading builds its own (unindexed) geometry; flat and smooth share
+  // the mesh's own, flat just switching the material.
+  const crease = view.shading === 'crease';
+  const masterGeo = useGeometry(mainMesh, crease, view.showUndercuts ? mold.undercutFlags : undefined, view.showUndercuts ? partColor : undefined);
   const cottleGeo = useGeometry(
     mold.style === 'twoPart' ? mold.cottle
     : mold.style === 'pourTwoPiece' ? mold.shell
     : mold.style === 'pourThreePiece' ? mold.shellA
     : mold.style === 'splitHalves' || mold.style === 'splitThirds' ? mold.plates
     : null,
+    crease,
   );
   // Pour 3-Pc's second half: null when one printed half serves both positions,
   // but it is still DISPLAYED so you see the assembled cottle.
   // Split Halves: the walls (wall 1 + wall 2 round each assembly).
-  const cottleBGeo = useGeometry(mold.style === 'pourThreePiece' ? mold.shellB : mold.style === 'splitHalves' || mold.style === 'splitThirds' ? mold.walls : null);
-  const plasterGeo = useGeometry(mold.plaster);
+  const cottleBGeo = useGeometry(mold.style === 'pourThreePiece' ? mold.shellB : mold.style === 'splitHalves' || mold.style === 'splitThirds' ? mold.walls : null, crease);
+  // The plaster is a translucent block: crease would cost ~16 MB for nothing.
+  const plasterGeo = useGeometry(mold.plaster, false);
 
   return (
     <div className="w-full h-full relative">
@@ -199,19 +210,19 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
 
         <GroundGrid radius={radius + 40} height={height + 40} />
 
-        {view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.45} clip={clip} flat={view.flatShading} />}
+        {view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.45} clip={clip} flat={view.shading === 'flat'} />}
         {/* The shell is OPAQUE by default. Translucency was the only way to see
             inside before the halves toggled separately, and stacking four or
             five transparent surfaces at the seam makes the renderer sort faces
             per-object — the hard triangular bands that made the V ridges
             unreadable. Ghost Shell puts it back for whole-assembly views. */}
-        {view.showCottle && cottleGeo && <Part geometry={cottleGeo} color={COTTLE_COLOR} opacity={view.ghostShell ? 0.4 : 1} clip={clip} flat={view.flatShading} />}
-        {view.showCottleB && cottleBGeo && <Part geometry={cottleBGeo} color={COTTLE_COLOR} opacity={view.ghostShell ? 0.4 : 1} clip={clip} flat={view.flatShading} />}
+        {view.showCottle && cottleGeo && <Part geometry={cottleGeo} color={COTTLE_COLOR} opacity={view.ghostShell ? 0.4 : 1} clip={clip} flat={view.shading === 'flat'} />}
+        {view.showCottleB && cottleBGeo && <Part geometry={cottleBGeo} color={COTTLE_COLOR} opacity={view.ghostShell ? 0.4 : 1} clip={clip} flat={view.shading === 'flat'} />}
         {view.showMaster && masterGeo && (
           <Part
             geometry={masterGeo}
             color={partColor}
-            flat={view.flatShading}
+            flat={view.shading === 'flat'}
             opacity={1}
             clip={clip}
             positionZ={mold.style === 'twoPart' ? mold.bottomGap : 0}

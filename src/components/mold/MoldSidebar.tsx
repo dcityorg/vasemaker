@@ -870,7 +870,21 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               <button onClick={() => setPartColor(DEFAULT_PART_COLOR)} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Back to the default colour">Reset</button>
             )}
           </div>
-          <Toggle label="Flat Shading" checked={view.flatShading} onChange={(v) => setView({ flatShading: v })} tooltip="Per-face normals. Smooth shading averages across a V ridge's three faces and renders the sharp apex as a rounded tube — flat shading gives it a crease and puts a hard shadow line in each groove" />
+          <div className="flex items-center gap-2 mb-2">
+            <label className="text-sm text-[var(--text-secondary)] w-14 shrink-0" title="How the preview is lit. Display only: the STLs are the same either way">Shading</label>
+            <div className="flex gap-2">
+              {([
+                ['flat', 'Flat', 'Every facet shows — the way to check whether Resolution is high enough before printing'],
+                ['crease', 'Crease', 'Curves smooth, sharp edges (V ridges, grooves, corners) kept sharp. Hides facets like Smooth does'],
+                ['smooth', 'Smooth', 'Averaged everywhere: curves smooth, but sharp edges look rounded and the light smears round them'],
+              ] as const).map(([v, l, tip]) => (
+                <label key={v} title={tip} className="flex items-center gap-1 text-sm text-[var(--text-secondary)] cursor-pointer">
+                  <input type="radio" name="moldShading" checked={view.shading === v} onChange={() => setView({ shading: v })} className="accent-[var(--accent)]" />
+                  {l}
+                </label>
+              ))}
+            </div>
+          </div>
           {(mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece' || isHalves || isThirds) && (
             <Toggle label={isHalves || isThirds ? 'Ghost Walls' : 'Ghost Shell'} checked={view.ghostShell} onChange={(v) => setView({ ghostShell: v })} tooltip="Draw the shell translucent to see how the whole assembly fits together. Opaque is clearer for inspecting the flange features — stacked transparent surfaces sort badly at the seam" />
           )}
