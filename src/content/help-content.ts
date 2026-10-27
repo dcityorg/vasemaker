@@ -501,7 +501,8 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Angle, Move Right, Move Up', value: 'Turn and place it, as seen LOOKING UP at the bottom' },
       ] },
       { type: 'tip', text: 'The mark is placed the way you read it when you turn the piece over, so it is never back to front. Turn the view to look up at the bottom to check it.' },
-      { type: 'paragraph', text: 'Amber notes warn when the mark is deeper than the base allows (it is limited so 0.6 mm of base is left), when a raised mark is taller than the recess, or when it runs onto the foot ring.' },
+      { type: 'paragraph', text: 'Amber notes warn when a raised mark is taller than the recess, or when the mark runs onto the foot ring.' },
+      { type: 'paragraph', text: 'On the plastic print the foot recess and the mark are cut into the Base (Shell), and 0.6 mm of Base is always left over them, so a deep foot or mark is limited there. A note says so, with a button to raise Base just enough. The molds are not limited by Base: the Pour 3-Pc master thickens its own floor, and the Split Halves / Thirds plug disk grows thicker, so the cast piece always gets the full depth. Look at it on the Mold page.' },
     ],
   },
 

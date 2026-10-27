@@ -335,6 +335,8 @@ export interface VaseMesh {
   triangleCount: number;
   /** Warnings about the foot and the mark (generateMesh only). */
   bottomNotes?: string[];
+  /** Base (mm) the full foot + mark need on the PLA print, when Base limits them. */
+  bottomNeedBase?: number | null;
   /** First vertex of the foot / mark underside; the overhang tint leaves it alone. */
   bottomStart?: number;
 }

@@ -145,7 +145,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
         'Pour the plug into the cup, vase face down on the disk, and strike it off level with the top of the walls. That face is the bottom of the mold. Pour it once; it works with both halves. The Plaster Estimate lists its batch separately',
         'The plug is 0.1 mm (Fit Clearance) smaller all round than the halves\' bore, so it drops in after the plaster swells a little as it sets',
         'The foot\u2019s shape comes from the Vase tab\u2019s Foot & Mark section (Foot on/off, Foot Width, Slope Width, Depth, Smooth Inside), the same for every style. With Foot off the disk is flat, and the bottom is still its own piece',
-        'Your maker\u2019s mark (Vase tab, Foot & Mark) goes on the plug disk. To add a mark to a mold you already have, load its mold file, turn the mark on, and reprint ONLY the plug disk: the plug walls and both halves are unchanged',
+        'Your maker\u2019s mark (Vase tab, Foot & Mark) goes on the plug disk. To add a mark to a mold you already have, load its mold file, turn the mark on, and reprint ONLY the plug disk: the plug walls and both halves are unchanged. That holds while the mark is no deeper than Plate Floor minus 0.6 mm. A deeper mark makes the disk thicker and the plug walls taller (a note says so), so print new walls with it. A deeper foot always needs a new plug cup, since its walls grow with it',
         'To cast: set the plug on the bench, vase face up, close both halves round it (its ridge in their groove), strap them tight, and pour through the well as usual',
       ] },
       { type: 'heading', text: 'Settings' },
@@ -202,7 +202,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
         'The plug is poured in its own small cup: a bottom disk (the vase\'s foot ring and recessed middle, recess up) that drops onto a ledge inside clip-together walls. The walls carry the groove that gives the plug its ridge, and each has V ridges on one clip flange and V grooves on the other, so a ridge always meets a groove. The walls pull straight off the plug sideways, so if the vase\'s texture runs down to its bottom edge, the plug\'s ribs can catch them near a seam. The app uses the fewest walls (2, 3 or 4) that all pull off cleanly, turns the seams to suit, and says how many under Foot Piece. When the outline repeats from wall to wall they are all the same part: one Plug Wall export, printed that many times. If even 4 walls would catch, it warns you; a base Smooth Zone on the Vase tab makes the bottom edge plain',
         'Pour the plug into the cup, vase face down on the disk, and strike it off level with the top of the walls — that face is the bottom of the mold',
         'The plug is 0.1 mm (Fit Clearance) smaller all round than the pieces\' bore, so it drops in after the plaster swells a little as it sets',
-        'The foot and the mark come from the Vase tab\u2019s Foot & Mark section, as on the other styles. A mark changes only the plug disk, so an existing mold can get one by reprinting the disk alone',
+        'The foot and the mark come from the Vase tab\u2019s Foot & Mark section, as on the other styles. A mark no deeper than Plate Floor minus 0.6 mm changes only the plug disk, so an existing mold can get one by reprinting the disk alone; a deeper one also makes the plug walls taller',
       ] },
       { type: 'heading', text: 'Settings' },
       { type: 'keyvalue', items: [
@@ -241,7 +241,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
       { type: 'keyvalue', items: [
         { key: 'Foot Width', value: 'The flat ring at the outer edge of the bottom — this becomes the foot the piece stands on.' },
         { key: 'Slope Width', value: 'The sloped ramp from the foot up to the recessed center.' },
-        { key: 'Depth', value: 'How far the center is recessed. On Pour 3-Pc it is limited to the master Wall thickness minus 0.5mm so it can\'t punch into the hollow interior.' },
+        { key: 'Depth', value: 'How far the center is recessed (set on the Vase tab, up to 10 mm). On Pour 3-Pc a foot or mark deeper than the master Wall allows thickens the master\'s floor instead of being limited; a note says how thick. Plaster never touches the inside of that floor, so it only uses more plastic.' },
         { key: 'Smooth Inside', value: 'Builds the ramp and recessed center from the untextured base contour, keeping surface texture out of the glaze well.' },
       ] },
       { type: 'paragraph', text: 'These are set on the Vase tab, with one Foot switch, because the foot belongs to the piece: the same foot goes on the plastic print and on every mold style. The Mold tab shows what it is. Loading a mold file saved before October 2026 brings that mold\u2019s own foot back onto the vase, so it rebuilds as it was poured.' },

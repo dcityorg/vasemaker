@@ -22,7 +22,7 @@ export const MOLD_PARAMS = {
 
   footWidth:      { min: 0, max: 20, step: 0.5 } as SliderRange,
   footSlopeWidth: { min: 0.2, max: 10, step: 0.1 } as SliderRange,
-  footHeight:     { min: 0, max: 5, step: 0.1 } as SliderRange,
+  footHeight:     { min: 0, max: 10, step: 0.1 } as SliderRange,
 
   plasterThickness:    { min: 5, max: 50, step: 1 } as SliderRange,
   cottleWallThickness: { min: 1, max: 10, step: 0.5 } as SliderRange,

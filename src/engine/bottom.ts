@@ -229,6 +229,9 @@ export interface BottomPatch {
   positions: Float32Array;
   indices: Uint32Array;
   notes: string[];
+  /** The Base (mm) the full foot and mark need on the PLA print, when Base is
+   *  limiting them; else null. Molds are not limited by Base. */
+  needBase: number | null;
 }
 
 /**
@@ -244,12 +247,18 @@ export function buildBottomPatch(
 ): BottomPatch {
   const notes: string[] = [];
   const maxRecess = Math.max(0, floorZ - MIN_FLOOR);
+  // What the full foot + mark ask for, to offer "Raise Base" (rounded UP to the
+  // Base slider's 0.1 step, so the first row at or above it clears the need).
+  const fullH = use.recess ? Math.max(0, b.footHeight) : 0;
+  const fullD = use.mark && field && b.markStyle === 'impressed' ? Math.max(0, b.markDepth) : 0;
+  const need = fullH + fullD + MIN_FLOOR;
+  const needBase = (fullH > 0 || fullD > 0) && need > floorZ + 1e-6 ? Math.ceil(need * 10 - 1e-6) / 10 : null;
 
   let h = 0;
   let foot: [Ring, Ring] | null = null;
   if (use.recess) {
     h = Math.min(b.footHeight, maxRecess);
-    if (h < b.footHeight - 1e-6) notes.push(`The recess is limited to ${h.toFixed(1)} mm here so ${MIN_FLOOR} mm of base is left — raise Base in Shell for the full ${b.footHeight} mm.`);
+    if (h < b.footHeight - 1e-6) notes.push(`On the plastic print the recess is limited to ${h.toFixed(1)} mm, so ${MIN_FLOOR} mm of Base is left under it. Molds get the full ${b.footHeight} mm — see the Mold page.`);
     foot = footRings(footBase, cx, cy, n, b.footWidth, b.footSlopeWidth, h);
     if (!foot) { h = 0; notes.push('The bottom is too small for a foot ring and recess.'); }
   }
@@ -265,7 +274,9 @@ export function buildBottomPatch(
     let d = Math.max(0, b.markDepth);
     if (sgn > 0 && h + d > maxRecess) {
       const dd = Math.max(0, maxRecess - h);
-      notes.push(`The mark is limited to ${dd.toFixed(1)} mm deep so ${MIN_FLOOR} mm of base is left above it — raise Base in Shell for ${d} mm.`);
+      notes.push(dd < 0.05
+        ? `On the plastic print there is no Base left for the mark (the recess uses it up), so it is left off. Molds get the full ${d} mm — see the Mold page.`
+        : `On the plastic print the mark is limited to ${dd.toFixed(1)} mm deep, so ${MIN_FLOOR} mm of Base is left above it. Molds get the full ${d} mm — see the Mold page.`);
       d = dd;
     }
     if (sgn < 0) {
@@ -301,5 +312,5 @@ export function buildBottomPatch(
   for (let t = 0; t < n; t++) {
     indices[w++] = ci; indices[w++] = last + (t + 1) % n; indices[w++] = last + t;
   }
-  return { positions, indices, notes };
+  return { positions, indices, notes, needBase };
 }

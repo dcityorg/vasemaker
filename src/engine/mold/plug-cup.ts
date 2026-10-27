@@ -217,7 +217,12 @@ export function buildPlugCup(inp: PlugCupInput): { foot: PlugFoot; display: { pl
   fw = Math.max(fw, 2 * clr + 0.3);
   const inset = (d: number) => toFR(offsetRingRadial(fBase, c0x, c0y, -d, 0, rRes));
   const recessD = recess ? hF : 0;
-  const zDisk = -recessD - floorT;          // disk bottom = ledge top
+  // An impressed mark deeper than Plate Floor − MIN_FLOOR thickens the disk
+  // (and so lowers the ledge: taller walls) rather than being capped (Gary
+  // 2026-10-27). A mark that fits leaves the printed disk's walls unchanged.
+  const mkD = inp.mark && inp.mark.b.markStyle === 'impressed' ? Math.max(0, inp.mark.b.markDepth) : 0;
+  const floorUse = Math.max(floorT, mkD + MIN_FLOOR);
+  const zDisk = -recessD - floorUse;        // disk bottom = ledge top
   const zW0 = zDisk - LEDGE_T;              // wall bottom, on the bed
 
   // Disk: the vase bottom's positive — foot ring flat at z = 0, sloping down to
@@ -240,6 +245,7 @@ export function buildPlugCup(inp: PlugCupInput): { foot: PlugFoot; display: { pl
   if (inp.mark) {
     const md = markedDisk(inp, diskOut, recess ? [inset(fw), inset(fw + sw)] : null, recessD, zDisk);
     disk = md.mesh; markNote = md.note;
+    if (floorUse > floorT + 1e-6) markNote = `The plug disk is ${(floorUse - floorT).toFixed(1)} mm thicker for the ${mkD} mm mark, so its cup walls are taller too. Print new walls with the disk — an existing plug cup won't fit it.`;
   } else {
     disk = mergeMeshes(diskParts);
   }

@@ -158,7 +158,15 @@ export function generatePourThreePieceMold(vase: VaseParameters, mold: MoldParam
   const wellTopZ = hTop + mold.wellHeight;
   const zBed = wellTopZ + ffT;
 
-  const footH = mold.footEnabled ? Math.max(0, Math.min(mold.footHeight, wt - 0.5)) : 0;
+  // The foot is never capped by the master's Wall: the master's FLOOR grows to
+  // fit the foot recess plus an impressed mark plus MIN_FLOOR (Gary 2026-10-27,
+  // a 6 mm foot). Plaster never touches the inside of that floor — the hollow
+  // is for ice water — so a thicker floor only costs plastic. Up to the old cap
+  // (foot ≤ Wall − 0.5, mark fitting under Wall) nothing changes.
+  const footH = mold.footEnabled ? Math.max(0, mold.footHeight) : 0;
+  const pm = plugMark(vase, scale);
+  const markD = pm && pm.b.markStyle === 'impressed' ? Math.max(0, pm.b.markDepth) : 0;
+  const floorNeed = Math.max(wt, footH + 0.5, pm ? footH + markD + MIN_FLOOR : 0);
   const footBase = mold.footSmoothInner ? outer.smoothBase : outer.rings[0];
   const footRings = footH > 0
     ? buildFootRings(footBase, outer.centers[0][0], outer.centers[0][1], rRes, mold.footWidth, mold.footSlopeWidth, footH)
@@ -177,7 +185,7 @@ export function generatePourThreePieceMold(vase: VaseParameters, mold: MoldParam
 
   let innerStart = 0;
   for (let v = 0; v <= topIdx; v++) {
-    if (outer.heights[v] >= wt) { innerStart = v; break; }
+    if (outer.heights[v] >= floorNeed) { innerStart = v; break; }
     if (v === topIdx) innerStart = topIdx;
   }
   const cavityBody = buildCavityRings(outer.rings, outer.centers, rRes, innerStart, topIdx, wt);
@@ -195,8 +203,12 @@ export function generatePourThreePieceMold(vase: VaseParameters, mold: MoldParam
   // print's mark (bottom.ts markFloorRings), size and offsets × the shrink
   // scale like the foot's outline; depth as set, like the foot's.
   const markNotes: string[] = [];
+  if (floorNeed > wt + 1e-6) {
+    let fz = Infinity;
+    for (let t = 0; t < rRes; t++) fz = Math.min(fz, cavityBody[0][t * 3 + 2]);
+    markNotes.push(`The master's floor is ${fz.toFixed(1)} mm thick here (Wall is ${wt} mm) to fit the ${footH} mm foot${markD > 0 ? ` and ${markD} mm mark` : ''}. Plaster never touches it, so it only uses more plastic.`);
+  }
   let markRings: Ring[] = [];
-  const pm = plugMark(vase, scale);
   if (pm) {
     const [bcx, bcy] = outer.centers[0];
     const b = pm.b;
