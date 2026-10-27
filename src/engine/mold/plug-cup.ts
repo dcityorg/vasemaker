@@ -19,7 +19,7 @@ import { offsetRingRadial, mergeMeshes, type Ring } from './ring-mesh';
 import { extrudeSolid, type P2 } from '../handle/mesh3';
 import { seamBandPositions, seamMaxVWidth } from '../handle/mold-parts';
 import { loftSolid } from './split-halves-generator';
-import { markSampler, MIN_FLOOR } from '../bottom';
+import { markSampler, floorLayout, MIN_FLOOR } from '../bottom';
 import type { BottomSettings } from '../types';
 import type { ReliefField } from '../sprig/relief';
 
@@ -338,9 +338,6 @@ export function buildPlugCup(inp: PlugCupInput): { foot: PlugFoot; display: { pl
   return { foot, display, dbg };
 }
 
-/** Rings under the mark at most this far apart, mm. */
-const MARK_RING_MM = 0.25;
-const MAX_MARK_RINGS = 500;
 
 /**
  * The disk as one closed height field over its outline (cup coords: plan
@@ -374,19 +371,17 @@ function markedDisk(
     rings.push({ pts: foot[0], z: () => 0 }, { pts: foot[1], z: () => -recessD });
   }
   const plate = foot ? foot[1] : diskOut;
-  let rMin = Infinity, rMax = 0;
-  for (const [x, y] of plate) { const r = Math.hypot(x, y); rMin = Math.min(rMin, r); rMax = Math.max(rMax, r); }
-  if (rMin > 0.2) {
-    const sDense = Math.min(1, S.reach / rMin);
-    const ds = Math.min(S.cellMm, MARK_RING_MM) / rMax;
-    const count = Math.min(MAX_MARK_RINGS, Math.max(1, Math.ceil(sDense / ds)));
-    for (let r = sDense < 1 ? 0 : 1; r < count; r++) {
-      const sc = sDense * (1 - r / count);
-      const pts: P2[] = plate.map(([x, y]) => [x * sc, y * sc]);
+  // Rings under the mark: the floor edge smoothed (bottom.ts floorLayout),
+  // so a textured outline's bumps do not shear the mark into spikes.
+  const L = floorLayout(plate.length, (t) => plate[t][0], (t) => plate[t][1], S.reach, S.cellMm);
+  if (L) {
+    for (let r = 0; r < L.count; r++) {
+      const sc = L.sTop * (1 - r / L.count);
+      const pts: P2[] = plate.map((_, t) => [L.dirX[t] * L.rho[t] * sc, L.dirY[t] * L.rho[t] * sc]);
       rings.push({ pts, z: (i) => zAt(pts[i][0], pts[i][1]) });
     }
   }
-  const zc = rMin > 0.2 ? zAt(0, 0) : -recessD;
+  const zc = L ? zAt(0, 0) : -recessD;
 
   // Vertices: the top rings, top centre, the bottom ring, bottom centre.
   const nTop = rings.length * n;

@@ -117,6 +117,59 @@ export function markSampler(field: ReliefField, b: BottomSettings, cx: number, c
   return { at, world, reach, cellMm: step * k };
 }
 
+/** Harmonics kept when smoothing the floor edge (the outline's overall shape;
+ *  any texture has far more). */
+const FLOOR_HARMONICS = 4;
+/** The smoothed rings stay this fraction inside the real edge, every way round. */
+const FLOOR_MARGIN = 0.95;
+
+/**
+ * Where the rings under the mark go. They used to be the floor edge scaled
+ * toward the centre — on a textured vase that carries every rod and flute
+ * into the floor, and the quads either side of each bump shear sideways by
+ * the bump's height, which drew the mark's edges as long spikes (Gary,
+ * 2026-10-26: 45 narrow rods, Foot off). Now: each point keeps its own
+ * direction from the centre, its distance is the edge's distance LOW-PASSED
+ * (first FLOOR_HARMONICS harmonics), and the whole thing is scaled so it
+ * stays FLOOR_MARGIN inside the real edge everywhere. A flat strip joins it
+ * to the real edge. Rings: s from sTop down, `count` of them;
+ * point t at scale s = centre + dir·rho·s. Null when the floor is too small.
+ * Shared by the vase, Pour 3-Pc's master and the plug disk.
+ */
+export function floorLayout(
+  n: number, x: (t: number) => number, y: (t: number) => number, reach: number, cellMm: number,
+): { dirX: Float64Array; dirY: Float64Array; rho: Float64Array; sMax: number; sTop: number; count: number } | null {
+  const r = new Float64Array(n), dirX = new Float64Array(n), dirY = new Float64Array(n);
+  for (let t = 0; t < n; t++) {
+    const xx = x(t), yy = y(t), rr = Math.hypot(xx, yy);
+    r[t] = rr; dirX[t] = rr > 1e-9 ? xx / rr : 1; dirY[t] = rr > 1e-9 ? yy / rr : 0;
+  }
+  // Low-pass by harmonic (index t is close enough to angle for the outlines here).
+  const rho = new Float64Array(n);
+  let mean = 0;
+  for (let t = 0; t < n; t++) mean += r[t];
+  mean /= n;
+  rho.fill(mean);
+  for (let k = 1; k <= FLOOR_HARMONICS && k < n / 2; k++) {
+    let a = 0, b = 0;
+    for (let t = 0; t < n; t++) { const w = (2 * Math.PI * k * t) / n; a += r[t] * Math.cos(w); b += r[t] * Math.sin(w); }
+    a *= 2 / n; b *= 2 / n;
+    for (let t = 0; t < n; t++) { const w = (2 * Math.PI * k * t) / n; rho[t] += a * Math.cos(w) + b * Math.sin(w); }
+  }
+  let sMax = Infinity, rhoMin = Infinity, rhoMax = 0;
+  for (let t = 0; t < n; t++) {
+    if (rho[t] <= 0.2) return null;
+    sMax = Math.min(sMax, r[t] / rho[t]);
+    rhoMin = Math.min(rhoMin, rho[t]); rhoMax = Math.max(rhoMax, rho[t]);
+  }
+  sMax *= FLOOR_MARGIN;
+  if (rhoMin * sMax <= 0.2) return null;
+  const sTop = Math.min(sMax, reach / rhoMin);
+  const ds = Math.min(cellMm, 0.25) / rhoMax;
+  const count = Math.min(MAX_MARK_RINGS, Math.max(1, Math.ceil(sTop / ds)));
+  return { dirX, dirY, rho, sMax, sTop, count };
+}
+
 /**
  * The recess floor carrying the mark: rings from the floor's edge `plate`
  * (at z = h) scaled in toward the centre, outermost first, at
@@ -128,7 +181,14 @@ export function markFloorRings(
   plate: Ring, cx: number, cy: number, n: number, h: number,
   field: ReliefField, S: ReturnType<typeof markSampler>, sgn: number, d: number,
 ): { rings: Ring[]; centreZ: number | null; offFloor: boolean } {
-  // Where is it? Check every marked cell on the outline of the mark.
+  // Where is it? Check every marked cell on the outline of the mark against
+  // the part of the floor that can carry it (the outer smoothed ring).
+  const L0 = floorLayout(n, (t) => plate[t * 3] - cx, (t) => plate[t * 3 + 1] - cy, S.reach, S.cellMm);
+  const carry = new Float32Array(n * 3);
+  for (let t = 0; t < n; t++) {
+    carry[t * 3] = L0 ? cx + L0.dirX[t] * L0.rho[t] * L0.sMax : plate[t * 3];
+    carry[t * 3 + 1] = L0 ? cy + L0.dirY[t] * L0.rho[t] * L0.sMax : plate[t * 3 + 1];
+  }
   let offFloor = false;
   const { nx, ny, heights } = field;
   const cut = INK * field.maxHeight;
@@ -140,25 +200,22 @@ export function markFloorRings(
         || heights[k - 1] <= cut || heights[k + 1] <= cut || heights[k - nx] <= cut || heights[k + nx] <= cut;
       if (!edge) continue;
       const [x, y] = S.world(i, j);
-      if (!insidePolygon(x, y, plate, n)) { offFloor = true; break; }
+      if (!insidePolygon(x, y, carry, n)) { offFloor = true; break; }
     }
   }
 
   // Rings under the mark, a cell apart (or 0.25 mm, if finer), then one
-  // flat strip out to the floor's edge.
+  // flat strip out to the floor's edge. Their shape is the floor edge
+  // SMOOTHED (floorLayout), so a textured edge's bumps are not carried in.
   const rings: Ring[] = [];
   let centreZ: number | null = null;
-  const rMin = minRadius(plate, cx, cy, n), rMax = maxRadius(plate, cx, cy, n);
-  if (rMin > 0.2) {
-    const sDense = Math.min(1, S.reach / rMin);
-    const ds = Math.min(S.cellMm, 0.25) / rMax;
-    const count = Math.min(MAX_MARK_RINGS, Math.max(1, Math.ceil(sDense / ds)));
-    const first = sDense < 1 ? 0 : 1; // with the mark reaching the edge, the edge ring itself stays flat
-    for (let r = first; r < count; r++) {
-      const s = sDense * (1 - r / count);
+  const L = floorLayout(n, (t) => plate[t * 3] - cx, (t) => plate[t * 3 + 1] - cy, S.reach, S.cellMm);
+  if (L) {
+    for (let r = 0; r < L.count; r++) {
+      const s = L.sTop * (1 - r / L.count);
       const ring = new Float32Array(n * 3);
       for (let t = 0; t < n; t++) {
-        const x = cx + s * (plate[t * 3] - cx), y = cy + s * (plate[t * 3 + 1] - cy);
+        const x = cx + L.dirX[t] * L.rho[t] * s, y = cy + L.dirY[t] * L.rho[t] * s;
         ring[t * 3] = x; ring[t * 3 + 1] = y; ring[t * 3 + 2] = h + sgn * d * S.at(x, y);
       }
       rings.push(ring);
