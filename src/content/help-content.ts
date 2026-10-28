@@ -302,7 +302,8 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Size', value: '% of the size it was drawn at' },
         { key: 'Height, Around, Tilt, Copies', value: 'Where it sits, as in the Sprig page\'s On Vase view' },
       ] },
-      { type: 'tip', text: 'Pressed In with Smooth Inner off: the inside follows the sprig, so the wall keeps its thickness. With Smooth Inner on the wall behind it gets thinner, down to Min Wall \u2014 a note warns when it does. Raise Resolution for crisp sprig edges. The molds leave the Sprig off for now; a raised sprig on the side is an undercut for Pour 3-Pc anyway.' },
+      { type: 'tip', text: 'Pressed In with Smooth Inner off: the inside follows the sprig, so the wall keeps its thickness. With Smooth Inner on the wall behind it gets thinner, down to Min Wall \u2014 a note warns when it does. Raise Resolution for crisp sprig edges.' },
+      { type: 'tip', text: 'The molds keep the sprig when Keep Texture is on, grown by Shrink like the rest of the vase. Pour 3-Pc lifts straight off the vase, so a sprig on the side always locks it (the Mold tab says so). With Split Halves or Split Thirds a rounded sprig can come out clean in the middle of a piece, or sitting right across a seam (the seam then runs through it); in between, part of it faces back toward a seam and locks. Move it with Around, or turn the mold\'s split or seam angle, and check with Undercuts on the Mold tab.' },
 
       { type: 'heading', text: 'SVG Pattern' },
       { type: 'paragraph', text: 'Use any SVG image as a displacement map. The image is converted to grayscale and used as a depth map: black = full depth groove, white = no displacement, gray = proportional depth in between. This means grayscale SVGs produce multi-depth relief effects \u2014 useful for subtle, layered textures.' },

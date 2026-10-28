@@ -893,6 +893,13 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             {sl('shrinkPercent', 'Shrink', '%', 'Clay slip shrinkage — master is scaled up by this to compensate. In red because a wrong value is silent: every pot comes out the wrong size', '#f87171')}
             {!isSplit && sl('masterWallThickness', 'Wall', 'mm', isThirds ? 'Printed shell of the hollow master (one piece\'s slice of the vase). It is open on its cut faces so cold water can go in to shrink it free' : isHalves ? 'Printed shell of the hollow half-vase master. It is open on its cut face so cold water can go in to shrink it free' : 'Printed shell thickness of the hollow master')}
             <Toggle label="Keep Texture" checked={params.keepTexture} onChange={(v) => setParam('keepTexture', v)} tooltip="Carry the vase's surface texture onto the master" />
+            {/* A sprig on the side always locks a mold that lifts straight off
+                (Gary, 2026-10-28: say so even with Undercuts switched off). */}
+            {!isSplitAny && !isThirds && params.keepTexture && vaseParams.textures.enabled !== false && vaseParams.textures.sprig?.enabled && vaseParams.textures.sprig.sprig && (
+              <p className="text-[11px] text-amber-400 mt-1 leading-snug">
+                The vase has a Sprig texture. This mold lifts straight off the vase, so a sprig on the side will lock in the plaster. Use Split Halves or Split Thirds, or turn Keep Texture off.
+              </p>
+            )}
             {/* The mold has no Resolution of its own; say where it is (Gary,
                 2026-10-26: every page names Resolution in the same way). */}
             <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug" title="The master is the vase, so its facets are the vase's. Raise Vertical / Radial on the Vase tab for a smoother master">

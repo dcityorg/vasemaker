@@ -2,7 +2,8 @@
 
 /**
  * Textures → Sprig (Sher, 2026-10-28): a sprig from the Sprig page raised out
- * of or pressed into the wall, mostly for test prints. The vase keeps its own
+ * of or pressed into the wall. The molds keep it, grown by Shrink (Gary,
+ * 2026-10-28; prepareVaseParams). The vase keeps its own
  * COPY of the sprig (Gary: the Sprig tab may be busy with the next one), so
  * changes there reach the vase only when "Use the Sprig tab's …" is pressed.
  * Engine: engine/sprig/vase-sprig.ts.
@@ -54,7 +55,7 @@ export function SprigTextureControls() {
       <Toggle label="Sprig" checked={s.enabled}
         onChange={(v) => { if (v && !s.sprig) useTab(); set({ enabled: v }); }}
         onReset={reset}
-        tooltip="A sprig from the Sprig page, raised out of or pressed into the wall — for test prints. Not on the molds yet" />
+        tooltip="A sprig from the Sprig page, raised out of or pressed into the wall. The molds keep it when Keep Texture is on" />
       {s.enabled && (
         <div className="ml-1 pl-2 border-l-2 border-[var(--border-color)]">
           <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] mb-1.5">
@@ -95,7 +96,7 @@ export function SprigTextureControls() {
             <div key={i} className="mb-2 px-2 py-1.5 rounded border border-amber-700 bg-amber-950/40 text-xs text-amber-200">{n}</div>
           ))}
           <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
-            For test prints. The molds leave it off for now. Raise Resolution for crisp edges.
+            The molds keep it (grown by Shrink) when Keep Texture is on: check Undercuts on the Mold tab. Raise Resolution for crisp edges.
           </div>
         </div>
       )}

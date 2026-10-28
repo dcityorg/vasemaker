@@ -234,8 +234,12 @@ export function prepareVaseParams(vase: VaseParameters, scale: number, keepTextu
   // SVG pattern needs async rasterization priming that MoldMaker doesn't wire up;
   // disable it so texture sampling never reads stale/absent SVG data.
   if (p.textures.svgPattern) p.textures.svgPattern.enabled = false;
-  // The Sprig texture is in finished mm and not scaled yet (vase-sprig.ts).
-  if (p.textures.sprig) p.textures.sprig.enabled = false;
+  // The Sprig texture is set in finished mm (vase-sprig.ts): grow it with the
+  // vase so the fired piece matches the Vase tab. Placement is in % and degrees.
+  if (p.textures.sprig) {
+    p.textures.sprig.size *= scale;
+    p.textures.sprig.depth *= scale;
+  }
   return p;
 }
 

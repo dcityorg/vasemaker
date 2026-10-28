@@ -16,8 +16,9 @@
  * the vase is built once per design and cached; while it is built the sprig
  * itself contributes nothing, so its centre line follows the textured wall.
  *
- * Not on the molds yet: they scale the vase for shrink and drop it
- * (prepareVaseParams), the way they drop SVG Pattern.
+ * The molds keep it: prepareVaseParams grows Size and Depth by the shrink
+ * scale with the rest of the vase (Gary, 2026-10-28). Pour 3-Pc warns, since a
+ * mold that lifts straight off is always locked by a sprig on the side.
  */
 
 import type { VaseParameters, VaseSprigSettings } from '../types';

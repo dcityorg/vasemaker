@@ -12,7 +12,7 @@ import { moldUsesHandle } from '@/engine/mold/mold-types';
 import { moldWithVaseFoot } from '@/engine/mold/vase-foot';
 import { setBottomMarkField } from '@/engine/bottom';
 import { setVaseSprigField } from '@/engine/sprig/vase-sprig';
-import { useBottomMark } from './use-vase-mesh';
+import { useBottomMark, useVaseSprig } from './use-vase-mesh';
 import { generateMoldMeshes } from '@/engine/mold/mold-generator';
 import { generateOnePieceMold } from '@/engine/mold/one-piece-generator';
 import { generatePourTwoPieceMold } from '@/engine/mold/pour-two-piece-generator';
@@ -38,13 +38,14 @@ export function useMoldMeshes(): AnyMoldMeshes {
   const storedMold = useMoldStore((s) => s.params);
   const moldParams = useMemo(() => moldWithVaseFoot(storedMold, vaseParams), [storedMold, vaseParams]);
   const markField = useBottomMark();
+  const sprigField = useVaseSprig();
   // The Split 2-Pc handle is HandleMaker's live design. Only depend on it when
   // it is used, so editing a handle doesn't rebuild every other style.
   const handleParams = useHandleStore((s) => s.params);
   const handleDep = moldUsesHandle(moldParams) ? handleParams : null;
   return useMemo(() => {
     setBottomMarkField(markField);
-    setVaseSprigField(null); // the molds leave the Sprig texture off (prepareVaseParams)
+    setVaseSprigField(sprigField); // scaled for shrink in prepareVaseParams
     switch (moldParams.moldStyle) {
       case 'onePiece':
         return generateOnePieceMold(vaseParams, moldParams);
@@ -61,5 +62,5 @@ export function useMoldMeshes(): AnyMoldMeshes {
       default:
         return generateMoldMeshes(vaseParams, moldParams);
     }
-  }, [vaseParams, moldParams, handleDep, markField]);
+  }, [vaseParams, moldParams, handleDep, markField, sprigField]);
 }
