@@ -260,7 +260,10 @@ export interface VaseParameters {
       count: number;        // number of rod bands up the height
       depth: number;        // rod height outward in mm
       duty: number;         // gap ratio (0=touching, 0.9=narrow rods)
-    };
+    };    /** A sprig from the Sprig page laid onto the vase (Sher, 2026-10-28) — a
+     *  COPY of the design, refreshed only when the user brings it in again.
+     *  engine/sprig/vase-sprig.ts. */
+    sprig?: VaseSprigSettings;
   };
 
   // Shell (new — not in OpenSCAD)
@@ -327,6 +330,19 @@ export interface BottomSettings {
 export type FilamentType = 'pla' | 'petg' | 'abs' | 'tpu';
 
 /** Generated mesh data ready for Three.js */
+export interface VaseSprigSettings {
+  enabled: boolean;
+  style: 'raised' | 'pressed';
+  depth: number;        // mm out of (raised) or into (pressed) the wall, at its tallest part
+  size: number;         // % of the size it was drawn at
+  heightPct: number;    // centre, % of the vase's height
+  angle: number;        // degrees around, the vase's own angle (as On Vase)
+  tilt: number;         // degrees, clockwise as seen from outside
+  copies: number;       // evenly spaced around
+  sprig: SprigParameters | null;
+  sprigName: string;
+}
+
 export interface BottomFloor { z: number; base: number; foot: number; mark: number }
 
 export interface VaseMesh {
@@ -340,6 +356,8 @@ export interface VaseMesh {
   /** The inside floor with a foot or mark: its height (mm, snapped up to a
    *  row) and what lifts it — Base + foot Depth + impressed mark Depth. */
   bottomFloor?: BottomFloor;
+  /** Warnings about the Sprig texture (generateMesh only). */
+  sprigNotes?: string[];
   /** First vertex of the foot / mark underside; the overhang tint leaves it alone. */
   bottomStart?: number;
 }

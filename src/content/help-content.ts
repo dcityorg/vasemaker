@@ -294,6 +294,16 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Seed', value: 'Random seed for different grain patterns' },
       ] },
 
+      { type: 'heading', text: 'Sprig' },
+      { type: 'paragraph', text: 'A sprig designed on the Sprig page, raised out of the wall or pressed into it \u2014 mostly for test prints, to see a sprig on the piece before making its mold. Turning it on copies the Sprig tab\'s design into the vase (it is saved in the vase file), placed where the Sprig page\'s On Vase view put it. Changes on the Sprig page do not reach the vase until you press "Use the Sprig tab\'s \u2026", so you can work on the next sprig there meanwhile. Textures must be on.' },
+      { type: 'keyvalue', items: [
+        { key: 'Style', value: 'Raised stands out of the wall; Pressed In sinks into it' },
+        { key: 'Stands Out / Depth', value: 'mm at its tallest part' },
+        { key: 'Size', value: '% of the size it was drawn at' },
+        { key: 'Height, Around, Tilt, Copies', value: 'Where it sits, as in the Sprig page\'s On Vase view' },
+      ] },
+      { type: 'tip', text: 'Pressed In with Smooth Inner off: the inside follows the sprig, so the wall keeps its thickness. With Smooth Inner on the wall behind it gets thinner, down to Min Wall \u2014 a note warns when it does. Raise Resolution for crisp sprig edges. The molds leave the Sprig off for now; a raised sprig on the side is an undercut for Pour 3-Pc anyway.' },
+
       { type: 'heading', text: 'SVG Pattern' },
       { type: 'paragraph', text: 'Use any SVG image as a displacement map. The image is converted to grayscale and used as a depth map: black = full depth groove, white = no displacement, gray = proportional depth in between. This means grayscale SVGs produce multi-depth relief effects \u2014 useful for subtle, layered textures.' },
       { type: 'keyvalue', items: [

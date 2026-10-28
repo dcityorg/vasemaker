@@ -14,6 +14,8 @@ interface MeshStatsStore {
   setStats: (stats: MeshStats) => void;
   /** Foot / mark warnings from the last mesh build (Bottom section). */
   bottomNotes: string[];
+  /** Sprig texture warnings from the last mesh build (Textures section). */
+  sprigNotes: string[];
   /** The inside floor when a foot or mark lifts it, else null (Bottom section). */
   bottomFloor: BottomFloor | null;
 }
@@ -22,5 +24,6 @@ export const useMeshStatsStore = create<MeshStatsStore>((set) => ({
   stats: null,
   setStats: (stats) => set({ stats }),
   bottomNotes: [],
+  sprigNotes: [],
   bottomFloor: null,
 }));

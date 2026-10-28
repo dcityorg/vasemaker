@@ -11,6 +11,7 @@ import { useHandleStore } from '@/store/handle-store';
 import { moldUsesHandle } from '@/engine/mold/mold-types';
 import { moldWithVaseFoot } from '@/engine/mold/vase-foot';
 import { setBottomMarkField } from '@/engine/bottom';
+import { setVaseSprigField } from '@/engine/sprig/vase-sprig';
 import { useBottomMark } from './use-vase-mesh';
 import { generateMoldMeshes } from '@/engine/mold/mold-generator';
 import { generateOnePieceMold } from '@/engine/mold/one-piece-generator';
@@ -43,6 +44,7 @@ export function useMoldMeshes(): AnyMoldMeshes {
   const handleDep = moldUsesHandle(moldParams) ? handleParams : null;
   return useMemo(() => {
     setBottomMarkField(markField);
+    setVaseSprigField(null); // the molds leave the Sprig texture off (prepareVaseParams)
     switch (moldParams.moldStyle) {
       case 'onePiece':
         return generateOnePieceMold(vaseParams, moldParams);

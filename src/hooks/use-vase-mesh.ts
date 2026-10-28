@@ -9,6 +9,7 @@ import { generateMesh, setSvgPatternData } from '@/engine/mesh-generator';
 import { parseSvgInput, rasterizeSvg } from '@/engine/svg-rasterizer';
 import type { VaseMesh } from '@/engine/types';
 import { setBottomMarkField } from '@/engine/bottom';
+import { setVaseSprigField } from '@/engine/sprig/vase-sprig';
 import { buildRelief } from '@/engine/sprig/relief';
 import { useSprigInputs } from './use-sprig-inputs';
 
@@ -54,13 +55,15 @@ export function useVaseMesh(): VaseMesh {
   }, [svgText, svgEnabled, svgPadding]);
 
   const markField = useBottomMark();
+  const sprigField = useVaseSprig();
 
   const mesh = useMemo(() => {
     // svgVersion is included to trigger rebuild after async rasterization
     void svgVersion;
     setBottomMarkField(markField);
+    setVaseSprigField(sprigField);
     return generateMesh(params);
-  }, [params, svgVersion, markField]);
+  }, [params, svgVersion, markField, sprigField]);
 
   return mesh;
 }
@@ -78,5 +81,20 @@ export function useBottomMark() {
   return useMemo(
     () => (mark && source && (mark.drawingOn || text) ? buildRelief(source, mark, Math.max(0.05, mark.resolution), text) : null),
     [mark, source, text],
+  );
+}
+
+/**
+ * The Sprig texture's relief, from the vase's own copy of the sprig design, at
+ * its finished size (Shrink is a mold's business). Null when the texture is
+ * off or still drawing. engine/sprig/vase-sprig.ts.
+ */
+export function useVaseSprig() {
+  const s = useVaseStore((st) => st.params.textures.sprig);
+  const sprig = s?.enabled && s.sprig ? s.sprig : null;
+  const { source, text } = useSprigInputs(sprig);
+  return useMemo(
+    () => (sprig && source && (sprig.drawingOn || text) ? buildRelief(source, sprig, Math.max(0.05, sprig.resolution), text) : null),
+    [sprig, source, text],
   );
 }

@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 import { MAX_CURVE_POINTS } from '@/lib/constants';
-import type { VaseParameters, ShapeType, ShapeParams, BezierPoint, CurvePointType } from '@/engine/types';
+import type { VaseParameters, ShapeType, ShapeParams, BezierPoint, CurvePointType, VaseSprigSettings } from '@/engine/types';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import type { Preset } from '@/presets';
 import { applyPreset } from '@/presets';
@@ -81,6 +81,7 @@ interface VaseStore {
   setSimplex: (update: Partial<VaseParameters['textures']['simplex']>) => void;
   setWoodGrain: (update: Partial<VaseParameters['textures']['woodGrain']>) => void;
   setSvgPattern: (update: Partial<VaseParameters['textures']['svgPattern']>) => void;
+  setSprigTexture: (update: Partial<VaseSprigSettings>) => void;
   setSquareFlute: (update: Partial<VaseParameters['textures']['squareFlute']>) => void;
   setWaves: (update: Partial<VaseParameters['textures']['waves']>) => void;
   setRods: (update: Partial<VaseParameters['textures']['rods']>) => void;
@@ -449,6 +450,16 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
         textures: {
           ...state.params.textures,
           svgPattern: { ...state.params.textures.svgPattern, ...update },
+        },
+      },
+    })),
+  setSprigTexture: (update) =>
+    set((state) => ({
+      params: {
+        ...state.params,
+        textures: {
+          ...state.params.textures,
+          sprig: { ...DEFAULT_PARAMETERS.textures.sprig!, ...state.params.textures.sprig, ...update },
         },
       },
     })),

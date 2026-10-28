@@ -69,8 +69,15 @@ function normalizeCurves(params: VaseParameters): VaseParameters {
     mark: rest.mark ? { ...mergeSprigParameters(rest.mark, DEFAULT_MARK_PARAMETERS), backing: 'none', textStyle: 'raised' } : null,
   };
 
+  // The Sprig texture's copy of a sprig design, filled in the same way.
+  const sp = params.textures.sprig;
+  const textures = sp
+    ? { ...params.textures, sprig: { ...DEFAULT_PARAMETERS.textures.sprig!, ...sp, sprig: sp.sprig ? mergeSprigParameters(sp.sprig) : null } }
+    : params.textures;
+
   return {
     ...params,
+    textures,
     bottom,
     profilePointTypes: profileTypes,
     bezierTwist: { ...params.bezierTwist, points: twistPoints, pointTypes: twistTypes },

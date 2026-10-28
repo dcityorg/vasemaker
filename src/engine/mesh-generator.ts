@@ -38,6 +38,7 @@ import {
 import { computeNormals } from './normals';
 import { bottomUse, bottomLift, buildBottomPatch, getBottomMarkField } from './bottom';
 import { setSvgPatternData } from './svg-pattern';
+import { vaseSprigNotes } from './sprig/vase-sprig';
 
 /** Number of intermediate rings for rounded rim */
 const RIM_STEPS = 5;
@@ -47,6 +48,12 @@ const RIM_STEPS = 5;
  * This is the main entry point — equivalent to makeObject() in OpenSCAD.
  */
 export function generateMesh(params: VaseParameters): VaseMesh {
+  const mesh = generateVaseMesh(params);
+  const notes = vaseSprigNotes(params);
+  return notes.length ? { ...mesh, sprigNotes: notes } : mesh;
+}
+
+function generateVaseMesh(params: VaseParameters): VaseMesh {
   const resolution = params.resolution;
   const vRes = resolution.vertical;
   const rRes = resolution.radial;

@@ -35,6 +35,7 @@ import type { VaseParameters } from './types';
 import { voronoiCell, simplex3D, fbm3D, woodGrain, hash2D } from './noise';
 import { sampleSvgPattern } from './svg-pattern';
 import { sinD } from '@/lib/math-utils';
+import { vaseSprigOffset } from './sprig/vase-sprig';
 
 /**
  * Context passed to each texture evaluator.
@@ -420,6 +421,9 @@ export const textureEvaluators: Record<string, TextureEvaluator> = {
   simplex: simplexEvaluator,
   woodGrain: woodGrainEvaluator,
   svgPattern: svgPatternEvaluator,
+  // Not smoothed by Smooth Zones / Vertical / Radial Smoothing: a sprig is an
+  // object placed on the wall, not a surface pattern.
+  sprig: (ctx, params, texturesEnabled) => (texturesEnabled ? vaseSprigOffset(params, ctx.v * params.height, ctx.arcU, ctx.perimeter) : 0),
 };
 
 /**

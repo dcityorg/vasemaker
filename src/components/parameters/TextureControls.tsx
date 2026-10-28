@@ -7,6 +7,7 @@ import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { parseSvgInput } from '@/engine/svg-rasterizer';
 import { GROUP_COLORS } from '@/config/colors';
 import { SliderRow, Section, GroupHeader, Toggle } from './ui';
+import { SprigTextureControls } from './SprigTextureControls';
 
 /** Extract native w/h from SVG string for aspect-correct preview tiling */
 function getSvgAspect(svgMarkup: string): number {
@@ -419,6 +420,7 @@ export function TextureControls({ designName }: { designName?: string | null }) 
             )}
           </div>
         )}
+        <SprigTextureControls />
         {svgDialogOpen && (
           <SvgLoadDialog
             onClose={() => setSvgDialogOpen(false)}

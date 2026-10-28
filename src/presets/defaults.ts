@@ -134,6 +134,7 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
     verticalSquareFlute: { enabled: false, count: 12, depth: 2, duty: 0.5, sharpness: 0.9 },
     verticalWaves: { enabled: false, count: 12, depth: 2, duty: 0.3 },
     verticalRods: { enabled: false, count: 12, depth: 2, duty: 0.3 },
+    sprig: { enabled: false, style: 'raised', depth: 2, size: 100, heightPct: 50, angle: -90, tilt: 0, copies: 1, sprig: null, sprigName: '' },
   },
 
   resolution: { ...RESOLUTION.defaults },
