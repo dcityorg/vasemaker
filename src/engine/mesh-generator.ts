@@ -83,10 +83,11 @@ export function generateMesh(params: VaseParameters): VaseMesh {
     return generateShellMesh(params, rowContexts, vRes, rRes, wt, bt, hasBase, texturesEnabled, simplexPerm, woodGrainPerm);
   }
   // Base is what is left over the foot recess and mark, so the floor goes up.
-  const floorBt = bt + bottomLift(params.bottom, use);
+  const lift = bottomLift(params.bottom, use);
+  const floorBt = bt + lift.foot + lift.mark;
   return withBottom(
     generateShellMesh(params, rowContexts, vRes, rRes, wt, floorBt, hasBase, texturesEnabled, simplexPerm, woodGrainPerm, true),
-    params, rowContexts, rRes, texturesEnabled, simplexPerm, woodGrainPerm, use, floorBt,
+    params, rowContexts, rRes, texturesEnabled, simplexPerm, woodGrainPerm, use, floorBt, lift,
   );
 }
 
@@ -98,7 +99,7 @@ export function generateMesh(params: VaseParameters): VaseMesh {
 function withBottom(
   mesh: VaseMesh, params: VaseParameters, rowContexts: RowContext[], rRes: number,
   texturesEnabled: boolean, simplexPerm: Uint8Array | null, woodGrainPerm: Uint8Array | null,
-  use: { recess: boolean; mark: boolean }, floorBt: number,
+  use: { recess: boolean; mark: boolean }, floorBt: number, lift: { foot: number; mark: number },
 ): VaseMesh {
   const row = rowContexts[0];
   const [cx, cy] = computeCenter(row);
@@ -130,7 +131,7 @@ function withBottom(
     vertexCount: positions.length / 3,
     triangleCount: indices.length / 3,
     bottomNotes: patch.notes,
-    bottomFloorZ: floorZ,
+    bottomFloor: { z: floorZ, base: params.bottomThickness, ...lift },
     bottomStart: nv0,
   };
 }

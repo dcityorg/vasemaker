@@ -27,8 +27,7 @@ export function BottomControls() {
   const hasBase = useVaseStore((s) => s.params.wallThickness > 0 && s.params.bottomThickness > 0);
   const setBottom = useVaseStore((s) => s.setBottom);
   const notes = useMeshStatsStore((s) => s.bottomNotes);
-  const floorZ = useMeshStatsStore((s) => s.bottomFloorZ);
-  const baseMm = useVaseStore((s) => s.params.bottomThickness);
+  const floor = useMeshStatsStore((s) => s.bottomFloor);
   const tabMark = useMarkStore((s) => s.params);
   const tabName = useMarkStore((s) => s.settingsName);
 
@@ -130,12 +129,19 @@ export function BottomControls() {
           {notes.map((n, i) => (
             <div key={i} className="mb-1.5 px-2 py-1.5 rounded border border-amber-700 bg-amber-950/70 text-xs text-amber-200">{n}</div>
           ))}
-          {active && floorZ !== null && floorZ > baseMm + 0.05 && (
-            <p className="text-xs text-[var(--text-secondary)] mb-2"
-              title="Base (Shell) is the plastic left over the deepest point, so the inside floor goes up by the foot's Depth and an impressed mark's Depth (to the next mesh row). The outside does not change, and molds use only the outside.">
-              Inside floor: {floorZ.toFixed(1)} mm up (Base {baseMm} mm over the foot and mark)
-            </p>
-          )}
+          {active && floor && floor.foot + floor.mark > 0 && (() => {
+            const sum = floor.base + floor.foot + floor.mark;
+            const parts = [floor.foot > 0 && `foot depth ${floor.foot.toFixed(1)}`, floor.mark > 0 && `mark depth ${floor.mark.toFixed(1)}`,
+              `base thickness ${floor.base.toFixed(1)}`].filter(Boolean).join(' + ');
+            const snapped = floor.z > sum + 0.05;
+            return (
+              <div className="mb-1.5 px-2 py-1.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-secondary)]"
+                title="Base (Shell) is the plastic left over the deepest point, so the foot and an impressed mark lift the inside floor. The outside does not change, and the molds use only the outside.">
+                The inside floor is <span className="text-[var(--text-primary)]">{floor.z.toFixed(1)} mm</span> up from the bottom of the design
+                ({parts}{snapped ? ` = ${sum.toFixed(1)}, rounded up to the next mesh row` : ''}).
+              </div>
+            );
+          })()}
         </>
       )}
     </Section>

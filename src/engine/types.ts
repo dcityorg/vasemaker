@@ -327,6 +327,8 @@ export interface BottomSettings {
 export type FilamentType = 'pla' | 'petg' | 'abs' | 'tpu';
 
 /** Generated mesh data ready for Three.js */
+export interface BottomFloor { z: number; base: number; foot: number; mark: number }
+
 export interface VaseMesh {
   positions: Float32Array;   // xyz vertex positions (3 floats per vertex)
   normals: Float32Array;     // xyz normals (3 floats per vertex)
@@ -335,8 +337,9 @@ export interface VaseMesh {
   triangleCount: number;
   /** Warnings about the foot and the mark (generateMesh only). */
   bottomNotes?: string[];
-  /** Height (mm) of the inside floor when a foot or mark lifts it. */
-  bottomFloorZ?: number;
+  /** The inside floor with a foot or mark: its height (mm, snapped up to a
+   *  row) and what lifts it — Base + foot Depth + impressed mark Depth. */
+  bottomFloor?: BottomFloor;
   /** First vertex of the foot / mark underside; the overhang tint leaves it alone. */
   bottomStart?: number;
 }

@@ -7,19 +7,20 @@
 
 import { create } from 'zustand';
 import type { MeshStats } from '@/engine/mesh-stats';
+import type { BottomFloor } from '@/engine/types';
 
 interface MeshStatsStore {
   stats: MeshStats | null;
   setStats: (stats: MeshStats) => void;
   /** Foot / mark warnings from the last mesh build (Bottom section). */
   bottomNotes: string[];
-  /** Inside floor height when a foot or mark lifts it, else null (Bottom section). */
-  bottomFloorZ: number | null;
+  /** The inside floor when a foot or mark lifts it, else null (Bottom section). */
+  bottomFloor: BottomFloor | null;
 }
 
 export const useMeshStatsStore = create<MeshStatsStore>((set) => ({
   stats: null,
   setStats: (stats) => set({ stats }),
   bottomNotes: [],
-  bottomFloorZ: null,
+  bottomFloor: null,
 }));

@@ -29,7 +29,7 @@ export function VaseMeshComponent() {
 
   useEffect(() => {
     useMeshStatsStore.getState().setStats(computeMeshStats(vaseMesh));
-    useMeshStatsStore.setState({ bottomNotes: vaseMesh.bottomNotes ?? [], bottomFloorZ: vaseMesh.bottomFloorZ ?? null });
+    useMeshStatsStore.setState({ bottomNotes: vaseMesh.bottomNotes ?? [], bottomFloor: vaseMesh.bottomFloor ?? null });
   }, [vaseMesh]);
 
   // Overhang highlighting — per-vertex colors blending vase color → red where the

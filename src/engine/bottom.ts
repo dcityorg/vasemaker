@@ -44,9 +44,11 @@ export function bottomUse(b: BottomSettings | undefined, hasBase: boolean, field
  *  the plastic left at the THINNEST point, over the foot recess plus an
  *  impressed mark, so neither is ever limited by it. A raised mark sits inside
  *  the recess and lifts nothing. */
-export function bottomLift(b: BottomSettings, use: { recess: boolean; mark: boolean }): number {
-  return (use.recess ? Math.max(0, b.footHeight) : 0)
-    + (use.mark && b.markStyle === 'impressed' ? Math.max(0, b.markDepth) : 0);
+export function bottomLift(b: BottomSettings, use: { recess: boolean; mark: boolean }): { foot: number; mark: number } {
+  return {
+    foot: use.recess ? Math.max(0, b.footHeight) : 0,
+    mark: use.mark && b.markStyle === 'impressed' ? Math.max(0, b.markDepth) : 0,
+  };
 }
 
 /** The mark for a mold's plug disk, or null (mark off / not built yet). A
