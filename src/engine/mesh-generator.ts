@@ -36,7 +36,7 @@ import {
   RowContext,
 } from './surfaces';
 import { computeNormals } from './normals';
-import { bottomUse, buildBottomPatch, getBottomMarkField } from './bottom';
+import { bottomUse, bottomLift, buildBottomPatch, getBottomMarkField } from './bottom';
 import { setSvgPatternData } from './svg-pattern';
 
 /** Number of intermediate rings for rounded rim */
@@ -82,9 +82,11 @@ export function generateMesh(params: VaseParameters): VaseMesh {
   if (!use.recess && !use.mark) {
     return generateShellMesh(params, rowContexts, vRes, rRes, wt, bt, hasBase, texturesEnabled, simplexPerm, woodGrainPerm);
   }
+  // Base is what is left over the foot recess and mark, so the floor goes up.
+  const floorBt = bt + bottomLift(params.bottom, use);
   return withBottom(
-    generateShellMesh(params, rowContexts, vRes, rRes, wt, bt, hasBase, texturesEnabled, simplexPerm, woodGrainPerm, true),
-    params, rowContexts, rRes, texturesEnabled, simplexPerm, woodGrainPerm, use,
+    generateShellMesh(params, rowContexts, vRes, rRes, wt, floorBt, hasBase, texturesEnabled, simplexPerm, woodGrainPerm, true),
+    params, rowContexts, rRes, texturesEnabled, simplexPerm, woodGrainPerm, use, floorBt,
   );
 }
 
@@ -96,7 +98,7 @@ export function generateMesh(params: VaseParameters): VaseMesh {
 function withBottom(
   mesh: VaseMesh, params: VaseParameters, rowContexts: RowContext[], rRes: number,
   texturesEnabled: boolean, simplexPerm: Uint8Array | null, woodGrainPerm: Uint8Array | null,
-  use: { recess: boolean; mark: boolean },
+  use: { recess: boolean; mark: boolean }, floorBt: number,
 ): VaseMesh {
   const row = rowContexts[0];
   const [cx, cy] = computeCenter(row);
@@ -108,10 +110,11 @@ function withBottom(
     const [sx, sy] = computeVertex(row, t, 0, 0, params, rRes, false, simplexPerm, woodGrainPerm);
     smooth[t * 3] = sx; smooth[t * 3 + 1] = sy;
   }
-  let floorZ = params.bottomThickness;
-  for (const r of rowContexts) if (r.height >= params.bottomThickness) { floorZ = r.height; break; }
+  // The inside floor: the first row at or above floorBt (generateShellMesh's rule).
+  let floorZ = floorBt;
+  for (const r of rowContexts) if (r.height >= floorBt) { floorZ = r.height; break; }
   const b = params.bottom;
-  const patch = buildBottomPatch(ring0, b.footSmoothInner ? smooth : ring0, cx, cy, rRes, b, getBottomMarkField(), floorZ, use);
+  const patch = buildBottomPatch(ring0, b.footSmoothInner ? smooth : ring0, cx, cy, rRes, b, getBottomMarkField(), use);
 
   const nv0 = mesh.positions.length / 3;
   const positions = new Float32Array(mesh.positions.length + patch.positions.length);
@@ -127,7 +130,7 @@ function withBottom(
     vertexCount: positions.length / 3,
     triangleCount: indices.length / 3,
     bottomNotes: patch.notes,
-    bottomNeedBase: patch.needBase,
+    bottomFloorZ: floorZ,
     bottomStart: nv0,
   };
 }

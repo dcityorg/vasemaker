@@ -13,13 +13,13 @@ interface MeshStatsStore {
   setStats: (stats: MeshStats) => void;
   /** Foot / mark warnings from the last mesh build (Bottom section). */
   bottomNotes: string[];
-  /** The Base the full foot + mark need on the PLA print, or null (Raise Base button). */
-  bottomNeedBase: number | null;
+  /** Inside floor height when a foot or mark lifts it, else null (Bottom section). */
+  bottomFloorZ: number | null;
 }
 
 export const useMeshStatsStore = create<MeshStatsStore>((set) => ({
   stats: null,
   setStats: (stats) => set({ stats }),
   bottomNotes: [],
-  bottomNeedBase: null,
+  bottomFloorZ: null,
 }));

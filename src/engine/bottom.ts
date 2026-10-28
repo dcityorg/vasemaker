@@ -19,7 +19,7 @@ import type { BottomSettings, VaseParameters } from './types';
 import type { ReliefField } from './sprig/relief';
 import { offsetRingRadial } from './mold/ring-mesh';
 
-/** PLA kept above the deepest point of the bottom, mm (3 layers). */
+/** PLA kept above the deepest point of a mold master's floor or plug disk, mm (3 layers). */
 export const MIN_FLOOR = 0.6;
 /** Ink below this fraction of the mark's height counts as no mark (antialias fringe). */
 const INK = 0.02;
@@ -38,6 +38,15 @@ export function bottomUse(b: BottomSettings | undefined, hasBase: boolean, field
   const recess = !!b && hasBase && b.footOn && b.footHeight > 0 && b.footSlopeWidth > 0;
   const mark = !!b && hasBase && b.markOn && !!b.mark && !!field && field.maxHeight > 0;
   return { recess, mark };
+}
+
+/** How far the inside floor is lifted above Base (Gary 2026-10-27): Base is
+ *  the plastic left at the THINNEST point, over the foot recess plus an
+ *  impressed mark, so neither is ever limited by it. A raised mark sits inside
+ *  the recess and lifts nothing. */
+export function bottomLift(b: BottomSettings, use: { recess: boolean; mark: boolean }): number {
+  return (use.recess ? Math.max(0, b.footHeight) : 0)
+    + (use.mark && b.markStyle === 'impressed' ? Math.max(0, b.markDepth) : 0);
 }
 
 /** The mark for a mold's plug disk, or null (mark off / not built yet). A
@@ -229,36 +238,25 @@ export interface BottomPatch {
   positions: Float32Array;
   indices: Uint32Array;
   notes: string[];
-  /** The Base (mm) the full foot and mark need on the PLA print, when Base is
-   *  limiting them; else null. Molds are not limited by Base. */
-  needBase: number | null;
 }
 
 /**
  * The underside, from the wall's bottom row (`ring0`, z = 0) inward.
  * `footBase` is the outline the foot is offset from (ring0, or the untextured
- * outline with Smooth Inside). `floorZ` = height of the inside floor.
+ * outline with Smooth Inside). The inside floor is already lifted by
+ * bottomLift, so the full foot and mark always fit under it.
  * Triangles face DOWN (clockwise seen from +z), like the disc they replace.
  */
 export function buildBottomPatch(
   ring0: Ring, footBase: Ring, cx: number, cy: number, n: number,
-  b: BottomSettings, field: ReliefField | null, floorZ: number,
+  b: BottomSettings, field: ReliefField | null,
   use: { recess: boolean; mark: boolean },
 ): BottomPatch {
   const notes: string[] = [];
-  const maxRecess = Math.max(0, floorZ - MIN_FLOOR);
-  // What the full foot + mark ask for, to offer "Raise Base" (rounded UP to the
-  // Base slider's 0.1 step, so the first row at or above it clears the need).
-  const fullH = use.recess ? Math.max(0, b.footHeight) : 0;
-  const fullD = use.mark && field && b.markStyle === 'impressed' ? Math.max(0, b.markDepth) : 0;
-  const need = fullH + fullD + MIN_FLOOR;
-  const needBase = (fullH > 0 || fullD > 0) && need > floorZ + 1e-6 ? Math.ceil(need * 10 - 1e-6) / 10 : null;
-
   let h = 0;
   let foot: [Ring, Ring] | null = null;
   if (use.recess) {
-    h = Math.min(b.footHeight, maxRecess);
-    if (h < b.footHeight - 1e-6) notes.push(`On the plastic print the recess is limited to ${h.toFixed(1)} mm, so ${MIN_FLOOR} mm of Base is left under it. Molds get the full ${b.footHeight} mm — see the Mold page.`);
+    h = b.footHeight;
     foot = footRings(footBase, cx, cy, n, b.footWidth, b.footSlopeWidth, h);
     if (!foot) { h = 0; notes.push('The bottom is too small for a foot ring and recess.'); }
   }
@@ -271,14 +269,7 @@ export function buildBottomPatch(
   if (use.mark && field) {
     const S = markSampler(field, b, cx, cy);
     const sgn = b.markStyle === 'impressed' ? 1 : -1;
-    let d = Math.max(0, b.markDepth);
-    if (sgn > 0 && h + d > maxRecess) {
-      const dd = Math.max(0, maxRecess - h);
-      notes.push(dd < 0.05
-        ? `On the plastic print there is no Base left for the mark (the recess uses it up), so it is left off. Molds get the full ${d} mm — see the Mold page.`
-        : `On the plastic print the mark is limited to ${dd.toFixed(1)} mm deep, so ${MIN_FLOOR} mm of Base is left above it. Molds get the full ${d} mm — see the Mold page.`);
-      d = dd;
-    }
+    const d = Math.max(0, b.markDepth);
     if (sgn < 0) {
       if (!b.footOn) notes.push('Foot is off, so a raised mark stands below the bottom and the piece would sit on it. Turn Foot on, or use Impressed.');
       else if (d > h + 1e-6) notes.push(`The raised mark stands ${(d - h).toFixed(1)} mm below the foot ring — the piece will rock. Lower its Height or deepen the recess.`);
@@ -312,5 +303,5 @@ export function buildBottomPatch(
   for (let t = 0; t < n; t++) {
     indices[w++] = ci; indices[w++] = last + (t + 1) % n; indices[w++] = last + t;
   }
-  return { positions, indices, notes, needBase };
+  return { positions, indices, notes };
 }

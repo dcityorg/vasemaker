@@ -410,7 +410,7 @@ export const HELP_SECTIONS: HelpSection[] = [
 
       { type: 'heading', text: 'Base & Rim' },
       { type: 'keyvalue', items: [
-        { key: 'Base Thickness', value: 'Minimum 1\u20132mm for stability. Measured vertically. Set to 0 for an open bottom (e.g. to fit over an LED candle).' },
+        { key: 'Base Thickness', value: 'Minimum 1\u20132mm for stability. Measured vertically, at the thinnest point: with a foot or mark it is the plastic over them. Set to 0 for an open bottom (e.g. to fit over an LED candle).' },
         { key: 'Rim', value: 'Flat (default) or Rounded. Rounded rims look nicer but add a slight overhang.' },
       ] },
 
@@ -502,7 +502,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'tip', text: 'The mark is placed the way you read it when you turn the piece over, so it is never back to front. Turn the view to look up at the bottom to check it.' },
       { type: 'paragraph', text: 'Amber notes warn when a raised mark is taller than the recess, or when the mark runs onto the foot ring.' },
-      { type: 'paragraph', text: 'On the plastic print the foot recess and the mark are cut into the Base (Shell), and 0.6 mm of Base is always left over them, so a deep foot or mark is limited there. A note says so, with a button to raise Base just enough. The molds are not limited by Base: the Pour 3-Pc master thickens its own floor, and the Split Halves / Thirds plug disk grows thicker, so the cast piece always gets the full depth. Look at it on the Mold page.' },
+      { type: 'paragraph', text: 'Base (Shell) is the plastic left over the deepest point of the bottom. With a foot or an impressed mark the inside floor goes up by their depth, so Base never limits them \u2014 the line under Foot & Mark says how high the floor is. The outside of the piece does not change. The molds use only the outside, so they get the same foot and mark: the Pour 3-Pc master thickens its own floor, and the Split Halves / Thirds plug disk grows thicker.' },
     ],
   },
 

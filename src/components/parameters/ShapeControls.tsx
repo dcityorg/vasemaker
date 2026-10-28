@@ -98,7 +98,7 @@ export function ShapeControls() {
         <div className="flex justify-end mb-1">
           <button onClick={() => { setWallThickness(DEFAULT_PARAMETERS.wallThickness); setBottomThickness(DEFAULT_PARAMETERS.bottomThickness); setRimShape(DEFAULT_PARAMETERS.rimShape); setSmoothInner(DEFAULT_PARAMETERS.smoothInner); setMinWallThickness(DEFAULT_PARAMETERS.minWallThickness); setInnerOffsetMode(DEFAULT_PARAMETERS.innerOffsetMode); }} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Base" value={params.bottomThickness} {...SHELL.bottomThickness} onChange={setBottomThickness} tooltip="Base thickness in mm (0 = no base)" />
+        <SliderRow label="Base" value={params.bottomThickness} {...SHELL.bottomThickness} onChange={setBottomThickness} tooltip="Base thickness in mm (0 = no base). With a foot or a mark (Foot & Mark), it is the plastic left over them, so the inside floor sits higher" />
         <SliderRow label="Wall" value={params.wallThickness} {...SHELL.wallThickness} onChange={(v) => { setWallThickness(v); if ((params.minWallThickness ?? DEFAULT_PARAMETERS.minWallThickness) > v) setMinWallThickness(v); }} tooltip="Wall thickness in mm (0 = thin surface)" />
         {params.wallThickness > 0 && (
           <>

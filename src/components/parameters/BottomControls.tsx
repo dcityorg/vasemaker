@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { useVaseStore } from '@/store/vase-store';
 import { useMeshStatsStore } from '@/store/mesh-stats-store';
 import { useMarkStore, hydrateMarkSettingsFromStorage } from '@/store/sprig-store';
-import { BOTTOM, SHELL } from '@/config/shape-params';
+import { BOTTOM } from '@/config/shape-params';
 import { GROUP_COLORS } from '@/config/colors';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { SliderRow, Section, Toggle, GroupHeader } from './ui';
@@ -27,10 +27,8 @@ export function BottomControls() {
   const hasBase = useVaseStore((s) => s.params.wallThickness > 0 && s.params.bottomThickness > 0);
   const setBottom = useVaseStore((s) => s.setBottom);
   const notes = useMeshStatsStore((s) => s.bottomNotes);
-  const rawNeed = useMeshStatsStore((s) => s.bottomNeedBase);
-  // The Base slider stops at its max; past that the button raises it as far as it goes.
-  const needBase = rawNeed === null ? null : Math.min(rawNeed, SHELL.bottomThickness.max);
-  const setBottomThickness = useVaseStore((s) => s.setBottomThickness);
+  const floorZ = useMeshStatsStore((s) => s.bottomFloorZ);
+  const baseMm = useVaseStore((s) => s.params.bottomThickness);
   const tabMark = useMarkStore((s) => s.params);
   const tabName = useMarkStore((s) => s.settingsName);
 
@@ -132,12 +130,11 @@ export function BottomControls() {
           {notes.map((n, i) => (
             <div key={i} className="mb-1.5 px-2 py-1.5 rounded border border-amber-700 bg-amber-950/70 text-xs text-amber-200">{n}</div>
           ))}
-          {needBase !== null && (
-            <button onClick={() => setBottomThickness(needBase)}
-              title="Thicken the vase's Base (Shell) so the plastic print gets the full foot and mark. Undo puts it back."
-              className="mb-2 w-full px-2 py-1 text-xs rounded border border-amber-700 text-amber-200 hover:bg-amber-950/70 transition-colors">
-              Raise Base to {needBase.toFixed(1)} mm for the plastic print
-            </button>
+          {active && floorZ !== null && floorZ > baseMm + 0.05 && (
+            <p className="text-xs text-[var(--text-secondary)] mb-2"
+              title="Base (Shell) is the plastic left over the deepest point, so the inside floor goes up by the foot's Depth and an impressed mark's Depth (to the next mesh row). The outside does not change, and molds use only the outside.">
+              Inside floor: {floorZ.toFixed(1)} mm up (Base {baseMm} mm over the foot and mark)
+            </p>
           )}
         </>
       )}
