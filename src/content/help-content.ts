@@ -487,7 +487,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       { type: 'keyvalue', items: [
         { key: 'Foot Width', value: 'The flat ring at the outer edge that the piece stands on' },
         { key: 'Slope Width', value: 'The slope from the ring up into the recessed middle' },
-        { key: 'Depth', value: 'How far the middle is recessed. A raised mark must be no taller than this, or the piece rocks' },
+        { key: 'Depth', value: 'How far the middle is recessed, up to 10 mm. A raised mark must be no taller than this, or the piece rocks' },
         { key: 'Smooth Inside', value: 'Make the slope and recess from the smooth outline, so a texture does not run into the recess' },
       ] },
       { type: 'paragraph', text: 'One Foot switch (off by default) decides the bottom everywhere: the plastic print and every mold style. A foot is usually for pieces cast from a mold. It follows the shape of your vase\u2019s bottom \u2014 you never draw it.' },
@@ -502,7 +502,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'tip', text: 'The mark is placed the way you read it when you turn the piece over, so it is never back to front. Turn the view to look up at the bottom to check it.' },
       { type: 'paragraph', text: 'Amber notes warn when a raised mark is taller than the recess, or when the mark runs onto the foot ring.' },
-      { type: 'paragraph', text: 'Base (Shell) is the plastic left over the deepest point of the bottom. With a foot or an impressed mark the inside floor goes up by their depth, so Base never limits them \u2014 the line under Foot & Mark says how high the floor is. The outside of the piece does not change. The molds use only the outside, so they get the same foot and mark: the Pour 3-Pc master thickens its own floor, and the Split Halves / Thirds plug disk grows thicker.' },
+      { type: 'paragraph', text: 'Base (Shell) is the plastic left over the deepest point of the bottom. With a foot or an impressed mark the inside floor goes up by their depth, so Base never limits them \u2014 the grey box under Foot & Mark says how high the floor is and adds it up (foot depth + mark depth + base thickness, rounded up to the next mesh row). The outside of the piece does not change. The molds use only the outside, so they get the same foot and mark: the Pour 3-Pc master thickens its own floor, and the Split Halves / Thirds plug disk grows thicker.' },
     ],
   },
 
