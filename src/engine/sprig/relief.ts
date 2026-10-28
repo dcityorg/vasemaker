@@ -127,6 +127,10 @@ export interface ReliefField {
   smallPieces: number;
   /** Outline backing: the widest gap the sheet crosses to join the pieces, finished mm. 0 = none needed. */
   bridgedGap: number;
+  /** Spots with no clay (height ≤ BARE) walled in by the cast on every side —
+   *  a vein or a hole the plate shows through. A gap open to the outside is
+   *  background, not counted. */
+  bareHoles: number;
   maxHeight: number;
   /** Relief volume above the plate, finished mm³. */
   volume: number;
@@ -446,6 +450,10 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number, 
       sampleMask ? (x, y) => sampleMask(u(x), v(y)) : null));
   }
 
+  // The drawing alone (+ any backing, below): what the bare-spot check reads, so
+  // the inside of a raised "o" or a Cut In letter is never reported.
+  const drawH = heights.slice();
+
   // ── Text: its own layer, never rotated or flipped with the drawing ──
   let cutLayer: Float32Array | null = null;
   if (textOn) {
@@ -510,7 +518,9 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number, 
         const cover = Math.min(1, d / step + 0.5);
         const t = p.backingEdge > 0 ? smoothstep(Math.min(1, Math.max(0, d) / p.backingEdge)) : 1;
         const k = j * nx + i;
-        heights[k] += (minB + (T - minB) * t) * cover;
+        const add = (minB + (T - minB) * t) * cover;
+        heights[k] += add;
+        drawH[k] += add;
         if (d > 0) whole[k] = 1;
       }
     }
@@ -523,7 +533,7 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number, 
   const thin = thinParts(mask, dCells, nx, ny, step, p.minFeatureWidth);
   const parts = countPieces(whole, nx, ny, (p.minFeatureWidth * p.minFeatureWidth) / (step * step));
   return {
-    nx, ny, step, x0, y0, heights, mask, ...thin, ...parts, bridgedGap, maxHeight: maxH, volume,
+    nx, ny, step, x0, y0, heights, mask, ...thin, ...parts, bridgedGap, bareHoles: p.drawingOn ? countBareHoles(drawH, nx, ny) : 0, maxHeight: maxH, volume,
     footW: place.w + 2 * bb, footL: place.l + 2 * bb,
   };
 }
@@ -710,6 +720,43 @@ function countPieces(mask: Uint8Array, nx: number, ny: number, smallCells: numbe
 }
 /** Patches smaller than this many cells are noise, not a feature. */
 const MIN_SPOT = 4;
+
+/** Height at or below which a cell has no clay, finished mm (the preview's
+ *  background colour shows there too). */
+export const BARE = 0.02;
+
+/**
+ * Bare spots walled in by clay: bare cells the outside cannot reach. The
+ * outside spreads 8-connected — the cast holds only edge to edge (countPieces),
+ * so a corner-touch is a way through. Spots under MIN_SPOT cells are noise.
+ */
+function countBareHoles(heights: Float32Array, nx: number, ny: number): number {
+  const N = nx * ny;
+  const seen = new Uint8Array(N);
+  const stack: number[] = [];
+  const flood = (s: number) => {
+    let area = 0;
+    seen[s] = 1; stack.push(s);
+    while (stack.length) {
+      const k = stack.pop()!;
+      area++;
+      const i = k % nx, j = (k - i) / nx;
+      for (let dj = -1; dj <= 1; dj++) {
+        for (let di = -1; di <= 1; di++) {
+          const a = i + di, b = j + dj;
+          if (a < 0 || b < 0 || a >= nx || b >= ny) continue;
+          const q = b * nx + a;
+          if (!seen[q] && heights[q] <= BARE) { seen[q] = 1; stack.push(q); }
+        }
+      }
+    }
+    return area;
+  };
+  flood(0);                             // the border ring is always bare
+  let holes = 0;
+  for (let k = 0; k < N; k++) if (!seen[k] && heights[k] <= BARE && flood(k) >= MIN_SPOT) holes++;
+  return holes;
+}
 
 function thinParts(mask: Uint8Array, dCells: Float32Array, nx: number, ny: number, step: number, minWidth: number) {
   const N = nx * ny;

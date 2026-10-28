@@ -3,7 +3,7 @@
 import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { partGeometry } from '@/components/viewport/crease';
-import { useShowFacets } from '@/store/view-prefs';
+import { useShowFacets, useSprigColors } from '@/store/view-prefs';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, GizmoHelper, GizmoViewcube } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -15,30 +15,33 @@ import type { SprigMoldMeshes } from '@/engine/sprig/sprig-generator';
 import { RememberCamera } from '@/components/viewport/RememberCamera';
 import { OnVaseView } from '@/components/viewport/OnVase';
 
-const PLATE_COLOR = '#d98a4a';
 const WALL_COLOR = '#c97f45';
 const PLASTER_COLOR = '#e7dfca';
 const THIN_COLOR = '#e53935';
 
-/** `tint` (per vertex 0..1) blends the base colour to red — the thin-part marks. */
-function useGeometry(mesh: VaseMesh | null, facets: boolean, tint?: Float32Array | null, base?: string): THREE.BufferGeometry | null {
+/** Plain part, or the plate: `clay` (per vertex 0/1) picks the sprig or the
+ *  background colour, and `tint` (0..1) blends that toward red — the thin-part
+ *  marks. */
+function useGeometry(mesh: VaseMesh | null, facets: boolean, paint?: { clay: Float32Array; tint: Float32Array | null; sprig: string; background: string }): THREE.BufferGeometry | null {
+  const clay = paint?.clay, tint = paint?.tint, sprig = paint?.sprig, background = paint?.background;
   const geo = useMemo(() => {
     if (!mesh) return null;
     let col: Float32Array | null = null;
-    if (tint && base) {
-      const a = new THREE.Color(base), b = new THREE.Color(THIN_COLOR);
+    if (clay && sprig && background) {
+      const on = new THREE.Color(sprig), off = new THREE.Color(background), red = new THREE.Color(THIN_COLOR);
       col = new Float32Array(mesh.vertexCount * 3);
       for (let i = 0; i < mesh.vertexCount; i++) {
-        const t = tint[i] ?? 0;
-        col[i * 3] = a.r + (b.r - a.r) * t;
-        col[i * 3 + 1] = a.g + (b.g - a.g) * t;
-        col[i * 3 + 2] = a.b + (b.b - a.b) * t;
+        const a = clay[i] ? on : off;
+        const t = tint ? tint[i] ?? 0 : 0;
+        col[i * 3] = a.r + (red.r - a.r) * t;
+        col[i * 3 + 1] = a.g + (red.g - a.g) * t;
+        col[i * 3 + 2] = a.b + (red.b - a.b) * t;
       }
     }
     const g = partGeometry(mesh, facets, col);
     g.computeBoundingSphere();
     return g;
-  }, [mesh, facets, tint, base]);
+  }, [mesh, facets, clay, tint, sprig, background]);
   useEffect(() => () => geo?.dispose(), [geo]);
   return geo;
 }
@@ -85,7 +88,9 @@ function MoldView({ sprig }: { sprig: SprigMoldMeshes | null }) {
 
   const tint = view.showThin && sprig && sprig.relief.thinSpots > 0 ? sprig.thinFlags : null;
   const facets = useShowFacets();
-  const plateGeo = useGeometry(sprig?.plate ?? null, facets, tint, PLATE_COLOR);
+  const colors = useSprigColors();
+  const plateGeo = useGeometry(sprig?.plate ?? null, facets,
+    sprig ? { clay: sprig.clayFlags, tint, sprig: colors.sprig, background: colors.background } : undefined);
   const wallGeo = useGeometry(sprig?.wall ?? null, facets);
   const wallBGeo = useGeometry(sprig?.wallB ?? null, facets);
   const plasterGeo = useGeometry(sprig?.plaster ?? null, true);
@@ -132,7 +137,7 @@ function MoldView({ sprig }: { sprig: SprigMoldMeshes | null }) {
 
         <group position={[0, 0, lift]}>
           {!isMark && view.showPlaster && plasterGeo && <Part geometry={plasterGeo} color={PLASTER_COLOR} opacity={0.4} flat={facets} />}
-          {view.showPlate && plateGeo && <Part geometry={plateGeo} color={PLATE_COLOR} opacity={1} flat={facets} vertexColors={!!tint} />}
+          {view.showPlate && plateGeo && <Part geometry={plateGeo} color={colors.sprig} opacity={1} flat={facets} vertexColors />}
           {!isMark && view.showWallA && wallGeo && <Part geometry={wallGeo} color={WALL_COLOR} opacity={1} flat={facets} />}
           {!isMark && view.showWallB && wallBGeo && <Part geometry={wallBGeo} color={WALL_COLOR} opacity={1} flat={facets} />}
         </group>

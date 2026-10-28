@@ -3,7 +3,7 @@ import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsButton } from '@/components/parameters/ui';
-import { setShowFacets } from '@/store/view-prefs';
+import { setShowFacets, useSprigColors, setSprigColors, DEFAULT_SPRIG_COLOR, DEFAULT_SPRIG_BACKGROUND } from '@/store/view-prefs';
 import { asMark, DEFAULT_VIEW } from '@/store/sprig-store';
 import { useSprigDesign } from './sprig-design-context';
 import { ToolNav } from '@/components/parameters/ToolNav';
@@ -440,7 +440,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           {/* View */}
           <GroupHeader label="View" color={GROUP_COLORS.settings} />
           <Section title="Display" titleColor={GROUP_COLORS.settings} tooltip="How the preview looks. Nothing here changes what you print">
-          <ResetRow title="The Display switches back to their defaults (stays in this view; the On Vase placement has its own Reset)" onClick={() => { setView({ ...DEFAULT_VIEW, onVase: view.onVase }); setShowFacets(true); }} />
+          <ResetRow title="The Display switches back to their defaults (stays in this view; the On Vase placement has its own Reset)" onClick={() => { setView({ ...DEFAULT_VIEW, onVase: view.onVase }); setShowFacets(true); setSprigColors({ sprig: DEFAULT_SPRIG_COLOR, background: DEFAULT_SPRIG_BACKGROUND }); }} />
           {!isMark && <div className="grid grid-cols-2 gap-1 mb-2">
             {([[false, 'Mold', 'The plate, walls and plaster you print and pour'], [true, 'On Vase', 'The sprig laid onto your current VaseMaker vase, to judge size and placement']] as const).map(([on, label, tip]) => (
               <button key={label} onClick={() => setView({ onVase: on })} title={tip}
@@ -451,6 +451,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           </div>}
           {isMark ? (
             <>
+              <SprigColorRows what="mark" />
               <ShowFacetsToggle />
               <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature red" />
               <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
@@ -463,6 +464,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               <Toggle label="Wall A" checked={view.showWallA} onChange={(v) => setView({ showWallA: v })} tooltip="First wall in its assembled position" />
               <Toggle label="Wall B" checked={view.showWallB} onChange={(v) => setView({ showWallB: v })} tooltip="Second copy of the same wall, turned 180°" />
               <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour" />
+              <SprigColorRows what="sprig" />
               <ShowFacetsToggle />
               <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature Width red" />
             </>
@@ -917,6 +919,25 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
 
 /** The sprig's words: up to two lines, committed after a pause in typing so the
  *  relief is not rebuilt on every key, and on blur. */
+/** The clay colour and the plate (background) colour — a spot with no clay
+ *  shows the background (Sher). Per browser, shared by both tabs. */
+function SprigColorRows({ what }: { what: 'sprig' | 'mark' }) {
+  const { sprig, background } = useSprigColors();
+  const row = (label: string, value: string, tip: string, set: (c: string) => void) => (
+    <div className="flex items-center gap-3 mb-2">
+      <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title={tip}>{label}</label>
+      <input type="color" value={value} onChange={(e) => set(e.target.value)} title={tip}
+        className="w-8 h-8 rounded cursor-pointer border border-[var(--border-color)] bg-transparent p-0" />
+    </div>
+  );
+  return (
+    <>
+      {row(what === 'mark' ? 'Mark Color' : 'Sprig Color', sprig, `Colour of the clay: everything standing above the plate. Thin Parts still show red, so avoid a red here`, (c) => setSprigColors({ sprig: c }))}
+      {row('Background', background, `Colour of the plate behind the ${what}. A spot inside the ${what} in this colour has no clay`, (c) => setSprigColors({ background: c }))}
+    </>
+  );
+}
+
 function TextBox({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
   const [draft, setDraft] = useState(value);
   const committed = useRef(value);

@@ -19,11 +19,11 @@ import { buildWall, buildPlateRidges, seamMaxVWidth, type MoldLayout } from '../
 import { mergeMeshes } from '../mold/ring-mesh';
 import { computeMeshStats, type MeshStats } from '../mesh-stats';
 import type { VaseMesh } from '../types';
-import { buildRelief, CUT_FLOOR, type ReliefField, type SprigSource, type TextLayer } from './relief';
+import { buildRelief, BARE, CUT_FLOOR, type ReliefField, type SprigSource, type TextLayer } from './relief';
 import {
   sprigBox, SPRIG_SIZES, STANDARD_BOX, STANDARD_ORDER,
   type SprigBox, type SprigMoldSize, type SprigParameters, type TextSize,
-  sprigFootprint, hasText, backingOn,
+  sprigFootprint, hasText, backingOn, isPictureDrawing,
 } from './sprig-types';
 
 /** HandleMaker's poured V seal (vWidth / vHeight / vClearance defaults). */
@@ -38,6 +38,9 @@ export interface SprigMoldMeshes {
   plate: VaseMesh;
   /** Per plate vertex, 1 where the relief is thinner than Min Feature Width. */
   thinFlags: Float32Array;
+  /** Per plate vertex, 1 where it is clay (relief above the plate) — the
+   *  preview's sprig colour; 0 = plate and seal ridges, the background colour. */
+  clayFlags: Float32Array;
   /** The wall as printed (assembled position A); print it twice. */
   wall: VaseMesh;
   /** The same wall turned 180° — display only. */
@@ -103,7 +106,7 @@ export function sprigLayout(box: SprigBox): MoldLayout & { plateW: number; plate
  * vertices — no second solid lying on the plate, so nothing coplanar for a
  * slicer to guess about.
  */
-function buildReliefPlate(relief: ReliefField, S: number, layout: MoldLayout): { mesh: VaseMesh; thin: Float32Array } {
+function buildReliefPlate(relief: ReliefField, S: number, layout: MoldLayout): { mesh: VaseMesh; thin: Float32Array; clay: Float32Array } {
   const { nx, ny, step, x0, y0, heights, thin } = relief;
   const b = new MeshBuilder();
   const grid = new Int32Array(nx * ny);
@@ -156,8 +159,12 @@ function buildReliefPlate(relief: ReliefField, S: number, layout: MoldLayout): {
 
   const mesh = ensureOutward(b.build());
   const flags = new Float32Array(mesh.vertexCount);
-  for (let k = 0; k < nx * ny; k++) if (thin[k]) flags[grid[k]] = 1;
-  return { mesh, thin: flags };
+  const clay = new Float32Array(mesh.vertexCount);
+  for (let k = 0; k < nx * ny; k++) {
+    if (thin[k]) flags[grid[k]] = 1;
+    if (heights[k] > BARE) clay[grid[k]] = 1;
+  }
+  return { mesh, thin: flags, clay };
 }
 
 /**
@@ -175,10 +182,12 @@ export function generateSprigMold(p: SprigParameters, src: SprigSource, text: Te
   // Finished-mm grid step chosen so the PRINTED grid spacing is Resolution.
   const relief = buildRelief(src, p, Math.max(0.05, p.resolution) / S, text);
   const textSize = text && hasText(p) ? { w: text.mmW, h: text.mmH } : null;
-  const { mesh: reliefPlate, thin } = buildReliefPlate(relief, S, layout);
+  const { mesh: reliefPlate, thin, clay } = buildReliefPlate(relief, S, layout);
   const plate = opts.bare ? reliefPlate : mergeMeshes([reliefPlate, ...buildPlateRidges(layout)]);
   const thinFlags = new Float32Array(plate.vertexCount);
   thinFlags.set(thin);
+  const clayFlags = new Float32Array(plate.vertexCount);
+  clayFlags.set(clay);
 
   const wall = buildWall(wallLayout, { collars: false });
   const wallB = rotate180Z(wall, 0, 0);
@@ -216,12 +225,20 @@ export function generateSprigMold(p: SprigParameters, src: SprigSource, text: Te
     if (!backingOn(p)) warnings.push('Cut In letters sink into a backing sheet — turn on Plaque or Outline under Backing, or they only show where they cross the drawing.');
     else if (p.textDepth > p.backingThickness - CUT_FLOOR) warnings.push(`Letters cut ${Math.max(0, p.backingThickness - CUT_FLOOR).toFixed(1)} mm deep, not ${p.textDepth} — at least ${CUT_FLOOR} mm of sheet is kept under them. Thicken the backing to cut deeper.`);
   }
+  if (relief.bareHoles > 0) {
+    const n = relief.bareHoles;
+    let fix = '';
+    if (!isPictureDrawing(p.svg) && !p.svgFill) fix = ' Turn on SVG → Fill Outlines to fill them (and Close Gaps for one open at the drawing\'s edge).';
+    else if (p.heightMode === 'gray') fix = ' Raise Lightest to put clay there.';
+    else if (p.heightMode === 'inflateGray') fix = ' Raise Lightest or lower Detail Depth to put clay there.';
+    warnings.push(`${n} spot${n === 1 ? '' : 's'} inside the drawing ${n === 1 ? 'has' : 'have'} no clay — the plate shows through (background colour).${fix}`);
+  }
   if (relief.thinSpots > 0) {
     warnings.push(`${relief.thinSpots} part${relief.thinSpots === 1 ? '' : 's'} narrower than ${p.minFeatureWidth} mm (red) — thinnest ≈ ${relief.thinnestWidth.toFixed(1)} mm. They may tear coming out of the mold or crack drying.`);
   }
 
   return {
-    plate, thinFlags, wall, wallB, plaster, plasterVolumeMm3,
+    plate, thinFlags, clayFlags, wall, wallB, plaster, plasterVolumeMm3,
     plateStats: computeMeshStats(plate), wallStats: computeMeshStats(wall),
     relief, box, layout, masterW, masterL, masterH, plasterBehind, fits, warnings,
   };
