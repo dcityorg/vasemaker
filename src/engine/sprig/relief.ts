@@ -408,7 +408,7 @@ function textParams(p: SprigParameters, height: number): SprigParameters {
   return {
     ...p, heightMode: 'flat', maxHeight: height, edgeSoftness: TEXT_EDGE,
     minEdgeThickness: Math.min(p.minEdgeThickness, height), invert: false,
-    removeTiny: false, wholeShapesOnly: false, roundThin: false,
+    removeTiny: false, wholeShapesOnly: false, roundThin: false, thickenThin: 0,
   };
 }
 
@@ -424,8 +424,10 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number, 
   const W = p.width, L = p.length;
   const backed = backingOn(p);
   const bb = backed ? Math.max(0, p.backingBorder) : 0;
-  // Room for the backing border, plus the always-flat border ring.
-  const pad = BORDER + (bb > 0 ? Math.ceil(bb / step) + 1 : 0);
+  // Room for the backing border, or for a thin part at the drawing's edge to
+  // grow when thickened, plus the always-flat border ring.
+  const room = Math.max(bb, p.drawingOn && p.thickenThin > 0 ? p.thickenThin / 2 + 0.3 : 0);
+  const pad = BORDER + (room > 0 ? Math.ceil(room / step) + 1 : 0);
   const nx = Math.max(1, Math.ceil(place.w / step)) + 2 * pad;
   const ny = Math.max(1, Math.ceil(place.l / step)) + 2 * pad;
   const x0 = -((nx - 1) * step) / 2, y0 = -((ny - 1) * step) / 2;
@@ -551,6 +553,111 @@ export function buildRelief(src: SprigSource, p: SprigParameters, step: number, 
  * far from it and stay; the short stub where a leg joins the body is lost.
  */
 /**
+ * Thicken Thin Parts (Gary, 2026-10-28): every part narrower than `width` mm
+ * is widened to about `width`, the rest of the shape left alone. The thin
+ * parts are found the way thinParts finds them (what a disc of that width
+ * cannot sweep, square-corner slivers excepted), their centre line is taken as
+ * the ridge of the edge distance, and a disc of that width is swept along it.
+ * A tip gains a round end up to width/2 long. Thin parts closer together than
+ * `width` (two legs) can merge. New cells take the ink of the nearest cell of
+ * the drawing, so gray detail carries on into them.
+ */
+function thicken(fOut: Uint8Array, fInk: Float32Array, fCov: Float32Array, fx: number, fy: number, fs: number, width: number) {
+  const N = fx * fy;
+  // Two fine cells over, both to find the thin parts and to grow them: the
+  // swept width comes out a little under 2r on the grid, and Min Feature
+  // measures on the coarser grid, where a part just wide enough here can read
+  // just too thin.
+  const r = width / 2 / fs + 2;
+  const grow = r;
+  const dIn = distanceTransform(fOut, fx, fy);
+  const eroded = new Uint8Array(N);
+  for (let k = 0; k < N; k++) eroded[k] = !fOut[k] && dIn[k] - 0.5 >= r ? 1 : 0;
+  const toEroded = distanceTransform(eroded, fx, fy);
+  const opened = new Uint8Array(N);
+  for (let k = 0; k < N; k++) opened[k] = !fOut[k] && toEroded[k] <= r ? 1 : 0;
+  const toOpened = distanceTransform(opened, fx, fy);
+  const keep = CORNER * r + 1;
+  // A thin part: the unswept cells lying further than `keep` from the swept
+  // area, plus the unswept cells within a few steps of them. That takes in a
+  // part's neck, which sits within `keep` of the body (else a tapering point
+  // grew a knob on a thin stalk). The reach is limited because a picture's
+  // ragged outline leaves a chain of unswept cells all round every edge, and
+  // a flood along it turned the whole rim into "thin" (a bristly fringe).
+  // Only patches the red check would show count (MIN_SPOT coarse cells, here
+  // FINE² finer): a serrated leaf has a tiny tooth every millimetre round its
+  // edge, and growing each one gave the same bristly fringe.
+  const part = new Uint8Array(N);
+  let front: number[] = [];
+  const seen = new Uint8Array(N);
+  const patch: number[] = [];
+  const minCells = MIN_SPOT * FINE * FINE;
+  const seed = (k: number) => !fOut[k] && !opened[k] && toOpened[k] > keep;
+  for (let s0 = 0; s0 < N; s0++) {
+    if (seen[s0] || !seed(s0)) continue;
+    patch.length = 0;
+    const st = [s0]; seen[s0] = 1;
+    while (st.length) {
+      const c = st.pop()!;
+      patch.push(c);
+      const ci = c % fx, cj = (c - ci) / fx;
+      for (let dj = -1; dj <= 1; dj++) {
+        for (let di = -1; di <= 1; di++) {
+          const x = ci + di, y = cj + dj;
+          if (x < 0 || y < 0 || x >= fx || y >= fy) continue;
+          const q = y * fx + x;
+          if (!seen[q] && seed(q)) { seen[q] = 1; st.push(q); }
+        }
+      }
+    }
+    if (patch.length >= minCells) for (const c of patch) { part[c] = 1; front.push(c); }
+  }
+  for (let step = 0; step < Math.ceil(keep) + 2 && front.length; step++) {
+    const next: number[] = [];
+    for (const c of front) {
+      const ci = c % fx, cj = (c - ci) / fx;
+      for (let dj = -1; dj <= 1; dj++) {
+        for (let di = -1; di <= 1; di++) {
+          const x = ci + di, y = cj + dj;
+          if (x < 0 || y < 0 || x >= fx || y >= fy) continue;
+          const q = y * fx + x;
+          if (!fOut[q] && !opened[q] && !part[q]) { part[q] = 1; next.push(q); }
+        }
+      }
+    }
+    front = next;
+  }
+  // Their centre line: cells no nearer the edge than both neighbours across
+  // some direction, and further than one of them. (Along a straight leg the
+  // neighbours tie, and without that second test every cell of it counted.)
+  const ridge = new Uint8Array(N);
+  const top = (d: number, a: number, b: number) => d >= a && d >= b && (d > a || d > b);
+  let any = false;
+  for (let j = 1; j < fy - 1; j++) {
+    for (let i = 1; i < fx - 1; i++) {
+      const k = j * fx + i;
+      if (!part[k]) continue;
+      const d = dIn[k];
+      if (top(d, dIn[k - 1], dIn[k + 1]) || top(d, dIn[k - fx], dIn[k + fx])
+        || top(d, dIn[k - fx - 1], dIn[k + fx + 1]) || top(d, dIn[k - fx + 1], dIn[k + fx - 1])) {
+        ridge[k] = 1; any = true;
+      }
+    }
+  }
+  if (!any) return;
+  const toRidge = distanceTransform(ridge, fx, fy);
+  const inside = new Uint8Array(N);
+  for (let k = 0; k < N; k++) inside[k] = fOut[k] ? 0 : 1;
+  const near = distanceTransform(inside, fx, fy, true).nearest;
+  for (let k = 0; k < N; k++) {
+    if (!fOut[k] || !(toRidge[k] <= grow)) continue;
+    fOut[k] = 0; fCov[k] = 1;
+    const o = near[k];
+    if (o >= 0) fInk[k] = fInk[o];
+  }
+}
+
+/**
  * Clean-up options, on the fine grid before anything is measured:
  *  roundThin  — morphological opening with a Min Feature disc: everything
  *               narrower is shaved off (sharp tips round, hairlines go).
@@ -564,6 +671,7 @@ function cleanUp(
 ) {
   const N = fx * fy;
   const drop = (k: number) => { fOut[k] = 1; fInk[k] = 0; fCov[k] = 0; };
+  if (p.thickenThin > 0) thicken(fOut, fInk, fCov, fx, fy, fs, p.thickenThin);
   if (p.roundThin && p.minFeatureWidth > 0) {
     const r = p.minFeatureWidth / 2 / fs;
     const dIn = distanceTransform(fOut, fx, fy);

@@ -124,6 +124,12 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
       { type: 'paragraph', text: 'SPRIG COLOR and BACKGROUND (View → Display) colour the clay and the plate behind it differently, so a spot with no clay shows at a glance. They are remembered in this browser, for the Sprig and Mark tabs both; the Display Reset puts them back.' },
       { type: 'paragraph', text: 'NO CLAY INSIDE THE DRAWING: when a spot walled in by the drawing goes right down to the plate — a white vein in a leaf, say — a note says how many. In an SVG, turn on Fill Outlines to fill them; Close Gaps also fills one that is open to the outside at a narrow gap (that kind is not counted, because it is joined to the background). In Inflate + Gray detail, LIGHTEST and DETAIL DEPTH then set the groove: it cuts Detail Depth × (100% − Lightest) below the surface round it, so raise Lightest for more clay under it. Letters (the inside of an O) are never counted.' },
       { type: 'paragraph', text: 'MIN FEATURE paints red any part of the FINISHED sprig narrower than it — a dragonfly’s legs, a lizard’s toes. Those tear coming out of the mold or crack while drying. The check rolls a disc of that diameter round inside the shape; whatever it cannot reach is too thin. A tapering tip always ends in a little red, because tips are thin.' },
+      { type: 'paragraph', text: 'When there are thin parts, a box at the top of the panel offers three fixes. Each is one step, so undo (Cmd/Ctrl+Z) takes it back, and after you press one its slider opens in the box so you can take it further or back it off:' },
+      { type: 'keyvalue', items: [
+        { key: 'Thicken them', value: 'Sets THICKEN THIN PARTS (Checks) to Min Feature: every part thinner than that is widened to about that width — legs, tails, stalks — and the rest of the shape is left alone. Pointed tips end in a short rounded stub. Thin parts close together, like a gecko’s toes or fern leaflets, can merge into one.' },
+        { key: 'Make it bigger', value: 'Scales the whole sprig up so legs and stalks reach Min Feature, and moves it to the smallest standard mold it fits. The shape stays exactly the same. A pointed tip reads thin at any size, so some red may stay at the points: Thicken or Shave rounds them. Making it bigger and then thickening usually looks best.' },
+        { key: 'Shave them off', value: 'Turns on Round Off Thin Bits: antennae, legs and sharp points go. Raise Min Feature to shave more.' },
+      ] },
     ],
   },
   {
@@ -144,6 +150,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
         { key: 'Remove Tiny Pieces', value: 'Drops pieces smaller than Min Feature × Min Feature — the slivers left where a pattern is cut off by the edge of the drawing, and the crumbs a hairline breaks into.' },
         { key: 'Whole Shapes Only', value: 'Drops every piece that touches the edge of the drawing, leaving only whole cells of a pattern. It deletes real parts of a drawing that runs to its own edge.' },
         { key: 'Round Off Thin Bits', value: 'Shaves off everything narrower than Min Feature: sharp tips round off and hairlines go. It also trims detail you may want, like antennae.' },
+        { key: 'Thicken Thin Parts', value: 'The opposite: widens every part thinner than this to about this width, so thin legs, tails and antennae cast instead of tearing. It also joins up an antenna that had broken into crumbs. 0 = off.' },
       ] },
     ],
   },

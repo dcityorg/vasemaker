@@ -137,6 +137,9 @@ export interface SprigParameters {
   wholeShapesOnly: boolean;
   /** Shave off everything narrower than Min Feature (sharp tips, hairlines). */
   roundThin: boolean;
+  /** Widen every part narrower than this to about this width, mm, finished
+   *  size (legs, tails, antennae). 0 = off. */
+  thickenThin: number;
 
   // ── Mold ──
   moldSize: SprigMoldSize;
@@ -310,6 +313,7 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   removeTiny: false,
   wholeShapesOnly: false,
   roundThin: false,
+  thickenThin: 0,
 
   moldSize: 's60',
   plasterMargin: 8,

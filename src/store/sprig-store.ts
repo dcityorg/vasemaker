@@ -89,6 +89,8 @@ export interface SprigStore {
   view: SprigView;
   settingsName: string;
   setParam: <K extends keyof SprigParameters>(key: K, value: SprigParameters[K]) => void;
+  /** Several settings at once (a warning's Fix button). One undo step. */
+  setParams: (update: Partial<SprigParameters>) => void;
   setView: (update: Partial<SprigView>) => void;
   setSettingsName: (name: string) => void;
   /** Width/Length, keeping the drawing's proportions when the 🔗 lock is on. */
@@ -141,6 +143,7 @@ function makeDesign(kind: 'sprig' | 'mark', cfg: DesignKind): SprigDesign {
     settingsName: defaultName,
 
     setParam: (key, value) => set((state) => ({ params: { ...state.params, [key]: value } })),
+    setParams: (update) => set((state) => ({ params: { ...state.params, ...update } })),
     setView: (update) => set((state) => ({ view: { ...state.view, ...update } })),
     setSettingsName: (name) => set({ settingsName: name.trim() || defaultName }),
 

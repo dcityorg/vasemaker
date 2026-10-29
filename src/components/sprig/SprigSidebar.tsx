@@ -6,6 +6,7 @@ import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsBut
 import { setShowFacets, useSprigColors, setSprigColors, DEFAULT_SPRIG_COLOR, DEFAULT_SPRIG_BACKGROUND } from '@/store/view-prefs';
 import { asMark, DEFAULT_VIEW } from '@/store/sprig-store';
 import { useSprigDesign } from './sprig-design-context';
+import { ThinPartsFix } from './ThinPartsFix';
 import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { SPRIG_PARAMS } from '@/config/sprig-params';
@@ -83,6 +84,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   const view = useSprigStore((s) => s.view);
   const settingsName = useSprigStore((s) => s.settingsName);
   const setParam = useSprigStore((s) => s.setParam);
+  const setParams = useSprigStore((s) => s.setParams);
   const setView = useSprigStore((s) => s.setView);
   const setSettingsName = useSprigStore((s) => s.setSettingsName);
   const setWidth = useSprigStore((s) => s.setWidth);
@@ -431,6 +433,11 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
         </div>
 
         <div className="px-3 py-3">
+          {m && (
+            <ThinPartsFix params={params} thinSpots={m.relief.thinSpots} thinnest={m.relief.thinnestWidth}
+              textSize={hasText(params) ? sprig.textSize : null}
+              setParams={setParams} setParam={setParam} setWidth={setWidth} />
+          )}
           {warnings.map((w, i) => (
             <div key={i} className="mb-2 px-2 py-1.5 rounded border border-amber-700 bg-amber-950/40 text-xs text-amber-200">
               {w}
@@ -761,7 +768,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           </Section>}
           <Section title="Checks" titleColor={GROUP_COLORS.structure}>
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['minFeatureWidth', 'removeTiny', 'wholeShapesOnly', 'roundThin'])} className={resetBtn} title="Min Feature and the clean-up switches back to their defaults">Reset</button>
+              <button onClick={() => resetFields(['minFeatureWidth', 'removeTiny', 'wholeShapesOnly', 'roundThin', 'thickenThin'])} className={resetBtn} title="Min Feature and the clean-up switches back to their defaults">Reset</button>
             </div>
             {sl('minFeatureWidth', 'Min Feature', 'mm', 'Parts of the FINISHED sprig narrower than this are painted red: they may tear coming out of the mold or crack drying')}
             {m && (
@@ -790,6 +797,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               tooltip="Drop every piece that touches the edge of the drawing — the cut-off cells of a pattern. Deletes real parts of a drawing that runs to its own edge" />
             <Toggle label="Round Off Thin Bits" checked={params.roundThin} onChange={(v) => setParam('roundThin', v)}
               tooltip="Shave off everything narrower than Min Feature: sharp tips round off and hairlines go. Also trims fine detail you may want, like antennae" />
+            {sl('thickenThin', 'Thicken Thin Parts', 'mm', 'Widen every part thinner than this to about this width: legs, tails, antennae. The rest of the shape is left alone. Thin parts close together (toes, fern leaflets) can merge. 0 = off')}
           </Section>
 
           {/* Resolution: its own section on both tabs, last before the Mold

@@ -233,9 +233,8 @@ export function generateSprigMold(p: SprigParameters, src: SprigSource, text: Te
     else if (p.heightMode === 'inflateGray') fix = ' Raise Lightest or lower Detail Depth to put clay there.';
     warnings.push(`${n} spot${n === 1 ? '' : 's'} inside the drawing ${n === 1 ? 'has' : 'have'} no clay — the plate shows through (background colour).${fix}`);
   }
-  if (relief.thinSpots > 0) {
-    warnings.push(`${relief.thinSpots} part${relief.thinSpots === 1 ? '' : 's'} narrower than ${p.minFeatureWidth} mm (red) — thinnest ≈ ${relief.thinnestWidth.toFixed(1)} mm. They may tear coming out of the mold or crack drying.`);
-  }
+  // Thin parts are not listed here: the sidebar shows them with their fixes
+  // (ThinPartsFix.tsx).
 
   return {
     plate, thinFlags, clayFlags, wall, wallB, plaster, plasterVolumeMm3,
