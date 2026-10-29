@@ -19,7 +19,7 @@ import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib
 import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
-import { loadSprigSource, pictureFromFile } from '@/lib/sprig-source';
+import { loadSprigSource, pictureFromFile, reliefFromStlFile } from '@/lib/sprig-source';
 import { SPRIG_FONTS } from '@/lib/sprig-fonts';
 import { systemFontFound } from '@/lib/sprig-text';
 import { GRAY_INK, type SprigSource } from '@/engine/sprig/relief';
@@ -94,6 +94,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   const turnText = (by: number) =>
     setParam('textRotation', ((((useSprigStore.getState().params.textRotation + by) % 360) + 540) % 360) - 180);
   const loadSvg = useSprigStore((s) => s.loadSvg);
+  const loadRelief = useSprigStore((s) => s.loadRelief);
   const reset = useSprigStore((s) => s.reset);
   const resetFields = useSprigStore((s) => s.resetFields);
   const resetOrientation = useSprigStore((s) => s.resetOrientation);
@@ -123,6 +124,8 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   const settingsInputRef = useRef<HTMLInputElement>(null);
   const svgInputRef = useRef<HTMLInputElement>(null);
   const pictureInputRef = useRef<HTMLInputElement>(null);
+  const reliefInputRef = useRef<HTMLInputElement>(null);
+  const [reliefBusy, setReliefBusy] = useState(false);
 
   // ── SVG in ──
 
@@ -184,6 +187,27 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
     } catch {
       problem = 'That picture could not be opened. Try saving it as PNG or JPG.';
     }
+    setSvgError(problem);
+  };
+
+  /** A relief someone else made, as an STL (e.g. MakerWorld's Relief Sculpture
+   *  Maker): its top surface becomes a height map, read as made — its own
+   *  size, its own height, Gray. Their plaque is dropped; ours is the plate. */
+  const handleReliefFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const name = file.name.replace(/\.stl$/i, '');
+    let problem: string | null = null;
+    setReliefBusy(true);
+    try {
+      const r = await reliefFromStlFile(file);
+      if (!r) problem = 'Nothing in that STL stands above its base plate — it needs to be a relief on a flat plaque.';
+      else loadRelief(r.url, name, r);
+    } catch {
+      problem = 'That file could not be read as an STL.';
+    }
+    setReliefBusy(false);
     setSvgError(problem);
   };
 
@@ -385,6 +409,13 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
             <input ref={svgInputRef} type="file" accept=".svg,image/svg+xml" onChange={handleSvgFile} className="hidden" />
             <input ref={pictureInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => void handlePictureFile(e)} className="hidden" />
           </div>
+          <div className="flex gap-2">
+            <button onClick={() => reliefInputRef.current?.click()} disabled={reliefBusy} className={btn} style={{ color: UI_MUTED }}
+              title="Load a relief someone else made, as an STL (a shape standing on a flat plaque — e.g. MakerWorld's Relief Sculpture Maker). It comes in at its own size and height; their plaque is dropped and the sprig sits on this mold's plate">
+              {reliefBusy ? 'Reading STL…' : 'Load Relief STL'}
+            </button>
+            <input ref={reliefInputRef} type="file" accept=".stl,model/stl,application/sla" onChange={(e) => void handleReliefFile(e)} className="hidden" />
+          </div>
           <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 -mt-1 truncate" title={params.svgName}>
             Drawing: {params.svgName}
           </p>
@@ -518,13 +549,14 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                   onChange={(e) => setParam('imageTones', Number(e.target.value))}
                   className={selectCls}
                   style={{ color: UI_MUTED }}
-                  title="Steps = the picture's greys grouped into that many flat levels, darkest highest — clean terraces that release well. Smooth = every grey its own height (shows speckle and shading)"
+                  title="Steps = the picture's greys grouped into that many flat levels, darkest highest — clean terraces that release well. Smooth = every grey its own height (shows speckle and shading), stretched to fill Max Height. As made = the grey IS the height, unstretched: for height maps and loaded relief STLs"
                 >
                   <option value={2}>2 steps</option>
                   <option value={3}>3 steps</option>
                   <option value={4}>4 steps</option>
                   <option value={5}>5 steps</option>
                   <option value={0}>Smooth</option>
+                  <option value={-1}>As made (height map)</option>
                 </select>
               </div>
               {(params.heightMode === 'gray' || params.heightMode === 'inflateGray') &&

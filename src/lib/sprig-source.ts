@@ -11,6 +11,7 @@ import { rasterizeSvgForSprig, rasterizeSvgRgbaForSprig } from '@/engine/svg-ras
 import { cropToContent, type SprigSource } from '@/engine/sprig/relief';
 import { prepareImage, type ImagePrepOptions, type RgbaImage } from '@/engine/sprig/image-prep';
 import { isPictureDrawing } from '@/engine/sprig/sprig-types';
+import { parseStl, reliefMapSize, reliefMapToRgba, stlToReliefMap } from '@/engine/sprig/stl-relief';
 
 export interface LoadedSprigSource {
   source: SprigSource;
@@ -111,4 +112,20 @@ export async function pictureFromFile(file: File): Promise<string> {
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+/**
+ * A relief STL (someone else's relief maker, Gary 2026-10-29) → a height-map
+ * PNG stored as the drawing, plus the relief's finished size and height.
+ * Background is transparent; gray = height, black = tallest. Null when
+ * nothing stands above the plaque. Rejects if the file is not an STL.
+ */
+export async function reliefFromStlFile(file: File): Promise<{ url: string; width: number; length: number; maxHeight: number } | null> {
+  const map = stlToReliefMap(parseStl(await file.arrayBuffer()), PICTURE_MAX);
+  if (!map) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = map.width;
+  canvas.height = map.height;
+  canvas.getContext('2d')!.putImageData(new ImageData(reliefMapToRgba(map), map.width, map.height), 0, 0);
+  return { url: canvas.toDataURL('image/png'), ...reliefMapSize(map), maxHeight: map.maxHeight };
 }

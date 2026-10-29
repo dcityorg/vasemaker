@@ -12,7 +12,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
       { type: 'paragraph', text: 'A SPRIG is a small relief — a dragonfly, a leaf, a lizard — cast or pressed in its own mold and stuck onto a pot with slip. (Wedgwood’s white jasperware figures are sprigs.) SprigMaker turns a flat SVG drawing, or a picture, into that relief and makes the 3D-printable parts for a ONE-PIECE OPEN plaster mold of it: a plate carrying the relief, and a wall you print twice.' },
       { type: 'heading', text: 'Basic Workflow' },
       { type: 'list', items: [
-        'Pick a sample drawing, Load / Paste your own SVG (black is the shape, white is background), or Load Image for a PNG or JPG (see Pictures)',
+        'Pick a sample drawing, Load / Paste your own SVG (black is the shape, white is background), or Load Image for a PNG or JPG (see Pictures), or Load Relief STL for a relief made in another app (see Reliefs from other apps)',
         'Set Width and Length — the FINISHED sprig, after the clay shrinks',
         'Choose how it gets its height (Height → Shaping) and set Max Height',
         'Check for red: parts narrower than Min Feature are likely to tear or crack',
@@ -107,12 +107,27 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
         { key: 'Background', value: 'How different a colour can be from the background and still be cut away. Starts from the colour round the edge of the picture, so off-white or coloured backgrounds work; a transparent PNG’s clear area is always background. Raise it if a halo stays round the drawing, lower it if pale parts disappear. Areas the background cannot reach — inside a closed outline — always stay.' },
         { key: 'Close Gaps', value: 'Closes small breaks in an outline before the background is cut, so the inside does not leak away with it.' },
         { key: 'Smooth', value: 'Blurs the speckle inside the drawing that JPEG pictures are full of, before the tones are read.' },
-        { key: 'Tones', value: 'STEPS groups the picture’s greys into 2–5 flat levels, darkest highest: clean terraces that read well and release cleanly. SMOOTH gives every grey its own height, speckle and shading included.' },
+        { key: 'Tones', value: 'STEPS groups the picture’s greys into 2–5 flat levels, darkest highest: clean terraces that read well and release cleanly. SMOOTH gives every grey its own height, speckle and shading included, stretched to fill Max Height. AS MADE (HEIGHT MAP) takes each grey exactly as its height, unstretched — for a height map you painted, and what Load Relief STL uses.' },
         { key: 'Lightest', value: 'In Gray: the height of the lightest level as a % of Max Height. In Inflate + Gray detail: how much of Detail Depth the lightest level is spared.' },
       ] },
       { type: 'tip', text: 'Loading a picture switches Height to Inflate + Gray detail (unless you were already on Gray): the outline gives a rounded body and flat wings, and the tones add detail on top. Tone cannot tell a body from a wing tip of the same grey — both stand the same height.' },
       { type: 'tip', text: 'On a picture, INVERT swaps which tones stand higher; the outline stays the same.' },
       { type: 'tip', text: 'Thin lines such as antennae break into crumbs at casting size and show as tiny pieces in Checks. Remove Tiny Pieces or Round Off Thin Bits clears them.' },
+    ],
+  },
+  {
+    id: 'sprig-stl',
+    title: 'Reliefs from other apps (STL)',
+    blocks: [
+      { type: 'paragraph', text: 'LOAD RELIEF STL takes a relief made in another app — a shape standing on a flat plaque, such as MakerWorld’s Relief Sculpture Maker, which can turn a flat picture into a sculpted relief with invented detail like wing veins. SprigMaker reads the top of the relief into a height map, drops that app’s plaque, and puts the relief on this mold’s plate. Everything else then works on it as usual: the mold box, Thin Parts and its fixes, On Vase, and the Sprig texture on a vase.' },
+      { type: 'list', items: [
+        'It comes in at its own size and its own height (Width, Length, Max Height), in Gray with Tones As made, and moves to the smallest standard mold it fits',
+        'The plaque may lie flat or stand on its edge; the flattest axis is taken as up, and the side with the relief on it is found by itself',
+        'Change Width or Max Height afterwards to scale it — the shape stays the same',
+        'Fine detail such as veins may be only 0.1–0.2 mm high. Check it at casting size; detail that fine may not survive clay',
+        'Use the STL, not a 3MF: the same mesh, read faster',
+        'Check the other app’s terms. MakerWorld’s Relief Sculpture Maker allows commercial use and asks for a credit if you share the result publicly',
+      ] },
     ],
   },
   {

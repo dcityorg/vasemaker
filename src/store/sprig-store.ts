@@ -27,6 +27,7 @@ import {
   type SprigRotation,
 } from '@/engine/sprig/sprig-types';
 import { smallestFit } from '@/engine/sprig/sprig-generator';
+import { withRelief } from '@/engine/sprig/stl-relief';
 import { createHistory, type History } from './history';
 
 export { DEFAULT_MARK_PARAMETERS };
@@ -101,6 +102,9 @@ export interface SprigStore {
   /** A new drawing: keeps the current longer side, takes the drawing's own
    *  proportions, and picks the smallest standard mold it fits. One undo step. */
   loadSvg: (svg: string, name: string, aspect: number) => void;
+  /** A relief STL's height map (lib/sprig-source reliefFromStlFile), at its own
+   *  size and height, read as made (Gray, raw tones). One undo step. */
+  loadRelief: (url: string, name: string, size: { width: number; length: number; maxHeight: number }) => void;
   /** Restore default SETTINGS; the sprig (drawing, size, orientation) is kept. */
   reset: () => void;
   /** One section's Reset button: these fields back to their defaults. One undo step. */
@@ -179,6 +183,8 @@ function makeDesign(kind: 'sprig' | 'mark', cfg: DesignKind): SprigDesign {
         const fit = smallestFit(next);
         return { params: { ...next, moldSize: next.moldSize === 'custom' ? 'custom' : fit ?? next.moldSize } };
       }),
+
+    loadRelief: (url, name, size) => set((state) => ({ params: withRelief(state.params, url, name, size) })),
 
     reset: () => set((state) => ({ params: { ...defaults, ...keepSprig(state.params) } })),
 
