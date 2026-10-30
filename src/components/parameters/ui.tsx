@@ -98,7 +98,7 @@ export function SliderRow({
       {/* w-28, not w-24: labels carrying a unit ("Thickness (mm)") wrapped to a
           second line and threw the row heights out of alignment. Toggle matches
           so its label still lines up with the sliders around it. */}
-      <label className="text-sm text-[var(--text-secondary)] w-28 shrink-0" title={tooltip} style={color ? { color } : undefined}>{label}{after}</label>
+      <label className={`text-sm text-[var(--text-secondary)] w-28 shrink-0 ${after ? 'whitespace-nowrap' : ''}`} title={tooltip} style={color ? { color } : undefined}>{label}{after}</label>
       <input
         type="range"
         min={min}
@@ -236,7 +236,9 @@ export function Toggle({ label, checked, onChange, onReset, tooltip, after }: {
       {/* w-28, not w-24: labels carrying a unit ("Thickness (mm)") wrapped to a
           second line and threw the row heights out of alignment. Toggle matches
           so its label still lines up with the sliders around it. */}
-      <label className="text-sm text-[var(--text-secondary)] w-28 shrink-0" title={tooltip}>{label}{after}</label>
+      {/* With a dot after it, the label stays on one line (it wrapped under
+          "Round Off Thin" and moved the switch, Gary 2026-10-29). */}
+      <label className={`text-sm text-[var(--text-secondary)] w-28 shrink-0 ${after ? 'whitespace-nowrap' : ''}`} title={tooltip}>{label}{after}</label>
       <button
         onClick={() => onChange(!checked)}
         title={tooltip ?? (checked ? 'On — click to turn off' : 'Off — click to turn on')}
