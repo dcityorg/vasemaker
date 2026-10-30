@@ -13,7 +13,7 @@
 
 import { SPRIG_PARAMS } from '@/config/sprig-params';
 import { smallestFit } from './sprig-generator';
-import type { SprigParameters } from './sprig-types';
+import { RELIEF_SETTINGS, type SprigParameters } from './sprig-types';
 
 export interface StlReliefMap {
   /** Height above the plaque, mm, row-major, row 0 at the TOP; 0 = background. */
@@ -201,9 +201,10 @@ export function withRelief(p: SprigParameters, url: string, name: string, size: 
     rotation: 0, flipX: false, flipY: false, lockAspect: true,
     width: lim(size.width, 'width'), length: lim(size.length, 'length'), maxHeight: lim(size.maxHeight, 'maxHeight'),
     // The gray IS the height, exactly as the relief maker made it.
-    heightMode: 'gray', imageTones: -1, imageLightest: 0, imageSmooth: 0, imageBackground: 0, imageCloseGaps: 0,
-    invert: false, edgeSoftness: 0, minEdgeThickness: 0,
+    ...RELIEF_SETTINGS,
   };
   const fit = smallestFit(next);
-  return { ...next, moldSize: next.moldSize === 'custom' ? 'custom' : fit ?? next.moldSize };
+  const moldSize = next.moldSize === 'custom' ? 'custom' : fit ?? next.moldSize;
+  // Remembered, so Reset All comes back to these (drawingDefaults).
+  return { ...next, moldSize, loadedAs: 'relief', loadedMaxHeight: next.maxHeight, loadedMoldSize: moldSize };
 }

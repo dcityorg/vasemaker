@@ -29,7 +29,7 @@ import { fitsBox, MIN_PLASTER_BEHIND } from '@/engine/sprig/sprig-generator';
 import {
   mergeSprigParameters, sizeLabel, SPRIG_SIZES, SIZE_MENU,
   type SprigParameters, type SprigHeightMode, type SprigMoldSize,
-  sprigFootprint, type SprigBacking, isPictureDrawing, hasText, backingOn,
+  sprigFootprint, type SprigBacking, isPictureDrawing, hasText, backingOn, drawingDefaults,
   type SprigFont, type SprigTextStyle, type SprigTextPosition,
 } from '@/engine/sprig/sprig-types';
 import type { SprigMeshState } from '@/hooks/use-sprig-meshes';
@@ -126,7 +126,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
     shaping: ['heightMode'],
     size: ['rotation', 'flipX', 'flipY'],
   };
-  const changed = (keys: (keyof SprigParameters)[]) => keys.some((k) => params[k] !== design.defaults[k]);
+  // Measured from THIS drawing's defaults: a relief's or a photo's own settings.
+  const base = drawingDefaults(design.defaults, params);
+  const changed = (keys: (keyof SprigParameters)[]) => keys.some((k) => params[k] !== base[k]);
 
   // Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z, matching the other tabs.
   const onKey = useCallback((e: KeyboardEvent) => {
@@ -216,7 +218,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
         const photo = await pictureLooksLikePhoto(url);
         // A photo is offered Photo depth (asked until the first yes); anything
         // else keeps the picture's tones in play as before.
-        if (photo && await askPhotoDepth(true)) setParam('heightMode', 'photoDepth');
+        if (photo && await askPhotoDepth(true)) setParams({ heightMode: 'photoDepth', loadedAs: 'photoDepth' });
         else if (params.heightMode === 'flat' || params.heightMode === 'inflate' || params.heightMode === 'photoDepth') setParam('heightMode', 'inflateGray');
       }
     } catch {
@@ -435,7 +437,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               </button>
             )}
             <button onClick={reset} className={miniBtn}
-              title={`Every ${what} setting back to its default — a dot on a section's title shows which have changed. Keeps your drawing, its size and which way it faces. Undoable with ↶`}>
+              title={`Every ${what} setting back to its default — a dot on a section's title shows which have changed. Keeps your drawing, its size and which way it faces. A relief STL goes back to its settings as loaded, and a Photo depth photo keeps Photo depth. Undoable with ↶`}>
               Reset All Settings
             </button>
           </div>
@@ -535,7 +537,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               ))}
               {params.heightMode === 'photoDepth' && <PhotoDepthStatusLine onTurnOn={() => void askPhotoDepth(false)} />}
               {/* Every adjustment, each with its warning (SprigAdjust.tsx) */}
-              <SprigAdjust params={params} defaults={design.defaults} relief={m?.relief ?? null} notes={m?.notes ?? []}
+              <SprigAdjust params={params} defaults={base} relief={m?.relief ?? null} notes={m?.notes ?? []}
                 isMark={isMark} textSize={hasText(params) ? sprig.textSize : null}
                 setParam={setParam} setParams={setParams} setWidth={setWidth} setLength={setLength} />
             </div>

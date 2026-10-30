@@ -157,6 +157,13 @@ export interface SprigParameters {
   /** Gray (and Photo depth): parts lower than this, mm, are cut away — the
    *  near-flat leftovers round a relief. 0 = off. */
   trimBelow: number;
+  /** What the drawing came in as. A relief STL or a Photo depth photo keeps
+   *  its own settings as its defaults: Reset All and the amber dots go back
+   *  to them, not to the page's (Gary, 2026-10-30; see drawingDefaults). */
+  loadedAs: 'drawing' | 'relief' | 'photoDepth';
+  /** A relief's own Max Height and fitted mold, as loaded. */
+  loadedMaxHeight: number;
+  loadedMoldSize: SprigMoldSize;
 
   // ── Mold ──
   moldSize: SprigMoldSize;
@@ -335,6 +342,9 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   minThickness: 0,
   gapFill: 100,
   trimBelow: 0,
+  loadedAs: 'drawing',
+  loadedMaxHeight: 3,
+  loadedMoldSize: 's60',
 
   moldSize: 's60',
   plasterMargin: 8,
@@ -355,6 +365,8 @@ const ENUMS: Partial<Record<keyof SprigParameters, readonly unknown[]>> = {
   profile: ['round', 'pillow', 'angular'],
   rotation: [0, 90, 180, 270],
   moldSize: ['s20', 's40', 's60', 's80', 's100', 's120', 's140', 'long', 'custom'],
+  loadedMoldSize: ['s20', 's40', 's60', 's80', 's100', 's120', 's140', 'long', 'custom'],
+  loadedAs: ['drawing', 'relief', 'photoDepth'],
   backing: ['none', 'plaque', 'outline'],
   material: ['pottery', 'hydrocal', 'hydrostone'],
   textFont: ['rounded', 'slab', 'chunky', 'classic', 'script', 'script2', 'system'],
@@ -411,6 +423,22 @@ export function mergeSprigParameters(raw: unknown, base: SprigParameters = DEFAU
     out.plateThickness = src.customPlateFloor;
   }
   return out;
+}
+
+/** A relief read as made: Gray, raw tones, nothing softened or cut away. */
+export const RELIEF_SETTINGS = {
+  heightMode: 'gray', imageTones: -1, imageLightest: 0, imageSmooth: 0, imageBackground: 0, imageCloseGaps: 0,
+  invert: false, edgeSoftness: 0, minEdgeThickness: 0,
+} as const satisfies Partial<SprigParameters>;
+
+/** The defaults for THIS drawing: the page's, with a relief's or a Photo
+ *  depth photo's own settings on top. Reset All, the section Resets and the
+ *  amber dots all measure from these. */
+export function drawingDefaults(defaults: SprigParameters, p: SprigParameters): SprigParameters {
+  const loaded = { loadedAs: p.loadedAs, loadedMaxHeight: p.loadedMaxHeight, loadedMoldSize: p.loadedMoldSize };
+  if (p.loadedAs === 'relief') return { ...defaults, ...RELIEF_SETTINGS, maxHeight: p.loadedMaxHeight, moldSize: p.loadedMoldSize, ...loaded };
+  if (p.loadedAs === 'photoDepth') return { ...defaults, heightMode: 'photoDepth', ...loaded };
+  return { ...defaults, ...loaded };
 }
 
 /** Aspect (width / length) of the shape as it lies in the mold, after rotation. */

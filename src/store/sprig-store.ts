@@ -23,6 +23,7 @@ import {
   DEFAULT_MARK_PARAMETERS,
   mergeSprigParameters,
   orientedAspect,
+  drawingDefaults,
   type SprigParameters,
   type SprigRotation,
 } from '@/engine/sprig/sprig-types';
@@ -82,6 +83,7 @@ function keepSprig(p: SprigParameters): Partial<SprigParameters> {
     svg: p.svg, svgName: p.svgName, svgAspect: p.svgAspect,
     width: p.width, length: p.length, lockAspect: p.lockAspect,
     rotation: p.rotation, flipX: p.flipX, flipY: p.flipY,
+    loadedAs: p.loadedAs, loadedMaxHeight: p.loadedMaxHeight, loadedMoldSize: p.loadedMoldSize,
   };
 }
 
@@ -176,7 +178,7 @@ function makeDesign(kind: 'sprig' | 'mark', cfg: DesignKind): SprigDesign {
         const long = Math.max(p.width, p.length);
         const a = aspect > 0 ? aspect : 1;
         // Fresh drawing, fresh orientation: rotation and flips reset with it.
-        const fresh: SprigParameters = { ...p, svg, svgName: name, svgAspect: a, rotation: 0, flipX: false, flipY: false };
+        const fresh: SprigParameters = { ...p, svg, svgName: name, svgAspect: a, rotation: 0, flipX: false, flipY: false, loadedAs: 'drawing' };
         const width = a >= 1 ? snap(long) : snap(long * a);
         const length = a >= 1 ? snap(long / a) : snap(long);
         const next = { ...fresh, width, length };
@@ -186,12 +188,13 @@ function makeDesign(kind: 'sprig' | 'mark', cfg: DesignKind): SprigDesign {
 
     loadRelief: (url, name, size) => set((state) => ({ params: withRelief(state.params, url, name, size) })),
 
-    reset: () => set((state) => ({ params: { ...defaults, ...keepSprig(state.params) } })),
+    reset: () => set((state) => ({ params: { ...drawingDefaults(defaults, state.params), ...keepSprig(state.params) } })),
 
     resetFields: (keys) =>
       set((state) => {
         const next = { ...state.params };
-        for (const k of keys) (next as Record<string, unknown>)[k] = defaults[k];
+        const base = drawingDefaults(defaults, state.params);
+        for (const k of keys) (next as Record<string, unknown>)[k] = base[k];
         return { params: next };
       }),
 
