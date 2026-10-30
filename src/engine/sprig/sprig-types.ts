@@ -146,6 +146,10 @@ export interface SprigParameters {
    *  dragonfly's tail segments) keep clay. The edge still tapers over Edge
    *  Softness. 0 = off. */
   minThickness: number;
+  /** How full the slits Close Gaps fills are, % of the shape's height round
+   *  them: 100 = level, 0 = down to the plate (still one piece). A groove as
+   *  wide as Edge Softness each side. */
+  gapFill: number;
 
   // ── Mold ──
   moldSize: SprigMoldSize;
@@ -321,6 +325,7 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   roundThin: false,
   thickenThin: 0,
   minThickness: 0,
+  gapFill: 100,
 
   moldSize: 's60',
   plasterMargin: 8,

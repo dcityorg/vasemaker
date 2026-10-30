@@ -20,6 +20,8 @@ export interface SprigSource {
   mask?: Uint8Array;
   /** `pixels` are Photo depth heights (image-prep.ts with a depth map), not tones. */
   photoDepth?: boolean;
+  /** The slits Close Gaps filled (image-prep.ts), same layout: 0 = slit. */
+  gap?: Uint8Array;
 }
 
 /**
@@ -269,6 +271,7 @@ const centreOf = (g: Grid) => {
 function buildLayer(
   g: Grid, p: SprigParameters,
   inkAt: (x: number, y: number) => number, maskAt: ((x: number, y: number) => number) | null,
+  gapAt: ((x: number, y: number) => number) | null = null,
 ) {
   const { nx, ny, step, x0, y0, fx, fy, fs, ix0, iy0 } = g;
   // A picture's lightest tone: this fraction of the darkest's height.
@@ -448,16 +451,37 @@ function buildLayer(
     if (T <= 0 || sd + step / 2 <= 0) return 0;
     return (floorArea(sd + step / 2) - floorArea(Math.max(0, sd - step / 2))) / step;
   };
+  // Gap Fill (Gary 2026-10-29): the slits Close Gaps filled are lowered to
+  // gapFill % of the height round them, over a groove as wide as Edge Softness
+  // each side — what an open slit's two edges would do, but the cast stays one
+  // piece. 100 % = no groove (and nothing is computed).
+  const fill = Math.min(1, Math.max(0, p.gapFill / 100));
+  let grooveAt = (_k: number) => 1;
+  if (gapAt && fill < 1) {
+    const fGap = new Uint8Array(fx * fy);
+    let any = false;
+    for (let jj = 0; jj < fy; jj++) for (let ii = 0; ii < fx; ii++) {
+      if (gapAt(ix0 + ii * fs, iy0 + jj * fs) >= 0.5) { fGap[jj * fx + ii] = 1; any = true; }
+    }
+    if (any) {
+      const dGap = distanceTransform(fGap, fx, fy);
+      const reach = Math.max(p.edgeSoftness, step);
+      grooveAt = (k: number) => {
+        const d = Math.max(0, dGap[centre(k % nx, Math.floor(k / nx))] - 0.5) * fs;
+        return 1 - (1 - fill) * (1 - smoothstep(Math.min(1, d / reach)));
+      };
+    }
+  }
   const heights = new Float32Array(N);
   for (let j = 1; j < ny - 1; j++) {
     for (let i = 1; i < nx - 1; i++) {
       const k = j * nx + i;
-      if (mask[k]) { heights[k] = Math.max(edgeAt(dist[k], hs[k]), floorAt(dist[k])); continue; }
+      if (mask[k]) { heights[k] = Math.max(edgeAt(dist[k], hs[k]) * grooveAt(k), floorAt(dist[k])); continue; }
       if (sd[k] <= -step / 2) continue;
       // Outside, the shape's height is its inside neighbours'.
       let sum = 0, cnt = 0;
       for (const q of [k - 1, k + 1, k - nx, k + nx]) if (mask[q]) { sum += hs[q]; cnt++; }
-      if (cnt) heights[k] = Math.max(edgeAt(sd[k], sum / cnt), floorAt(sd[k]));
+      if (cnt) heights[k] = Math.max(edgeAt(sd[k], sum / cnt) * grooveAt(k), floorAt(sd[k]));
     }
   }
   return { heights, mask, fOut };
@@ -508,10 +532,12 @@ export function buildRelief(src: SprigSource, pIn: SprigParameters, step: number
   if (p.drawingOn) {
     const sample = sampler(src, p);
     const sampleMask = src.mask ? sampler(src, p, src.mask) : null;
+    const sampleGap = src.gap && p.gapFill < 100 ? sampler(src, p, src.gap) : null;
     const u = (x: number) => (x - place.dx + W / 2) / W, v = (y: number) => (y - place.dy + L / 2) / L;
     ({ heights, mask, fOut } = buildLayer(g, p,
       (x, y) => sample(u(x), v(y)),
-      sampleMask ? (x, y) => sampleMask(u(x), v(y)) : null));
+      sampleMask ? (x, y) => sampleMask(u(x), v(y)) : null,
+      sampleGap ? (x, y) => sampleGap(u(x), v(y)) : null));
   }
 
   // The drawing alone (+ any backing, below): what the bare-spot check reads, so

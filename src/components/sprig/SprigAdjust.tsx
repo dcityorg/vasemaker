@@ -69,6 +69,14 @@ function scaled(p: SprigParameters, f: number, text: TextSize | null) {
   return { width: next.width, length: next.length, moldSize: next.moldSize, capped };
 }
 
+/** `v` on the slider's grid. A drag lands on it already; an arrow press from
+ *  an off-grid value (an old 0.5 px) goes to the next grid value that way. */
+function onGrid(v: number, old: number, step: number) {
+  const q = v / step;
+  if (Math.abs(q - Math.round(q)) < 1e-6) return Math.round(q) * step;
+  return (v > old ? Math.ceil(old / step + 1e-9) : Math.floor(old / step - 1e-9)) * step;
+}
+
 // ── Pieces ──
 
 type NumKey = { [K in keyof SprigParameters]: SprigParameters[K] extends number ? K : never }[keyof SprigParameters] & keyof typeof SPRIG_PARAMS;
@@ -119,10 +127,13 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
   const hint = (text: string) => (hints
     ? <p className="text-[10px] leading-snug text-[var(--text-secondary)] -mt-1.5 mb-2 pl-0.5">{text}</p>
     : null);
-  const slider = (k: NumKey, label: string, suffix: string, text: string, tooltip?: string) => (
+  const slider = (k: NumKey, label: string, suffix: string, text: string, tooltip?: string, fine = true) => (
     <>
-      <SliderRow label={label} value={p[k]} {...SPRIG_PARAMS[k]} suffix={suffix} onChange={(v) => setParam(k, v)}
-        tooltip={tooltip ?? text} after={dot(k, `${defaults[k]}${suffix}`)} />
+      {/* Without fine steps the value also snaps to the slider's own steps, so
+          an old 0.5 px Close Gaps does not step on to 1.5. */}
+      <SliderRow label={label} value={p[k]} {...SPRIG_PARAMS[k]} suffix={suffix}
+        onChange={(v) => setParam(k, fine ? v : onGrid(v, p[k], SPRIG_PARAMS[k].step))}
+        tooltip={tooltip ?? text} after={dot(k, `${defaults[k]}${suffix}`)} fine={fine} />
       {hint(text)}
     </>
   );
@@ -149,6 +160,8 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
   const bigLong = big ? Math.max(big.width, big.length) : long;
   const showBig = !!big && bigLong > long + 0.25;
   const pieces = relief?.pieces ?? 1;
+  const gapFill = slider('gapFill', 'Gap Fill', '%', 'How full the slits Close Gaps fills are: 100% = level with the shape round them, 50% ≈ half, 0% = down to the plate. Still one piece.',
+    'Gap Fill: the slits Close Gaps filled get a groove this % of the height round them, as wide as Edge Softness each side. 100% = no groove. The cast stays one piece at any value');
   const bare = noteOf('bare');
 
   return (
@@ -175,14 +188,17 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
           {group('Outline')}
           {slider('imageBackground', 'Background', '', 'How far a colour can be from the background and still be cut away. Raise it for a halo; lower it if pale parts vanish.',
             'How different a colour can be from the background and still be cut away. Raise it if a halo or speckle round the drawing stays; lower it if pale parts of the drawing disappear. Areas the background cannot reach (inside a closed outline) always stay')}
-          {slider('imageCloseGaps', 'Close Gaps', 'px', 'Closes small breaks in an outline, so its inside fills instead of leaking away with the background.')}
+          {slider('imageCloseGaps', 'Close Gaps', 'px', 'Fills slits up to about twice this many pixels wide — breaks in an outline, gaps between segments — so they count as shape.',
+            'Close Gaps: slits up to about twice this many picture pixels wide are filled instead of being cut away with the background. Whole pixels only — in between does nothing', false)}
+          {p.imageCloseGaps >= 1 && gapFill}
         </>
       ) : (
         <>
           {group('Outline')}
           {!grayish && bare.map((n, i) => warn(n.text, `bare${i}`))}
           {toggle('svgFill', 'Fill Outlines', 'For line drawings: the inside of every closed outline becomes shape, with the lines on top.')}
-          {p.svgFill && slider('svgCloseGaps', 'Close Gaps', 'px', 'Closes small breaks in an outline, so its inside fills instead of leaking away.')}
+          {p.svgFill && slider('svgCloseGaps', 'Close Gaps', 'px', 'Closes small breaks in an outline, so its inside fills instead of leaking away.', undefined, false)}
+          {p.svgFill && p.svgCloseGaps >= 1 && gapFill}
         </>
       )}
 

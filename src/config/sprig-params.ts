@@ -13,10 +13,12 @@ export const SPRIG_PARAMS = {
   detailDepth: { min: 0, max: 3, step: 0.1 } as SliderRange,
 
   imageBackground: { min: 0, max: 100, step: 1 } as SliderRange,
-  imageCloseGaps:  { min: 0, max: 10, step: 0.5 } as SliderRange,
+  // Whole pixels: the closing compares pixel distances, so 0.5 did nothing and
+  // 1.5 the same as 1 (Gary 2026-10-29).
+  imageCloseGaps:  { min: 0, max: 10, step: 1 } as SliderRange,
   imageSmooth:     { min: 0, max: 5, step: 1 } as SliderRange,
   imageLightest:   { min: 0, max: 100, step: 5 } as SliderRange,
-  svgCloseGaps:    { min: 0, max: 10, step: 0.5 } as SliderRange,
+  svgCloseGaps:    { min: 0, max: 10, step: 1 } as SliderRange,
 
   textHeight:  { min: 3, max: 40, step: 0.5 } as SliderRange,
   textDepth:   { min: 0.2, max: 4, step: 0.1 } as SliderRange,
@@ -41,6 +43,7 @@ export const SPRIG_PARAMS = {
   minFeatureWidth: { min: 0.5, max: 5, step: 0.1 } as SliderRange,
   thickenThin:     { min: 0, max: 5, step: 0.1 } as SliderRange,
   minThickness:    { min: 0, max: 3, step: 0.1 } as SliderRange,
+  gapFill:         { min: 0, max: 100, step: 5 } as SliderRange,
 
   plasterMargin: { min: 3, max: 25, step: 1 } as SliderRange,
   shrinkPercent: { min: 0, max: 25, step: 0.5 } as SliderRange,

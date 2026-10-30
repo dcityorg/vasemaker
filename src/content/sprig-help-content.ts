@@ -168,7 +168,8 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
         { key: 'Round Off Thin', value: 'Shaves off everything narrower than Min Feature: antennae, legs and sharp points go. Raise Min Feature to shave more. Careful with a segmented tail: it shaves the narrow joints too and the tail falls into pieces — use Thicken there.' },
       ] },
       { type: 'paragraph', text: 'MIN THICKNESS (also under Thin parts) is about HEIGHT, not width: every part stays at least this tall. Narrow places come out low — Inflate and Photo depth rise with width, and the edge slope reaches in from both sides — so the joints of a dragonfly’s tail can sit almost on the plate. Min Thickness lifts them, while the edge still tapers into the plate. Its taper rises over half its height (about 63°), so a joint as narrow as twice Min Thickness can still reach it. 0 = off.' },
-      { type: 'tip', text: 'A tail that dips to the plate between segments is often a GAP in the picture — white slits between the segments that reach the background. Thicken only bridges them with a sliver. Raise CLOSE GAPS (Adjust → Outline) by 2–4 px to fill them; that joins the tail for real.' },
+      { type: 'tip', text: 'A tail that dips to the plate between segments is often a GAP in the picture — white slits between the segments that reach the background. Thicken only bridges them with a sliver. Raise CLOSE GAPS (Adjust → Outline) to 1–2 px to fill them; that joins the tail for real. Then GAP FILL, just below it, sets how full those filled slits are: 100% level with the segments, 50% about half, 0% down to the plate — a groove as wide as Edge Softness each side, and the tail stays one piece at any value.' },
+      { type: 'tip', text: 'CLOSE GAPS moves in whole pixels: it compares pixel distances, so values in between would do nothing. One picture pixel is about 0.06 mm on a 60 mm sprig.' },
     ],
   },
   {

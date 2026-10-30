@@ -103,6 +103,24 @@ export function prepareImage(img: RgbaImage, o: ImagePrepOptions): { source: Spr
     if (k >= w) seed(k - w);
     if (k < N - w) seed(k + w);
   }
+  // The slits the closing filled: background reachable from the edge without
+  // it, shape with it (Gap Fill sets their height in the relief).
+  let reach: Uint8Array | null = null;
+  if (r > 0 && o.fill !== false) {
+    reach = new Uint8Array(N);
+    const st: number[] = [];
+    const sd = (k: number) => { if (cand[k] && !reach![k]) { reach![k] = 1; st.push(k); } };
+    for (let x = 0; x < w; x++) { sd(x); sd((h - 1) * w + x); }
+    for (let y = 0; y < h; y++) { sd(y * w); sd(y * w + w - 1); }
+    while (st.length) {
+      const k = st.pop()!;
+      const x = k % w;
+      if (x > 0) sd(k - 1);
+      if (x < w - 1) sd(k + 1);
+      if (k >= w) sd(k - w);
+      if (k < N - w) sd(k + w);
+    }
+  }
   let back = filled;
   if (o.fill === false) back = cand;
   else if (r > 0) {
@@ -151,7 +169,18 @@ export function prepareImage(img: RgbaImage, o: ImagePrepOptions): { source: Spr
     pixels[c] = Math.round(255 * (1 - t));
     mask[c] = inside[c] ? 0 : 255;
   }
-  return { source: { pixels, width: cw, height: ch, mask, ...(o.depth ? { photoDepth: true } : {}) }, aspect: cw / ch };
+  // Filled slits, same layout (0 = slit); only when the closing filled any.
+  let gap: Uint8Array | undefined;
+  if (reach) {
+    gap = new Uint8Array(M).fill(255);
+    let any = false;
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+      const k = (y + y0) * w + x + x0;
+      if (reach[k] && shape[k]) { gap[y * cw + x] = 0; any = true; }
+    }
+    if (!any) gap = undefined;
+  }
+  return { source: { pixels, width: cw, height: ch, mask, ...(gap ? { gap } : {}), ...(o.depth ? { photoDepth: true } : {}) }, aspect: cw / ch };
 }
 
 /** Each shape pixel's distance to the nearest background pixel, in pixels.

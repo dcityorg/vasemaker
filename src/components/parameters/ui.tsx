@@ -37,6 +37,7 @@ export function SliderRow({
   valueLabel,
   color,
   after,
+  fine = true,
 }: {
   label: string;
   value: number;
@@ -56,13 +57,16 @@ export function SliderRow({
   color?: string;
   /** Shown after the label text, e.g. the Sprig page's reset dot. */
   after?: React.ReactNode;
+  /** false = Alt/Option gives no finer steps — for a setting where values
+   *  between the slider's own steps do nothing (Sprig's Close Gaps). */
+  fine?: boolean;
 }) {
   // Modifier state for the drag path. The `input` event carries no modifier
   // flags, so they're latched from the pointer events that precede it.
   const mods = useRef({ alt: false, shift: false });
 
   const gridFor = (alt: boolean, shift: boolean) =>
-    alt ? step * FINE_FACTOR : shift ? step * COARSE_FACTOR : step;
+    alt && fine ? step * FINE_FACTOR : shift ? step * COARSE_FACTOR : step;
 
   /** Clamp to range and drop float noise. */
   const clean = (v: number) => parseFloat(Math.max(min, Math.min(max, v)).toFixed(6));
