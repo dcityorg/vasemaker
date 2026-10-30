@@ -505,7 +505,7 @@ function textParams(p: SprigParameters, height: number): SprigParameters {
   return {
     ...p, heightMode: 'flat', maxHeight: height, edgeSoftness: TEXT_EDGE,
     minEdgeThickness: Math.min(p.minEdgeThickness, height), invert: false,
-    removeTiny: false, wholeShapesOnly: false, roundThin: false, thickenThin: 0,
+    removeTiny: false, wholeShapesOnly: false, roundThin: false, thickenThin: 0, widen: 0,
   };
 }
 
@@ -524,7 +524,8 @@ export function buildRelief(src: SprigSource, pIn: SprigParameters, step: number
   const bb = backed ? Math.max(0, p.backingBorder) : 0;
   // Room for the backing border, or for a thin part at the drawing's edge to
   // grow when thickened, plus the always-flat border ring.
-  const room = Math.max(bb, p.drawingOn && p.thickenThin > 0 ? p.thickenThin / 2 + 0.3 : 0);
+  const grow = Math.max(p.thickenThin, p.widen);
+  const room = Math.max(bb, p.drawingOn && grow > 0 ? grow / 2 + 0.3 : 0);
   const pad = BORDER + (room > 0 ? Math.ceil(room / step) + 1 : 0);
   const nx = Math.max(1, Math.ceil(place.w / step)) + 2 * pad;
   const ny = Math.max(1, Math.ceil(place.l / step)) + 2 * pad;
@@ -652,25 +653,9 @@ export function buildRelief(src: SprigSource, pIn: SprigParameters, step: number
  * sliver reaches at most (√2 − 1)·r ≈ 0.41·r from it. Thin legs and tails sit
  * far from it and stay; the short stub where a leg joins the body is lost.
  */
-/**
- * Thicken Thin Parts (Gary, 2026-10-28): every part narrower than `width` mm
- * is widened to about `width`, the rest of the shape left alone. The thin
- * parts are found the way thinParts finds them (what a disc of that width
- * cannot sweep, square-corner slivers excepted), their centre line is taken as
- * the ridge of the edge distance, and a disc of that width is swept along it.
- * A tip gains a round end up to width/2 long. Thin parts closer together than
- * `width` (two legs) can merge. New cells take the ink of the nearest cell of
- * the drawing, so gray detail carries on into them.
- */
-function thicken(fOut: Uint8Array, fInk: Float32Array, fCov: Float32Array, fx: number, fy: number, fs: number, width: number) {
+/** The cells of the parts narrower than 2r fine cells (thicken explains how). */
+function thinPartCells(fOut: Uint8Array, dIn: Float32Array, fx: number, fy: number, r: number): Uint8Array {
   const N = fx * fy;
-  // Two fine cells over, both to find the thin parts and to grow them: the
-  // swept width comes out a little under 2r on the grid, and Min Feature
-  // measures on the coarser grid, where a part just wide enough here can read
-  // just too thin.
-  const r = width / 2 / fs + 2;
-  const grow = r;
-  const dIn = distanceTransform(fOut, fx, fy);
   const eroded = new Uint8Array(N);
   for (let k = 0; k < N; k++) eroded[k] = !fOut[k] && dIn[k] - 0.5 >= r ? 1 : 0;
   const toEroded = distanceTransform(eroded, fx, fy);
@@ -727,6 +712,29 @@ function thicken(fOut: Uint8Array, fInk: Float32Array, fCov: Float32Array, fx: n
     }
     front = next;
   }
+  return part;
+}
+
+/**
+ * Thicken Thin Parts (Gary, 2026-10-28): every part narrower than `width` mm
+ * is widened to about `width`, the rest of the shape left alone. The thin
+ * parts are found the way thinParts finds them (what a disc of that width
+ * cannot sweep, square-corner slivers excepted), their centre line is taken as
+ * the ridge of the edge distance, and a disc of that width is swept along it.
+ * A tip gains a round end up to width/2 long. Thin parts closer together than
+ * `width` (two legs) can merge. New cells take the ink of the nearest cell of
+ * the drawing, so gray detail carries on into them.
+ */
+function thicken(fOut: Uint8Array, fInk: Float32Array, fCov: Float32Array, fx: number, fy: number, fs: number, width: number) {
+  const N = fx * fy;
+  // Two fine cells over, both to find the thin parts and to grow them: the
+  // swept width comes out a little under 2r on the grid, and Min Feature
+  // measures on the coarser grid, where a part just wide enough here can read
+  // just too thin.
+  const r = width / 2 / fs + 2;
+  const grow = r;
+  const dIn = distanceTransform(fOut, fx, fy);
+  const part = thinPartCells(fOut, dIn, fx, fy, r);
   // Their centre line: cells no nearer the edge than both neighbours across
   // some direction, and further than one of them. (Along a straight leg the
   // neighbours tie, and without that second test every cell of it counted.)
@@ -758,6 +766,95 @@ function thicken(fOut: Uint8Array, fInk: Float32Array, fCov: Float32Array, fx: n
 }
 
 /**
+ * Widen Thin Parts (Gary, 2026-10-29): every part narrower than `width` mm is
+ * stretched across to about `width`, its whole cross-section with it — a
+ * domed tail stays domed, only wider — where Thicken adds a flat skirt at
+ * the old height of the edge. Parts already wider are left alone.
+ *
+ * The centre line is where a cell's nearest edge points lie on opposite
+ * sides of it, more than 120° apart (a θ-medial axis): a ragged outline's
+ * bumps grow twigs on a plain ridge, and a twig's nearest edge points sit
+ * close together either side of its bump. Not within 3 fine cells of the
+ * edge, where the grid's stair-steps look like corners at every angle. (Only the cell's OWN nearest
+ * points count — beside a joint's slit, a neighbour's nearest point is the
+ * far edge, and taking it drew fins out along every joint.) The half-width along it is averaged over
+ * a stretch of the line, so a wandering tail widens to one even width rather
+ * than lumps. Each cell then takes the ink from its own distance ÷ factor
+ * from the centre line.
+ */
+/** At most this many times wider: a pointed tip stays pointed, only wider. */
+const MAX_WIDEN = 2.5;
+
+function widen(fOut: Uint8Array, fInk: Float32Array, fCov: Float32Array, fx: number, fy: number, fs: number, width: number) {
+  const N = fx * fy;
+  const target = width / 2 / fs;               // half-width wanted, fine cells
+  const { dist: dIn, nearest: edgeAt } = distanceTransform(fOut, fx, fy, true);
+  const part = thinPartCells(fOut, dIn, fx, fy, target + 2);
+  // The centre line, everywhere (the body's stops a tail claiming its cells).
+  const axis = new Uint8Array(N);
+  for (let j = 1; j < fy - 1; j++) {
+    for (let i = 1; i < fx - 1; i++) {
+      const k = j * fx + i;
+      if (fOut[k] || dIn[k] < 3) continue;
+      const e = edgeAt[k], ex = (e % fx) - i, ey = Math.floor(e / fx) - j;
+      for (const q of [k - 1, k + 1, k - fx, k + fx, k - fx - 1, k - fx + 1, k + fx - 1, k + fx + 1]) {
+        if (fOut[q]) continue;
+        const o = edgeAt[q], ox = (o % fx) - i, oy = Math.floor(o / fx) - j;
+        const od = Math.hypot(ox, oy);
+        if (od > dIn[k] + 1.5) continue;     // not one of this cell's nearest edge points
+        if (ex * ox + ey * oy <= -0.5 * dIn[k] * od) { axis[k] = 1; break; }
+      }
+    }
+  }
+  // The thin part's centre cells and their half-width, averaged along the line.
+  // Seeded where the thin-part check finds the part, then followed along the
+  // centre line while it stays narrower than the target: the check stops
+  // short of the body, and stopping there left a step at the join.
+  const thinAxis = (k: number) => axis[k] && dIn[k] - 0.5 < target;
+  const centres: number[] = [];
+  const isC = new Uint8Array(N);
+  for (let k = 0; k < N; k++) if (part[k] && thinAxis(k)) { isC[k] = 1; centres.push(k); }
+  if (!centres.length) return;
+  for (let n = 0; n < centres.length; n++) {
+    const c = centres[n], ci = c % fx, cj = (c - ci) / fx;
+    for (let dj = -1; dj <= 1; dj++) {
+      for (let di = -1; di <= 1; di++) {
+        const x = ci + di, y = cj + dj;
+        if (x < 0 || y < 0 || x >= fx || y >= fy) continue;
+        const q = y * fx + x;
+        if (!isC[q] && thinAxis(q)) { isC[q] = 1; centres.push(q); }
+      }
+    }
+  }
+  const half = new Float32Array(N);
+  const reach = Math.max(3, Math.round(target / 4));
+  for (const c of centres) {
+    const ci = c % fx, cj = (c - ci) / fx;
+    let sum = 0, n = 0;
+    for (let y = Math.max(0, cj - reach); y <= Math.min(fy - 1, cj + reach); y++) {
+      for (let x = Math.max(0, ci - reach); x <= Math.min(fx - 1, ci + reach); x++) {
+        const q = y * fx + x;
+        if (isC[q] && (x - ci) ** 2 + (y - cj) ** 2 <= reach * reach) { sum += dIn[q] - 0.5; n++; }
+      }
+    }
+    half[c] = Math.max(0.5, sum / n);
+  }
+  const ink = fInk.slice();
+  const near = distanceTransform(axis, fx, fy, true);
+  for (let k = 0; k < N; k++) {
+    const c = near.nearest[k];
+    if (c < 0 || !isC[c]) continue;
+    const f = Math.min(MAX_WIDEN, Math.max(1, target / half[c])), grown = half[c] * f;
+    if (f <= 1.001 || near.dist[k] > grown + 0.5) continue;
+    const ci = c % fx, cj = (c - ci) / fx, ki = k % fx, kj = (k - ki) / fx;
+    const si = Math.round(ci + (ki - ci) / f), sj = Math.round(cj + (kj - cj) / f);
+    let s = sj * fx + si;
+    if (fOut[s]) s = c;
+    fOut[k] = 0; fCov[k] = 1; fInk[k] = ink[s];
+  }
+}
+
+/**
  * Clean-up options, on the fine grid before anything is measured:
  *  roundThin  — morphological opening with a Min Feature disc: everything
  *               narrower is shaved off (sharp tips round, hairlines go).
@@ -771,6 +868,7 @@ function cleanUp(
 ) {
   const N = fx * fy;
   const drop = (k: number) => { fOut[k] = 1; fInk[k] = 0; fCov[k] = 0; };
+  if (p.widen > 0) widen(fOut, fInk, fCov, fx, fy, fs, p.widen);
   if (p.thickenThin > 0) thicken(fOut, fInk, fCov, fx, fy, fs, p.thickenThin);
   if (p.roundThin && p.minFeatureWidth > 0) {
     const r = p.minFeatureWidth / 2 / fs;

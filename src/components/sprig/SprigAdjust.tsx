@@ -267,7 +267,9 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
         </>,
       )}
       {relief && thin === 0 && hints && <p className="text-[10px] leading-snug text-[var(--text-secondary)] mb-2 pl-0.5">Nothing thinner than Min Feature.</p>}
-      {slider('minFeatureWidth', 'Min Feature', 'mm', 'Parts narrower than this show red: they may tear or crack. Thicken and Round Off work to this width.')}
+      {slider('minFeatureWidth', 'Min Feature', 'mm', 'Parts narrower than this show red: they may tear or crack. Round Off works to this width; Widen and Thicken have their own.')}
+      {slider('widen', 'Widen', 'mm', 'Stretches every thinner part — a tail, a leg — across to about this width, its rounded top and all. Tips stay pointed. 0 = off.',
+        'Widen: every part thinner than this is stretched across to about this width, its whole cross-section with it, so a domed tail stays domed. Parts already wider are left alone. 0 = off')}
       {slider('thickenThin', 'Thicken', 'mm', 'Widens every thinner part — legs, tails, antennae — to about this width. 0 = off. Close parts (toes) can merge.',
         'Thicken Thin Parts: widen every part thinner than this to about this width. The rest of the shape is left alone. 0 = off')}
       {slider('minThickness', 'Min Thickness', 'mm', 'Every part at least this tall, so narrow necks keep clay; the edge still slopes. Gaps between tail segments: raise Close Gaps instead. 0 = off.',

@@ -142,6 +142,10 @@ export interface SprigParameters {
   /** Widen every part narrower than this to about this width, mm, finished
    *  size (legs, tails, antennae). 0 = off. */
   thickenThin: number;
+  /** Stretch every part narrower than this across to about this width,
+   *  mm, finished — its whole cross-section, so a domed tail stays domed.
+   *  0 = off. */
+  widen: number;
   /** Every part at least this tall, mm, finished — so narrow joints (a
    *  dragonfly's tail segments) keep clay. The edge still tapers over Edge
    *  Softness. 0 = off. */
@@ -327,6 +331,7 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   wholeShapesOnly: false,
   roundThin: false,
   thickenThin: 0,
+  widen: 0,
   minThickness: 0,
   gapFill: 100,
   trimBelow: 0,
