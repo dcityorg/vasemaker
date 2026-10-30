@@ -36,6 +36,7 @@ export function SliderRow({
   suffix,
   valueLabel,
   color,
+  after,
 }: {
   label: string;
   value: number;
@@ -53,6 +54,8 @@ export function SliderRow({
   valueLabel?: string;
   /** Colours the label and readout — for a setting that must not be missed (the mold's Shrink). */
   color?: string;
+  /** Shown after the label text, e.g. the Sprig page's reset dot. */
+  after?: React.ReactNode;
 }) {
   // Modifier state for the drag path. The `input` event carries no modifier
   // flags, so they're latched from the pointer events that precede it.
@@ -95,7 +98,7 @@ export function SliderRow({
       {/* w-28, not w-24: labels carrying a unit ("Thickness (mm)") wrapped to a
           second line and threw the row heights out of alignment. Toggle matches
           so its label still lines up with the sliders around it. */}
-      <label className="text-sm text-[var(--text-secondary)] w-28 shrink-0" title={tooltip} style={color ? { color } : undefined}>{label}</label>
+      <label className="text-sm text-[var(--text-secondary)] w-28 shrink-0" title={tooltip} style={color ? { color } : undefined}>{label}{after}</label>
       <input
         type="range"
         min={min}
@@ -223,15 +226,17 @@ export function GroupHeader({ label, color }: { label: string; color: string }) 
 }
 
 /** Toggle switch with optional reset button */
-export function Toggle({ label, checked, onChange, onReset, tooltip }: {
+export function Toggle({ label, checked, onChange, onReset, tooltip, after }: {
   label: string; checked: boolean; onChange: (v: boolean) => void; onReset?: () => void; tooltip?: string;
+  /** Shown after the label text, e.g. the Sprig page's reset dot. */
+  after?: React.ReactNode;
 }) {
   return (
     <div className="flex items-center gap-3 mb-2">
       {/* w-28, not w-24: labels carrying a unit ("Thickness (mm)") wrapped to a
           second line and threw the row heights out of alignment. Toggle matches
           so its label still lines up with the sliders around it. */}
-      <label className="text-sm text-[var(--text-secondary)] w-28 shrink-0" title={tooltip}>{label}</label>
+      <label className="text-sm text-[var(--text-secondary)] w-28 shrink-0" title={tooltip}>{label}{after}</label>
       <button
         onClick={() => onChange(!checked)}
         title={tooltip ?? (checked ? 'On — click to turn off' : 'Off — click to turn on')}

@@ -6,7 +6,7 @@ import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsBut
 import { setShowFacets, useSprigColors, setSprigColors, DEFAULT_SPRIG_COLOR, DEFAULT_SPRIG_BACKGROUND } from '@/store/view-prefs';
 import { asMark, DEFAULT_VIEW } from '@/store/sprig-store';
 import { useSprigDesign } from './sprig-design-context';
-import { ThinPartsFix } from './ThinPartsFix';
+import { SprigAdjust } from './SprigAdjust';
 import { PhotoDepthHost, PhotoDepthStatusLine, askPhotoDepth } from './PhotoDepth';
 import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
@@ -28,8 +28,8 @@ import { translateMesh } from '@/engine/handle/mesh3';
 import { fitsBox, MIN_PLASTER_BEHIND } from '@/engine/sprig/sprig-generator';
 import {
   mergeSprigParameters, sizeLabel, SPRIG_SIZES, SIZE_MENU,
-  type SprigParameters, type SprigHeightMode, type SprigProfile, type SprigMoldSize,
-  sprigFootprint, type SprigBacking, isPictureDrawing, svgPrepared, hasText, backingOn,
+  type SprigParameters, type SprigHeightMode, type SprigMoldSize,
+  sprigFootprint, type SprigBacking, isPictureDrawing, hasText, backingOn,
   type SprigFont, type SprigTextStyle, type SprigTextPosition,
 } from '@/engine/sprig/sprig-types';
 import type { SprigMeshState } from '@/hooks/use-sprig-meshes';
@@ -114,20 +114,17 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   /** Each section's settings: what its Reset restores, and what its
    *  "changed" dot compares with the defaults. */
   const K: Record<string, (keyof SprigParameters)[]> = {
-    picture: ['imageBackground', 'imageCloseGaps', 'imageSmooth', 'imageTones', 'imageLightest'],
-    svg: ['svgFill', 'svgCloseGaps', 'svgTones', 'imageLightest'],
-    edges: ['edgeSoftness', 'minEdgeThickness'],
+    picture: ['imageSmooth', 'imageTones'],
+    svg: ['svgTones'],
     text: ['textFont', 'textFontName', 'textHeight', 'textStyle', 'textDepth', 'textPosition', 'textGap', 'textOffsetX', 'textOffsetY', 'textRotation', 'drawingOn'],
     backing: ['backing', 'backingThickness', 'backingBorder', 'backingCorner', 'backingEdge'],
-    checks: ['minFeatureWidth', 'removeTiny', 'wholeShapesOnly', 'roundThin', 'thickenThin'],
     resolution: ['resolution'],
     moldSize: ['plasterMargin', 'customCavW', 'customCavL', 'customWallH', 'customWallThickness', 'customFlangeWidth', 'plateThickness'],
     print: ['shrinkPercent'],
     plaster: ['material'],
     placement: ['onVaseHeight', 'onVaseAngle', 'onVaseTilt', 'onVaseCopies', 'onVaseHandle'],
-    height: ['profile', 'roundness', 'detailDepth', 'invert'],
     shaping: ['heightMode', 'maxHeight'],
-    size: ['rotation', 'flipX', 'flipY', 'lockAspect'],
+    size: ['rotation', 'flipX', 'flipY'],
   };
   const changed = (keys: (keyof SprigParameters)[]) => keys.some((k) => params[k] !== design.defaults[k]);
 
@@ -212,7 +209,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
       if (!r) problem = 'Everything in that picture counts as background. Try a picture with a plain background, or lower Background after loading.';
       else {
         loadSvg(url, name, r.aspect);
-        if (fromRelief) resetFields([...K.picture, ...K.edges]);
+        if (fromRelief) resetFields(['imageBackground', 'imageCloseGaps', 'imageSmooth', 'imageTones', 'imageLightest', 'edgeSoftness', 'minEdgeThickness']);
         const photo = await pictureLooksLikePhoto(url);
         // A photo is offered Photo depth (asked until the first yes); anything
         // else keeps the picture's tones in play as before.
@@ -362,12 +359,13 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
 
   const est = estimatePlaster(m?.plasterVolumeMm3 ?? 0, params.material);
   const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(2)} k` : n.toFixed(0));
-  const inflate = params.heightMode === 'inflate' || params.heightMode === 'inflateGray';
   const [footW, footL] = sprigFootprint(params, hasText(params) ? sprig.textSize : null);
   const sizeFits = (k: Exclude<SprigMoldSize, 'custom'>) =>
     fitsBox(footW * S, footL * S, SPRIG_SIZES[k].cavW, SPRIG_SIZES[k].cavL, params.plasterMargin);
   const backingOnUI = params.backing !== 'none' && params.backingThickness > 0;
-  const warnings = [...(sprig.error ? [sprig.error] : []), ...(svgError ? [svgError] : []), ...(m?.warnings ?? [])];
+  // Warnings with a control in Adjust are shown there, above it.
+  const warnings = [...(sprig.error ? [sprig.error] : []), ...(svgError ? [svgError] : []),
+    ...(m?.notes ?? []).filter((n) => n.kind === 'cutText').map((n) => n.text)];
 
   return (
     <div data-sidebar className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
@@ -533,18 +531,16 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                 </div>
               ))}
               {params.heightMode === 'photoDepth' && <PhotoDepthStatusLine onTurnOn={() => void askPhotoDepth(false)} />}
-              {sl('maxHeight', 'Max Height', 'mm', 'Height of the tallest point of the FINISHED sprig')}
+              {/* Max Height and every adjustment, each with its warning (SprigAdjust.tsx) */}
+              <SprigAdjust params={params} defaults={design.defaults} relief={m?.relief ?? null} notes={m?.notes ?? []}
+                isMark={isMark} textSize={hasText(params) ? sprig.textSize : null}
+                setParam={setParam} setParams={setParams} setWidth={setWidth} setLength={setLength} />
             </div>
           </div>
           <PhotoDepthHost />
         </div>
 
         <div className="px-3 py-3">
-          {m && (
-            <ThinPartsFix params={params} thinSpots={m.relief.thinSpots} thinnest={m.relief.thinnestWidth}
-              textSize={hasText(params) ? sprig.textSize : null}
-              setParams={setParams} setParam={setParam} setWidth={setWidth} />
-          )}
           {warnings.map((w, i) => (
             <div key={i} className="mb-2 px-2 py-1.5 rounded border border-amber-700 bg-amber-950/40 text-xs text-amber-200">
               {w}
@@ -612,11 +608,12 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           {isPictureDrawing(params.svg) && (
             <Section title="Picture" changed={changed(K.picture)} titleColor={GROUP_COLORS.structure} tooltip="How the picture becomes a shape: what counts as background, and how its tones become heights">
               <div className="flex justify-end mb-1">
-                <button onClick={() => resetFields(K.picture)} className={resetBtn} title="Picture settings back to their defaults">Reset</button>
+                <button onClick={() => resetFields(K.picture)} className={resetBtn} title="Smooth and Tones back to their defaults">Reset</button>
               </div>
               {sprig.source?.mask && <PicturePreview source={sprig.source} />}
-              {sl('imageBackground', 'Background', '', 'How different a colour can be from the background and still be cut away. Raise it if a halo or speckle round the drawing stays; lower it if pale parts of the drawing disappear. Areas the background cannot reach (inside a closed outline) always stay')}
-              {sl('imageCloseGaps', 'Close Gaps', 'px', 'For outline drawings: closes small breaks in the outline so its inside fills solid instead of being cut away with the background')}
+              <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
+                Background and Close Gaps are under Adjust, at the top.
+              </p>
               {sl('imageSmooth', 'Smooth', 'px', 'Blurs speckle inside the drawing before the tones are read (JPEG pictures are full of it). 0 = none')}
               <div className="flex items-center gap-2 mb-2">
                 <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Tones</label>
@@ -635,10 +632,6 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                   <option value={-1}>As made (height map)</option>
                 </select>
               </div>
-              {(params.heightMode === 'gray' || params.heightMode === 'inflateGray') &&
-                sl('imageLightest', 'Lightest', '%', params.heightMode === 'gray'
-                  ? 'Height of the lightest tone, as a % of Max Height (the darkest tone)'
-                  : 'How much of Detail Depth the lightest tone is spared: 100% = no cut at all, 0% = the full Detail Depth')}
               {params.heightMode !== 'gray' && params.heightMode !== 'inflateGray' && (
                 <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
                   {params.heightMode === 'photoDepth'
@@ -651,12 +644,12 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           {!isPictureDrawing(params.svg) && (
             <Section title="SVG" changed={changed(K.svg)} titleColor={GROUP_COLORS.structure} tooltip="How the SVG becomes a shape: fill outline drawings solid, and group its shades into height steps">
               <div className="flex justify-end mb-1">
-                <button onClick={() => resetFields(K.svg)} className={resetBtn} title="SVG settings back to their defaults (read as drawn)">Reset</button>
+                <button onClick={() => resetFields(K.svg)} className={resetBtn} title="Tones back to its default (as drawn)">Reset</button>
               </div>
               {sprig.source && <PicturePreview source={sprig.source} threshold={params.heightMode === 'gray' || params.heightMode === 'inflateGray' ? GRAY_INK : 0.5} />}
-              <Toggle label="Fill Outlines" checked={params.svgFill} onChange={(v) => setParam('svgFill', v)}
-                tooltip="For line drawings: the inside of every closed outline becomes part of the shape, with the lines on top, instead of only the lines. Off = only what is drawn" />
-              {params.svgFill && sl('svgCloseGaps', 'Close Gaps', 'px', 'Closes small breaks in an outline so its inside fills instead of leaking away with the background. Pixels of the drawing at 1024 px across')}
+              <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
+                Fill Outlines and Close Gaps are under Adjust, at the top.
+              </p>
               <div className="flex items-center gap-2 mb-2">
                 <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Tones</label>
                 <select
@@ -673,10 +666,6 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                   <option value={5}>5 steps</option>
                 </select>
               </div>
-              {svgPrepared(params) && (params.heightMode === 'gray' || params.heightMode === 'inflateGray') &&
-                sl('imageLightest', 'Lightest', '%', params.heightMode === 'gray'
-                  ? 'Height of the lightest tone (and of a filled outline\'s white inside), as a % of Max Height'
-                  : 'How much of Detail Depth the lightest tone is spared: 100% = no cut at all, 0% = the full Detail Depth')}
               {params.heightMode !== 'gray' && params.heightMode !== 'inflateGray' && (
                 <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
                   {params.heightMode === 'photoDepth'
@@ -686,16 +675,10 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               )}
             </Section>
           )}
-          <Section title="Size" changed={changed(K.size)} titleColor={GROUP_COLORS.structure}>
+          <Section title="Turn & Flip" changed={changed(K.size)} titleColor={GROUP_COLORS.structure} tooltip="Turn or mirror the drawing. Width, Length and Lock are under Adjust, at the top">
             <div className="flex justify-end mb-1">
               <button onClick={resetOrientation} className={resetBtn} title="Back to the drawing as loaded: unturned, unflipped, its own proportions (🔗 on). The longer side keeps its size">Reset</button>
             </div>
-            <SliderRow label="Width" value={params.width} {...SPRIG_PARAMS.width} suffix="mm" onChange={setWidth}
-              tooltip="FINISHED width, left to right, after the clay shrinks. The printed relief is scaled up by Shrink" />
-            <SliderRow label="Length" value={params.length} {...SPRIG_PARAMS.length} suffix="mm" onChange={setLength}
-              tooltip="FINISHED length, bottom to top, after the clay shrinks" />
-            <Toggle label="🔗 Lock Proportions" checked={params.lockAspect} onChange={(v) => setParam('lockAspect', v)}
-              tooltip="On: Width and Length move together and the drawing keeps its proportions. Off: stretch it" />
             <div className="flex gap-1.5 my-1">
               <button className={miniBtn} onClick={rotateCW} title="Turn a quarter clockwise">↻ 90°</button>
               <button className={miniBtn} onClick={() => setParam('flipX', !params.flipX)} title="Mirror left to right">⇋ Flip H</button>
@@ -705,43 +688,6 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               {params.rotation ? `Turned ${params.rotation}°. ` : ''}{params.flipX ? 'Flipped H. ' : ''}{params.flipY ? 'Flipped V. ' : ''}
               The cast faces the same way as the plate seen from above.
             </p>
-          </Section>
-          <Section title="Height" changed={changed(K.height)} titleColor={GROUP_COLORS.structure}>
-            <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(K.height)} className={resetBtn} title="Profile, Roundness, Detail Depth and Invert back to their defaults (Shaping and Max Height have their own Reset at the top)">Reset</button>
-            </div>
-            <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
-              Shaping and Max Height are at the top, under the drawing. Shaping now: {modeLabel(params.heightMode)}.
-            </p>
-            {inflate && (
-              <>
-                <div className="flex items-center gap-2 mb-2">
-                  <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Profile</label>
-                  <select
-                    value={params.profile}
-                    onChange={(e) => setParam('profile', e.target.value as SprigProfile)}
-                    className={selectCls}
-                    style={{ color: UI_MUTED }}
-                    title="Shape of the rise from the edge: Round = a dome, Pillow = steep sides and a flat top, Angular = a straight slope to a ridge"
-                  >
-                    <option value="round">Round</option>
-                    <option value="pillow">Pillow</option>
-                    <option value="angular">Angular</option>
-                  </select>
-                </div>
-                {sl('roundness', 'Roundness', 'mm', 'How far in from the edge it takes to reach Max Height. Small = a flat-topped pillow; large = a full dome. Parts narrower than twice this never reach full height — that is what keeps legs and tails lower than the body')}
-              </>
-            )}
-            {params.heightMode === 'inflateGray' && sl('detailDepth', 'Detail Depth', 'mm', 'How deep lighter-gray marks inside the shape cut in. Black is untouched; pure white is background, not detail')}
-            <Toggle label="Invert" checked={params.invert} onChange={(v) => setParam('invert', v)}
-              tooltip="Swap black and white inside the drawing's area — the background becomes the raised part" />
-          </Section>
-          <Section title="Edges" changed={changed(K.edges)} titleColor={GROUP_COLORS.structure}>
-            <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(K.edges)} className={resetBtn} title="Edge settings back to their defaults">Reset</button>
-            </div>
-            {sl('edgeSoftness', 'Edge Softness', 'mm', 'Width of the slope from the edge up to full height. Higher blends into the vase and helps the cast drop out; 0 = as steep as the Resolution allows')}
-            {sl('minEdgeThickness', 'Edge Lip', 'mm', 'Raises the thinnest parts to at least this thickness, so the edge ends in a small step. 0 = the edge tapers smoothly to the plate. Try 0.3–0.5 only if cast edges tear or crumble coming out of the mold')}
           </Section>
           <Section title="Text" changed={changed(K.text)} titleColor={GROUP_COLORS.structure} tooltip="Words on the sprig: raised letters, or letters cut into a backing sheet">
             <div className="flex justify-end mb-1">
@@ -868,39 +814,6 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               </>
             )}
           </Section>}
-          <Section title="Checks" changed={changed(K.checks)} titleColor={GROUP_COLORS.structure}>
-            <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(K.checks)} className={resetBtn} title="Min Feature and the clean-up switches back to their defaults">Reset</button>
-            </div>
-            {sl('minFeatureWidth', 'Min Feature', 'mm', 'Parts of the FINISHED sprig narrower than this are painted red: they may tear coming out of the mold or crack drying')}
-            {m && (
-              <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
-                {m.relief.thinSpots === 0
-                  ? 'Nothing narrower than this.'
-                  : `${m.relief.thinSpots} thin part${m.relief.thinSpots === 1 ? '' : 's'}, thinnest ≈ ${m.relief.thinnestWidth.toFixed(1)} mm.`}
-              </p>
-            )}
-            {!isMark && m && (
-              <p
-                className={`mt-1 text-[10px] leading-snug px-0.5 ${m.relief.pieces > 1 ? 'text-amber-300' : 'text-[var(--text-secondary)]'}`}
-                title="Separate pieces the cast comes out in. Parts touching only at a corner count as separate — clay does not hold there"
-              >
-                {m.relief.pieces === 0
-                  ? 'Nothing left to cast — the clean-up removed it all.'
-                  : m.relief.pieces === 1
-                  ? 'Casts in one piece.'
-                  : `Casts in ${m.relief.pieces} separate pieces${m.relief.smallPieces ? `, ${m.relief.smallPieces} of them tiny (under ${params.minFeatureWidth} × ${params.minFeatureWidth} mm)` : ''}.`}
-              </p>
-            )}
-            <p className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)] mt-2 mb-1">Clean up</p>
-            <Toggle label="Remove Tiny Pieces" checked={params.removeTiny} onChange={(v) => setParam('removeTiny', v)}
-              tooltip="Drop pieces smaller than Min Feature × Min Feature — the slivers left where a pattern is cut off. They would stick in the mold or come out as crumbs" />
-            <Toggle label="Whole Shapes Only" checked={params.wholeShapesOnly} onChange={(v) => setParam('wholeShapesOnly', v)}
-              tooltip="Drop every piece that touches the edge of the drawing — the cut-off cells of a pattern. Deletes real parts of a drawing that runs to its own edge" />
-            <Toggle label="Round Off Thin Bits" checked={params.roundThin} onChange={(v) => setParam('roundThin', v)}
-              tooltip="Shave off everything narrower than Min Feature: sharp tips round off and hairlines go. Also trims fine detail you may want, like antennae" />
-            {sl('thickenThin', 'Thicken Thin Parts', 'mm', 'Widen every part thinner than this to about this width: legs, tails, antennae. The rest of the shape is left alone. Thin parts close together (toes, fern leaflets) can merge. 0 = off')}
-          </Section>
 
           {/* Resolution: its own section on both tabs, last before the Mold
               group — the same name on every page (Gary, 2026-10-26). */}

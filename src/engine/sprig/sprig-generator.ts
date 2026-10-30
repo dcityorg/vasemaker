@@ -33,6 +33,11 @@ const V_CLEARANCE = 0.2;
 /** Plaster behind the tallest point below which the mold is fragile, mm. */
 export const MIN_PLASTER_BEHIND = 15;
 
+/** What a mold warning is about: the size not fitting the mold, too little
+ *  plaster behind the relief, cut-in text, or spots with no clay. */
+export type SprigNoteKind = 'fit' | 'plasterBehind' | 'cutText' | 'bare';
+export interface SprigNote { kind: SprigNoteKind; text: string }
+
 export interface SprigMoldMeshes {
   /** Relief + plate + seal ridges, one printed part. */
   plate: VaseMesh;
@@ -61,6 +66,9 @@ export interface SprigMoldMeshes {
   fits: boolean;
   /** Plain-English notes for the sidebar, worst first. */
   warnings: string[];
+  /** The same warnings, each with what it is about, so the sidebar can show
+   *  it above the control that fixes it (Gary 2026-10-29). Same order. */
+  notes: SprigNote[];
 }
 
 /** Does a sprig of printed size w × l fit a box with `margin` all round? */
@@ -208,7 +216,8 @@ export function generateSprigMold(p: SprigParameters, src: SprigSource, text: Te
   const plasterBehind = box.wallH - masterH;
   const fits = fitsBox(masterW, masterL, box.cavW, box.cavL, p.plasterMargin);
 
-  const warnings: string[] = [];
+  const notes: SprigNote[] = [];
+  const warn = (kind: SprigNoteKind, text: string) => notes.push({ kind, text });
   if (!fits) {
     const best = smallestFit(p, textSize);
     const turned = textSize ? null : smallestFit({ ...p, width: p.length, length: p.width });
@@ -216,30 +225,31 @@ export function generateSprigMold(p: SprigParameters, src: SprigSource, text: Te
     if (best) w += ` ${SPRIG_SIZES[best].label} fits it.`;
     else if (turned) w += ` Turned 90° it would fit ${SPRIG_SIZES[turned].label}.`;
     else w += ' Make it smaller, or use a Custom size.';
-    warnings.push(w);
+    warn('fit', w);
   }
   if (plasterBehind < MIN_PLASTER_BEHIND) {
-    warnings.push(`Only ${plasterBehind.toFixed(1)} mm of plaster behind the tallest point — under ${MIN_PLASTER_BEHIND} mm the mold can crack. Lower Max Height${p.moldSize === 'custom' ? ' or raise Wall Height' : ''}.`);
+    warn('plasterBehind', `Only ${plasterBehind.toFixed(1)} mm of plaster behind the tallest point — under ${MIN_PLASTER_BEHIND} mm the mold can crack. Lower Max Height${p.moldSize === 'custom' ? ' or raise Wall Height' : ''}.`);
   }
   if (textSize && p.textStyle === 'cut') {
-    if (!backingOn(p)) warnings.push('Cut In letters sink into a backing sheet — turn on Plaque or Outline under Backing, or they only show where they cross the drawing.');
-    else if (p.textDepth > p.backingThickness - CUT_FLOOR) warnings.push(`Letters cut ${Math.max(0, p.backingThickness - CUT_FLOOR).toFixed(1)} mm deep, not ${p.textDepth} — at least ${CUT_FLOOR} mm of sheet is kept under them. Thicken the backing to cut deeper.`);
+    if (!backingOn(p)) warn('cutText', 'Cut In letters sink into a backing sheet — turn on Plaque or Outline under Backing, or they only show where they cross the drawing.');
+    else if (p.textDepth > p.backingThickness - CUT_FLOOR) warn('cutText', `Letters cut ${Math.max(0, p.backingThickness - CUT_FLOOR).toFixed(1)} mm deep, not ${p.textDepth} — at least ${CUT_FLOOR} mm of sheet is kept under them. Thicken the backing to cut deeper.`);
   }
   if (relief.bareHoles > 0) {
     const n = relief.bareHoles;
     let fix = '';
-    if (!isPictureDrawing(p.svg) && !p.svgFill) fix = ' Turn on SVG → Fill Outlines to fill them (and Close Gaps for one open at the drawing\'s edge).';
+    if (!isPictureDrawing(p.svg) && !p.svgFill) fix = ' Turn on Fill Outlines, just below, to fill them (and Close Gaps for one open at the drawing\'s edge).';
     else if (p.heightMode === 'gray') fix = ' Raise Lightest to put clay there.';
     else if (p.heightMode === 'inflateGray') fix = ' Raise Lightest or lower Detail Depth to put clay there.';
-    warnings.push(`${n} spot${n === 1 ? '' : 's'} inside the drawing ${n === 1 ? 'has' : 'have'} no clay — the plate shows through (background colour).${fix}`);
+    warn('bare', `${n} spot${n === 1 ? '' : 's'} inside the drawing ${n === 1 ? 'has' : 'have'} no clay — the plate shows through (background colour).${fix}`);
   }
-  // Thin parts are not listed here: the sidebar shows them with their fixes
-  // (ThinPartsFix.tsx).
+  // Thin parts and pieces are not listed here: the sidebar's Adjust list shows
+  // them from the relief's own counts, above their controls (SprigAdjust.tsx).
+  const warnings = notes.map((n) => n.text);
 
   return {
     plate, thinFlags, clayFlags, wall, wallB, plaster, plasterVolumeMm3,
     plateStats: computeMeshStats(plate), wallStats: computeMeshStats(wall),
-    relief, box, layout, masterW, masterL, masterH, plasterBehind, fits, warnings,
+    relief, box, layout, masterW, masterL, masterH, plasterBehind, fits, warnings, notes,
   };
 }
 
