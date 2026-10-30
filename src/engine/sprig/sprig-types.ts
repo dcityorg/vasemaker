@@ -150,6 +150,9 @@ export interface SprigParameters {
    *  them: 100 = level, 0 = down to the plate (still one piece). A groove as
    *  wide as Edge Softness each side. */
   gapFill: number;
+  /** Gray (and Photo depth): parts lower than this, mm, are cut away — the
+   *  near-flat leftovers round a relief. 0 = off. */
+  trimBelow: number;
 
   // ── Mold ──
   moldSize: SprigMoldSize;
@@ -326,6 +329,7 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   thickenThin: 0,
   minThickness: 0,
   gapFill: 100,
+  trimBelow: 0,
 
   moldSize: 's60',
   plasterMargin: 8,

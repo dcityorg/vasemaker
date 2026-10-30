@@ -44,6 +44,7 @@ export const SPRIG_PARAMS = {
   thickenThin:     { min: 0, max: 5, step: 0.1 } as SliderRange,
   minThickness:    { min: 0, max: 3, step: 0.1 } as SliderRange,
   gapFill:         { min: 0, max: 100, step: 5 } as SliderRange,
+  trimBelow:       { min: 0, max: 2, step: 0.05 } as SliderRange,
 
   plasterMargin: { min: 3, max: 25, step: 1 } as SliderRange,
   shrinkPercent: { min: 0, max: 25, step: 0.5 } as SliderRange,

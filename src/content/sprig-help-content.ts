@@ -148,6 +148,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
         'Change Width or Max Height afterwards to scale it — the shape stays the same',
         'Fine detail such as veins may be only 0.1–0.2 mm high. Check it at casting size; detail that fine may not survive clay',
         'Use the STL, not a 3MF: the same mesh, read faster',
+        'Near-flat leftovers round the body (where legs or antennae were shaved off): set LIGHTEST to 0 (it lifts every low part to that % of Max Height), then raise TRIM BELOW (Adjust → Outline) to about 0.5 mm. Turn Round Off Thin off first if a slim tail starts to vanish — trimming narrows it a little',
         'Check the other app’s terms. MakerWorld’s Relief Sculpture Maker allows commercial use and asks for a credit if you share the result publicly',
       ] },
     ],

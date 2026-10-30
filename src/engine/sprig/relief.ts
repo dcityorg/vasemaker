@@ -288,6 +288,13 @@ function buildLayer(
   const fCov = new Float32Array(fx * fy);
   const fOut = new Uint8Array(fx * fy).fill(1);
   const fIn = new Uint8Array(fx * fy);   // inside the layer's area
+  // Trim Below (Gary 2026-10-29): in Gray, a part whose height would be under
+  // this is cut away — the near-flat leftovers of legs and antennae round a
+  // relief STL. It moves the outline, so the edge, Thin Parts and the piece
+  // count all follow. Coverage below it fades with the height, so the new
+  // outline is antialiased like any other.
+  const trim = gray && p.heightMode === 'gray' ? Math.max(0, p.trimBelow) : 0;
+  const trimFrac = trim > 0 ? trim / p.maxHeight : 0;
   for (let j = 0; j < fy; j++) {
     for (let i = 0; i < fx; i++) {
       const x = ix0 + i * fs, y = iy0 + j * fs;
@@ -300,11 +307,16 @@ function buildLayer(
         // A picture: the mask is the outline; Invert swaps tones, not the outline.
         const m = maskAt(x, y);
         fCov[fk] = Math.min(1, m / 0.5);
-        if (m >= 0.5) { fOut[fk] = 0; fInk[fk] = lightest + (1 - lightest) * s; }
+        if (m >= 0.5) {
+          fInk[fk] = lightest + (1 - lightest) * s;
+          if (fInk[fk] < trimFrac) fCov[fk] = Math.min(fCov[fk], fInk[fk] / trimFrac);
+          else fOut[fk] = 0;
+        }
       } else {
         fInk[fk] = s;
         fCov[fk] = s > 0 ? Math.min(1, s / threshold) : 0;
-        if (s > threshold) fOut[fk] = 0;
+        if (s > threshold && s < trimFrac) fCov[fk] = Math.min(fCov[fk], s / trimFrac);
+        else if (s > threshold) fOut[fk] = 0;
       }
     }
   }

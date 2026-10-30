@@ -202,6 +202,10 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
         </>
       )}
 
+      {(mode === 'gray' || mode === 'photoDepth') && slider('trimBelow', 'Trim Below', 'mm',
+        'Cuts away every part lower than this — the near-flat leftovers of legs and antennae round a relief. Watch thin tails. 0 = off.',
+        'Trim Below: in Gray and Photo depth, every part whose height is under this is cut away and the outline follows. With Lightest above 0 nothing is that low — set Lightest to 0 for a relief. 0 = off')}
+
       {/* ── Size ── */}
       {group('Size')}
       {noteOf('fit').map((n, i) => warn(n.text, `fit${i}`))}
