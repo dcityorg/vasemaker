@@ -123,7 +123,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
     print: ['shrinkPercent'],
     plaster: ['material'],
     placement: ['onVaseHeight', 'onVaseAngle', 'onVaseTilt', 'onVaseCopies', 'onVaseHandle'],
-    shaping: ['heightMode', 'maxHeight'],
+    shaping: ['heightMode'],
     size: ['rotation', 'flipX', 'flipY'],
   };
   const changed = (keys: (keyof SprigParameters)[]) => keys.some((k) => params[k] !== design.defaults[k]);
@@ -132,7 +132,10 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   const onKey = useCallback((e: KeyboardEvent) => {
     if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
     const t = e.target as HTMLElement | null;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    // Typing boxes keep their own undo; a slider or switch clicked last does not
+    // (it keeps the focus, so skipping every INPUT broke Cmd+Z after a slider).
+    const typing = t?.tagName === 'TEXTAREA' || (t?.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'color'].includes((t as HTMLInputElement).type));
+    if (typing) return;
     e.preventDefault();
     if (e.shiftKey) doRedo(); else doUndo();
   }, [doUndo, doRedo]);
@@ -206,7 +209,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
       const r = await loadSprigSource(url, {
         background: pic.imageBackground, closeGaps: pic.imageCloseGaps, smooth: pic.imageSmooth, tones: pic.imageTones,
       });
-      if (!r) problem = 'Everything in that picture counts as background. Try a picture with a plain background, or lower Background after loading.';
+      if (!r) problem = 'Everything in that picture counts as background. Try a picture with a plain background, or lower Background Cut after loading.';
       else {
         loadSvg(url, name, r.aspect);
         if (fromRelief) resetFields(['imageBackground', 'imageCloseGaps', 'imageSmooth', 'imageTones', 'imageLightest', 'edgeSoftness', 'minEdgeThickness']);
@@ -509,12 +512,12 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               Drawing: {params.svgName}
             </p>
 
-            {/* Shaping + Max Height, next to the drawing (Gary 2026-10-29: push a
+            {/* Shaping, next to the drawing (Gary 2026-10-29: push a
                 button, get a good result) */}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)]" title="How the heights are made from the drawing">Shaping</span>
-                <button onClick={() => resetFields(K.shaping)} className={resetBtn} title="Shaping and Max Height back to their defaults">Reset</button>
+                <button onClick={() => resetFields(K.shaping)} className={resetBtn} title="Shaping back to its default">Reset</button>
               </div>
               {[HEIGHT_MODES.slice(0, 3), HEIGHT_MODES.slice(3)].map((row, r) => (
                 <div key={r} className={`grid gap-1 mb-1 ${r === 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
@@ -531,7 +534,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                 </div>
               ))}
               {params.heightMode === 'photoDepth' && <PhotoDepthStatusLine onTurnOn={() => void askPhotoDepth(false)} />}
-              {/* Max Height and every adjustment, each with its warning (SprigAdjust.tsx) */}
+              {/* Every adjustment, each with its warning (SprigAdjust.tsx) */}
               <SprigAdjust params={params} defaults={design.defaults} relief={m?.relief ?? null} notes={m?.notes ?? []}
                 isMark={isMark} textSize={hasText(params) ? sprig.textSize : null}
                 setParam={setParam} setParams={setParams} setWidth={setWidth} setLength={setLength} />
@@ -612,7 +615,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               </div>
               {sprig.source?.mask && <PicturePreview source={sprig.source} />}
               <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
-                Background and Close Gaps are under Adjust, at the top.
+                Background Cut and Close Gaps are under Adjust → Outline.
               </p>
               {sl('imageSmooth', 'Smooth', 'px', 'Blurs speckle inside the drawing before the tones are read (JPEG pictures are full of it). 0 = none')}
               <div className="flex items-center gap-2 mb-2">
@@ -635,7 +638,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               {params.heightMode !== 'gray' && params.heightMode !== 'inflateGray' && (
                 <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
                   {params.heightMode === 'photoDepth'
-                    ? 'Shaping is Photo depth, so Smooth and Tones are not used — the heights come from the depth. Background still decides the outline.'
+                    ? 'Shaping is Photo depth, so Smooth and Tones are not used — the heights come from the depth. Background Cut still decides the outline.'
                     : `Shaping is ${modeLabel(params.heightMode)}, so the tones are not used — only the outline. Pick Gray or Inflate + Gray to use them.`}
                 </p>
               )}

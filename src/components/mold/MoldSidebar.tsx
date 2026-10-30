@@ -64,7 +64,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   const onKey = useCallback((e: KeyboardEvent) => {
     if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
     const t = e.target as HTMLElement | null;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    // Typing boxes keep their own undo; a slider or switch clicked last does not
+    // (it keeps the focus, so skipping every INPUT broke Cmd+Z after a slider).
+    const typing = t?.tagName === 'TEXTAREA' || (t?.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'color'].includes((t as HTMLInputElement).type));
+    if (typing) return;
     e.preventDefault();
     if (e.shiftKey) doRedo(); else doUndo();
   }, [doUndo, doRedo]);

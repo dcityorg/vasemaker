@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * Adjust: every control that changes the cast, in one run under Shaping and
- * Max Height, in the order you work — outline, size, shape, edges, thin parts,
- * pieces (Gary, 2026-10-29: "I have to bounce around too much"; the
+ * Adjust: every control that changes the cast, in one run under Shaping, in
+ * the order you work — size, heights, outline, edges, thin parts, pieces
+ * (order Gary's, 2026-10-30; Gary, 2026-10-29: "I have to bounce around too much"; the
  * adjustments are foreign to most people, so keep them together and explain
  * each). Each warning sits right above the controls that fix it, a one-line
  * hint sits under each control (Hide hints turns them off), and an amber dot
@@ -166,9 +166,6 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
 
   return (
     <div>
-      {noteOf('plasterBehind').map((n, i) => warn(n.text, `pb${i}`))}
-      {slider('maxHeight', 'Max Height', 'mm', 'Height of the tallest point of the finished sprig.')}
-
       <div className="flex items-center justify-between mt-2">
         <span className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)]" title="Everything that changes the cast, in the order you would work through it">Adjust</span>
         <button onClick={() => setHints(!hints)} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1"
@@ -182,30 +179,6 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
         </p>
       )}
 
-      {/* ── Outline ── */}
-      {picture ? (
-        <>
-          {group('Outline')}
-          {slider('imageBackground', 'Background', '', 'How far a colour can be from the background and still be cut away. Raise it for a halo; lower it if pale parts vanish.',
-            'How different a colour can be from the background and still be cut away. Raise it if a halo or speckle round the drawing stays; lower it if pale parts of the drawing disappear. Areas the background cannot reach (inside a closed outline) always stay')}
-          {slider('imageCloseGaps', 'Close Gaps', 'px', 'Fills slits up to about twice this many pixels wide — breaks in an outline, gaps between segments — so they count as shape.',
-            'Close Gaps: slits up to about twice this many picture pixels wide are filled instead of being cut away with the background. Whole pixels only — in between does nothing', false)}
-          {p.imageCloseGaps >= 1 && gapFill}
-        </>
-      ) : (
-        <>
-          {group('Outline')}
-          {!grayish && bare.map((n, i) => warn(n.text, `bare${i}`))}
-          {toggle('svgFill', 'Fill Outlines', 'For line drawings: the inside of every closed outline becomes shape, with the lines on top.')}
-          {p.svgFill && slider('svgCloseGaps', 'Close Gaps', 'px', 'Closes small breaks in an outline, so its inside fills instead of leaking away.', undefined, false)}
-          {p.svgFill && p.svgCloseGaps >= 1 && gapFill}
-        </>
-      )}
-
-      {(mode === 'gray' || mode === 'photoDepth') && slider('trimBelow', 'Trim Below', 'mm',
-        'Cuts away every part lower than this — the near-flat leftovers of legs and antennae round a relief. Watch thin tails. 0 = off.',
-        'Trim Below: in Gray and Photo depth, every part whose height is under this is cut away and the outline follows. With Lightest above 0 nothing is that low — set Lightest to 0 for a relief. 0 = off')}
-
       {/* ── Size ── */}
       {group('Size')}
       {noteOf('fit').map((n, i) => warn(n.text, `fit${i}`))}
@@ -216,9 +189,11 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
       {hint('The finished size, after the clay shrinks. With Lock on, Length follows Width.')}
       {toggle('lockAspect', '🔗 Lock', 'Width and Length move together, so the drawing keeps its proportions. Off: stretch it.')}
 
-      {/* ── Shape ── */}
-      {group('Shape')}
+      {/* ── Heights ── */}
+      {group('Heights')}
       {grayish && bare.map((n, i) => warn(n.text, `bare${i}`))}
+      {noteOf('plasterBehind').map((n, i) => warn(n.text, `pb${i}`))}
+      {slider('maxHeight', 'Max Height', 'mm', 'Height of the tallest point of the finished sprig.')}
       {inflate && (
         <>
           <div className="flex items-center gap-2 mb-2">
@@ -235,10 +210,33 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
         </>
       )}
       {mode === 'inflateGray' && slider('detailDepth', 'Detail Depth', 'mm', 'How deep lighter-grey marks inside the shape (eyes, veins) cut in. Pure white is background, not detail.')}
-      {grayish && (picture || p.svgFill || p.svgTones >= 2) && slider('imageLightest', 'Lightest', '%', mode === 'gray'
+      {(mode === 'gray' || mode === 'photoDepth') && slider('trimBelow', 'Trim Below', 'mm',
+        'Cuts away every part lower than this — the near-flat leftovers of legs and antennae round a relief. Watch thin tails. 0 = off.',
+        'Trim Below: in Gray and Photo depth, every part whose height is under this is cut away and the outline follows. With Lightest Tone above 0 nothing is that low — set Lightest Tone to 0 for a relief. 0 = off')}
+      {grayish && (picture || p.svgFill || p.svgTones >= 2) && slider('imageLightest', 'Lightest Tone', '%', mode === 'gray'
         ? 'Height of the lightest tone, as a % of Max Height. Raise it to put clay where the plate shows through.'
         : 'How much of Detail Depth the lightest tone is spared: 100% = no cut, 0% = the full depth.')}
       {toggle('invert', 'Invert', picture ? 'Swaps which tones stand higher. The outline stays the same.' : 'Swaps black and white inside the drawing’s area: the background becomes the raised part.')}
+
+      {/* ── Outline ── */}
+      {picture ? (
+        <>
+          {group('Outline')}
+          {slider('imageBackground', 'Background Cut', '', 'How close a colour must be to the background to be cut away. Raise it if a halo or speckles stay round the drawing; lower it if pale parts of the drawing vanish.',
+            'Background Cut: how close a colour must be to the background to be cut away. Raise it if a halo or speckles stay round the drawing; lower it if pale parts of the drawing vanish. Areas the background cannot reach (inside a closed outline) always stay')}
+          {slider('imageCloseGaps', 'Close Gaps', 'px', 'Fills slits up to about twice this many pixels wide — breaks in an outline, gaps between segments — so they count as shape.',
+            'Close Gaps: slits up to about twice this many picture pixels wide are filled instead of being cut away with the background. Whole pixels only — in between does nothing', false)}
+          {p.imageCloseGaps >= 1 && gapFill}
+        </>
+      ) : (
+        <>
+          {group('Outline')}
+          {!grayish && bare.map((n, i) => warn(n.text, `bare${i}`))}
+          {toggle('svgFill', 'Fill Outlines', 'For line drawings: the inside of every closed outline becomes shape, with the lines on top.')}
+          {p.svgFill && slider('svgCloseGaps', 'Close Gaps', 'px', 'Closes small breaks in an outline, so its inside fills instead of leaking away.', undefined, false)}
+          {p.svgFill && p.svgCloseGaps >= 1 && gapFill}
+        </>
+      )}
 
       {/* ── Edges ── */}
       {group('Edges')}
@@ -268,12 +266,12 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
       )}
       {relief && thin === 0 && hints && <p className="text-[10px] leading-snug text-[var(--text-secondary)] mb-2 pl-0.5">Nothing thinner than Min Feature.</p>}
       {slider('minFeatureWidth', 'Min Feature', 'mm', 'Parts narrower than this show red: they may tear or crack. Round Off works to this width; Widen and Thicken have their own.')}
+      {slider('minThickness', 'Min Thickness', 'mm', 'Lifts every part to at least this height, so narrow places keep enough clay. The edges still slope down to the plate. 0 = off.',
+        'Min Thickness: lifts every part to at least this height, so narrow places keep enough clay. The edges still slope down to the plate. 0 = off')}
       {slider('widen', 'Widen', 'mm', 'Stretches every thinner part — a tail, a leg — across to about this width, its rounded top and all. Tips stay pointed. 0 = off.',
         'Widen: every part thinner than this is stretched across to about this width, its whole cross-section with it, so a domed tail stays domed. Parts already wider are left alone. 0 = off')}
       {slider('thickenThin', 'Thicken', 'mm', 'Widens every thinner part — legs, tails, antennae — to about this width. 0 = off. Close parts (toes) can merge.',
         'Thicken Thin Parts: widen every part thinner than this to about this width. The rest of the shape is left alone. 0 = off')}
-      {slider('minThickness', 'Min Thickness', 'mm', 'Every part at least this tall, so narrow necks keep clay; the edge still slopes. Gaps between tail segments: raise Close Gaps instead. 0 = off.',
-        'Min Thickness: a floor under the whole shape, so narrow places — thin legs, necks — are not left nearly flat. Its own taper at the outline rises over half its height. If a tail dips at gaps between its segments, raise Close Gaps instead. 0 = off')}
       {toggle('roundThin', 'Round Off Thin', 'Shaves off everything narrower than Min Feature: sharp tips round off, hairlines go.')}
 
       {/* ── Pieces (a mark is impressed, so its pieces do not matter) ── */}

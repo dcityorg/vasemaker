@@ -238,8 +238,8 @@ export function generateSprigMold(p: SprigParameters, src: SprigSource, text: Te
     const n = relief.bareHoles;
     let fix = '';
     if (!isPictureDrawing(p.svg) && !p.svgFill) fix = ' Turn on Fill Outlines, just below, to fill them (and Close Gaps for one open at the drawing\'s edge).';
-    else if (p.heightMode === 'gray') fix = ' Raise Lightest to put clay there.';
-    else if (p.heightMode === 'inflateGray') fix = ' Raise Lightest or lower Detail Depth to put clay there.';
+    else if (p.heightMode === 'gray') fix = ' Raise Lightest Tone to put clay there.';
+    else if (p.heightMode === 'inflateGray') fix = ' Raise Lightest Tone or lower Detail Depth to put clay there.';
     warn('bare', `${n} spot${n === 1 ? '' : 's'} inside the drawing ${n === 1 ? 'has' : 'have'} no clay — the plate shows through (background colour).${fix}`);
   }
   // Thin parts and pieces are not listed here: the sidebar's Adjust list shows
