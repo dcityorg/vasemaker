@@ -374,42 +374,49 @@ function buildLayer(
   }
 
   const H = p.maxHeight, minE = Math.min(p.minEdgeThickness, H);
-  const heights = new Float32Array(N);
+  // The shape's own height at each inside cell, before its edge is shaped.
+  const hs = new Float32Array(N);
   for (let i = 0; i < N; i++) {
     if (!mask[i]) continue;
-    let hs = H * f[i];
+    let v = H * f[i];
     // Lighter marks inside the shape cut in; black is untouched.
-    if (p.heightMode === 'inflateGray') hs -= p.detailDepth * (1 - ink[i]);
-    const t = p.edgeSoftness > 0 ? smoothstep(Math.min(1, dist[i] / p.edgeSoftness)) : 1;
-    heights[i] = Math.min(H, Math.max(minE, minE + (hs - minE) * t));
+    if (p.heightMode === 'inflateGray') v -= p.detailDepth * (1 - ink[i]);
+    hs[i] = Math.min(H, Math.max(minE, v));
   }
 
-  // Antialias the outline. The mask is all-or-nothing per cell, so the edge
-  // wall (Min Edge, or the whole height when Flat) would follow the grid in
-  // stairs. Instead each cell within half a cell of the outline takes the
-  // fraction of it that lies inside — from the sub-cell distance, on both
-  // sides: inside cells near the outline drop a little, outside ones rise to
-  // that fraction of their tallest inside neighbour. The wall becomes a
-  // one-cell ramp centred on the true outline. (Until 2026-10-24 this read the
-  // ink at the outside cell's centre, which on a crisp SVG is almost always
-  // all or nothing — so it barely antialiased; Gary saw the stairs.)
-  const fringe = new Float32Array(N);
+  // The edge, antialiased. Every cell within reach of the outline takes the
+  // edge profile — nothing outside, Edge Lip at the outline, rising over Edge
+  // Softness to the shape's height — AVERAGED OVER THE CELL, from the cell's own
+  // signed distance to the true outline (sub-cell, above). So a cell straddling
+  // the outline gets the share of it that lies inside, and the result depends
+  // on the distance alone, not on which grid cells happen to be in or out.
+  // (Until 2026-10-29 inside cells took the profile at their centre times
+  // their coverage, and outside cells a share of their TALLEST inside
+  // neighbour — which follows the grid's stairs: Gary saw teeth along a wing.
+  // A crisp disc's lowest contour wandered 40–63 µm; now 19–24 µm.)
+  const es = p.edgeSoftness;
+  /** ∫ smoothstep(u) du from 0 to u (1/2 at u = 1, then rising 1 per unit). */
+  const rampArea = (u: number) => (u <= 0 ? 0 : u <= 1 ? u * u * u - (u * u * u * u) / 2 : u - 0.5);
+  /** The edge profile up to height `h`, averaged over a cell centred `sd` mm
+   *  inside the outline (negative = outside). */
+  const edgeAt = (sd: number, h: number) => {
+    const a = Math.max(0, sd - step / 2), b = sd + step / 2;
+    if (b <= 0) return 0;
+    const ramp = es > 0 ? es * (rampArea(b / es) - rampArea(a / es)) : b - a;
+    return Math.min(h, (minE * (b - a) + (h - minE) * ramp) / step);
+  };
+  const heights = new Float32Array(N);
   for (let j = 1; j < ny - 1; j++) {
     for (let i = 1; i < nx - 1; i++) {
       const k = j * nx + i;
-      if (mask[k]) continue;
-      const cover = 0.5 - distOut(k) / step;
-      if (cover <= 0) continue;
-      const nb = Math.max(
-        mask[k - 1] ? heights[k - 1] : 0, mask[k + 1] ? heights[k + 1] : 0,
-        mask[k - nx] ? heights[k - nx] : 0, mask[k + nx] ? heights[k + nx] : 0,
-      );
-      if (nb > 0) fringe[k] = nb * cover;
+      if (mask[k]) { heights[k] = edgeAt(dist[k], hs[k]); continue; }
+      const sd = -distOut(k);
+      if (sd <= -step / 2) continue;
+      // Outside, the shape's height is its inside neighbours'.
+      let sum = 0, cnt = 0;
+      for (const q of [k - 1, k + 1, k - nx, k + nx]) if (mask[q]) { sum += hs[q]; cnt++; }
+      if (cnt) heights[k] = edgeAt(sd, sum / cnt);
     }
-  }
-  for (let k = 0; k < N; k++) {
-    if (mask[k]) heights[k] *= Math.min(1, 0.5 + dist[k] / step);
-    else if (fringe[k] > 0) heights[k] = fringe[k];
   }
   return { heights, mask, fOut };
 }
