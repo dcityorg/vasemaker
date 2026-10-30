@@ -250,6 +250,8 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
       {slider('minFeatureWidth', 'Min Feature', 'mm', 'Parts narrower than this show red: they may tear or crack. Thicken and Round Off work to this width.')}
       {slider('thickenThin', 'Thicken', 'mm', 'Widens every thinner part — legs, tails, antennae — to about this width. 0 = off. Close parts (toes) can merge.',
         'Thicken Thin Parts: widen every part thinner than this to about this width. The rest of the shape is left alone. 0 = off')}
+      {slider('minThickness', 'Min Thickness', 'mm', 'Every part at least this tall, so narrow necks keep clay; the edge still slopes. Gaps between tail segments: raise Close Gaps instead. 0 = off.',
+        'Min Thickness: a floor under the whole shape, so narrow places — thin legs, necks — are not left nearly flat. Its own taper at the outline rises over half its height. If a tail dips at gaps between its segments, raise Close Gaps instead. 0 = off')}
       {toggle('roundThin', 'Round Off Thin', 'Shaves off everything narrower than Min Feature: sharp tips round off, hairlines go.')}
 
       {/* ── Pieces (a mark is impressed, so its pieces do not matter) ── */}

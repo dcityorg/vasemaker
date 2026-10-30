@@ -165,8 +165,10 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
       { type: 'keyvalue', items: [
         { key: 'Make it bigger', value: 'The link in the warning scales the whole sprig up so legs and stalks reach Min Feature, and moves it to the smallest standard mold it fits. The shape stays exactly the same. A pointed tip reads thin at any size, so some red may stay at the points: Thicken or Round Off rounds them. Making it bigger and then thickening usually looks best. It is offered once per drawing; after that, use Width.' },
         { key: 'Thicken', value: 'Every part thinner than this is widened to about this width — legs, tails, stalks — and the rest of the shape is left alone. Setting it to Min Feature clears most red. Pointed tips end in a short rounded stub. Thin parts close together, like a gecko’s toes or fern leaflets, can merge into one.' },
-        { key: 'Round Off Thin', value: 'Shaves off everything narrower than Min Feature: antennae, legs and sharp points go. Raise Min Feature to shave more.' },
+        { key: 'Round Off Thin', value: 'Shaves off everything narrower than Min Feature: antennae, legs and sharp points go. Raise Min Feature to shave more. Careful with a segmented tail: it shaves the narrow joints too and the tail falls into pieces — use Thicken there.' },
       ] },
+      { type: 'paragraph', text: 'MIN THICKNESS (also under Thin parts) is about HEIGHT, not width: every part stays at least this tall. Narrow places come out low — Inflate and Photo depth rise with width, and the edge slope reaches in from both sides — so the joints of a dragonfly’s tail can sit almost on the plate. Min Thickness lifts them, while the edge still tapers into the plate. Its taper rises over half its height (about 63°), so a joint as narrow as twice Min Thickness can still reach it. 0 = off.' },
+      { type: 'tip', text: 'A tail that dips to the plate between segments is often a GAP in the picture — white slits between the segments that reach the background. Thicken only bridges them with a sliver. Raise CLOSE GAPS (Adjust → Outline) by 2–4 px to fill them; that joins the tail for real.' },
     ],
   },
   {

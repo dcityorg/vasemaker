@@ -142,6 +142,10 @@ export interface SprigParameters {
   /** Widen every part narrower than this to about this width, mm, finished
    *  size (legs, tails, antennae). 0 = off. */
   thickenThin: number;
+  /** Every part at least this tall, mm, finished — so narrow joints (a
+   *  dragonfly's tail segments) keep clay. The edge still tapers over Edge
+   *  Softness. 0 = off. */
+  minThickness: number;
 
   // ── Mold ──
   moldSize: SprigMoldSize;
@@ -316,6 +320,7 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   wholeShapesOnly: false,
   roundThin: false,
   thickenThin: 0,
+  minThickness: 0,
 
   moldSize: 's60',
   plasterMargin: 8,

@@ -357,7 +357,8 @@ function buildLayer(
   // fine grid leaves in it (16 µm rms, 56 worst on a crisp disc) averages out.
   // That error, times the slope, was the faint stripes across Edge Softness
   // (Gary 2026-10-29): 32 → 17 µm rms on a flat disc's slope, worst 207 → 92.
-  // At a part only a few cells wide the mean lowers its middle a little.
+  // At a part only a few cells wide the mean would lower its middle, so the
+  // change is capped at one fine cell.
   const sd = new Float32Array(N);
   for (let k = 0; k < N; k++) sd[k] = mask[k] ? dist[k] : -distOut(k);
   {
@@ -375,7 +376,9 @@ function buildLayer(
       }
       cur = next;
     }
-    sd.set(cur);
+    // Never more than one fine cell either way: enough to remove the grid's
+    // error, too little to pull down the middle of a narrow part.
+    for (let k = 0; k < N; k++) sd[k] += Math.max(-fs, Math.min(fs, cur[k] - sd[k]));
     for (let k = 0; k < N; k++) if (mask[k]) dist[k] = Math.max((0.5 / FINE) * fs, sd[k]);
   }
 
@@ -401,7 +404,7 @@ function buildLayer(
     }
   }
 
-  const H = p.maxHeight, minE = Math.min(p.minEdgeThickness, H);
+  const H = p.maxHeight, minE = Math.min(p.minEdgeThickness, H), minT = Math.max(0, p.minThickness);
   // The shape's own height at each inside cell, before its edge is shaped.
   const hs = new Float32Array(N);
   for (let i = 0; i < N; i++) {
@@ -433,16 +436,28 @@ function buildLayer(
     const ramp = es > 0 ? es * (rampArea(b / es) - rampArea(a / es)) : b - a;
     return Math.min(h, (minE * (b - a) + (h - minE) * ramp) / step);
   };
+  // Min Thickness (Gary 2026-10-29): a floor over the finished slope, with its
+  // own taper at the outline — rising over half its height (about 63°), so a
+  // joint as narrow as twice Min Thickness still reaches it (a 45° taper left a
+  // 1.2 mm joint at 0.6 mm). ∫ of the taper, averaged over the cell. A narrow
+  // joint is low because the edge slope reaches it from both sides; the floor
+  // lifts it there, and the edge still slopes into the plate.
+  const T = Math.min(minT, H), run = T / 2;
+  const floorArea = (x: number) => (x <= 0 ? 0 : x <= run ? (T * x * x) / (2 * run) : (T * run) / 2 + T * (x - run));
+  const floorAt = (sd: number) => {
+    if (T <= 0 || sd + step / 2 <= 0) return 0;
+    return (floorArea(sd + step / 2) - floorArea(Math.max(0, sd - step / 2))) / step;
+  };
   const heights = new Float32Array(N);
   for (let j = 1; j < ny - 1; j++) {
     for (let i = 1; i < nx - 1; i++) {
       const k = j * nx + i;
-      if (mask[k]) { heights[k] = edgeAt(dist[k], hs[k]); continue; }
+      if (mask[k]) { heights[k] = Math.max(edgeAt(dist[k], hs[k]), floorAt(dist[k])); continue; }
       if (sd[k] <= -step / 2) continue;
       // Outside, the shape's height is its inside neighbours'.
       let sum = 0, cnt = 0;
       for (const q of [k - 1, k + 1, k - nx, k + nx]) if (mask[q]) { sum += hs[q]; cnt++; }
-      if (cnt) heights[k] = edgeAt(sd[k], sum / cnt);
+      if (cnt) heights[k] = Math.max(edgeAt(sd[k], sum / cnt), floorAt(sd[k]));
     }
   }
   return { heights, mask, fOut };
