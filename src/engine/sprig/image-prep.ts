@@ -18,6 +18,7 @@
  */
 
 import { distanceTransform, type SprigSource } from './relief';
+import { depthRelief, type DepthMap } from './photo-depth';
 
 export interface RgbaImage {
   /** RGBA bytes, row-major, row 0 at the top. */
@@ -39,6 +40,10 @@ export interface ImagePrepOptions {
   /** false = every non-background pixel is shape, reachable from the edge or
    *  not (an SVG's empty outline stays empty). Default true. */
   fill?: boolean;
+  /** Photo depth: the depth model's output for this picture. When given, the
+   *  tone channel IS the photo-depth height (photo-depth.ts) and `tones` and
+   *  `smooth` are not used; the outline is found as usual. */
+  depth?: DepthMap;
 }
 
 /** Full background slider = this RGB distance (black to white is 441). */
@@ -128,10 +133,13 @@ export function prepareImage(img: RgbaImage, o: ImagePrepOptions): { source: Spr
     inside[c] = shape[k];
     lum[c] = 0.299 * data[k * 4] + 0.587 * data[k * 4 + 1] + 0.114 * data[k * 4 + 2];
   }
-  if (o.smooth > 0) maskedBoxBlur(lum, inside, cw, ch, Math.round(o.smooth));
-
-  // ── Tone 0..1, 1 = darkest ──
-  const tone = toneMap(lum, inside, o.tones);
+  // ── Tone 0..1, 1 = darkest (or, with Photo depth, 1 = tallest) ──
+  let tone: Float32Array;
+  if (o.depth) tone = depthRelief(o.depth, cw, ch, inside, edgeDistance(inside, cw, ch), { x0, y0, fullW: w, fullH: h });
+  else {
+    if (o.smooth > 0) maskedBoxBlur(lum, inside, cw, ch, Math.round(o.smooth));
+    tone = toneMap(lum, inside, o.tones);
+  }
 
   // Background pixels take the nearest shape pixel's tone, so sampling between
   // pixels at the outline never mixes in a light background.
@@ -143,7 +151,20 @@ export function prepareImage(img: RgbaImage, o: ImagePrepOptions): { source: Spr
     pixels[c] = Math.round(255 * (1 - t));
     mask[c] = inside[c] ? 0 : 255;
   }
-  return { source: { pixels, width: cw, height: ch, mask }, aspect: cw / ch };
+  return { source: { pixels, width: cw, height: ch, mask, ...(o.depth ? { photoDepth: true } : {}) }, aspect: cw / ch };
+}
+
+/** Each shape pixel's distance to the nearest background pixel, in pixels.
+ *  Beyond the crop counts as background (the crop is the shape's bounding box,
+ *  so a part touching it touches background). */
+function edgeDistance(inside: Uint8Array, w: number, h: number): Float32Array {
+  const pw = w + 2, ph = h + 2;
+  const back = new Uint8Array(pw * ph).fill(1);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) back[(y + 1) * pw + x + 1] = inside[y * w + x] ? 0 : 1;
+  const d = distanceTransform(back, pw, ph);
+  const out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) out[y * w + x] = d[(y + 1) * pw + x + 1];
+  return out;
 }
 
 /** Drop 4-connected shape components smaller than `minPx`. */

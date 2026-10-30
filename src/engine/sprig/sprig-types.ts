@@ -10,8 +10,10 @@
 import type { PlasterType } from '../mold/mold-types';
 import { DEFAULT_SPRIG_SVG, DEFAULT_SPRIG_SVG_NAME, DEFAULT_SPRIG_ASPECT } from '@/config/sprig-samples';
 
-/** Where the height comes from. */
-export type SprigHeightMode = 'flat' | 'gray' | 'inflate' | 'inflateGray';
+/** Where the height comes from. `photoDepth` = a depth model run on the
+ *  picture in the browser (lib/photo-depth.ts); until its depth is ready, or
+ *  where it cannot run, the relief is built as Inflate. */
+export type SprigHeightMode = 'flat' | 'gray' | 'inflate' | 'inflateGray' | 'photoDepth';
 /** Cross-section of an inflated shape, edge to middle. */
 export type SprigProfile = 'round' | 'pillow' | 'angular';
 export type SprigRotation = 0 | 90 | 180 | 270;
@@ -330,7 +332,7 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
 };
 
 const ENUMS: Partial<Record<keyof SprigParameters, readonly unknown[]>> = {
-  heightMode: ['flat', 'gray', 'inflate', 'inflateGray'],
+  heightMode: ['flat', 'gray', 'inflate', 'inflateGray', 'photoDepth'],
   profile: ['round', 'pillow', 'angular'],
   rotation: [0, 90, 180, 270],
   moldSize: ['s20', 's40', 's60', 's80', 's100', 's120', 's140', 'long', 'custom'],

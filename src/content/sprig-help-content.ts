@@ -14,7 +14,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
       { type: 'list', items: [
         'Pick a sample drawing, Load / Paste your own SVG (black is the shape, white is background), or Load Image for a PNG or JPG (see Pictures), or Load Relief STL for a relief made in another app (see Reliefs from other apps)',
         'Set Width and Length — the FINISHED sprig, after the clay shrinks',
-        'Choose how it gets its height (Height → Shaping) and set Max Height',
+        'Choose how it gets its height with the SHAPING buttons under the drawing, and set Max Height just below them',
         'Check for red: parts narrower than Min Feature are likely to tear or crack',
         'Pick a Mold Size — the smallest one the sprig fits is chosen for you',
         'Export the plate. Export the wall too, the first time you use that size — then print it twice',
@@ -43,12 +43,13 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     id: 'sprig-height',
     title: 'Height — from a Flat Drawing',
     blocks: [
-      { type: 'paragraph', text: 'An SVG is flat. Height → Shaping decides how it gets a third dimension:' },
+      { type: 'paragraph', text: 'An SVG is flat. The SHAPING buttons, right under the drawing, decide how it gets a third dimension (Max Height is just below them):' },
       { type: 'keyvalue', items: [
         { key: 'Flat', value: 'One height for the whole shape. Only the edge is shaped (see Edges).' },
         { key: 'Gray', value: 'Black is Max Height, white is the plate, and every gray is in between. For a drawing that already has shading.' },
         { key: 'Inflate', value: 'Blows the outline up like a balloon: each point rises with its distance from the nearest edge, up to Max Height. Thick parts reach full height and thin ones cannot, so a lizard’s body domes up while its legs and tail stay lower — nobody has to paint that by hand.' },
-        { key: 'Inflate + Gray detail', value: 'Inflate, and lighter-gray marks inside the shape (eyes, scales, wing veins) cut in by up to Detail Depth. Pure white is background, so draw the details in GRAY, not white. The Leaf sample shows it.' },
+        { key: 'Inflate + Gray', value: 'Inflate, and lighter-gray marks inside the shape (eyes, scales, wing veins) cut in by up to Detail Depth. Pure white is background, so draw the details in GRAY, not white. The Leaf sample shows it.' },
+        { key: 'Photo depth', value: 'For PHOTOS of real things — a flower, a shell, a turtle, a gecko. A depth model works out how near each part of the photo looks, and the shape rises with it: each petal its own layer, a ridge down a shell. The outline is still rounded into the plate, as in Inflate. See Photo depth below.' },
       ] },
       { type: 'paragraph', text: 'For the inflate modes, ROUNDNESS is how far in from the edge it takes to reach Max Height. Small values give a flat-topped pillow; large ones a full dome. A part narrower than twice the Roundness never reaches full height. PROFILE sets the shape of the rise: Round (a dome), Pillow (steep sides, flat top) or Angular (a straight slope to a ridge).' },
       { type: 'tip', text: 'Inflate knows thick from thin, not anatomy — it will not raise a head above a body. For that, shade the drawing and use Gray.' },
@@ -99,7 +100,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
       { type: 'list', items: [
         'Clean drawings, clip art and silhouettes on a plain background: bold shapes and a few flat tones',
         'Line drawings with CLOSED outlines: the inside fills solid and the lines stand on top. Use Close Gaps if the outline has small breaks',
-        'Not photos: their shadows and highlights come from the lighting, not from height, and turn into bumps in the wrong places',
+        'Photos: use Photo depth (below). In the tone-based Shapings a photo’s shadows and highlights come from the lighting, not from height, and turn into bumps in the wrong places. The background still has to be plain, or cut out (a transparent PNG)',
         'Not fine pencil or etched drawings: anything finer than about 1 mm on the finished sprig cannot be cast or come out of the plaster',
         'Not stock-photo sites: their pictures carry watermarks (which would be raised too) and are not free to use',
       ] },
@@ -110,9 +111,28 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
         { key: 'Tones', value: 'STEPS groups the picture’s greys into 2–5 flat levels, darkest highest: clean terraces that read well and release cleanly. SMOOTH gives every grey its own height, speckle and shading included, stretched to fill Max Height. AS MADE (HEIGHT MAP) takes each grey exactly as its height, unstretched — for a height map you painted, and what Load Relief STL uses.' },
         { key: 'Lightest', value: 'In Gray: the height of the lightest level as a % of Max Height. In Inflate + Gray detail: how much of Detail Depth the lightest level is spared.' },
       ] },
-      { type: 'tip', text: 'Loading a picture switches Height to Inflate + Gray detail (unless you were already on Gray): the outline gives a rounded body and flat wings, and the tones add detail on top. Tone cannot tell a body from a wing tip of the same grey — both stand the same height.' },
+      { type: 'tip', text: 'Loading a picture switches Shaping to Inflate + Gray (unless you were already on Gray): the outline gives a rounded body and flat wings, and the tones add detail on top. Tone cannot tell a body from a wing tip of the same grey — both stand the same height. A PHOTO is offered Photo depth instead.' },
       { type: 'tip', text: 'On a picture, INVERT swaps which tones stand higher; the outline stays the same.' },
       { type: 'tip', text: 'Thin lines such as antennae break into crumbs at casting size and show as tiny pieces in Checks. Remove Tiny Pieces or Round Off Thin Bits clears them.' },
+    ],
+  },
+  {
+    id: 'sprig-photo-depth',
+    title: 'Photo depth',
+    blocks: [
+      { type: 'paragraph', text: 'PHOTO DEPTH shapes a photo from how near each part of it looks. A depth model (Depth Anything V2 Small) estimates it, and SprigMaker blends that with a dome from the outline, so every part still rounds into the plate. It shines on photos of real, rounded things: layered petals, a turtle’s shell, a head and body. It adds little to flat drawings, clip art or text — there is no shading in them to read — so use Inflate for those.' },
+      { type: 'list', items: [
+        'Loading a photo asks once whether to use it. Say yes and, from then on, photos get Photo depth by themselves; press another Shaping button to go back',
+        'The first time, it downloads about 55 MB (the model and the program that runs it), once — the browser keeps it. After that it starts straight away',
+        'It runs on your computer: your picture is never uploaded',
+        'Shaping takes a second or a few, depending on the computer. Until it is ready the shape is shown inflated',
+        'Not an AI chatbot: a small model that only estimates depth from a picture',
+        'The outline still comes from the Picture section’s Background, so a photo needs a plain or cut-out background. Smooth and Tones are not used',
+        'Thin parts, pieces and the mold size are the same as for any Shaping — they come from the outline',
+        'It also works on an SVG with shading or gradients, if you press it. On flat colours it looks like Inflate',
+        'A design saved with Photo depth opens with it; in a browser that has not said yes yet, it shows inflated until you turn Photo depth on',
+      ] },
+      { type: 'tip', text: 'Very old computers or phones may not have the memory to run it. Then a note says so and the shape stays inflated.' },
     ],
   },
   {

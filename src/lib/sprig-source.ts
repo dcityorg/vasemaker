@@ -12,6 +12,8 @@ import { cropToContent, type SprigSource } from '@/engine/sprig/relief';
 import { prepareImage, type ImagePrepOptions, type RgbaImage } from '@/engine/sprig/image-prep';
 import { isPictureDrawing } from '@/engine/sprig/sprig-types';
 import { parseStl, reliefMapSize, reliefMapToRgba, stlToReliefMap } from '@/engine/sprig/stl-relief';
+import { estimateDepth } from '@/lib/photo-depth';
+import { looksLikePhoto } from '@/engine/sprig/photo-depth';
 
 export interface LoadedSprigSource {
   source: SprigSource;
@@ -72,19 +74,28 @@ function decodePicture(url: string): Promise<RgbaImage> {
  */
 export function loadSprigSource(
   svg: string, picture?: ImagePrepOptions, svgPrep?: { fill: boolean; closeGaps: number; tones: number },
+  photoDepth = false,
 ): Promise<LoadedSprigSource | null> {
+  /** With Photo depth: the model's depth for this RGBA, handed to the prep. */
+  const withDepth = (key: string, img: RgbaImage, o: ImagePrepOptions) => (photoDepth
+    ? estimateDepth(key, img).then((depth) => prepareImage(img, { ...o, depth }))
+    : Promise.resolve(prepareImage(img, o)));
+  const pd = photoDepth ? '#depth' : '';
   if (isPictureDrawing(svg)) {
     const o = picture ?? { background: 20, closeGaps: 0, smooth: 1, tones: 3 };
-    const key = `${svg}#${o.background}|${o.closeGaps}|${o.smooth}|${o.tones}`;
-    return remember(cache, key, () => decodePicture(svg).then((img) => prepareImage(img, o)));
+    // Photo depth ignores Smooth and Tones, so they do not re-run it.
+    const key = photoDepth ? `${svg}#${o.background}|${o.closeGaps}${pd}` : `${svg}#${o.background}|${o.closeGaps}|${o.smooth}|${o.tones}`;
+    return remember(cache, key, () => decodePicture(svg).then((img) => withDepth(svg, img, o)));
   }
-  if (svgPrep && (svgPrep.fill || svgPrep.tones >= 2)) {
+  if (photoDepth || (svgPrep && (svgPrep.fill || svgPrep.tones >= 2))) {
+    // Photo depth on an SVG needs its colours, so it always takes this path.
+    const fill = svgPrep?.fill ?? false;
     const o: ImagePrepOptions = {
-      background: SVG_BACKGROUND, closeGaps: svgPrep.fill ? svgPrep.closeGaps : 0, smooth: 0,
-      tones: svgPrep.tones >= 2 ? svgPrep.tones : -1, fill: svgPrep.fill,
+      background: SVG_BACKGROUND, closeGaps: fill ? svgPrep!.closeGaps : 0, smooth: 0,
+      tones: svgPrep && svgPrep.tones >= 2 ? svgPrep.tones : -1, fill,
     };
-    const key = `${svg}#svg|${o.fill ? 1 : 0}|${o.closeGaps}|${o.tones}`;
-    return remember(cache, key, () => rasterizeSvgRgbaForSprig(svg).then((img) => prepareImage(img, o)));
+    const key = `${svg}#svg|${o.fill ? 1 : 0}|${o.closeGaps}|${photoDepth ? 'depth' : o.tones}`;
+    return remember(cache, key, () => rasterizeSvgRgbaForSprig(svg).then((img) => withDepth(`${svg}#svg`, img, o)));
   }
   return remember(cache, svg, () => rasterizeSvgForSprig(svg).then((px) => cropToContent(px)));
 }
@@ -128,4 +139,10 @@ export async function reliefFromStlFile(file: File): Promise<{ url: string; widt
   canvas.height = map.height;
   canvas.getContext('2d')!.putImageData(new ImageData(reliefMapToRgba(map), map.width, map.height), 0, 0);
   return { url: canvas.toDataURL('image/png'), ...reliefMapSize(map), maxHeight: map.maxHeight };
+}
+
+/** Is this picture (a stored data URL) a photo rather than a drawing? Decides
+ *  whether loading it offers Photo depth. */
+export async function pictureLooksLikePhoto(url: string): Promise<boolean> {
+  return looksLikePhoto(await decodePicture(url));
 }

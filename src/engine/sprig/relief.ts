@@ -18,6 +18,18 @@ export interface SprigSource {
    *  background. When present it decides what is shape, and `pixels` is
    *  normalised tone only — so a light area inside the outline still counts. */
   mask?: Uint8Array;
+  /** `pixels` are Photo depth heights (image-prep.ts with a depth map), not tones. */
+  photoDepth?: boolean;
+}
+
+/**
+ * The settings the layers are built with. Photo depth is Gray read as made
+ * once the depth has come back; without it (still running, or the model could
+ * not run) the shape is inflated, so there is always something to see.
+ */
+function effectiveParams(src: SprigSource, p: SprigParameters): SprigParameters {
+  if (p.heightMode !== 'photoDepth') return p;
+  return src.photoDepth ? { ...p, heightMode: 'gray', imageLightest: 0 } : { ...p, heightMode: 'inflate' };
 }
 
 /** Lighter than this counts as paper when cropping (antialiasing fringes). */
@@ -418,7 +430,8 @@ function textParams(p: SprigParameters, height: number): SprigParameters {
  * text, if any (positioned by sprigPlacement); with none, and the drawing on,
  * the grid and heights are exactly the drawing-only ones.
  */
-export function buildRelief(src: SprigSource, p: SprigParameters, step: number, text: TextLayer | null = null): ReliefField {
+export function buildRelief(src: SprigSource, pIn: SprigParameters, step: number, text: TextLayer | null = null): ReliefField {
+  const p = effectiveParams(src, pIn);
   const textOn = !!text && hasText(p);
   const place = sprigPlacement(p, textOn ? { w: text!.mmW, h: text!.mmH } : null);
   const W = p.width, L = p.length;

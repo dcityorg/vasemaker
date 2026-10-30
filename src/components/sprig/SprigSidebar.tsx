@@ -7,6 +7,7 @@ import { setShowFacets, useSprigColors, setSprigColors, DEFAULT_SPRIG_COLOR, DEF
 import { asMark, DEFAULT_VIEW } from '@/store/sprig-store';
 import { useSprigDesign } from './sprig-design-context';
 import { ThinPartsFix } from './ThinPartsFix';
+import { PhotoDepthHost, PhotoDepthStatusLine, askPhotoDepth } from './PhotoDepth';
 import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { SPRIG_PARAMS } from '@/config/sprig-params';
@@ -19,7 +20,7 @@ import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib
 import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
-import { loadSprigSource, pictureFromFile, reliefFromStlFile } from '@/lib/sprig-source';
+import { loadSprigSource, pictureFromFile, pictureLooksLikePhoto, reliefFromStlFile } from '@/lib/sprig-source';
 import { SPRIG_FONTS } from '@/lib/sprig-fonts';
 import { systemFontFound } from '@/lib/sprig-text';
 import { GRAY_INK, type SprigSource } from '@/engine/sprig/relief';
@@ -54,12 +55,17 @@ const miniBtn =
 const resetBtn = 'text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors';
 const selectCls = 'flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs';
 
-const HEIGHT_MODES: { value: SprigHeightMode; label: string; tooltip: string }[] = [
-  { value: 'flat', label: 'Flat', tooltip: 'One height for the whole shape — only the edge is shaped' },
-  { value: 'gray', label: 'Gray', tooltip: 'Black is Max Height, white is the plate, grays in between. For an SVG drawn with shading' },
-  { value: 'inflate', label: 'Inflate', tooltip: 'Blow the flat outline up like a balloon: the further a point is from the edge the higher it rises, up to Max Height. Thick parts reach full height, thin legs and tails stay lower' },
-  { value: 'inflateGray', label: 'Inflate + Gray detail', tooltip: 'Inflate, and lighter-gray marks inside the shape (eyes, scales, veins) cut in by up to Detail Depth. Pure white counts as background, so draw details in gray' },
+/** The Shaping buttons, in their two rows (Gary 2026-10-29: buttons are
+ *  faster than a menu). `short` is the button; `label` names it elsewhere. */
+const HEIGHT_MODES: { value: SprigHeightMode; label: string; short: string; tooltip: string }[] = [
+  { value: 'flat', label: 'Flat', short: 'Flat', tooltip: 'One height for the whole shape — only the edge is shaped' },
+  { value: 'inflate', label: 'Inflate', short: 'Inflate', tooltip: 'Blow the flat outline up like a balloon: the further a point is from the edge the higher it rises, up to Max Height. Thick parts reach full height, thin legs and tails stay lower' },
+  { value: 'photoDepth', label: 'Photo depth', short: 'Photo depth', tooltip: 'For photos of real things — flowers, shells, animals: a depth model on your computer works out how near each part looks, and the shape rises with it, rounded at the outline. The first time it downloads about 55 MB, once. Little gain on flat drawings: use Inflate' },
+  { value: 'gray', label: 'Gray', short: 'Gray', tooltip: 'Black is Max Height, white is the plate, grays in between. For a drawing with shading, or a height map' },
+  { value: 'inflateGray', label: 'Inflate + Gray detail', short: 'Inflate + Gray', tooltip: 'Inflate, and lighter-gray marks inside the shape (eyes, scales, veins) cut in by up to Detail Depth. Pure white counts as background, so draw details in gray' },
 ];
+/** What a picture's tones do under this Shaping, for the Picture/SVG notes. */
+const modeLabel = (m: SprigHeightMode) => HEIGHT_MODES.find((h) => h.value === m)?.label ?? m;
 
 export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   sprig: SprigMeshState;
@@ -182,7 +188,11 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
       if (!r) problem = 'Everything in that picture counts as background. Try a picture with a plain background, or lower Background after loading.';
       else {
         loadSvg(url, name, r.aspect);
-        if (params.heightMode === 'flat' || params.heightMode === 'inflate') setParam('heightMode', 'inflateGray');
+        const photo = await pictureLooksLikePhoto(url);
+        // A photo is offered Photo depth (asked until the first yes); anything
+        // else keeps the picture's tones in play as before.
+        if (photo && await askPhotoDepth(true)) setParam('heightMode', 'photoDepth');
+        else if (params.heightMode === 'flat' || params.heightMode === 'inflate' || params.heightMode === 'photoDepth') setParam('heightMode', 'inflateGray');
       }
     } catch {
       problem = 'That picture could not be opened. Try saving it as PNG or JPG.';
@@ -261,7 +271,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
         { label: 'Finished sprig', value: `${params.width} x ${params.length} mm, ${params.maxHeight} mm high` },
         { label: 'Shrink', value: `${params.shrinkPercent}%` },
         { label: 'Plaster behind', value: `${m.plasterBehind.toFixed(1)} mm` },
-        { label: 'Height', value: HEIGHT_MODES.find((h) => h.value === params.heightMode)?.label ?? params.heightMode },
+        { label: 'Height', value: modeLabel(params.heightMode) },
         { label: 'Resolution', value: `${params.resolution} mm` },
       ],
     }), chosenName);
@@ -420,6 +430,31 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
             Drawing: {params.svgName}
           </p>
 
+          {/* Shaping + Max Height, next to the drawing (Gary 2026-10-29: push a
+              button, get a good result) */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)]" title="How the heights are made from the drawing">Shaping</span>
+            </div>
+            {[HEIGHT_MODES.slice(0, 3), HEIGHT_MODES.slice(3)].map((row, r) => (
+              <div key={r} className={`grid gap-1 mb-1 ${r === 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                {row.map((h) => (
+                  <button key={h.value} title={h.tooltip}
+                    onClick={async () => {
+                      if (h.value === 'photoDepth' && !(await askPhotoDepth(false))) return;
+                      setParam('heightMode', h.value);
+                    }}
+                    className={`px-1 py-1 text-xs rounded border transition-colors ${params.heightMode === h.value ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)]'}`}>
+                    {h.short}
+                  </button>
+                ))}
+              </div>
+            ))}
+            {params.heightMode === 'photoDepth' && <PhotoDepthStatusLine onTurnOn={() => void askPhotoDepth(false)} />}
+            {sl('maxHeight', 'Max Height', 'mm', 'Height of the tallest point of the FINISHED sprig')}
+          </div>
+          <PhotoDepthHost />
+
           {/* Settings files */}
           <div className="border-t-[3px] border-[#555] pt-2 flex gap-2">
             <button onClick={handleLoadSettings} className={btn} style={{ color: UI_MUTED }} title={`Load a ${what} design (drawing included) from JSON. A sprig file can be loaded as a mark, and a mark as a sprig`}>
@@ -565,7 +600,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                   : 'How much of Detail Depth the lightest tone is spared: 100% = no cut at all, 0% = the full Detail Depth')}
               {params.heightMode !== 'gray' && params.heightMode !== 'inflateGray' && (
                 <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
-                  Height From is {params.heightMode === 'flat' ? 'Flat' : 'Inflate'}, so the tones are not used — only the outline. Pick Gray or Inflate + Gray detail to use them.
+                  {params.heightMode === 'photoDepth'
+                    ? 'Shaping is Photo depth, so Smooth and Tones are not used — the heights come from the depth. Background still decides the outline.'
+                    : `Shaping is ${modeLabel(params.heightMode)}, so the tones are not used — only the outline. Pick Gray or Inflate + Gray to use them.`}
                 </p>
               )}
             </Section>
@@ -601,7 +638,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                   : 'How much of Detail Depth the lightest tone is spared: 100% = no cut at all, 0% = the full Detail Depth')}
               {params.heightMode !== 'gray' && params.heightMode !== 'inflateGray' && (
                 <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
-                  Height From is {params.heightMode === 'flat' ? 'Flat' : 'Inflate'}, so shades are not used — only the outline. Pick Gray or Inflate + Gray detail to use them.
+                  {params.heightMode === 'photoDepth'
+                    ? 'Shaping is Photo depth, so Tones are not used — the heights come from the depth.'
+                    : `Shaping is ${modeLabel(params.heightMode)}, so shades are not used — only the outline. Pick Gray or Inflate + Gray to use them.`}
                 </p>
               )}
             </Section>
@@ -630,19 +669,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
             <div className="flex justify-end mb-1">
               <button onClick={() => resetFields(['heightMode', 'maxHeight', 'profile', 'roundness', 'detailDepth', 'invert'])} className={resetBtn} title="Height settings back to their defaults">Reset</button>
             </div>
-            <div className="flex items-center gap-2 mb-2">
-              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="How the heights are made: one height, from the drawing's grays, or rising from the edge like a balloon">Shaping</label>
-              <select
-                value={params.heightMode}
-                onChange={(e) => setParam('heightMode', e.target.value as SprigHeightMode)}
-                className={selectCls}
-                style={{ color: UI_MUTED }}
-                title={HEIGHT_MODES.find((h) => h.value === params.heightMode)?.tooltip}
-              >
-                {HEIGHT_MODES.map((h) => <option key={h.value} value={h.value} title={h.tooltip}>{h.label}</option>)}
-              </select>
-            </div>
-            {sl('maxHeight', 'Max Height', 'mm', 'Height of the tallest point of the FINISHED sprig')}
+            <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
+              Shaping and Max Height are at the top, under the drawing. Shaping now: {modeLabel(params.heightMode)}.
+            </p>
             {inflate && (
               <>
                 <div className="flex items-center gap-2 mb-2">

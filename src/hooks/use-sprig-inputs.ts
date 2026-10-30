@@ -10,6 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadSprigSource } from '@/lib/sprig-source';
+import { initPhotoDepth, usePhotoDepth } from '@/lib/photo-depth';
 import type { SprigSource, TextLayer } from '@/engine/sprig/relief';
 import { isPictureDrawing, pictureKey, svgKey, hasText, type SprigParameters } from '@/engine/sprig/sprig-types';
 import { renderText, textLayerAt, type RenderedText } from '@/lib/sprig-text';
@@ -27,20 +28,31 @@ export function useSprigInputs(params: SprigParameters | null): SprigInputs {
   latest.current = params;
   const svg = params?.svg ?? '';
   const picture = isPictureDrawing(svg);
+  // Photo depth runs only once it is allowed in this browser; until then (and
+  // while it runs) the relief is inflated from the plain drawing.
+  const allowed = usePhotoDepth((s) => s.allowed);
+  // Every page that builds a sprig (the vase's texture and mark too) reads the remembered yes.
+  useEffect(() => { initPhotoDepth(); }, []);
+  const depth = !!params && params.heightMode === 'photoDepth' && allowed;
   // Only the drawing's own kind of settings re-prepare it.
-  const key = !params ? '' : picture ? `${svg.length}:${pictureKey(params)}` : svgKey(params);
+  const key = (!params ? '' : picture ? `${svg.length}:${pictureKey(params)}` : svgKey(params)) + (depth ? '#depth' : '');
   const [loaded, setLoaded] = useState<{ svg: string; key: string; source: SprigSource | null; error: string | null } | null>(null);
 
   useEffect(() => {
     const p = latest.current;
     if (!p) { setLoaded(null); return; }
     let live = true;
-    loadSprigSource(svg, { background: p.imageBackground, closeGaps: p.imageCloseGaps, smooth: p.imageSmooth, tones: p.imageTones },
-      { fill: p.svgFill, closeGaps: p.svgCloseGaps, tones: p.svgTones })
+    const load = (withDepth: boolean) => loadSprigSource(svg,
+      { background: p.imageBackground, closeGaps: p.imageCloseGaps, smooth: p.imageSmooth, tones: p.imageTones },
+      { fill: p.svgFill, closeGaps: p.svgCloseGaps, tones: p.svgTones }, withDepth);
+    let depthFailed = false;
+    // If the model cannot run here, fall back to the plain drawing (inflated) and say so.
+    (depth ? load(true).catch(() => { depthFailed = true; return load(false); }) : load(false))
       .then((r) => {
         if (!live) return;
         setLoaded(r
-          ? { svg, key, source: r.source, error: null }
+          ? { svg, key, source: r.source, error: depthFailed
+            ? 'Photo depth could not run in this browser, so the shape is inflated instead. Try again after a reload, or in another browser.' : null }
           : { svg, key, source: null, error: picture
             ? 'Everything in this picture counts as background. Lower Background in the Picture section.'
             : 'This SVG draws nothing darker than white — there is no shape to raise.' });
@@ -51,7 +63,7 @@ export function useSprigInputs(params: SprigParameters | null): SprigInputs {
           : 'This SVG could not be drawn. Check it opens in a browser.' });
       });
     return () => { live = false; };
-  }, [svg, key, picture]);
+  }, [svg, key, picture, depth]);
 
   // Text is drawn once per text + font + turn; Letter Height only rescales it.
   const textKey = params && hasText(params) ? `${params.textFont}|${params.textFontName}|${params.textRotation}|${params.text}` : '';
