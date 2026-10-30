@@ -111,6 +111,25 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   const doRedo = useSprigStore((s) => s.redo);
   const { canUndo, canRedo } = useSprigHistory();
   const S = 1 + params.shrinkPercent / 100;
+  /** Each section's settings: what its Reset restores, and what its
+   *  "changed" dot compares with the defaults. */
+  const K: Record<string, (keyof SprigParameters)[]> = {
+    picture: ['imageBackground', 'imageCloseGaps', 'imageSmooth', 'imageTones', 'imageLightest'],
+    svg: ['svgFill', 'svgCloseGaps', 'svgTones', 'imageLightest'],
+    edges: ['edgeSoftness', 'minEdgeThickness'],
+    text: ['textFont', 'textFontName', 'textHeight', 'textStyle', 'textDepth', 'textPosition', 'textGap', 'textOffsetX', 'textOffsetY', 'textRotation', 'drawingOn'],
+    backing: ['backing', 'backingThickness', 'backingBorder', 'backingCorner', 'backingEdge'],
+    checks: ['minFeatureWidth', 'removeTiny', 'wholeShapesOnly', 'roundThin', 'thickenThin'],
+    resolution: ['resolution'],
+    moldSize: ['plasterMargin', 'customCavW', 'customCavL', 'customWallH', 'customWallThickness', 'customFlangeWidth', 'plateThickness'],
+    print: ['shrinkPercent'],
+    plaster: ['material'],
+    placement: ['onVaseHeight', 'onVaseAngle', 'onVaseTilt', 'onVaseCopies', 'onVaseHandle'],
+    height: ['profile', 'roundness', 'detailDepth', 'invert'],
+    shaping: ['heightMode', 'maxHeight'],
+    size: ['rotation', 'flipX', 'flipY', 'lockAspect'],
+  };
+  const changed = (keys: (keyof SprigParameters)[]) => keys.some((k) => params[k] !== design.defaults[k]);
 
   // Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z, matching the other tabs.
   const onKey = useCallback((e: KeyboardEvent) => {
@@ -180,14 +199,20 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
     if (!file) return;
     const name = file.name.replace(/\.[a-z0-9]+$/i, '');
     let problem: string | null = null;
+    // After a relief or height map (Tones As made: Background 0, nothing
+    // softened) a new picture starts from the default picture and edge
+    // settings — Gary's photo came in as a full rectangle (2026-10-29).
+    const fromRelief = params.imageTones === -1;
+    const pic = fromRelief ? design.defaults : params;
     try {
       const url = await pictureFromFile(file);
       const r = await loadSprigSource(url, {
-        background: params.imageBackground, closeGaps: params.imageCloseGaps, smooth: params.imageSmooth, tones: params.imageTones,
+        background: pic.imageBackground, closeGaps: pic.imageCloseGaps, smooth: pic.imageSmooth, tones: pic.imageTones,
       });
       if (!r) problem = 'Everything in that picture counts as background. Try a picture with a plain background, or lower Background after loading.';
       else {
         loadSvg(url, name, r.aspect);
+        if (fromRelief) resetFields([...K.picture, ...K.edges]);
         const photo = await pictureLooksLikePhoto(url);
         // A photo is offered Photo depth (asked until the first yes); anything
         // else keeps the picture's tones in play as before.
@@ -390,73 +415,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
       <div className="flex-1 overflow-y-auto sidebar-scroll">
         {/* Toolbar */}
         <div className="px-3 py-2 border-b border-[var(--border-color)] flex flex-col gap-2">
-          {/* Drawing */}
-          <select
-            value=""
-            onChange={(e) => {
-              const s = SPRIG_SAMPLES.find((x) => x.id === e.target.value);
-              if (s) void applySvg(s.svg, s.name);
-            }}
-            className={selectCls}
-            style={{ color: UI_MUTED }}
-            title="Start from a built-in drawing"
-          >
-            <option value="" disabled>Sample drawings…</option>
-            {SPRIG_SAMPLES.map((s) => (
-              <option key={s.id} value={s.id}>{s.name} — {s.description}</option>
-            ))}
-          </select>
+          {/* Design files, then exports, then the drawing — the other pages' order
+              (Gary 2026-10-29) */}
           <div className="flex gap-2">
-            <button onClick={() => svgInputRef.current?.click()} className={btn} style={{ color: UI_MUTED }} title="Load an .svg file — black is the shape, white is background">
-              Load SVG
-            </button>
-            <button onClick={() => setPasteOpen(true)} className={btn} style={{ color: UI_MUTED }} title="Paste SVG code into a box">
-              Paste SVG
-            </button>
-            <button onClick={() => pictureInputRef.current?.click()} className={btn} style={{ color: UI_MUTED }} title="Load a PNG or JPG — a clean drawing on a plain background works best; darker tones stand higher">
-              Load Image
-            </button>
-            <input ref={svgInputRef} type="file" accept=".svg,image/svg+xml" onChange={handleSvgFile} className="hidden" />
-            <input ref={pictureInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => void handlePictureFile(e)} className="hidden" />
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => reliefInputRef.current?.click()} disabled={reliefBusy} className={btn} style={{ color: UI_MUTED }}
-              title="Load a relief someone else made, as an STL (a shape standing on a flat plaque — e.g. MakerWorld's Relief Sculpture Maker). It comes in at its own size and height; their plaque is dropped and the sprig sits on this mold's plate">
-              {reliefBusy ? 'Reading STL…' : 'Load Relief STL'}
-            </button>
-            <input ref={reliefInputRef} type="file" accept=".stl,model/stl,application/sla" onChange={(e) => void handleReliefFile(e)} className="hidden" />
-          </div>
-          <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 -mt-1 truncate" title={params.svgName}>
-            Drawing: {params.svgName}
-          </p>
-
-          {/* Shaping + Max Height, next to the drawing (Gary 2026-10-29: push a
-              button, get a good result) */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)]" title="How the heights are made from the drawing">Shaping</span>
-            </div>
-            {[HEIGHT_MODES.slice(0, 3), HEIGHT_MODES.slice(3)].map((row, r) => (
-              <div key={r} className={`grid gap-1 mb-1 ${r === 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                {row.map((h) => (
-                  <button key={h.value} title={h.tooltip}
-                    onClick={async () => {
-                      if (h.value === 'photoDepth' && !(await askPhotoDepth(false))) return;
-                      setParam('heightMode', h.value);
-                    }}
-                    className={`px-1 py-1 text-xs rounded border transition-colors ${params.heightMode === h.value ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)]'}`}>
-                    {h.short}
-                  </button>
-                ))}
-              </div>
-            ))}
-            {params.heightMode === 'photoDepth' && <PhotoDepthStatusLine onTurnOn={() => void askPhotoDepth(false)} />}
-            {sl('maxHeight', 'Max Height', 'mm', 'Height of the tallest point of the FINISHED sprig')}
-          </div>
-          <PhotoDepthHost />
-
-          {/* Settings files */}
-          <div className="border-t-[3px] border-[#555] pt-2 flex gap-2">
             <button onClick={handleLoadSettings} className={btn} style={{ color: UI_MUTED }} title={`Load a ${what} design (drawing included) from JSON. A sprig file can be loaded as a mark, and a mark as a sprig`}>
               Load Design
             </button>
@@ -464,6 +425,18 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               Save Design
             </button>
             <input ref={settingsInputRef} type="file" accept=".json" onChange={handleSettingsFile} className="hidden" />
+          </div>
+          <div className="flex gap-2 -mt-1">
+            {savedParams && savedParams !== params && (
+              <button onClick={revertToSaved} className={miniBtn}
+                title="Put everything back to the last Save Design / Load Design, drawing included. Undoable with ↶">
+                Revert to Saved
+              </button>
+            )}
+            <button onClick={reset} className={miniBtn}
+              title={`Every ${what} setting back to its default — a dot on a section's title shows which have changed. Keeps your drawing, its size and which way it faces. Undoable with ↶`}>
+              Reset All Settings
+            </button>
           </div>
 
           {/* STL exports — a mark has no mold of its own */}
@@ -496,6 +469,74 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               </p>
             )}
           </div>}
+
+          <div className="border-t-[3px] border-[#555] pt-2 flex flex-col gap-2">
+            {/* Drawing */}
+            <select
+              value=""
+              onChange={(e) => {
+                const s = SPRIG_SAMPLES.find((x) => x.id === e.target.value);
+                if (s) void applySvg(s.svg, s.name);
+              }}
+              className={selectCls}
+              style={{ color: UI_MUTED }}
+              title="Start from a built-in drawing"
+            >
+              <option value="" disabled>Sample drawings…</option>
+              {SPRIG_SAMPLES.map((s) => (
+                <option key={s.id} value={s.id}>{s.name} — {s.description}</option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <button onClick={() => svgInputRef.current?.click()} className={btn} style={{ color: UI_MUTED }} title="Load an .svg file — black is the shape, white is background">
+                Load SVG
+              </button>
+              <button onClick={() => setPasteOpen(true)} className={btn} style={{ color: UI_MUTED }} title="Paste SVG code into a box">
+                Paste SVG
+              </button>
+              <button onClick={() => pictureInputRef.current?.click()} className={btn} style={{ color: UI_MUTED }} title="Load a PNG or JPG — a clean drawing on a plain background works best; darker tones stand higher">
+                Load Image
+              </button>
+              <input ref={svgInputRef} type="file" accept=".svg,image/svg+xml" onChange={handleSvgFile} className="hidden" />
+              <input ref={pictureInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => void handlePictureFile(e)} className="hidden" />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => reliefInputRef.current?.click()} disabled={reliefBusy} className={btn} style={{ color: UI_MUTED }}
+                title="Load a relief someone else made, as an STL (a shape standing on a flat plaque — e.g. MakerWorld's Relief Sculpture Maker). It comes in at its own size and height; their plaque is dropped and the sprig sits on this mold's plate">
+                {reliefBusy ? 'Reading STL…' : 'Load Relief STL'}
+              </button>
+              <input ref={reliefInputRef} type="file" accept=".stl,model/stl,application/sla" onChange={(e) => void handleReliefFile(e)} className="hidden" />
+            </div>
+            <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 -mt-1 truncate" title={params.svgName}>
+              Drawing: {params.svgName}
+            </p>
+
+            {/* Shaping + Max Height, next to the drawing (Gary 2026-10-29: push a
+                button, get a good result) */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)]" title="How the heights are made from the drawing">Shaping</span>
+                <button onClick={() => resetFields(K.shaping)} className={resetBtn} title="Shaping and Max Height back to their defaults">Reset</button>
+              </div>
+              {[HEIGHT_MODES.slice(0, 3), HEIGHT_MODES.slice(3)].map((row, r) => (
+                <div key={r} className={`grid gap-1 mb-1 ${r === 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                  {row.map((h) => (
+                    <button key={h.value} title={h.tooltip}
+                      onClick={async () => {
+                        if (h.value === 'photoDepth' && !(await askPhotoDepth(false))) return;
+                        setParam('heightMode', h.value);
+                      }}
+                      className={`px-1 py-1 text-xs rounded border transition-colors ${params.heightMode === h.value ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-secondary)]'}`}>
+                      {h.short}
+                    </button>
+                  ))}
+                </div>
+              ))}
+              {params.heightMode === 'photoDepth' && <PhotoDepthStatusLine onTurnOn={() => void askPhotoDepth(false)} />}
+              {sl('maxHeight', 'Max Height', 'mm', 'Height of the tallest point of the FINISHED sprig')}
+            </div>
+          </div>
+          <PhotoDepthHost />
         </div>
 
         <div className="px-3 py-3">
@@ -546,7 +587,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               <ShowFacetsToggle />
               <div className="flex items-center justify-between mt-2 mb-1">
                 <span className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)]">Placement</span>
-                <button onClick={() => resetFields(['onVaseHeight', 'onVaseAngle', 'onVaseTilt', 'onVaseCopies', 'onVaseHandle'])} className={resetBtn} title="On Vase placement back to its defaults">Reset</button>
+                <button onClick={() => resetFields(K.placement)} className={resetBtn} title="On Vase placement back to its defaults">Reset</button>
               </div>
               <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
                 The vase is the one open in VaseMaker; change it there. The sprig drapes over any texture, the way soft clay pressed on does.
@@ -569,9 +610,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           {/* Sprig */}
           <GroupHeader label={What} color={GROUP_COLORS.structure} />
           {isPictureDrawing(params.svg) && (
-            <Section title="Picture" titleColor={GROUP_COLORS.structure} tooltip="How the picture becomes a shape: what counts as background, and how its tones become heights">
+            <Section title="Picture" changed={changed(K.picture)} titleColor={GROUP_COLORS.structure} tooltip="How the picture becomes a shape: what counts as background, and how its tones become heights">
               <div className="flex justify-end mb-1">
-                <button onClick={() => resetFields(['imageBackground', 'imageCloseGaps', 'imageSmooth', 'imageTones', 'imageLightest'])} className={resetBtn} title="Picture settings back to their defaults">Reset</button>
+                <button onClick={() => resetFields(K.picture)} className={resetBtn} title="Picture settings back to their defaults">Reset</button>
               </div>
               {sprig.source?.mask && <PicturePreview source={sprig.source} />}
               {sl('imageBackground', 'Background', '', 'How different a colour can be from the background and still be cut away. Raise it if a halo or speckle round the drawing stays; lower it if pale parts of the drawing disappear. Areas the background cannot reach (inside a closed outline) always stay')}
@@ -608,9 +649,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
             </Section>
           )}
           {!isPictureDrawing(params.svg) && (
-            <Section title="SVG" titleColor={GROUP_COLORS.structure} tooltip="How the SVG becomes a shape: fill outline drawings solid, and group its shades into height steps">
+            <Section title="SVG" changed={changed(K.svg)} titleColor={GROUP_COLORS.structure} tooltip="How the SVG becomes a shape: fill outline drawings solid, and group its shades into height steps">
               <div className="flex justify-end mb-1">
-                <button onClick={() => resetFields(['svgFill', 'svgCloseGaps', 'svgTones', 'imageLightest'])} className={resetBtn} title="SVG settings back to their defaults (read as drawn)">Reset</button>
+                <button onClick={() => resetFields(K.svg)} className={resetBtn} title="SVG settings back to their defaults (read as drawn)">Reset</button>
               </div>
               {sprig.source && <PicturePreview source={sprig.source} threshold={params.heightMode === 'gray' || params.heightMode === 'inflateGray' ? GRAY_INK : 0.5} />}
               <Toggle label="Fill Outlines" checked={params.svgFill} onChange={(v) => setParam('svgFill', v)}
@@ -645,7 +686,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               )}
             </Section>
           )}
-          <Section title="Size" titleColor={GROUP_COLORS.structure}>
+          <Section title="Size" changed={changed(K.size)} titleColor={GROUP_COLORS.structure}>
             <div className="flex justify-end mb-1">
               <button onClick={resetOrientation} className={resetBtn} title="Back to the drawing as loaded: unturned, unflipped, its own proportions (🔗 on). The longer side keeps its size">Reset</button>
             </div>
@@ -665,9 +706,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               The cast faces the same way as the plate seen from above.
             </p>
           </Section>
-          <Section title="Height" titleColor={GROUP_COLORS.structure}>
+          <Section title="Height" changed={changed(K.height)} titleColor={GROUP_COLORS.structure}>
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['heightMode', 'maxHeight', 'profile', 'roundness', 'detailDepth', 'invert'])} className={resetBtn} title="Height settings back to their defaults">Reset</button>
+              <button onClick={() => resetFields(K.height)} className={resetBtn} title="Profile, Roundness, Detail Depth and Invert back to their defaults (Shaping and Max Height have their own Reset at the top)">Reset</button>
             </div>
             <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
               Shaping and Max Height are at the top, under the drawing. Shaping now: {modeLabel(params.heightMode)}.
@@ -695,16 +736,16 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
             <Toggle label="Invert" checked={params.invert} onChange={(v) => setParam('invert', v)}
               tooltip="Swap black and white inside the drawing's area — the background becomes the raised part" />
           </Section>
-          <Section title="Edges" titleColor={GROUP_COLORS.structure}>
+          <Section title="Edges" changed={changed(K.edges)} titleColor={GROUP_COLORS.structure}>
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['edgeSoftness', 'minEdgeThickness'])} className={resetBtn} title="Edge settings back to their defaults">Reset</button>
+              <button onClick={() => resetFields(K.edges)} className={resetBtn} title="Edge settings back to their defaults">Reset</button>
             </div>
             {sl('edgeSoftness', 'Edge Softness', 'mm', 'Width of the slope from the edge up to full height. Higher blends into the vase and helps the cast drop out; 0 = as steep as the Resolution allows')}
             {sl('minEdgeThickness', 'Edge Lip', 'mm', 'Raises the thinnest parts to at least this thickness, so the edge ends in a small step. 0 = the edge tapers smoothly to the plate. Try 0.3–0.5 only if cast edges tear or crumble coming out of the mold')}
           </Section>
-          <Section title="Text" titleColor={GROUP_COLORS.structure} tooltip="Words on the sprig: raised letters, or letters cut into a backing sheet">
+          <Section title="Text" changed={changed(K.text)} titleColor={GROUP_COLORS.structure} tooltip="Words on the sprig: raised letters, or letters cut into a backing sheet">
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['textFont', 'textFontName', 'textHeight', 'textStyle', 'textDepth', 'textPosition', 'textGap', 'textOffsetX', 'textOffsetY', 'textRotation', 'drawingOn'])} className={resetBtn} title="Text settings back to their defaults. The words are kept">Reset</button>
+              <button onClick={() => resetFields(K.text)} className={resetBtn} title="Text settings back to their defaults. The words are kept">Reset</button>
             </div>
             <TextBox value={params.text} onCommit={(v) => setParam('text', v)} />
             {hasText(params) && (
@@ -786,9 +827,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               </>
             )}
           </Section>
-          {!isMark && <Section title="Backing" titleColor={GROUP_COLORS.structure} tooltip="A thin sheet under the drawing, so separate pieces cast as one">
+          {!isMark && <Section title="Backing" changed={changed(K.backing)} titleColor={GROUP_COLORS.structure} tooltip="A thin sheet under the drawing, so separate pieces cast as one">
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['backing', 'backingThickness', 'backingBorder', 'backingCorner', 'backingEdge'])} className={resetBtn} title="Backing back to its defaults (none)">Reset</button>
+              <button onClick={() => resetFields(K.backing)} className={resetBtn} title="Backing back to its defaults (none)">Reset</button>
             </div>
             <div className="flex items-center gap-2 mb-2">
               <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Type</label>
@@ -827,9 +868,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               </>
             )}
           </Section>}
-          <Section title="Checks" titleColor={GROUP_COLORS.structure}>
+          <Section title="Checks" changed={changed(K.checks)} titleColor={GROUP_COLORS.structure}>
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['minFeatureWidth', 'removeTiny', 'wholeShapesOnly', 'roundThin', 'thickenThin'])} className={resetBtn} title="Min Feature and the clean-up switches back to their defaults">Reset</button>
+              <button onClick={() => resetFields(K.checks)} className={resetBtn} title="Min Feature and the clean-up switches back to their defaults">Reset</button>
             </div>
             {sl('minFeatureWidth', 'Min Feature', 'mm', 'Parts of the FINISHED sprig narrower than this are painted red: they may tear coming out of the mold or crack drying')}
             {m && (
@@ -863,9 +904,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
 
           {/* Resolution: its own section on both tabs, last before the Mold
               group — the same name on every page (Gary, 2026-10-26). */}
-          <Section title="Resolution" titleColor={GROUP_COLORS.structure}>
+          <Section title="Resolution" changed={changed(K.resolution)} titleColor={GROUP_COLORS.structure}>
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['resolution'])} className={resetBtn} title="Resolution back to its default">Reset</button>
+              <button onClick={() => resetFields(K.resolution)} className={resetBtn} title="Resolution back to its default">Reset</button>
             </div>
             {isMark
               ? sl('resolution', 'Resolution', 'mm', 'Spacing of the points that make up the mark. Smaller = crisper edges but a heavier vase mesh')
@@ -876,9 +917,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           {!isMark && <>
           {/* Mold */}
           <GroupHeader label="Mold" color={GROUP_COLORS.surface} />
-          <Section title="Mold Size" titleColor={GROUP_COLORS.surface}>
+          <Section title="Mold Size" changed={changed(K.moldSize)} titleColor={GROUP_COLORS.surface}>
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['plasterMargin', 'customCavW', 'customCavL', 'customWallH', 'customWallThickness', 'customFlangeWidth', 'plateThickness'])} className={resetBtn} title="Plaster Margin, Plate Thickness and the Custom box back to their defaults. The chosen size is kept">Reset</button>
+              <button onClick={() => resetFields(K.moldSize)} className={resetBtn} title="Plaster Margin, Plate Thickness and the Custom box back to their defaults. The chosen size is kept">Reset</button>
             </div>
             <div className="flex items-center gap-2 mb-2">
               <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Size</label>
@@ -911,18 +952,18 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               </div>
             )}
           </Section>
-          <Section title="Print" titleColor={GROUP_COLORS.surface}>
+          <Section title="Print" changed={changed(K.print)} titleColor={GROUP_COLORS.surface}>
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['shrinkPercent'])} className={resetBtn} title="Shrink back to its default">Reset</button>
+              <button onClick={() => resetFields(K.print)} className={resetBtn} title="Shrink back to its default">Reset</button>
             </div>
             {sl('shrinkPercent', 'Shrink', '%', 'Clay shrinkage — the printed relief is scaled up by this so the FINISHED sprig comes out at the size above. In red because a wrong value is silent', '#f87171')}
           </Section>
 
           {/* Analysis */}
           <GroupHeader label="Analysis" color={GROUP_COLORS.settings} />
-          <Section title="Plaster Estimate" titleColor={GROUP_COLORS.settings}>
+          <Section title="Plaster Estimate" changed={changed(K.plaster)} titleColor={GROUP_COLORS.settings}>
             <div className="flex justify-end mb-1">
-              <button onClick={() => resetFields(['material'])} className={resetBtn} title="Material back to its default">Reset</button>
+              <button onClick={() => resetFields(K.plaster)} className={resetBtn} title="Material back to its default">Reset</button>
             </div>
             <div className="flex items-center gap-2 mb-2">
               <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Material</label>
@@ -957,27 +998,6 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           )}
           </>}
 
-          {savedParams && savedParams !== params && (
-            <button
-              onClick={revertToSaved}
-              className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
-              style={{ color: UI_MUTED }}
-              title="Put everything back to the last Save Design / Load Design, drawing included"
-            >
-              Revert to Saved
-            </button>
-          )}
-          <button
-            onClick={reset}
-            className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
-            style={{ color: UI_MUTED }}
-            title="Restore the default settings. Your drawing, its size and which way it faces are not touched"
-          >
-            Reset {What} Settings
-          </button>
-          <p className="mt-1 text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
-            Keeps your drawing and its size. Undoable with ↶.
-          </p>
         </div>
       </div>
 

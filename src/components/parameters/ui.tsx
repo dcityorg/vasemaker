@@ -132,9 +132,12 @@ export function SliderRow({
 }
 
 /** Collapsible section wrapper — supports optional header toggle */
-export function Section({ title, children, defaultOpen = true, active, checked, onToggle, tooltip, titleColor }: {
+export function Section({ title, children, defaultOpen = true, active, checked, onToggle, tooltip, titleColor, changed }: {
   title: string; children: React.ReactNode; defaultOpen?: boolean;
   active?: boolean; checked?: boolean; onToggle?: (v: boolean) => void; tooltip?: string; titleColor?: string;
+  /** Something in this section differs from its default: a small dot after the
+   *  title (Sprig page, Gary 2026-10-29 — "where did I change that?"). */
+  changed?: boolean;
 }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   // Browsers queue a `toggle` event when React sets `open` during mount, so
@@ -157,7 +160,10 @@ export function Section({ title, children, defaultOpen = true, active, checked, 
   return (
     <details ref={detailsRef} open={defaultOpen} className="mb-4" onToggle={handleToggle}>
       <summary onClick={() => { userToggled.current = true; }} className="cursor-pointer text-sm font-medium py-2 px-3 bg-[var(--bg-secondary)] rounded select-none hover:bg-[var(--border-color)] transition-colors flex items-center gap-2" style={titleColor ? { color: titleColor } : { color: 'var(--text-primary)' }} title={tooltip}>
-        <span className="flex-1">{title}</span>
+        <span className="flex-1">
+          {title}
+          {changed && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 ml-1.5 align-middle" title="Changed from the default — this section's Reset puts it back" />}
+        </span>
         {onToggle ? (
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(!checked); }}
