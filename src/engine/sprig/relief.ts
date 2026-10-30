@@ -351,6 +351,34 @@ function buildLayer(
     return Math.max(0, edtIn[fk] - 0.5 - 0.5 * fCov[fk]) * fs;
   };
 
+  // The signed distance (outside negative), averaged over the 3 × 3 cells round
+  // each cell, twice, within reach of the edge slope. Near an outline the true
+  // distance changes almost linearly, which the mean keeps, while the error the
+  // fine grid leaves in it (16 µm rms, 56 worst on a crisp disc) averages out.
+  // That error, times the slope, was the faint stripes across Edge Softness
+  // (Gary 2026-10-29): 32 → 17 µm rms on a flat disc's slope, worst 207 → 92.
+  // At a part only a few cells wide the mean lowers its middle a little.
+  const sd = new Float32Array(N);
+  for (let k = 0; k < N; k++) sd[k] = mask[k] ? dist[k] : -distOut(k);
+  {
+    const band = Math.max(0, p.edgeSoftness) + 2 * step;
+    let cur = sd;
+    for (let pass = 0; pass < 2; pass++) {
+      const next = cur.slice();
+      for (let j = 1; j < ny - 1; j++) {
+        for (let i = 1; i < nx - 1; i++) {
+          const k = j * nx + i;
+          if (sd[k] > band || sd[k] < -2 * step) continue;
+          next[k] = (cur[k - nx - 1] + cur[k - nx] + cur[k - nx + 1] + cur[k - 1] + cur[k] + cur[k + 1]
+            + cur[k + nx - 1] + cur[k + nx] + cur[k + nx + 1]) / 9;
+        }
+      }
+      cur = next;
+    }
+    sd.set(cur);
+    for (let k = 0; k < N; k++) if (mask[k]) dist[k] = Math.max((0.5 / FINE) * fs, sd[k]);
+  }
+
   // Shape value 0..1.
   const f = new Float32Array(N);
   const inflate = p.heightMode === 'inflate' || p.heightMode === 'inflateGray';
@@ -410,12 +438,11 @@ function buildLayer(
     for (let i = 1; i < nx - 1; i++) {
       const k = j * nx + i;
       if (mask[k]) { heights[k] = edgeAt(dist[k], hs[k]); continue; }
-      const sd = -distOut(k);
-      if (sd <= -step / 2) continue;
+      if (sd[k] <= -step / 2) continue;
       // Outside, the shape's height is its inside neighbours'.
       let sum = 0, cnt = 0;
       for (const q of [k - 1, k + 1, k - nx, k + nx]) if (mask[q]) { sum += hs[q]; cnt++; }
-      if (cnt) heights[k] = edgeAt(sd, sum / cnt);
+      if (cnt) heights[k] = edgeAt(sd[k], sum / cnt);
     }
   }
   return { heights, mask, fOut };
