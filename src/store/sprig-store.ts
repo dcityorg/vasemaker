@@ -89,11 +89,17 @@ function keepSprig(p: SprigParameters): Partial<SprigParameters> {
   };
 }
 
+export interface Carried {
+  svg: string;
+  kept: Partial<{ [K in DrawingSetting]: SprigParameters[K] }>;
+}
+
 export interface SprigStore {
   params: SprigParameters;
-  /** Settings a newly loaded drawing kept from the last one, for the note in
-   *  Adjust. Only for that drawing (`svg`); not saved. */
-  carried: { svg: string; keys: DrawingSetting[] } | null;
+  /** Settings a newly loaded drawing kept from the last one, with the values
+   *  it kept, for the note under the load buttons. Only for that drawing
+   *  (`svg`); a setting drops out once it is changed. Not saved. */
+  carried: Carried | null;
   dismissCarried: () => void;
   view: SprigView;
   settingsName: string;
@@ -151,7 +157,9 @@ function makeDesign(kind: 'sprig' | 'mark', cfg: DesignKind): SprigDesign {
   /** The drawing settings a just-loaded drawing kept that are not its defaults. */
   const carriedOver = (p: SprigParameters) => {
     const base = drawingDefaults(defaults, p);
-    return { svg: p.svg, keys: DRAWING_SETTINGS.filter((k) => p[k] !== base[k]) };
+    const kept: Carried['kept'] = {};
+    for (const k of DRAWING_SETTINGS) if (p[k] !== base[k]) (kept as Record<string, unknown>)[k] = p[k];
+    return { svg: p.svg, kept };
   };
 
   const useStore = create<SprigStore>((set, get) => ({

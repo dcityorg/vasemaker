@@ -21,6 +21,7 @@ import { SPRIG_PARAMS } from '@/config/sprig-params';
 import { UI_MUTED } from '@/config/colors';
 import { smallestFit, fitsBox, type SprigNote } from '@/engine/sprig/sprig-generator';
 import type { ReliefField } from '@/engine/sprig/relief';
+import type { Carried } from '@/store/sprig-store';
 import {
   SPRIG_SIZES, sprigFootprint, isPictureDrawing,
   type SprigParameters, type SprigProfile, type TextSize, type DrawingSetting,
@@ -321,7 +322,7 @@ export function KeptNote({ params: p, defaults, isMark, carried, dismissCarried,
   params: SprigParameters;
   defaults: SprigParameters;
   isMark: boolean;
-  carried: { svg: string; keys: DrawingSetting[] } | null;
+  carried: Carried | null;
   dismissCarried: () => void;
   setParams: (u: Partial<SprigParameters>) => void;
 }) {
@@ -343,7 +344,10 @@ export function KeptNote({ params: p, defaults, isMark, carried, dismissCarried,
       default: return true;
     }
   };
-  const kept = carried && carried.svg === p.svg ? carried.keys.filter((k) => p[k] !== defaults[k] && shownFor(k)) : [];
+  // Only while each still has the value it came over with: change it and it drops out.
+  const kept = carried && carried.svg === p.svg
+    ? (Object.keys(carried.kept) as DrawingSetting[]).filter((k) => p[k] === carried.kept[k] && p[k] !== defaults[k] && shownFor(k))
+    : [];
   const keptValue = (k: DrawingSetting) => {
     const v = p[k], unit = KEPT_LABEL[k][1];
     if (typeof v === 'boolean') return v ? 'on' : 'off';
@@ -355,7 +359,7 @@ export function KeptNote({ params: p, defaults, isMark, carried, dismissCarried,
   const btn = 'text-[11px] px-2 py-0.5 rounded border transition-colors';
   return (
     <div className="mt-1.5 px-2 py-1.5 rounded border border-sky-600 bg-sky-950/50 text-xs text-sky-100 leading-snug">
-      <p><span className="font-semibold">Kept from the last drawing:</span> {kept.map((k) => `${KEPT_LABEL[k][0]} ${keptValue(k)}`).join(', ')}.</p>
+      <p><span className="font-semibold">Settings kept from your last drawing:</span> {kept.map((k) => `${KEPT_LABEL[k][0]} ${keptValue(k)}`).join(', ')}.</p>
       <div className="flex gap-1.5 mt-1.5">
         <button className={`${btn} bg-sky-600 border-sky-600 text-white hover:bg-sky-500`}
           onClick={() => { setParams(Object.fromEntries(kept.map((k) => [k, defaults[k]]))); dismissCarried(); }}
