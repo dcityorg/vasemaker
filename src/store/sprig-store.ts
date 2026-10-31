@@ -24,6 +24,8 @@ import {
   mergeSprigParameters,
   orientedAspect,
   drawingDefaults,
+  DRAWING_SETTINGS,
+  type DrawingSetting,
   type SprigParameters,
   type SprigRotation,
 } from '@/engine/sprig/sprig-types';
@@ -89,6 +91,10 @@ function keepSprig(p: SprigParameters): Partial<SprigParameters> {
 
 export interface SprigStore {
   params: SprigParameters;
+  /** Settings a newly loaded drawing kept from the last one, for the note in
+   *  Adjust. Only for that drawing (`svg`); not saved. */
+  carried: { svg: string; keys: DrawingSetting[] } | null;
+  dismissCarried: () => void;
   view: SprigView;
   settingsName: string;
   setParam: <K extends keyof SprigParameters>(key: K, value: SprigParameters[K]) => void;
@@ -142,9 +148,15 @@ export interface SprigDesign {
 function makeDesign(kind: 'sprig' | 'mark', cfg: DesignKind): SprigDesign {
   const { defaults, defaultName } = cfg;
   const history = createHistory<SprigParameters>(() => ({ ...defaults }));
+  /** The drawing settings a just-loaded drawing kept that are not its defaults. */
+  const carriedOver = (p: SprigParameters) => {
+    const base = drawingDefaults(defaults, p);
+    return { svg: p.svg, keys: DRAWING_SETTINGS.filter((k) => p[k] !== base[k]) };
+  };
 
   const useStore = create<SprigStore>((set, get) => ({
     params: { ...defaults },
+    carried: null,
     view: { ...DEFAULT_VIEW },
     settingsName: defaultName,
 
@@ -183,12 +195,17 @@ function makeDesign(kind: 'sprig' | 'mark', cfg: DesignKind): SprigDesign {
         const length = a >= 1 ? snap(long / a) : snap(long);
         const next = { ...fresh, width, length };
         const fit = smallestFit(next);
-        return { params: { ...next, moldSize: next.moldSize === 'custom' ? 'custom' : fit ?? next.moldSize } };
+        const params: SprigParameters = { ...next, moldSize: next.moldSize === 'custom' ? 'custom' : fit ?? next.moldSize };
+        return { params, carried: carriedOver(params) };
       }),
 
-    loadRelief: (url, name, size) => set((state) => ({ params: withRelief(state.params, url, name, size) })),
+    loadRelief: (url, name, size) => set((state) => {
+      const params = withRelief(state.params, url, name, size);
+      return { params, carried: carriedOver(params) };
+    }),
+    dismissCarried: () => set({ carried: null }),
 
-    reset: () => set((state) => ({ params: { ...drawingDefaults(defaults, state.params), ...keepSprig(state.params) } })),
+    reset: () => set((state) => ({ params: { ...drawingDefaults(defaults, state.params), ...keepSprig(state.params) }, carried: null })),
 
     resetFields: (keys) =>
       set((state) => {
@@ -223,7 +240,7 @@ function makeDesign(kind: 'sprig' | 'mark', cfg: DesignKind): SprigDesign {
 
     savedParams: null,
     markSaved: (params, name) => set({ savedParams: params, settingsName: name }),
-    revertToSaved: () => set((state) => (state.savedParams ? { params: state.savedParams } : {})),
+    revertToSaved: () => set((state) => (state.savedParams ? { params: state.savedParams, carried: null } : {})),
   }));
 
   // ── localStorage persistence ──

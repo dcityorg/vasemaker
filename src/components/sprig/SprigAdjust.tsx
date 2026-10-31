@@ -2,7 +2,8 @@
 
 /**
  * Adjust: every control that changes the cast, in one run under Shaping, in
- * the order you work — size, heights, outline, edges, thin parts, pieces
+ * the order you work — size, heights (Min Thickness too: it is a height), outline,
+ * edges, thin parts, pieces
  * (order Gary's, 2026-10-30; Gary, 2026-10-29: "I have to bounce around too much"; the
  * adjustments are foreign to most people, so keep them together and explain
  * each). Each warning sits right above the controls that fix it, a one-line
@@ -22,7 +23,7 @@ import { smallestFit, fitsBox, type SprigNote } from '@/engine/sprig/sprig-gener
 import type { ReliefField } from '@/engine/sprig/relief';
 import {
   SPRIG_SIZES, sprigFootprint, isPictureDrawing,
-  type SprigParameters, type SprigProfile, type TextSize,
+  type SprigParameters, type SprigProfile, type TextSize, type DrawingSetting,
 } from '@/engine/sprig/sprig-types';
 
 // ── Hints: on by default, remembered per browser ──
@@ -85,6 +86,15 @@ type BoolKey = { [K in keyof SprigParameters]: SprigParameters[K] extends boolea
 const linkCls = 'underline decoration-dotted underline-offset-2 hover:text-amber-100';
 const selectCls = 'flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs';
 
+/** Names and units for the "Kept from the last drawing" note. */
+const KEPT_LABEL: Record<DrawingSetting, [string, string]> = {
+  maxHeight: ['Max Height', ' mm'], profile: ['Profile', ''], roundness: ['Roundness', ' mm'], detailDepth: ['Detail Depth', ' mm'],
+  trimBelow: ['Trim Below', ' mm'], minThickness: ['Min Thickness', ' mm'], imageLightest: ['Lightest Tone', '%'], invert: ['Invert', ''],
+  imageBackground: ['Background Cut', ''], imageCloseGaps: ['Close Gaps', ' px'], svgFill: ['Fill Outlines', ''], svgCloseGaps: ['Close Gaps', ' px'],
+  gapFill: ['Gap Fill', '%'], edgeSoftness: ['Edge Softness', ' mm'], minEdgeThickness: ['Edge Lip', ' mm'], widen: ['Widen', ' mm'],
+  thickenThin: ['Thicken', ' mm'], roundThin: ['Round Off Thin', ''], removeTiny: ['Remove Tiny', ''], wholeShapesOnly: ['Whole Shapes', ''],
+};
+
 interface Props {
   params: SprigParameters;
   defaults: SprigParameters;
@@ -96,9 +106,12 @@ interface Props {
   setParams: (u: Partial<SprigParameters>) => void;
   setWidth: (w: number) => void;
   setLength: (l: number) => void;
+  /** Settings the drawing kept from the last one (store `carried`). */
+  carried: { svg: string; keys: DrawingSetting[] } | null;
+  dismissCarried: () => void;
 }
 
-export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSize, setParam, setParams, setWidth, setLength }: Props) {
+export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSize, setParam, setParams, setWidth, setLength, carried, dismissCarried }: Props) {
   const hints = useHints((s) => s.on);
   useEffect(() => {
     try { if (window.localStorage.getItem(HINTS_KEY) === '0') useHints.setState({ on: false }); } catch { /* default on */ }
@@ -164,6 +177,30 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
     'Gap Fill: the slits Close Gaps filled get a groove this % of the height round them, as wide as Edge Softness each side. 100% = no groove. The cast stays one piece at any value');
   const bare = noteOf('bare');
 
+  // Kept from the last drawing: only what still differs and is shown for this
+  // drawing and Shaping (the same conditions as the controls below).
+  const shownFor = (k: DrawingSetting) => {
+    switch (k) {
+      case 'profile': case 'roundness': return inflate;
+      case 'detailDepth': return mode === 'inflateGray';
+      case 'trimBelow': return mode === 'gray' || mode === 'photoDepth';
+      case 'imageLightest': return grayish && (picture || p.svgFill || p.svgTones >= 2);
+      case 'imageBackground': case 'imageCloseGaps': return picture;
+      case 'svgFill': return !picture;
+      case 'svgCloseGaps': return !picture && p.svgFill;
+      case 'gapFill': return picture ? p.imageCloseGaps >= 1 : p.svgFill && p.svgCloseGaps >= 1;
+      case 'removeTiny': case 'wholeShapesOnly': return !isMark;
+      default: return true;
+    }
+  };
+  const kept = carried && carried.svg === p.svg ? carried.keys.filter((k) => p[k] !== defaults[k] && shownFor(k)) : [];
+  const keptValue = (k: DrawingSetting) => {
+    const v = p[k], unit = KEPT_LABEL[k][1];
+    if (typeof v === 'boolean') return v ? 'on' : 'off';
+    if (typeof v === 'string') return v.charAt(0).toUpperCase() + v.slice(1);
+    return `${+v.toFixed(2)}${unit}`;
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mt-2">
@@ -177,6 +214,18 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
         <p className="text-[10px] leading-snug text-[var(--text-secondary)] mb-1 pl-0.5">
           An amber dot after a name means it is changed — click the dot to put it back.
         </p>
+      )}
+
+      {kept.length > 0 && (
+        <div className="mb-2 mt-1 px-2 py-1.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-secondary)] leading-snug">
+          Kept from the last drawing: {kept.map((k) => `${KEPT_LABEL[k][0]} ${keptValue(k)}`).join(', ')}.{' '}
+          <button className={linkCls} onClick={() => { setParams(Object.fromEntries(kept.map((k) => [k, defaults[k]]))); dismissCarried(); }}
+            title="Put these back to their defaults (for a relief, its settings as loaded). One undo step">
+            Reset these
+          </button>
+          {' · '}
+          <button className={linkCls} onClick={dismissCarried} title="Keep them and hide this note">Keep</button>
+        </div>
       )}
 
       {/* ── Size ── */}
@@ -206,13 +255,15 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
             </select>
           </div>
           {hint('The rise from the edge: Round = a dome, Pillow = steep sides and a flat top, Angular = a ridge.')}
-          {slider('roundness', 'Roundness', 'mm', 'How far in from the edge it takes to reach Max Height. Parts narrower than twice this stay lower — legs and tails.')}
+          {slider('roundness', 'Roundness', 'mm', 'How far in from the edge it takes to reach Max Height. Parts narrower than twice this stay lower.')}
         </>
       )}
       {mode === 'inflateGray' && slider('detailDepth', 'Detail Depth', 'mm', 'How deep lighter-grey marks inside the shape (eyes, veins) cut in. Pure white is background, not detail.')}
       {(mode === 'gray' || mode === 'photoDepth') && slider('trimBelow', 'Trim Below', 'mm',
-        'Cuts away every part lower than this — the near-flat leftovers of legs and antennae round a relief. Watch thin tails. 0 = off.',
+        'Cuts away every part lower than this — the near-flat leftovers round a relief. Watch slim parts: they can narrow. 0 = off.',
         'Trim Below: in Gray and Photo depth, every part whose height is under this is cut away and the outline follows. With Lightest Tone above 0 nothing is that low — set Lightest Tone to 0 for a relief. 0 = off')}
+      {slider('minThickness', 'Min Thickness', 'mm', 'Lifts every part to at least this height, so narrow places keep enough clay. The edges still slope down to the plate. 0 = off.',
+        'Min Thickness: lifts every part to at least this height, so narrow places keep enough clay. The edges still slope down to the plate. 0 = off')}
       {grayish && (picture || p.svgFill || p.svgTones >= 2) && slider('imageLightest', 'Lightest Tone', '%', mode === 'gray'
         ? 'Height of the lightest tone, as a % of Max Height. Raise it to put clay where the plate shows through.'
         : 'How much of Detail Depth the lightest tone is spared: 100% = no cut, 0% = the full depth.')}
@@ -224,7 +275,7 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
           {group('Outline')}
           {slider('imageBackground', 'Background Cut', '', 'How close a colour must be to the background to be cut away. Raise it if a halo or speckles stay round the drawing; lower it if pale parts of the drawing vanish.',
             'Background Cut: how close a colour must be to the background to be cut away. Raise it if a halo or speckles stay round the drawing; lower it if pale parts of the drawing vanish. Areas the background cannot reach (inside a closed outline) always stay')}
-          {slider('imageCloseGaps', 'Close Gaps', 'px', 'Fills slits up to about twice this many pixels wide — breaks in an outline, gaps between segments — so they count as shape.',
+          {slider('imageCloseGaps', 'Close Gaps', 'px', 'Fills slits up to about twice this many pixels wide — breaks in an outline, gaps between sections — so they count as shape.',
             'Close Gaps: slits up to about twice this many picture pixels wide are filled instead of being cut away with the background. Whole pixels only — in between does nothing', false)}
           {p.imageCloseGaps >= 1 && gapFill}
         </>
@@ -254,7 +305,7 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
                 onClick={() => { setParams({ width: big!.width, length: big!.length, moldSize: big!.moldSize }); setGrown(true); }}
                 title={big!.capped
                   ? 'As big as the largest standard mold takes. Not enough on its own: thicken what is still red'
-                  : `Scales the whole sprig ×${(bigLong / long).toFixed(1)}, so legs and stalks reach ${mf} mm. Keeps the shape exactly. Pointed tips stay a little red at any size`}>
+                  : `Scales the whole sprig ×${(bigLong / long).toFixed(1)}, so its thin parts reach ${mf} mm. Keeps the shape exactly. Pointed tips stay a little red at any size`}>
                 Make it bigger: {Math.round(long)} → {Math.round(bigLong)} mm
                 {big!.moldSize !== p.moldSize && big!.moldSize !== 'custom' ? `, ${SPRIG_SIZES[big!.moldSize].label} mold` : ''}
                 {big!.capped ? ' (largest mold)' : ''}
@@ -265,12 +316,11 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
         </>,
       )}
       {relief && thin === 0 && hints && <p className="text-[10px] leading-snug text-[var(--text-secondary)] mb-2 pl-0.5">Nothing thinner than Min Feature.</p>}
+      {hints && <p className="text-[10px] leading-snug text-[var(--text-secondary)] mb-2 pl-0.5">Narrow parts sitting too low? That is height, not width: Min Thickness, under Heights.</p>}
       {slider('minFeatureWidth', 'Min Feature', 'mm', 'Parts narrower than this show red: they may tear or crack. Round Off works to this width; Widen and Thicken have their own.')}
-      {slider('minThickness', 'Min Thickness', 'mm', 'Lifts every part to at least this height, so narrow places keep enough clay. The edges still slope down to the plate. 0 = off.',
-        'Min Thickness: lifts every part to at least this height, so narrow places keep enough clay. The edges still slope down to the plate. 0 = off')}
-      {slider('widen', 'Widen', 'mm', 'Stretches every thinner part — a tail, a leg — across to about this width, its rounded top and all. Tips stay pointed. 0 = off.',
-        'Widen: every part thinner than this is stretched across to about this width, its whole cross-section with it, so a domed tail stays domed. Parts already wider are left alone. 0 = off')}
-      {slider('thickenThin', 'Thicken', 'mm', 'Widens every thinner part — legs, tails, antennae — to about this width. 0 = off. Close parts (toes) can merge.',
+      {slider('widen', 'Widen', 'mm', 'Stretches every thinner part across to about this width, its rounded top and all. Tips stay pointed. 0 = off.',
+        'Widen: every part thinner than this is stretched across to about this width, its whole cross-section with it, so a domed part stays domed. Parts already wider are left alone. 0 = off')}
+      {slider('thickenThin', 'Thicken', 'mm', 'Widens every thinner part to about this width. 0 = off. Thin parts close together can merge.',
         'Thicken Thin Parts: widen every part thinner than this to about this width. The rest of the shape is left alone. 0 = off')}
       {toggle('roundThin', 'Round Off Thin', 'Shaves off everything narrower than Min Feature: sharp tips round off, hairlines go.')}
 

@@ -425,6 +425,17 @@ export function mergeSprigParameters(raw: unknown, base: SprigParameters = DEFAU
   return out;
 }
 
+/** The Adjust settings that belong to one drawing rather than to how you make
+ *  molds. A new drawing keeps them, and a note lists any that differ from the
+ *  defaults so you can clear them (Gary, 2026-10-30). Not Size, Min Feature
+ *  (a clay rule), mold, Shrink, Resolution or Backing. */
+export const DRAWING_SETTINGS = [
+  'maxHeight', 'profile', 'roundness', 'detailDepth', 'trimBelow', 'minThickness', 'imageLightest', 'invert',
+  'imageBackground', 'imageCloseGaps', 'svgFill', 'svgCloseGaps', 'gapFill',
+  'edgeSoftness', 'minEdgeThickness', 'widen', 'thickenThin', 'roundThin', 'removeTiny', 'wholeShapesOnly',
+] as const satisfies readonly (keyof SprigParameters)[];
+export type DrawingSetting = typeof DRAWING_SETTINGS[number];
+
 /** A relief read as made: Gray, raw tones, nothing softened or cut away. */
 export const RELIEF_SETTINGS = {
   heightMode: 'gray', imageTones: -1, imageLightest: 0, imageSmooth: 0, imageBackground: 0, imageCloseGaps: 0,

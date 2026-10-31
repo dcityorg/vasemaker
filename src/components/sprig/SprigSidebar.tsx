@@ -59,7 +59,7 @@ const selectCls = 'flex-1 bg-[var(--bg-secondary)] border border-[var(--border-c
  *  faster than a menu). `short` is the button; `label` names it elsewhere. */
 const HEIGHT_MODES: { value: SprigHeightMode; label: string; short: string; tooltip: string }[] = [
   { value: 'flat', label: 'Flat', short: 'Flat', tooltip: 'One height for the whole shape — only the edge is shaped' },
-  { value: 'inflate', label: 'Inflate', short: 'Inflate', tooltip: 'Blow the flat outline up like a balloon: the further a point is from the edge the higher it rises, up to Max Height. Thick parts reach full height, thin legs and tails stay lower' },
+  { value: 'inflate', label: 'Inflate', short: 'Inflate', tooltip: 'Blow the flat outline up like a balloon: the further a point is from the edge the higher it rises, up to Max Height. Thick parts reach full height, thin parts stay lower' },
   { value: 'photoDepth', label: 'Photo depth', short: 'Photo depth', tooltip: 'For photos of real things — flowers, shells, animals: a depth model on your computer works out how near each part looks, and the shape rises with it, rounded at the outline. The first time it downloads about 55 MB, once. Little gain on flat drawings: use Inflate' },
   { value: 'gray', label: 'Gray', short: 'Gray', tooltip: 'Black is Max Height, white is the plate, grays in between. For a drawing with shading, or a height map' },
   { value: 'inflateGray', label: 'Inflate + Gray detail', short: 'Inflate + Gray', tooltip: 'Inflate, and lighter-gray marks inside the shape (eyes, scales, veins) cut in by up to Detail Depth. Pure white counts as background, so draw details in gray' },
@@ -90,6 +90,8 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   const view = useSprigStore((s) => s.view);
   const settingsName = useSprigStore((s) => s.settingsName);
   const setParam = useSprigStore((s) => s.setParam);
+  const carried = useSprigStore((s) => s.carried);
+  const dismissCarried = useSprigStore((s) => s.dismissCarried);
   const setParams = useSprigStore((s) => s.setParams);
   const setView = useSprigStore((s) => s.setView);
   const setSettingsName = useSprigStore((s) => s.setSettingsName);
@@ -323,7 +325,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
       const loaded = isMark ? asMark(merged) : merged;
       sprigHistory.skipNextRecord();
       useSprigHistory.getState().clear();
-      useSprigStore.setState({ params: loaded, savedParams: loaded, settingsName: baseName });
+      useSprigStore.setState({ params: loaded, savedParams: loaded, settingsName: baseName, carried: null });
     } catch {
       alert(`Not a ${what} design file.`);
     }
@@ -539,7 +541,8 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               {/* Every adjustment, each with its warning (SprigAdjust.tsx) */}
               <SprigAdjust params={params} defaults={base} relief={m?.relief ?? null} notes={m?.notes ?? []}
                 isMark={isMark} textSize={hasText(params) ? sprig.textSize : null}
-                setParam={setParam} setParams={setParams} setWidth={setWidth} setLength={setLength} />
+                setParam={setParam} setParams={setParams} setWidth={setWidth} setLength={setLength}
+                carried={carried} dismissCarried={dismissCarried} />
             </div>
           </div>
           <PhotoDepthHost />
