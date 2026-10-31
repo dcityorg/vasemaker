@@ -80,6 +80,9 @@ const snap = (v: number) => Math.max(MIN_SIZE, Math.round(v / SIZE_STEP) * SIZE_
  * The SPRIG itself — what Reset leaves alone, the way HandleMaker's Reset keeps
  * the handle shape: the drawing, its size and which way it faces.
  */
+/** Besides the Adjust settings, what a sample resets before its own go on. */
+const SAMPLE_ALSO = ['heightMode', 'imageSmooth', 'imageTones', 'svgTones'] as const;
+
 function keepSprig(p: SprigParameters): Partial<SprigParameters> {
   return {
     svg: p.svg, svgName: p.svgName, svgAspect: p.svgAspect,
@@ -114,8 +117,10 @@ export interface SprigStore {
   /** Turn a quarter clockwise; Width and Length swap so the drawing keeps its size. */
   rotateCW: () => void;
   /** A new drawing: keeps the current longer side, takes the drawing's own
-   *  proportions, and picks the smallest standard mold it fits. One undo step. */
-  loadSvg: (svg: string, name: string, aspect: number) => void;
+   *  proportions, and picks the smallest standard mold it fits. With
+   *  `settings` (a sample), every drawing setting starts at its default and
+   *  these go on top — nothing is kept from the last drawing. One undo step. */
+  loadSvg: (svg: string, name: string, aspect: number, settings?: Partial<SprigParameters>) => void;
   /** A relief STL's height map (lib/sprig-source reliefFromStlFile), at its own
    *  size and height, read as made (Gray, raw tones). One undo step. */
   loadRelief: (url: string, name: string, size: { width: number; length: number; maxHeight: number }) => void;
@@ -192,9 +197,14 @@ function makeDesign(kind: 'sprig' | 'mark', cfg: DesignKind): SprigDesign {
         return { params: { ...p, rotation: (((p.rotation + 90) % 360) as SprigRotation), width: p.length, length: p.width } };
       }),
 
-    loadSvg: (svg, name, aspect) =>
+    loadSvg: (svg, name, aspect, settings) =>
       set((state) => {
-        const p = state.params;
+        let p = state.params;
+        if (settings) {
+          const fresh: Partial<SprigParameters> = {};
+          for (const k of [...DRAWING_SETTINGS, ...SAMPLE_ALSO]) (fresh as Record<string, unknown>)[k] = defaults[k];
+          p = { ...p, ...fresh, ...settings };
+        }
         const long = Math.max(p.width, p.length);
         const a = aspect > 0 ? aspect : 1;
         // Fresh drawing, fresh orientation: rotation and flips reset with it.
@@ -204,7 +214,7 @@ function makeDesign(kind: 'sprig' | 'mark', cfg: DesignKind): SprigDesign {
         const next = { ...fresh, width, length };
         const fit = smallestFit(next);
         const params: SprigParameters = { ...next, moldSize: next.moldSize === 'custom' ? 'custom' : fit ?? next.moldSize };
-        return { params, carried: carriedOver(params) };
+        return { params, carried: settings ? null : carriedOver(params) };
       }),
 
     loadRelief: (url, name, size) => set((state) => {

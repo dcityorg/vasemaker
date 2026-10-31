@@ -12,7 +12,7 @@ import { PhotoDepthHost, PhotoDepthStatusLine, askPhotoDepth } from './PhotoDept
 import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { SPRIG_PARAMS } from '@/config/sprig-params';
-import { SPRIG_SAMPLES } from '@/config/sprig-samples';
+import { SPRIG_SAMPLES, type SprigSample } from '@/config/sprig-samples';
 import { PLASTER_MATERIALS } from '@/config/mold-params';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import { generateSTL } from '@/engine/stl-export';
@@ -161,7 +161,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
 
   /** Measure the drawing, then hand it to the store as ONE undoable step.
    *  Returns the problem in plain words, or null when it worked. */
-  const applySvg = async (raw: string, name: string): Promise<string | null> => {
+  const applySvg = async (raw: string, name: string, settings?: Partial<SprigParameters>): Promise<string | null> => {
     const problem = await (async () => {
       let markup: string;
       try {
@@ -171,9 +171,11 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
         return 'That does not look like SVG code.';
       }
       try {
-        const r = await loadSprigSource(markup, undefined, { fill: params.fillHeight > 0, closeGaps: params.svgCloseGaps, tones: params.svgTones });
+        // Measured with the settings it will have: a sample's own, or the current ones.
+        const q = settings ? { ...design.defaults, ...settings } : params;
+        const r = await loadSprigSource(markup, undefined, { fill: q.fillHeight > 0, closeGaps: q.svgCloseGaps, tones: q.svgTones });
         if (!r) return 'That SVG draws nothing darker than white — there is no shape to raise.';
-        loadSvg(markup, name, r.aspect);
+        loadSvg(markup, name, r.aspect, settings);
         return null;
       } catch {
         return 'That SVG could not be drawn. Check it opens in a browser.';
@@ -226,6 +228,25 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
       }
     } catch {
       problem = 'That picture could not be opened. Try saving it as PNG or JPG.';
+    }
+    setSvgError(problem);
+  };
+
+  /** A sample (Gary, 2026-10-30): its drawing with the settings that show it
+   *  best, as one undo step. On the Mark tab, just the drawing. */
+  const applySample = async (s: SprigSample) => {
+    const settings = isMark ? undefined : s.settings;
+    if (!s.picture) { await applySvg(s.svg, s.name, settings); return; }
+    let problem: string | null = null;
+    try {
+      const blob = await (await fetch(s.picture)).blob();
+      const url = await pictureFromFile(new File([blob], s.picture.split('/').pop()!, { type: blob.type }));
+      const q = { ...design.defaults, ...(settings ?? {}) };
+      const r = await loadSprigSource(url, { background: q.imageBackground, closeGaps: q.imageCloseGaps, smooth: q.imageSmooth, tones: q.imageTones });
+      if (!r) problem = 'That sample could not be read.';
+      else loadSvg(url, s.name, r.aspect, settings);
+    } catch {
+      problem = 'That sample could not be loaded. Check the connection and try again.';
     }
     setSvgError(problem);
   };
@@ -483,7 +504,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               value=""
               onChange={(e) => {
                 const s = SPRIG_SAMPLES.find((x) => x.id === e.target.value);
-                if (s) void applySvg(s.svg, s.name);
+                if (s) void applySample(s);
               }}
               className={selectCls}
               style={{ color: UI_MUTED }}
