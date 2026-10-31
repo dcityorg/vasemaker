@@ -91,7 +91,7 @@ const selectCls = 'flex-1 bg-[var(--bg-secondary)] border border-[var(--border-c
 const KEPT_LABEL: Record<DrawingSetting, [string, string]> = {
   maxHeight: ['Max Height', ' mm'], profile: ['Profile', ''], roundness: ['Roundness', ' mm'], detailDepth: ['Detail Depth', ' mm'],
   trimBelow: ['Trim Below', ' mm'], minThickness: ['Min Thickness', ' mm'], imageLightest: ['Lightest Tone', '%'], invert: ['Invert', ''],
-  imageBackground: ['Background Cut', ''], imageCloseGaps: ['Close Gaps', ' px'], fillHeight: ['Fill Height', '%'], svgCloseGaps: ['Close Gaps', ' px'],
+  imageBackground: ['Background Cut', ''], imageCloseGaps: ['Close Gaps', ' px'], fillHeight: ['Fill Holes', '%'], svgCloseGaps: ['Close Gaps', ' px'],
   gapFill: ['Gap Fill', '%'], edgeSoftness: ['Edge Softness', ' mm'], minEdgeThickness: ['Edge Lip', ' mm'], widen: ['Widen', ' mm'],
   thickenThin: ['Thicken', ' mm'], roundThin: ['Round Off Thin', ''], removeTiny: ['Remove Tiny', ''], wholeShapesOnly: ['Whole Shapes', ''],
 };
@@ -220,7 +220,7 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
           {slider('roundness', 'Roundness', 'mm', 'How far in from the edge it takes to reach Max Height. Parts narrower than twice this stay lower.')}
         </>
       )}
-      {/* A filled SVG's inside follows Fill Height instead (relief.ts). */}
+      {/* A filled SVG's inside follows Fill Holes instead (relief.ts). */}
       {mode === 'inflateGray' && (picture || p.fillHeight === 0) && slider('detailDepth', 'Detail Depth', 'mm', 'How deep lighter-grey marks inside the shape (eyes, veins) cut in. Pure white is background, not detail.')}
       {(mode === 'gray' || mode === 'photoDepth') && slider('trimBelow', 'Trim Below', 'mm',
         'Cuts away every part lower than this — the near-flat leftovers round a relief. Watch slim parts: they can narrow. 0 = off.',
@@ -246,8 +246,8 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
         <>
           {group('Outline')}
           {!grayish && bare.map((n, i) => warn(n.text, `bare${i}`))}
-          {slider('fillHeight', 'Fill Height', '%', 'For line drawings: the inside of each closed outline stands at this % of the lines’ height. 0 = not filled; 100 = level with the lines.',
-            'Fill Height: the inside of each closed outline rises to this % of the solid shape’s height (in Inflate, of the whole dome), and the lines keep their own shape, sloping down to meet it. 0 = not filled, only the lines; 100 = one solid shape')}
+          {slider('fillHeight', 'Fill Holes', '%', 'Fills the holes inside the drawing: 0% leaves them empty, 100% fills them level with the shape around them.',
+            'Fill Holes: each empty spot the drawing encloses rises to this % of the height around it. The shape around it keeps its own form and slopes down to meet the fill. 0 = empty, 100 = filled solid')}
           {p.fillHeight > 0 && slider('svgCloseGaps', 'Close Gaps', 'px', 'Closes small breaks in an outline, so its inside fills instead of leaking away.', undefined, false)}
           {p.fillHeight > 0 && p.svgCloseGaps >= 1 && gapFill}
         </>

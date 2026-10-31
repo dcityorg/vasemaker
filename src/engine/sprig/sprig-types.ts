@@ -69,7 +69,7 @@ export interface SprigParameters {
   imageLightest: number;
 
   // ── SVG (an SVG with both of these off is read as drawn, as before) ──
-  /** Fill Height (Gary, 2026-10-30; was the Fill Outlines switch): the inside
+  /** Fill Holes (Gary, 2026-10-30; was the Fill Outlines switch): the inside
    *  of each closed outline stands at this % of the outline's height, in every
    *  Shaping. 0 = not filled (read as drawn). Replaces Lightest Tone for a
    *  filled SVG. */

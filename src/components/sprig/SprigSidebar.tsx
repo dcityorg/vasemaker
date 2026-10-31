@@ -656,7 +656,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               </div>
               {sprig.source && <PicturePreview source={sprig.source} threshold={params.heightMode === 'gray' || params.heightMode === 'inflateGray' ? GRAY_INK : 0.5} />}
               <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
-                Fill Height and Close Gaps are under Adjust → Outline.
+                Fill Holes and Close Gaps are under Adjust → Outline.
               </p>
               <div className="flex items-center gap-2 mb-2">
                 <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Tones</label>
