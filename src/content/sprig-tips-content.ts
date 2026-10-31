@@ -27,7 +27,7 @@ export const SPRIG_TIPS: TipsSection[] = [
     title: '1. Best: a relief STL',
     body: [
       'Apps made for this sculpt a picture into a real 3-D relief — rounded bodies, layered petals, veins — depth a flat picture does not have. MakerWorld’s Relief Sculpture Maker (link below) is one, online. Register for a free MakerWorld account, upload your picture there, download the relief as an STL, and press LOAD RELIEF STL here. Its base plaque is dropped automatically.',
-      'It comes in at its own size and height; you can still change Width, Max Height and the clean-up settings. Watch for detail finer than about 0.2 mm high, which clay may not hold, and thin parts (red) that need Widen.',
+      'About 3 mm high is typically a good height for a sprig mold, so set that there if you can. It comes in at its own size and height, and you can still change Width, Max Height and the clean-up settings here. Watch for detail finer than about 0.2 mm high, which clay may not hold, and thin parts (red) that need Widen.',
     ],
   },
   {
