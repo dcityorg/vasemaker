@@ -173,7 +173,7 @@ export function Sidebar({
           <ToggleAllSectionsButton />
         </div>
         <ToolNav current="vase" helpOpen={helpOpen} onToggleHelp={onToggleHelp} />
-        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.54.0</p>
+        <p className="text-xs text-[var(--text-secondary)]">Parametric 3D Vase Designer — v1.55.0</p>
         <DesignNameRow what="Vase" name={designName ?? ''} unnamed={isVaseUnnamed(designName)} dirty={isDirty}
           onRename={(v) => onDesignNameChange(v || null)} />
         <NamePromptHost />
