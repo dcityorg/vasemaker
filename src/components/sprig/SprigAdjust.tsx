@@ -91,7 +91,7 @@ const selectCls = 'flex-1 bg-[var(--bg-secondary)] border border-[var(--border-c
 const KEPT_LABEL: Record<DrawingSetting, [string, string]> = {
   maxHeight: ['Max Height', ' mm'], profile: ['Profile', ''], roundness: ['Roundness', ' mm'], detailDepth: ['Detail Depth', ' mm'],
   trimBelow: ['Trim Below', ' mm'], minThickness: ['Min Thickness', ' mm'], imageLightest: ['Lightest Tone', '%'], invert: ['Invert', ''],
-  imageBackground: ['Background Cut', ''], imageCloseGaps: ['Close Gaps', ' px'], svgFill: ['Fill Outlines', ''], svgCloseGaps: ['Close Gaps', ' px'],
+  imageBackground: ['Background Cut', ''], imageCloseGaps: ['Close Gaps', ' px'], fillHeight: ['Fill Height', '%'], svgCloseGaps: ['Close Gaps', ' px'],
   gapFill: ['Gap Fill', '%'], edgeSoftness: ['Edge Softness', ' mm'], minEdgeThickness: ['Edge Lip', ' mm'], widen: ['Widen', ' mm'],
   thickenThin: ['Thicken', ' mm'], roundThin: ['Round Off Thin', ''], removeTiny: ['Remove Tiny', ''], wholeShapesOnly: ['Whole Shapes', ''],
 };
@@ -220,13 +220,14 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
           {slider('roundness', 'Roundness', 'mm', 'How far in from the edge it takes to reach Max Height. Parts narrower than twice this stay lower.')}
         </>
       )}
-      {mode === 'inflateGray' && slider('detailDepth', 'Detail Depth', 'mm', 'How deep lighter-grey marks inside the shape (eyes, veins) cut in. Pure white is background, not detail.')}
+      {/* A filled SVG's inside follows Fill Height instead (relief.ts). */}
+      {mode === 'inflateGray' && (picture || p.fillHeight === 0) && slider('detailDepth', 'Detail Depth', 'mm', 'How deep lighter-grey marks inside the shape (eyes, veins) cut in. Pure white is background, not detail.')}
       {(mode === 'gray' || mode === 'photoDepth') && slider('trimBelow', 'Trim Below', 'mm',
         'Cuts away every part lower than this — the near-flat leftovers round a relief. Watch slim parts: they can narrow. 0 = off.',
         'Trim Below: in Gray and Photo depth, every part whose height is under this is cut away and the outline follows. With Lightest Tone above 0 nothing is that low — set Lightest Tone to 0 for a relief. 0 = off')}
       {slider('minThickness', 'Min Thickness', 'mm', 'Lifts every part to at least this height, so narrow places keep enough clay. The edges still slope down to the plate. 0 = off.',
         'Min Thickness: lifts every part to at least this height, so narrow places keep enough clay. The edges still slope down to the plate. 0 = off')}
-      {grayish && (picture || p.svgFill || p.svgTones >= 2) && slider('imageLightest', 'Lightest Tone', '%', mode === 'gray'
+      {grayish && (picture || (p.fillHeight === 0 && p.svgTones >= 2)) && slider('imageLightest', 'Lightest Tone', '%', mode === 'gray'
         ? 'Height of the lightest tone, as a % of Max Height. Raise it to put clay where the plate shows through.'
         : 'How much of Detail Depth the lightest tone is spared: 100% = no cut, 0% = the full depth.')}
       {toggle('invert', 'Invert', picture ? 'Swaps which tones stand higher. The outline stays the same.' : 'Swaps black and white inside the drawing’s area: the background becomes the raised part.')}
@@ -245,9 +246,10 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
         <>
           {group('Outline')}
           {!grayish && bare.map((n, i) => warn(n.text, `bare${i}`))}
-          {toggle('svgFill', 'Fill Outlines', 'For line drawings: the inside of every closed outline becomes shape, with the lines on top.')}
-          {p.svgFill && slider('svgCloseGaps', 'Close Gaps', 'px', 'Closes small breaks in an outline, so its inside fills instead of leaking away.', undefined, false)}
-          {p.svgFill && p.svgCloseGaps >= 1 && gapFill}
+          {slider('fillHeight', 'Fill Height', '%', 'For line drawings: the inside of each closed outline stands at this % of the lines’ height. 0 = not filled; 100 = level with the lines.',
+            'Fill Height: the inside of each closed outline becomes shape at this % of the outline’s height — in Flat, Gray and Inflate alike. 0 = not filled, only the lines; 100 = one solid shape')}
+          {p.fillHeight > 0 && slider('svgCloseGaps', 'Close Gaps', 'px', 'Closes small breaks in an outline, so its inside fills instead of leaking away.', undefined, false)}
+          {p.fillHeight > 0 && p.svgCloseGaps >= 1 && gapFill}
         </>
       )}
 
@@ -333,13 +335,13 @@ export function KeptNote({ params: p, defaults, isMark, carried, dismissCarried,
   const shownFor = (k: DrawingSetting) => {
     switch (k) {
       case 'profile': case 'roundness': return inflate;
-      case 'detailDepth': return mode === 'inflateGray';
+      case 'detailDepth': return mode === 'inflateGray' && (picture || p.fillHeight === 0);
       case 'trimBelow': return mode === 'gray' || mode === 'photoDepth';
-      case 'imageLightest': return grayish && (picture || p.svgFill || p.svgTones >= 2);
+      case 'imageLightest': return grayish && (picture || (p.fillHeight === 0 && p.svgTones >= 2));
       case 'imageBackground': case 'imageCloseGaps': return picture;
-      case 'svgFill': return !picture;
-      case 'svgCloseGaps': return !picture && p.svgFill;
-      case 'gapFill': return picture ? p.imageCloseGaps >= 1 : p.svgFill && p.svgCloseGaps >= 1;
+      case 'fillHeight': return !picture;
+      case 'svgCloseGaps': return !picture && p.fillHeight > 0;
+      case 'gapFill': return picture ? p.imageCloseGaps >= 1 : p.fillHeight > 0 && p.svgCloseGaps >= 1;
       case 'removeTiny': case 'wholeShapesOnly': return !isMark;
       default: return true;
     }

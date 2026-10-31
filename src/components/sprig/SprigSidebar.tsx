@@ -170,7 +170,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
         return 'That does not look like SVG code.';
       }
       try {
-        const r = await loadSprigSource(markup, undefined, { fill: params.svgFill, closeGaps: params.svgCloseGaps, tones: params.svgTones });
+        const r = await loadSprigSource(markup, undefined, { fill: params.fillHeight > 0, closeGaps: params.svgCloseGaps, tones: params.svgTones });
         if (!r) return 'That SVG draws nothing darker than white — there is no shape to raise.';
         loadSvg(markup, name, r.aspect);
         return null;
@@ -656,7 +656,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               </div>
               {sprig.source && <PicturePreview source={sprig.source} threshold={params.heightMode === 'gray' || params.heightMode === 'inflateGray' ? GRAY_INK : 0.5} />}
               <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
-                Fill Outlines and Close Gaps are under Adjust, at the top.
+                Fill Height and Close Gaps are under Adjust → Outline.
               </p>
               <div className="flex items-center gap-2 mb-2">
                 <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Tones</label>

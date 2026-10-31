@@ -7,7 +7,7 @@
  * All lengths are FINISHED mm. The generator scales the result up by Shrink.
  */
 
-import { backingOn, hasText, sprigPlacement, type SprigParameters } from './sprig-types';
+import { backingOn, hasText, isPictureDrawing, sprigPlacement, type SprigParameters } from './sprig-types';
 
 /** Grayscale image, 0 = black … 255 = white, row-major, row 0 at the TOP. */
 export interface SprigSource {
@@ -31,7 +31,7 @@ export interface SprigSource {
  */
 function effectiveParams(src: SprigSource, p: SprigParameters): SprigParameters {
   if (p.heightMode !== 'photoDepth') return p;
-  return src.photoDepth ? { ...p, heightMode: 'gray', imageLightest: 0 } : { ...p, heightMode: 'inflate' };
+  return src.photoDepth ? { ...p, heightMode: 'gray', imageLightest: 0, fillHeight: 0 } : { ...p, heightMode: 'inflate' };
 }
 
 /** Lighter than this counts as paper when cropping (antialiasing fringes). */
@@ -274,8 +274,10 @@ function buildLayer(
   gapAt: ((x: number, y: number) => number) | null = null,
 ) {
   const { nx, ny, step, x0, y0, fx, fy, fs, ix0, iy0 } = g;
-  // A picture's lightest tone: this fraction of the darkest's height.
-  const lightest = Math.min(1, Math.max(0, p.imageLightest / 100));
+  // A picture's lightest tone: this fraction of the darkest's height. A filled
+  // SVG's white inside stands at Fill Height instead (Gary, 2026-10-30).
+  const svgFilled = !isPictureDrawing(p.svg) && p.fillHeight > 0;
+  const lightest = Math.min(1, Math.max(0, (svgFilled ? p.fillHeight : p.imageLightest) / 100));
   const gray = p.heightMode === 'gray' || p.heightMode === 'inflateGray';
   const threshold = gray ? GRAY_INK : 0.5;
   const N = nx * ny;
@@ -400,11 +402,15 @@ function buildLayer(
   // Shape value 0..1.
   const f = new Float32Array(N);
   const inflate = p.heightMode === 'inflate' || p.heightMode === 'inflateGray';
+  const fillShare = new Float32Array(N).fill(1);
   for (let i = 0; i < N; i++) {
     if (!mask[i]) continue;
     if (inflate) f[i] = p.roundness > 0 ? inflateProfile(dist[i] / p.roundness, p.profile) : 1;
     else if (p.heightMode === 'gray') f[i] = ink[i];
     else f[i] = 1;
+    // A filled SVG: the inside at Fill Height × the lines' height, in every
+    // Shaping (Gray already has it, through the ink).
+    if (svgFilled && p.heightMode !== 'gray') fillShare[i] = ink[i];
   }
   if (inflate && p.roundness > 0) {
     // Smooth the crease, but not within reach of the edge: a masked blur
@@ -426,7 +432,8 @@ function buildLayer(
     if (!mask[i]) continue;
     let v = H * f[i];
     // Lighter marks inside the shape cut in; black is untouched.
-    if (p.heightMode === 'inflateGray') v -= p.detailDepth * (1 - ink[i]);
+    if (svgFilled) v *= fillShare[i];
+    else if (p.heightMode === 'inflateGray') v -= p.detailDepth * (1 - ink[i]);
     hs[i] = Math.min(H, Math.max(minE, v));
   }
 
@@ -505,7 +512,7 @@ function textParams(p: SprigParameters, height: number): SprigParameters {
   return {
     ...p, heightMode: 'flat', maxHeight: height, edgeSoftness: TEXT_EDGE,
     minEdgeThickness: Math.min(p.minEdgeThickness, height), invert: false,
-    removeTiny: false, wholeShapesOnly: false, roundThin: false, thickenThin: 0, widen: 0,
+    removeTiny: false, wholeShapesOnly: false, roundThin: false, thickenThin: 0, widen: 0, fillHeight: 0,
   };
 }
 

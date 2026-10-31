@@ -44,7 +44,7 @@ export function useSprigInputs(params: SprigParameters | null): SprigInputs {
     let live = true;
     const load = (withDepth: boolean) => loadSprigSource(svg,
       { background: p.imageBackground, closeGaps: p.imageCloseGaps, smooth: p.imageSmooth, tones: p.imageTones },
-      { fill: p.svgFill, closeGaps: p.svgCloseGaps, tones: p.svgTones }, withDepth);
+      { fill: p.fillHeight > 0, closeGaps: p.svgCloseGaps, tones: p.svgTones }, withDepth);
     let depthFailed = false;
     // If the model cannot run here, fall back to the plain drawing (inflated) and say so.
     (depth ? load(true).catch(() => { depthFailed = true; return load(false); }) : load(false))

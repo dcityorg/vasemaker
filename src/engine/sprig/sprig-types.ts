@@ -69,8 +69,11 @@ export interface SprigParameters {
   imageLightest: number;
 
   // ── SVG (an SVG with both of these off is read as drawn, as before) ──
-  /** Fill closed outlines solid (flood fill from the edge, like a picture). */
-  svgFill: boolean;
+  /** Fill Height (Gary, 2026-10-30; was the Fill Outlines switch): the inside
+   *  of each closed outline stands at this % of the outline's height, in every
+   *  Shaping. 0 = not filled (read as drawn). Replaces Lightest Tone for a
+   *  filled SVG. */
+  fillHeight: number;
   /** Close gaps in an outline before filling, pixels of a 1024 px drawing. */
   svgCloseGaps: number;
   /** 0 = greys as drawn; 2–5 = that many flat height levels. */
@@ -297,7 +300,7 @@ export const DEFAULT_SPRIG_PARAMETERS: SprigParameters = {
   imageTones: 3,
   imageLightest: 40,
 
-  svgFill: false,
+  fillHeight: 0,
   svgCloseGaps: 0,
   svgTones: 0,
 
@@ -410,6 +413,16 @@ export function mergeSprigParameters(raw: unknown, base: SprigParameters = DEFAU
     (out as unknown as Record<string, unknown>)[key] = v;
   }
   if (!(out.svgAspect > 0)) out.svgAspect = 1;
+  // Fill Outlines was a switch until 2026-10-30. On, it becomes the Fill
+  // Height that looks the same: solid in Flat and Inflate, Lightest Tone in
+  // Gray, and the nearest share of the dome for Inflate + Gray's groove.
+  if (src.fillHeight === undefined && src.svgFill === true) {
+    const L = out.imageLightest / 100;
+    const f = out.heightMode === 'gray' ? L
+      : out.heightMode === 'inflateGray' ? 1 - (out.detailDepth * (1 - L)) / Math.max(out.maxHeight, 0.1)
+      : 1;
+    out.fillHeight = Math.min(100, Math.max(f > 0 ? 5 : 0, Math.round((f * 100) / 5) * 5));
+  }
   // On Vase had its own Handle At slider for a few hours on 2026-10-25; the
   // handle now sits at the split angle (0 by default). Keep the sprig where it
   // was RELATIVE to the handle.
@@ -431,7 +444,7 @@ export function mergeSprigParameters(raw: unknown, base: SprigParameters = DEFAU
  *  (a clay rule), mold, Shrink, Resolution or Backing. */
 export const DRAWING_SETTINGS = [
   'maxHeight', 'profile', 'roundness', 'detailDepth', 'trimBelow', 'minThickness', 'imageLightest', 'invert',
-  'imageBackground', 'imageCloseGaps', 'svgFill', 'svgCloseGaps', 'gapFill',
+  'imageBackground', 'imageCloseGaps', 'fillHeight', 'svgCloseGaps', 'gapFill',
   'edgeSoftness', 'minEdgeThickness', 'widen', 'thickenThin', 'roundThin', 'removeTiny', 'wholeShapesOnly',
 ] as const satisfies readonly (keyof SprigParameters)[];
 export type DrawingSetting = typeof DRAWING_SETTINGS[number];
@@ -519,13 +532,15 @@ export function isPictureDrawing(svg: string): boolean {
 }
 
 /** Does this SVG go through the picture pipeline (fill and/or tone steps)? */
-export function svgPrepared(p: Pick<SprigParameters, 'svgFill' | 'svgTones'>): boolean {
-  return p.svgFill || p.svgTones >= 2;
+export function svgPrepared(p: Pick<SprigParameters, 'fillHeight' | 'svgTones'>): boolean {
+  return p.fillHeight > 0 || p.svgTones >= 2;
 }
 
 /** The SVG settings that change the prepared image, as one cache key ('' = read as drawn). */
-export function svgKey(p: Pick<SprigParameters, 'svgFill' | 'svgCloseGaps' | 'svgTones'>): string {
-  return svgPrepared(p) ? `${p.svgFill ? 1 : 0}|${p.svgFill ? p.svgCloseGaps : 0}|${p.svgTones}` : '';
+export function svgKey(p: Pick<SprigParameters, 'fillHeight' | 'svgCloseGaps' | 'svgTones'>): string {
+  // The height itself is applied in the relief, so it does not re-run the prep.
+  const fill = p.fillHeight > 0;
+  return svgPrepared(p) ? `${fill ? 1 : 0}|${fill ? p.svgCloseGaps : 0}|${p.svgTones}` : '';
 }
 
 /** The picture settings that change the prepared image (not Lightest, which

@@ -19,6 +19,7 @@ export const SPRIG_PARAMS = {
   imageSmooth:     { min: 0, max: 5, step: 1 } as SliderRange,
   imageLightest:   { min: 0, max: 100, step: 5 } as SliderRange,
   svgCloseGaps:    { min: 0, max: 10, step: 1 } as SliderRange,
+  fillHeight:      { min: 0, max: 100, step: 5 } as SliderRange,
 
   textHeight:  { min: 3, max: 40, step: 0.5 } as SliderRange,
   textDepth:   { min: 0.2, max: 4, step: 0.1 } as SliderRange,
