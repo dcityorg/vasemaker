@@ -22,6 +22,10 @@ export interface SprigSource {
   photoDepth?: boolean;
   /** The slits Close Gaps filled (image-prep.ts), same layout: 0 = slit. */
   gap?: Uint8Array;
+  /** Photo depth on a filled line drawing: the lines alone (their own depth
+   *  relief, rounded down into the holes), same layout, for Fill Holes. With
+   *  it, `pixels` is the solid version (holes filled from round them). */
+  lines?: { pixels: Uint8Array; mask: Uint8Array };
 }
 
 /**
@@ -554,7 +558,19 @@ export function buildRelief(src: SprigSource, pIn: SprigParameters, step: number
     const maskAt = sampleMask ? (x: number, y: number) => sampleMask(u(x), v(y)) : null;
     const gapAt = sampleGap ? (x: number, y: number) => sampleGap(u(x), v(y)) : null;
     const fill = !isPictureDrawing(p.svg) && p.fillHeight > 0 && maskAt ? Math.min(1, p.fillHeight / 100) : 0;
-    if (fill > 0 && fill < 1) {
+    // Photo depth (Gray as made here, fillHeight 0): the image prep made the
+    // lines and the solid version; the same rule — the higher of the lines and
+    // Fill Holes × solid.
+    const depthFill = src.photoDepth && src.lines && pIn.heightMode === 'photoDepth' && !isPictureDrawing(p.svg) && maskAt
+      ? Math.min(1, Math.max(0, pIn.fillHeight / 100)) : 0;
+    if (depthFill > 0 && depthFill < 1) {
+      const lineInk = sampler(src, p, src.lines!.pixels), lineMask = sampler(src, p, src.lines!.mask);
+      const solid = buildLayer(g, p, inkAt, maskAt, gapAt);
+      const lines = buildLayer(g, p, (x, y) => lineInk(u(x), v(y)), (x, y) => lineMask(u(x), v(y)), null);
+      heights = solid.heights;
+      for (let k = 0; k < N; k++) heights[k] = Math.max(lines.heights[k], depthFill * solid.heights[k]);
+      ({ mask, fOut } = solid);
+    } else if (fill > 0 && fill < 1) {
       // Fill Height (Gary, 2026-10-30): the lines keep the shape they have
       // unfilled — Inflate rounds each by its own width, and every line keeps
       // its edge slope — and the inside rises as a floor to Fill Height × the

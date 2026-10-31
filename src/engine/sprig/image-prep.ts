@@ -44,6 +44,9 @@ export interface ImagePrepOptions {
    *  tone channel IS the photo-depth height (photo-depth.ts) and `tones` and
    *  `smooth` are not used; the outline is found as usual. */
   depth?: DepthMap;
+  /** With `depth` and fill: also keep the lines alone, for Fill Holes in
+   *  Photo depth (an SVG's line drawing). Default false. */
+  keepLines?: boolean;
 }
 
 /** Full background slider = this RGB distance (black to white is 441). */
@@ -153,8 +156,45 @@ export function prepareImage(img: RgbaImage, o: ImagePrepOptions): { source: Spr
   }
   // ── Tone 0..1, 1 = darkest (or, with Photo depth, 1 = tallest) ──
   let tone: Float32Array;
-  if (o.depth) tone = depthRelief(o.depth, cw, ch, inside, edgeDistance(inside, cw, ch), { x0, y0, fullW: w, fullH: h });
-  else {
+  // Fill Holes in Photo depth (Gary, 2026-10-30): the holes are the enclosed
+  // background-coloured spots the fill took in (not the slits Close Gaps
+  // filled). The lines get their own depth relief, rounded down into each
+  // hole; the solid version has each hole filled smoothly from the heights
+  // round it. The relief takes the higher of the lines and Fill Holes × solid.
+  let lineTone: Float32Array | null = null, lineInside: Uint8Array | null = null;
+  const crop = { x0, y0, fullW: w, fullH: h };
+  if (o.depth) {
+    tone = depthRelief(o.depth, cw, ch, inside, edgeDistance(inside, cw, ch), crop);
+    if (o.keepLines && o.fill !== false) {
+      const hole = new Uint8Array(M);
+      let any = false;
+      for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+        const k = (y + y0) * w + x + x0, c = y * cw + x;
+        if (inside[c] && cand[k] && !(reach && reach[k])) { hole[c] = 1; any = true; }
+      }
+      if (any) {
+        lineInside = new Uint8Array(M);
+        for (let c = 0; c < M; c++) lineInside[c] = inside[c] && !hole[c] ? 1 : 0;
+        lineTone = depthRelief(o.depth, cw, ch, lineInside, edgeDistance(lineInside, cw, ch), crop);
+        // The solid version: the depth model sees a hole as far-off background
+        // and its blur carries that dip a little way into the lines round it.
+        // So the depth itself is filled — each hole and a band round it, from
+        // the depth beyond the band — before it becomes heights.
+        const dm = depthAtPixels(o.depth, cw, ch, crop);
+        const halo = Math.ceil((4 * w) / o.depth.width);
+        const notHole = new Uint8Array(M);
+        for (let c = 0; c < M; c++) notHole[c] = hole[c] ? 0 : 1;
+        const dHole = distanceTransform(notHole, cw, ch);
+        const redo = new Uint8Array(M), keep = new Uint8Array(M);
+        for (let c = 0; c < M; c++) {
+          if (inside[c] && (hole[c] || dHole[c] <= halo)) redo[c] = 1;
+          else if (inside[c]) keep[c] = 1;
+        }
+        fillFromAround(dm, keep, redo, cw, ch);
+        tone = depthRelief({ data: dm, width: cw, height: ch }, cw, ch, inside, edgeDistance(inside, cw, ch));
+      }
+    }
+  } else {
     if (o.smooth > 0) maskedBoxBlur(lum, inside, cw, ch, Math.round(o.smooth));
     tone = toneMap(lum, inside, o.tones);
   }
@@ -180,7 +220,99 @@ export function prepareImage(img: RgbaImage, o: ImagePrepOptions): { source: Spr
     }
     if (!any) gap = undefined;
   }
-  return { source: { pixels, width: cw, height: ch, mask, ...(gap ? { gap } : {}), ...(o.depth ? { photoDepth: true } : {}) }, aspect: cw / ch };
+  let lines: { pixels: Uint8Array; mask: Uint8Array } | undefined;
+  if (lineTone && lineInside) {
+    const nearL = distanceTransform(lineInside, cw, ch, true).nearest;
+    lines = { pixels: new Uint8Array(M), mask: new Uint8Array(M) };
+    for (let c = 0; c < M; c++) {
+      const t = lineInside[c] ? lineTone[c] : nearL[c] >= 0 ? lineTone[nearL[c]] : 0;
+      lines.pixels[c] = Math.round(255 * (1 - t));
+      lines.mask[c] = lineInside[c] ? 0 : 255;
+    }
+  }
+  return { source: { pixels, width: cw, height: ch, mask, ...(gap ? { gap } : {}), ...(o.depth ? { photoDepth: true } : {}), ...(lines ? { lines } : {}) }, aspect: cw / ch };
+}
+
+/** The depth map resampled at this (cropped) picture's pixels, bilinear —
+ *  as depthRelief samples it. */
+function depthAtPixels(depth: DepthMap, w: number, h: number, crop: { x0: number; y0: number; fullW: number; fullH: number }): Float32Array {
+  const d = new Float32Array(w * h);
+  const sx = depth.width / crop.fullW, sy = depth.height / crop.fullH, D = depth.data, W = depth.width;
+  for (let y = 0; y < h; y++) {
+    const fy = Math.min(depth.height - 1, Math.max(0, (y + crop.y0 + 0.5) * sy - 0.5));
+    const j0 = Math.floor(fy), j1 = Math.min(depth.height - 1, j0 + 1), ty = fy - j0;
+    for (let x = 0; x < w; x++) {
+      const fx = Math.min(depth.width - 1, Math.max(0, (x + crop.x0 + 0.5) * sx - 0.5));
+      const i0 = Math.floor(fx), i1 = Math.min(depth.width - 1, i0 + 1), tx = fx - i0;
+      d[y * w + x] = (D[j0 * W + i0] * (1 - tx) + D[j0 * W + i1] * tx) * (1 - ty) + (D[j1 * W + i0] * (1 - tx) + D[j1 * W + i1] * tx) * ty;
+    }
+  }
+  return d;
+}
+
+/**
+ * Fill the `unknown` pixels of `val` smoothly from the `known` ones round them:
+ * a coarse-to-fine first guess (each level averages the rim pixels under it,
+ * smoothed at that level, where it is cheap), then a little relaxation toward the average of the four neighbours, the known
+ * pixels held fixed. A filled hole meets the heights round it level.
+ */
+function fillFromAround(val: Float32Array, known: Uint8Array, unknown: Uint8Array, w: number, h: number) {
+  // Pyramid of (sum, weight), halving each level.
+  const levels: { s: Float32Array; n: Float32Array; w: number; h: number }[] = [];
+  // Only the rim — known pixels touching a hole — seeds it: the far side of a
+  // line (rounding down to the plate at the outline) must not pull a hole down.
+  let s = new Float32Array(w * h), n = new Float32Array(w * h), lw = w, lh = h;
+  for (let k = 0; k < w * h; k++) {
+    if (!known[k]) continue;
+    const x = k % w;
+    if ((x > 0 && unknown[k - 1]) || (x < w - 1 && unknown[k + 1]) || (k >= w && unknown[k - w]) || (k < w * h - w && unknown[k + w])) { s[k] = val[k]; n[k] = 1; }
+  }
+  levels.push({ s, n, w: lw, h: lh });
+  while (lw > 1 || lh > 1) {
+    const nw = Math.max(1, Math.ceil(lw / 2)), nh = Math.max(1, Math.ceil(lh / 2));
+    const s2 = new Float32Array(nw * nh), n2 = new Float32Array(nw * nh);
+    for (let y = 0; y < lh; y++) for (let x = 0; x < lw; x++) {
+      const q = (y >> 1) * nw + (x >> 1);
+      s2[q] += s[y * lw + x]; n2[q] += n[y * lw + x];
+    }
+    s = s2; n = n2; lw = nw; lh = nh;
+    levels.push({ s, n, w: lw, h: lh });
+  }
+  // Each level's estimate where it has no data comes from the level above.
+  let est = new Float32Array(1);
+  { const top = levels[levels.length - 1]; est[0] = top.n[0] > 0 ? top.s[0] / top.n[0] : 0; }
+  for (let L = levels.length - 2; L >= 0; L--) {
+    const { s: ls, n: ln, w: cw, h: chh } = levels[L], up = levels[L + 1];
+    const e = new Float32Array(cw * chh);
+    for (let y = 0; y < chh; y++) for (let x = 0; x < cw; x++) {
+      const k = y * cw + x;
+      e[k] = ln[k] > 0 ? ls[k] / ln[k] : est[(y >> 1) * up.w + (x >> 1)];
+    }
+    // Smooth the cells with no data here, while it is cheap (coarse levels).
+    if (L > 0) relax(e, cw, chh, (k) => ln[k] === 0, () => true, 30);
+    est = e;
+  }
+  for (let k = 0; k < w * h; k++) if (unknown[k]) val[k] = est[k];
+  // A few full-size passes smooth the last of the blockiness into the rim.
+  relax(val, w, h, (k) => unknown[k] === 1, (k) => known[k] === 1 || unknown[k] === 1, 30);
+}
+
+/** Gauss–Seidel passes: each `free` cell becomes the average of its
+ *  neighbours that `counts`; the rest are held fixed. */
+function relax(val: Float32Array, w: number, h: number, free: (k: number) => boolean, counts: (k: number) => boolean, passes: number) {
+  const idx: number[] = [];
+  for (let k = 0; k < w * h; k++) if (free(k)) idx.push(k);
+  for (let it = 0; it < passes; it++) {
+    for (const k of idx) {
+      const x = k % w;
+      let sum = 0, cnt = 0;
+      if (x > 0 && counts(k - 1)) { sum += val[k - 1]; cnt++; }
+      if (x < w - 1 && counts(k + 1)) { sum += val[k + 1]; cnt++; }
+      if (k >= w && counts(k - w)) { sum += val[k - w]; cnt++; }
+      if (k < w * h - w && counts(k + w)) { sum += val[k + w]; cnt++; }
+      if (cnt) val[k] = sum / cnt;
+    }
+  }
 }
 
 /** Each shape pixel's distance to the nearest background pixel, in pixels.

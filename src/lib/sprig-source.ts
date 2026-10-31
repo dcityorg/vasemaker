@@ -93,6 +93,8 @@ export function loadSprigSource(
     const o: ImagePrepOptions = {
       background: SVG_BACKGROUND, closeGaps: fill ? svgPrep!.closeGaps : 0, smooth: 0,
       tones: svgPrep && svgPrep.tones >= 2 ? svgPrep.tones : -1, fill,
+      // Fill Holes in Photo depth needs the lines kept apart.
+      keepLines: fill,
     };
     const key = `${svg}#svg|${o.fill ? 1 : 0}|${o.closeGaps}|${photoDepth ? 'depth' : o.tones}`;
     return remember(cache, key, () => rasterizeSvgRgbaForSprig(svg).then((img) => withDepth(`${svg}#svg`, img, o)));
