@@ -106,12 +106,9 @@ interface Props {
   setParams: (u: Partial<SprigParameters>) => void;
   setWidth: (w: number) => void;
   setLength: (l: number) => void;
-  /** Settings the drawing kept from the last one (store `carried`). */
-  carried: { svg: string; keys: DrawingSetting[] } | null;
-  dismissCarried: () => void;
 }
 
-export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSize, setParam, setParams, setWidth, setLength, carried, dismissCarried }: Props) {
+export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSize, setParam, setParams, setWidth, setLength }: Props) {
   const hints = useHints((s) => s.on);
   useEffect(() => {
     try { if (window.localStorage.getItem(HINTS_KEY) === '0') useHints.setState({ on: false }); } catch { /* default on */ }
@@ -177,30 +174,6 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
     'Gap Fill: the slits Close Gaps filled get a groove this % of the height round them, as wide as Edge Softness each side. 100% = no groove. The cast stays one piece at any value');
   const bare = noteOf('bare');
 
-  // Kept from the last drawing: only what still differs and is shown for this
-  // drawing and Shaping (the same conditions as the controls below).
-  const shownFor = (k: DrawingSetting) => {
-    switch (k) {
-      case 'profile': case 'roundness': return inflate;
-      case 'detailDepth': return mode === 'inflateGray';
-      case 'trimBelow': return mode === 'gray' || mode === 'photoDepth';
-      case 'imageLightest': return grayish && (picture || p.svgFill || p.svgTones >= 2);
-      case 'imageBackground': case 'imageCloseGaps': return picture;
-      case 'svgFill': return !picture;
-      case 'svgCloseGaps': return !picture && p.svgFill;
-      case 'gapFill': return picture ? p.imageCloseGaps >= 1 : p.svgFill && p.svgCloseGaps >= 1;
-      case 'removeTiny': case 'wholeShapesOnly': return !isMark;
-      default: return true;
-    }
-  };
-  const kept = carried && carried.svg === p.svg ? carried.keys.filter((k) => p[k] !== defaults[k] && shownFor(k)) : [];
-  const keptValue = (k: DrawingSetting) => {
-    const v = p[k], unit = KEPT_LABEL[k][1];
-    if (typeof v === 'boolean') return v ? 'on' : 'off';
-    if (typeof v === 'string') return v.charAt(0).toUpperCase() + v.slice(1);
-    return `${+v.toFixed(2)}${unit}`;
-  };
-
   return (
     <div>
       <div className="flex items-center justify-between mt-2">
@@ -214,18 +187,6 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
         <p className="text-[10px] leading-snug text-[var(--text-secondary)] mb-1 pl-0.5">
           An amber dot after a name means it is changed — click the dot to put it back.
         </p>
-      )}
-
-      {kept.length > 0 && (
-        <div className="mb-2 mt-1 px-2 py-1.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-secondary)] leading-snug">
-          Kept from the last drawing: {kept.map((k) => `${KEPT_LABEL[k][0]} ${keptValue(k)}`).join(', ')}.{' '}
-          <button className={linkCls} onClick={() => { setParams(Object.fromEntries(kept.map((k) => [k, defaults[k]]))); dismissCarried(); }}
-            title="Put these back to their defaults (for a relief, its settings as loaded). One undo step">
-            Reset these
-          </button>
-          {' · '}
-          <button className={linkCls} onClick={dismissCarried} title="Keep them and hide this note">Keep</button>
-        </div>
       )}
 
       {/* ── Size ── */}
@@ -346,6 +307,65 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
           {toggle('wholeShapesOnly', 'Whole Shapes', 'Drops every piece touching the drawing’s edge — the cut-off cells of a pattern.')}
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * "Kept from the last drawing" (Gary, 2026-10-30): after a drawing is loaded,
+ * the drawing settings it kept that differ from its defaults, right under the
+ * load buttons. Only what Adjust shows for this drawing and Shaping. Blue, not
+ * amber: amber means a problem with the cast; this is only "look".
+ */
+export function KeptNote({ params: p, defaults, isMark, carried, dismissCarried, setParams }: {
+  params: SprigParameters;
+  defaults: SprigParameters;
+  isMark: boolean;
+  carried: { svg: string; keys: DrawingSetting[] } | null;
+  dismissCarried: () => void;
+  setParams: (u: Partial<SprigParameters>) => void;
+}) {
+  const picture = isPictureDrawing(p.svg);
+  const mode = p.heightMode;
+  const inflate = mode === 'inflate' || mode === 'inflateGray';
+  const grayish = mode === 'gray' || mode === 'inflateGray';
+  const shownFor = (k: DrawingSetting) => {
+    switch (k) {
+      case 'profile': case 'roundness': return inflate;
+      case 'detailDepth': return mode === 'inflateGray';
+      case 'trimBelow': return mode === 'gray' || mode === 'photoDepth';
+      case 'imageLightest': return grayish && (picture || p.svgFill || p.svgTones >= 2);
+      case 'imageBackground': case 'imageCloseGaps': return picture;
+      case 'svgFill': return !picture;
+      case 'svgCloseGaps': return !picture && p.svgFill;
+      case 'gapFill': return picture ? p.imageCloseGaps >= 1 : p.svgFill && p.svgCloseGaps >= 1;
+      case 'removeTiny': case 'wholeShapesOnly': return !isMark;
+      default: return true;
+    }
+  };
+  const kept = carried && carried.svg === p.svg ? carried.keys.filter((k) => p[k] !== defaults[k] && shownFor(k)) : [];
+  const keptValue = (k: DrawingSetting) => {
+    const v = p[k], unit = KEPT_LABEL[k][1];
+    if (typeof v === 'boolean') return v ? 'on' : 'off';
+    if (typeof v === 'string') return v.charAt(0).toUpperCase() + v.slice(1);
+    return `${+v.toFixed(2)}${unit}`;
+  };
+
+  if (!kept.length) return null;
+  const btn = 'text-[11px] px-2 py-0.5 rounded border transition-colors';
+  return (
+    <div className="mt-1.5 px-2 py-1.5 rounded border border-sky-600 bg-sky-950/50 text-xs text-sky-100 leading-snug">
+      <p><span className="font-semibold">Kept from the last drawing:</span> {kept.map((k) => `${KEPT_LABEL[k][0]} ${keptValue(k)}`).join(', ')}.</p>
+      <div className="flex gap-1.5 mt-1.5">
+        <button className={`${btn} bg-sky-600 border-sky-600 text-white hover:bg-sky-500`}
+          onClick={() => { setParams(Object.fromEntries(kept.map((k) => [k, defaults[k]]))); dismissCarried(); }}
+          title="Put these back to their defaults (for a relief, its settings as loaded). One undo step">
+          Reset these
+        </button>
+        <button className={`${btn} border-sky-700 text-sky-200 hover:bg-sky-900`} onClick={dismissCarried} title="Keep them and hide this note">
+          Keep
+        </button>
+      </div>
     </div>
   );
 }

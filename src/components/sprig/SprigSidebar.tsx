@@ -6,7 +6,7 @@ import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsBut
 import { setShowFacets, useSprigColors, setSprigColors, DEFAULT_SPRIG_COLOR, DEFAULT_SPRIG_BACKGROUND } from '@/store/view-prefs';
 import { asMark, DEFAULT_VIEW } from '@/store/sprig-store';
 import { useSprigDesign } from './sprig-design-context';
-import { SprigAdjust } from './SprigAdjust';
+import { SprigAdjust, KeptNote } from './SprigAdjust';
 import { PhotoDepthHost, PhotoDepthStatusLine, askPhotoDepth } from './PhotoDepth';
 import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
@@ -515,6 +515,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
             <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 -mt-1 truncate" title={params.svgName}>
               Drawing: {params.svgName}
             </p>
+            <KeptNote params={params} defaults={base} isMark={isMark} carried={carried} dismissCarried={dismissCarried} setParams={setParams} />
 
             {/* Shaping, next to the drawing (Gary 2026-10-29: push a
                 button, get a good result) */}
@@ -541,8 +542,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               {/* Every adjustment, each with its warning (SprigAdjust.tsx) */}
               <SprigAdjust params={params} defaults={base} relief={m?.relief ?? null} notes={m?.notes ?? []}
                 isMark={isMark} textSize={hasText(params) ? sprig.textSize : null}
-                setParam={setParam} setParams={setParams} setWidth={setWidth} setLength={setLength}
-                carried={carried} dismissCarried={dismissCarried} />
+                setParam={setParam} setParams={setParams} setWidth={setWidth} setLength={setLength} />
             </div>
           </div>
           <PhotoDepthHost />
