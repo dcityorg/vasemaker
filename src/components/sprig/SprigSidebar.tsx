@@ -7,6 +7,7 @@ import { setShowFacets, useSprigColors, setSprigColors, DEFAULT_SPRIG_COLOR, DEF
 import { asMark, DEFAULT_VIEW } from '@/store/sprig-store';
 import { useSprigDesign } from './sprig-design-context';
 import { SprigAdjust, KeptNote } from './SprigAdjust';
+import { SprigTipsButton } from './SprigTips';
 import { PhotoDepthHost, PhotoDepthStatusLine, askPhotoDepth } from './PhotoDepth';
 import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
@@ -476,7 +477,8 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           </div>}
 
           <div className="border-t-[3px] border-[#555] pt-2 flex flex-col gap-2">
-            {/* Drawing */}
+            {/* Drawing — first, what to expect (Gary, 2026-10-30) */}
+            <SprigTipsButton className="w-full px-2 py-1 text-xs rounded border border-sky-700 bg-sky-950/40 text-sky-200 hover:bg-sky-900 transition-colors" />
             <select
               value=""
               onChange={(e) => {
@@ -492,6 +494,14 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                 <option key={s.id} value={s.id}>{s.name} — {s.description}</option>
               ))}
             </select>
+            {/* First: a relief made in another app gives the best results (Gary, 2026-10-30) */}
+            <div className="flex gap-2">
+              <button onClick={() => reliefInputRef.current?.click()} disabled={reliefBusy} className={btn} style={{ color: UI_MUTED }}
+                title="Load a relief someone else made, as an STL (a shape standing on a flat plaque — e.g. MakerWorld's Relief Sculpture Maker). It comes in at its own size and height; their plaque is dropped and the sprig sits on this mold's plate">
+                {reliefBusy ? 'Reading STL…' : 'Load Relief STL'}
+              </button>
+              <input ref={reliefInputRef} type="file" accept=".stl,model/stl,application/sla" onChange={(e) => void handleReliefFile(e)} className="hidden" />
+            </div>
             <div className="flex gap-2">
               <button onClick={() => svgInputRef.current?.click()} className={btn} style={{ color: UI_MUTED }} title="Load an .svg file — black is the shape, white is background">
                 Load SVG
@@ -504,13 +514,6 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               </button>
               <input ref={svgInputRef} type="file" accept=".svg,image/svg+xml" onChange={handleSvgFile} className="hidden" />
               <input ref={pictureInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => void handlePictureFile(e)} className="hidden" />
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => reliefInputRef.current?.click()} disabled={reliefBusy} className={btn} style={{ color: UI_MUTED }}
-                title="Load a relief someone else made, as an STL (a shape standing on a flat plaque — e.g. MakerWorld's Relief Sculpture Maker). It comes in at its own size and height; their plaque is dropped and the sprig sits on this mold's plate">
-                {reliefBusy ? 'Reading STL…' : 'Load Relief STL'}
-              </button>
-              <input ref={reliefInputRef} type="file" accept=".stl,model/stl,application/sla" onChange={(e) => void handleReliefFile(e)} className="hidden" />
             </div>
             <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 -mt-1 truncate" title={params.svgName}>
               Drawing: {params.svgName}
