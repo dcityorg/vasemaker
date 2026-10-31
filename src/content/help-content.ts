@@ -10,7 +10,9 @@ export type HelpBlock =
   | { type: 'tip'; text: string }
   | { type: 'warning'; text: string }
   | { type: 'table'; headers: string[]; rows: string[][] }
-  | { type: 'keyvalue'; items: { key: string; value: string }[] };
+  | { type: 'keyvalue'; items: { key: string; value: string }[] }
+  /** An outside page, opened in a new tab. */
+  | { type: 'link'; text: string; href: string };
 
 export interface HelpSection {
   id: string;

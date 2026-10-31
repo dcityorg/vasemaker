@@ -8,6 +8,8 @@
  * the best results, so it comes first.
  */
 
+import type { HelpBlock, HelpSection } from './help-content';
+
 /** MakerWorld's Relief Sculpture Maker. Empty = name it without a link. */
 export const RELIEF_MAKER_URL = 'https://makerworld.com/en/makerlab/reliefSculptureMakerV2?from=makerlab';
 
@@ -60,3 +62,24 @@ export const SPRIG_TIPS: TipsSection[] = [
     ],
   },
 ];
+
+/** The same tips as the first section of the Help panel — one source, so the
+ *  box and Help cannot drift apart (Gary, 2026-10-30). */
+export function sprigTipsHelpSection(): HelpSection {
+  const blocks: HelpBlock[] = [
+    { type: 'paragraph', text: 'The same tips as the 💡 Tips for best results button, above Sample drawings.' },
+    { type: 'paragraph', text: SPRIG_TIPS_INTRO },
+  ];
+  SPRIG_TIPS.forEach((t, i) => {
+    blocks.push({ type: 'heading', text: t.title });
+    let bullets: string[] = [];
+    const flush = () => { if (bullets.length) { blocks.push({ type: 'list', items: bullets }); bullets = []; } };
+    for (const line of t.body) {
+      if (line.startsWith('• ')) bullets.push(line.slice(2));
+      else { flush(); blocks.push({ type: 'paragraph', text: line }); }
+    }
+    flush();
+    if (i === 0 && RELIEF_MAKER_URL) blocks.push({ type: 'link', text: 'Open MakerWorld’s Relief Sculpture Maker', href: RELIEF_MAKER_URL });
+  });
+  return { id: 'sprig-tips', title: SPRIG_TIPS_TITLE, blocks };
+}

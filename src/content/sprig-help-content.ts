@@ -3,8 +3,10 @@
  */
 
 import type { HelpSection } from './help-content';
+import { RELIEF_MAKER_URL, sprigTipsHelpSection } from './sprig-tips-content';
 
 export const SPRIG_HELP_SECTIONS: HelpSection[] = [
+  sprigTipsHelpSection(),
   {
     id: 'sprig-quick-start',
     title: 'Quick Start',
@@ -12,7 +14,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
       { type: 'paragraph', text: 'A SPRIG is a small relief — a leaf, a flower, a logo — cast or pressed in its own mold and stuck onto a pot with slip. (Wedgwood’s white jasperware figures are sprigs.) SprigMaker turns a flat SVG drawing, or a picture, into that relief and makes the 3D-printable parts for a ONE-PIECE OPEN plaster mold of it: a plate carrying the relief, and a wall you print twice.' },
       { type: 'heading', text: 'Basic Workflow' },
       { type: 'list', items: [
-        'Pick a sample drawing, Load / Paste your own SVG (black is the shape, white is background), or Load Image for a PNG or JPG (see Pictures), or Load Relief STL for a relief made in another app (see Reliefs from other apps)',
+        'Read 💡 TIPS FOR BEST RESULTS (above Sample drawings, and the first section here), then load something: LOAD RELIEF STL for a relief made in another app (best results — see Reliefs from other apps), a sample drawing, Load / Paste your own SVG (black is the shape, white is background), or Load Image for a PNG or JPG (see Pictures)',
         'Choose how it gets its height with the SHAPING buttons under the drawing',
         'Work down the ADJUST list under them — size (the FINISHED sprig, after the clay shrinks), heights (Max Height first), outline, edges, thin parts, pieces. Any warning sits right above the controls that fix it, and a one-line hint under each control says what it does (Hide hints turns them off)',
         'Check for red: parts narrower than Min Feature are likely to tear or crack',
@@ -143,6 +145,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     blocks: [
       { type: 'paragraph', text: 'LOAD RELIEF STL takes a relief made in another app — a shape standing on a flat plaque, such as MakerWorld’s Relief Sculpture Maker, which can turn a flat picture into a sculpted relief with invented detail like veins and texture. SprigMaker reads the top of the relief into a height map, drops that app’s plaque, and puts the relief on this mold’s plate. Everything else then works on it as usual: the mold box, Thin Parts and its fixes, On Vase, and the Sprig texture on a vase.' },
       { type: 'list', items: [
+        'MakerWorld’s Relief Sculpture Maker (link below) needs a free MakerWorld account. About 3 mm high is typically a good height for a sprig mold, so set that there if you can',
         'It comes in at its own size and its own height (Width, Length, Max Height), in Gray with Tones As made, and moves to the smallest standard mold it fits',
         'The plaque may lie flat or stand on its edge; the flattest axis is taken as up, and the side with the relief on it is found by itself',
         'Change Width or Max Height afterwards to scale it — the shape stays the same',
@@ -151,6 +154,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
         'Near-flat leftovers round the main shape (where thin parts were shaved off): set LIGHTEST TONE to 0 (it lifts every low part to that % of Max Height), then raise TRIM BELOW (Adjust → Heights) to about 0.5 mm. Turn Round Off Thin off first if a slim part starts to vanish — trimming narrows it a little',
         'Check the other app’s terms. MakerWorld’s Relief Sculpture Maker allows commercial use and asks for a credit if you share the result publicly',
       ] },
+      { type: 'link', text: 'Open MakerWorld’s Relief Sculpture Maker', href: RELIEF_MAKER_URL },
     ],
   },
   {

@@ -8,6 +8,13 @@ function renderBlock(block: HelpBlock, index: number) {
     case 'paragraph':
       return <p key={index} className="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">{block.text}</p>;
 
+    case 'link':
+      return (
+        <p key={index} className="text-sm mb-3">
+          <a href={block.href} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] underline">{block.text} ↗</a>
+        </p>
+      );
+
     case 'heading':
       return <h3 key={index} className="text-sm font-semibold text-[var(--text-primary)] mt-4 mb-2">{block.text}</h3>;
 
