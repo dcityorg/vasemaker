@@ -68,7 +68,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
         'GRADIENTS: rare; As drawn turns them into smooth slopes',
       ] },
       { type: 'keyvalue', items: [
-        { key: 'Fill Height', value: 'The inside of each closed outline becomes part of the shape, standing at this % of the outline’s height — the same in Flat, Gray and Inflate: at 50% the lines stand above a half-height fill, at 100% it is one solid shape. In Inflate the inside joins one dome, so the lines turn into ridges on it and rise higher than they do unfilled. 0 = not filled: white is always paper.' },
+        { key: 'Fill Height', value: 'The inside of each closed outline becomes part of the shape, standing at this % of the outline’s height — the same in Flat, Gray and Inflate: the lines keep the shape they have unfilled (in Inflate each is rounded by its own width) and slope down by Edge Softness to meet the fill. At 50% the fill rises to half of what the solid shape would be there (half the dome in Inflate); at 100% it is one solid shape. 0 = not filled: white is always paper.' },
         { key: 'Tones', value: 'AS DRAWN: each shade’s darkness is its height. STEPS: the shades grouped into that many flat levels, darkest highest.' },
         { key: 'Lightest Tone', value: 'Shown with Steps on and Fill Height at 0, in the Gray modes: the height of the lightest level, as for pictures. With a fill, Fill Height sets it instead.' },
       ] },

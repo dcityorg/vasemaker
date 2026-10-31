@@ -247,7 +247,7 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
           {group('Outline')}
           {!grayish && bare.map((n, i) => warn(n.text, `bare${i}`))}
           {slider('fillHeight', 'Fill Height', '%', 'For line drawings: the inside of each closed outline stands at this % of the lines’ height. 0 = not filled; 100 = level with the lines.',
-            'Fill Height: the inside of each closed outline becomes shape at this % of the outline’s height — in Flat, Gray and Inflate alike. 0 = not filled, only the lines; 100 = one solid shape')}
+            'Fill Height: the inside of each closed outline rises to this % of the solid shape’s height (in Inflate, of the whole dome), and the lines keep their own shape, sloping down to meet it. 0 = not filled, only the lines; 100 = one solid shape')}
           {p.fillHeight > 0 && slider('svgCloseGaps', 'Close Gaps', 'px', 'Closes small breaks in an outline, so its inside fills instead of leaking away.', undefined, false)}
           {p.fillHeight > 0 && p.svgCloseGaps >= 1 && gapFill}
         </>

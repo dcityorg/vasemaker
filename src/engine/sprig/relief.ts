@@ -275,7 +275,8 @@ function buildLayer(
 ) {
   const { nx, ny, step, x0, y0, fx, fy, fs, ix0, iy0 } = g;
   // A picture's lightest tone: this fraction of the darkest's height. A filled
-  // SVG's white inside stands at Fill Height instead (Gary, 2026-10-30).
+  // SVG is built as a solid shape here (fillHeight 100, see buildRelief), so
+  // its inside stands as high as its lines.
   const svgFilled = !isPictureDrawing(p.svg) && p.fillHeight > 0;
   const lightest = Math.min(1, Math.max(0, (svgFilled ? p.fillHeight : p.imageLightest) / 100));
   const gray = p.heightMode === 'gray' || p.heightMode === 'inflateGray';
@@ -402,15 +403,11 @@ function buildLayer(
   // Shape value 0..1.
   const f = new Float32Array(N);
   const inflate = p.heightMode === 'inflate' || p.heightMode === 'inflateGray';
-  const fillShare = new Float32Array(N).fill(1);
   for (let i = 0; i < N; i++) {
     if (!mask[i]) continue;
     if (inflate) f[i] = p.roundness > 0 ? inflateProfile(dist[i] / p.roundness, p.profile) : 1;
     else if (p.heightMode === 'gray') f[i] = ink[i];
     else f[i] = 1;
-    // A filled SVG: the inside at Fill Height × the lines' height, in every
-    // Shaping (Gray already has it, through the ink).
-    if (svgFilled && p.heightMode !== 'gray') fillShare[i] = ink[i];
   }
   if (inflate && p.roundness > 0) {
     // Smooth the crease, but not within reach of the edge: a masked blur
@@ -432,8 +429,7 @@ function buildLayer(
     if (!mask[i]) continue;
     let v = H * f[i];
     // Lighter marks inside the shape cut in; black is untouched.
-    if (svgFilled) v *= fillShare[i];
-    else if (p.heightMode === 'inflateGray') v -= p.detailDepth * (1 - ink[i]);
+    if (p.heightMode === 'inflateGray' && !svgFilled) v -= p.detailDepth * (1 - ink[i]);
     hs[i] = Math.min(H, Math.max(minE, v));
   }
 
@@ -554,10 +550,26 @@ export function buildRelief(src: SprigSource, pIn: SprigParameters, step: number
     const sampleMask = src.mask ? sampler(src, p, src.mask) : null;
     const sampleGap = src.gap && p.gapFill < 100 ? sampler(src, p, src.gap) : null;
     const u = (x: number) => (x - place.dx + W / 2) / W, v = (y: number) => (y - place.dy + L / 2) / L;
-    ({ heights, mask, fOut } = buildLayer(g, p,
-      (x, y) => sample(u(x), v(y)),
-      sampleMask ? (x, y) => sampleMask(u(x), v(y)) : null,
-      sampleGap ? (x, y) => sampleGap(u(x), v(y)) : null));
+    const inkAt = (x: number, y: number) => sample(u(x), v(y));
+    const maskAt = sampleMask ? (x: number, y: number) => sampleMask(u(x), v(y)) : null;
+    const gapAt = sampleGap ? (x: number, y: number) => sampleGap(u(x), v(y)) : null;
+    const fill = !isPictureDrawing(p.svg) && p.fillHeight > 0 && maskAt ? Math.min(1, p.fillHeight / 100) : 0;
+    if (fill > 0 && fill < 1) {
+      // Fill Height (Gary, 2026-10-30): the lines keep the shape they have
+      // unfilled — Inflate rounds each by its own width, and every line keeps
+      // its edge slope — and the inside rises as a floor to Fill Height × the
+      // solid shape's height (the whole dome in Inflate), the higher of the
+      // two winning. So the lines' slopes run down to meet the fill: no wall,
+      // and 0 → 100 % goes smoothly from the bare lines to the solid shape.
+      const solid = buildLayer(g, { ...p, fillHeight: 100 }, inkAt, maskAt, gapAt);
+      const lines = buildLayer(g, { ...p, fillHeight: 0, imageLightest: 0 }, inkAt,
+        (x, y) => Math.min(maskAt!(x, y), inkAt(x, y)), null);
+      heights = solid.heights;
+      for (let k = 0; k < N; k++) heights[k] = Math.max(lines.heights[k], fill * solid.heights[k]);
+      ({ mask, fOut } = solid);
+    } else {
+      ({ heights, mask, fOut } = buildLayer(g, fill === 1 ? { ...p, fillHeight: 100 } : p, inkAt, maskAt, gapAt));
+    }
   }
 
   // The drawing alone (+ any backing, below): what the bare-spot check reads, so
