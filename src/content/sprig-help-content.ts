@@ -14,7 +14,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
       { type: 'paragraph', text: 'A SPRIG is a small relief — a leaf, a flower, a logo — cast or pressed in its own mold and stuck onto a pot with slip. (Wedgwood’s white jasperware figures are sprigs.) SprigMaker turns a flat SVG drawing, or a picture, into that relief and makes the 3D-printable parts for a ONE-PIECE OPEN plaster mold of it: a plate carrying the relief, and a wall you print twice.' },
       { type: 'heading', text: 'Basic Workflow' },
       { type: 'list', items: [
-        'Read 💡 TIPS FOR BEST RESULTS (above Sample drawings, and the first section here), then load something: LOAD RELIEF STL for a relief made in another app (best results — see Reliefs from other apps), a sample drawing, Load / Paste your own SVG (black is the shape, white is background), or Load Image for a PNG or JPG (see Pictures)',
+        'Read 💡 TIPS FOR BEST RESULTS (above Sample drawings, and the first section here), then load something: LOAD RELIEF STL for a relief made in another app (best results — see Reliefs from other apps), a sample drawing (each comes with settings that suit it), Load / Paste your own SVG (black is the shape, white is background), or Load Image for a PNG or JPG (see Pictures)',
         'Choose how it gets its height with the SHAPING buttons under the drawing',
         'Work down the ADJUST list under them — size (the FINISHED sprig, after the clay shrinks), heights (Max Height first), outline, edges, thin parts, pieces. Any warning sits right above the controls that fix it, and a one-line hint under each control says what it does (Hide hints turns them off)',
         'Check for red: parts narrower than Min Feature are likely to tear or crack',
