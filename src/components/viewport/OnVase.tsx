@@ -38,9 +38,17 @@ export const SPRIG_COLOR = '#d98a4a';
  *  state only — not saved in the design file. */
 export const useVaseExtras = create<{ showHandle: boolean; showSprig: boolean }>(() => ({ showHandle: false, showSprig: false }));
 
+/** The vase's own Sprig texture is on. Show Sprig is then hidden: the two are
+ *  separate copies (own size and place) and drew over each other (Gary,
+ *  2026-11-01: no reason to want both). */
+export function useSprigTextureOn(): boolean {
+  return useVaseStore((s) => s.params.textures.enabled !== false && !!s.params.textures.sprig?.enabled);
+}
+
 /** VaseMaker: the handle and/or sprig inside the vase view's own canvas. */
 export function VasePageExtras() {
-  const { showHandle, showSprig } = useVaseExtras();
+  const { showHandle, showSprig: wantSprig } = useVaseExtras();
+  const showSprig = wantSprig && !useSprigTextureOn();
   const flat = useShowFacets();
   const vaseMesh = useVaseMesh();
   return showSprig

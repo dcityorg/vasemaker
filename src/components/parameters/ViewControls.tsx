@@ -15,12 +15,13 @@ import { GROUP_COLORS } from '@/config/colors';
 import { SliderRow, GroupHeader, Section, Toggle, ResetRow } from './ui';
 import { setShowFacets } from '@/store/view-prefs';
 import { ShowFacetsToggle } from './ShowFacetsToggle';
-import { useVaseExtras } from '@/components/viewport/OnVase';
+import { useVaseExtras, useSprigTextureOn } from '@/components/viewport/OnVase';
 
 export function ViewControls() {
   const params = useVaseStore((s) => s.params);
   const { setColor, setShowRulers, setPrintCheck } = useVaseStore();
   const extras = useVaseExtras();
+  const sprigTexture = useSprigTextureOn();
   const printCheck = params.printCheck ?? DEFAULT_PARAMETERS.printCheck;
 
   return (
@@ -36,8 +37,12 @@ export function ViewControls() {
       }} />
       <Toggle label="Show Handle" checked={extras.showHandle} onChange={(v) => useVaseExtras.setState({ showHandle: v })}
         tooltip="The handle from HandleMaker on the vase, placed the way the mold puts it (its height is HandleMaker's Top Below Rim)" />
-      <Toggle label="Show Sprig" checked={extras.showSprig} onChange={(v) => useVaseExtras.setState({ showSprig: v })}
-        tooltip="The sprig from SprigMaker on the vase, where SprigMaker places it (View → On Vase there)" />
+      {sprigTexture ? (
+        <p className="text-xs text-[var(--text-secondary)] mb-2">Show Sprig is off while the Sprig texture is on (Textures → Sprig), so the two do not draw over each other.</p>
+      ) : (
+        <Toggle label="Show Sprig" checked={extras.showSprig} onChange={(v) => useVaseExtras.setState({ showSprig: v })}
+          tooltip="The sprig from SprigMaker on the vase, where SprigMaker places it (View → On Vase there)" />
+      )}
       <div className="flex items-center gap-3 mb-2">
         <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Preview colour of the vase. Saved with the design">Color</label>
         <input

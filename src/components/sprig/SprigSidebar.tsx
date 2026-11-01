@@ -2,7 +2,7 @@
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsButton } from '@/components/parameters/ui';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsButton, useRememberedScroll } from '@/components/parameters/ui';
 import { setShowFacets, useSprigColors, setSprigColors, DEFAULT_SPRIG_COLOR, DEFAULT_SPRIG_BACKGROUND } from '@/store/view-prefs';
 import { asMark, DEFAULT_VIEW } from '@/store/sprig-store';
 import { useSprigDesign } from './sprig-design-context';
@@ -76,6 +76,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   helpOpen: boolean;
   onToggleHelp: () => void;
 }) {
+  const sidebarScroll = useRememberedScroll();
   const m = sprig.meshes;
   // The design these controls edit (Sprig | Mark tabs) — same controls, own store.
   const design = useSprigDesign();
@@ -439,7 +440,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
         <NamePromptHost />
       </div>
 
-      <div className="flex-1 overflow-y-auto sidebar-scroll">
+      <div {...sidebarScroll} className="flex-1 overflow-y-auto sidebar-scroll">
         {/* Toolbar */}
         <div className="px-3 py-2 border-b border-[var(--border-color)] flex flex-col gap-2">
           {/* Design files, then exports, then the drawing — the other pages' order

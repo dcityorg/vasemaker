@@ -2,7 +2,7 @@
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsButton } from '@/components/parameters/ui';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsButton, useRememberedScroll } from '@/components/parameters/ui';
 import { setShowFacets } from '@/store/view-prefs';
 import { BezierCurveEditor, EDITOR_CHROME } from '@/components/parameters/BezierCurveEditor';
 import { evaluatePiecewiseBezier } from '@/engine/bezier';
@@ -51,6 +51,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   helpOpen: boolean;
   onToggleHelp: () => void;
 }) {
+  const sidebarScroll = useRememberedScroll();
   const params = useHandleStore((s) => s.params);
   /** Clay-shrink upscale — the master prints this much larger than the cast. */
   const shrinkS = 1 + params.shrinkPercent / 100;
@@ -311,7 +312,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
         <NamePromptHost />
       </div>
 
-      <div className="flex-1 overflow-y-auto sidebar-scroll">
+      <div {...sidebarScroll} className="flex-1 overflow-y-auto sidebar-scroll">
         {/* Toolbar */}
         <div className="px-3 py-2 border-b border-[var(--border-color)] flex flex-col gap-2">
           {/* Preset selector */}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { ToggleAllSectionsButton } from '@/components/parameters/ui';
+import { ToggleAllSectionsButton, useRememberedScroll } from '@/components/parameters/ui';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
 import { useHistoryStore } from '@/store/history';
@@ -42,6 +42,7 @@ export function Sidebar({
   onCaptureSizeIndexChange, onCustomWidthChange, onCustomHeightChange, onCaptureFormatChange,
   onStartCapture, onSaveCapture, onCancelCapture,
 }: SidebarProps) {
+  const sidebarScroll = useRememberedScroll();
   const { loadPreset, getParams, isDirty, markClean, loadDesign, undo: doUndo, redo: doRedo } = useVaseStore();
   const { canUndo, canRedo } = useHistoryStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -180,7 +181,7 @@ export function Sidebar({
       </div>
 
       {/* Scrollable area — toolbar + parameter controls */}
-      <div className="flex-1 overflow-y-auto sidebar-scroll">
+      <div {...sidebarScroll} className="flex-1 overflow-y-auto sidebar-scroll">
 
       {/* Toolbar — all file operations grouped together */}
       <div className="px-3 py-2 border-b border-[var(--border-color)] flex flex-col gap-2">

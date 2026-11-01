@@ -1,6 +1,10 @@
 'use client';
 
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import { usePathname } from 'next/navigation';
+
+/** useLayoutEffect in the browser; the server render has no layout (and warns). */
+const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 /**
  * Modifier multipliers shared by every fine-adjust control (sliders and the
@@ -153,16 +157,24 @@ export function Section({ title, children, defaultOpen = true, active, checked, 
   // default-open section scrolls itself into view on mount and the sidebar
   // lands mid-scroll after navigating back from /mold.
   const userToggled = useRef(false);
+  const key = `${usePathname()}|${title}`;
+
+  // Back on this page: open or closed as it was left (Gary, 2026-11-01).
+  useClientLayoutEffect(() => {
+    const el = detailsRef.current, was = sidebarMemory().open[key];
+    if (el && was !== undefined && el.open !== was) el.open = was;
+  }, [key]);
 
   const handleToggle = useCallback(() => {
     const el = detailsRef.current;
     const wasUser = userToggled.current;
     userToggled.current = false;
+    if (el) rememberSidebar((m) => { m.open[key] = el.open; });
     if (!el || !el.open || !wasUser) return;
     requestAnimationFrame(() => {
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
-  }, []);
+  }, [key]);
 
   return (
     <details ref={detailsRef} open={defaultOpen} className="mb-4" onToggle={handleToggle}>
@@ -186,6 +198,63 @@ export function Section({ title, children, defaultOpen = true, active, checked, 
       </div>
     </details>
   );
+}
+
+/** What each side panel looked like when its page was left: which boxes were
+ *  open (by page and title) and how far it was scrolled. Going Vase → Sprig →
+ *  Vase comes back to the same place (Gary, 2026-11-01). Per browser tab, so
+ *  a reload keeps it and a new tab starts fresh. */
+interface SidebarMemory { open: Record<string, boolean>; scroll: Record<string, number> }
+const SIDEBAR_KEY = 'vasemaker-sidebar-view';
+let memory: SidebarMemory | null = null;
+function sidebarMemory(): SidebarMemory {
+  if (memory) return memory;
+  memory = { open: {}, scroll: {} };
+  try { Object.assign(memory, JSON.parse(sessionStorage.getItem(SIDEBAR_KEY) ?? '{}')); } catch { /* none kept */ }
+  return memory;
+}
+function rememberSidebar(change: (m: SidebarMemory) => void): void {
+  const m = sidebarMemory();
+  change(m);
+  try { sessionStorage.setItem(SIDEBAR_KEY, JSON.stringify(m)); } catch { /* kept for this visit only */ }
+}
+
+/** A side panel's scroll position, kept per page. Put the returned props on
+ *  its scrolling div. The boxes reopen in their own layout effects first, so
+ *  the height is mostly right; the position is held for 1.5 s while the rest
+ *  fills in, unless the user scrolls first. */
+export function useRememberedScroll() {
+  const page = usePathname();
+  const ref = useRef<HTMLDivElement>(null);
+  const restoring = useRef(true);
+  useClientLayoutEffect(() => {
+    const el = ref.current, want = sidebarMemory().scroll[page] ?? 0;
+    restoring.current = want > 0;
+    if (!el || !want) return;
+    // Held for a moment, not set once: boxes above that fill in late (the
+    // Sprig page's drawing) would otherwise push the view ~70 px down.
+    const until = performance.now() + 1500;
+    let raf = 0;
+    const tryIt = () => {
+      if (!restoring.current) return;
+      if (Math.abs(el.scrollTop - want) >= 1) el.scrollTop = want;
+      if (performance.now() > until) { restoring.current = false; return; }
+      raf = requestAnimationFrame(tryIt);
+    };
+    tryIt();
+    return () => cancelAnimationFrame(raf);
+  }, [page]);
+  // Only the user's own scrolling is kept: a box above that fills in late
+  // makes the browser shift the scroll to keep the view still, and saving that
+  // shift crept the Sprig panel ~70 px further down on every visit.
+  const byUser = useRef(false);
+  const stop = () => { restoring.current = false; byUser.current = true; };
+  const onScroll = () => {
+    const el = ref.current;
+    if (!el || restoring.current || !byUser.current) return;
+    rememberSidebar((m) => { m.scroll[page] = el.scrollTop; });
+  };
+  return { ref, onScroll, onWheel: stop, onPointerDown: stop, onTouchStart: stop, onKeyDown: stop };
 }
 
 /** The ↕ in each page's header: open every box in this side panel, or close
