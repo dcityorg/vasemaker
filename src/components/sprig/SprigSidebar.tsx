@@ -282,7 +282,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
     const blob = new Blob([generateSTL(positioned)], { type: 'application/octet-stream' });
     if ((await saveSTLFile(blob, `${fileName}.stl`)) && count) dcCountExport();
   };
-  const wallFileName = `SprigMaker ${sizeLabel(params)} wall`;
+  // Named after the sprig, then the size, so a plate's files sit together and
+  // the wall says which size it fits (Gary, 2026-11-01; was "SprigMaker <size> wall").
+  const wallFileName = (name: string) => `${name} wall ${sizeLabel(params)}`;
 
   // ── Settings files ──
 
@@ -316,7 +318,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
         ] },
         { label: 'Wall', note: 'print 2', rows: [
           { label: 'cavity W x D x H', value: `${dim(m.box.cavW)} x ${dim(m.box.cavL)} x ${dim(m.box.wallH)}` },
-          { label: 'file', value: `${wallFileName}.stl` },
+          { label: 'file', value: `${wallFileName(settingsName)}.stl` },
         ] },
       ],
       keySettings: [
@@ -513,7 +515,11 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
               Export Plate STL
             </button>
             <button
-              onClick={() => m && exportMesh(m.wall, 0, wallFileName)}
+              onClick={async () => {
+                if (!m) return;
+                const name = await ensureNamed('Sprig', design.isUnnamed(settingsName), settingsName, setSettingsName);
+                if (name) exportMesh(m.wall, 0, wallFileName(name));
+              }}
               disabled={!m}
               className={bigBtn + ' disabled:opacity-40'}
               style={{ color: UI_MUTED }}
