@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
-import { Section, SliderRow, Toggle, GroupHeader, ResetRow, RevertResetRow, ToggleAllSectionsButton, useRememberedScroll, resetDot, CHANGED_TIP } from '@/components/parameters/ui';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow, RevertResetRow, ToggleAllSectionsButton, useRememberedScroll, resetDot, CHANGED_TIP, Greyed } from '@/components/parameters/ui';
 import { setShowFacets } from '@/store/view-prefs';
 import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_PART_COLOR, DEFAULT_VIEW, retiredStyleNotice, isMoldUnnamed, moldResetParams } from '@/store/mold-store';
 import { ToolNav } from '@/components/parameters/ToolNav';
@@ -938,9 +938,12 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             // The switch itself is kept by Reset, so only Plug Height can show a dot.
             return <Section title="Foot Piece" titleColor={GROUP_COLORS.structure} changed={on && any(isThirds ? 'thirdsPlugHeight' : 'halvesPlugHeight')} changedTip={CHANGED_TIP}>
             <Toggle label="Enabled" checked={on} onChange={(v) => setParam(onKey, v)} tooltip={`Cast the bottom as a separate plaster piece: a PLUG the shape of the vase bottom that sits inside the ${isThirds ? 'three pieces' : 'two halves'}, held in by a rounded ring. It gives the mug a foot ring and a recessed centre, with no thin plaster wedge where a curled-in bottom meets a ledge. The plug is poured in its own small cup (a bottom disk and clip-together walls)`} />
+            {/* Plug Height stays in view, greyed, while the switch is off (Gary, 2026-11-01); the notes below go. */}
+            <Greyed off={!on} hint="Turn on Enabled (above) to use this">
+              {sl(isThirds ? 'thirdsPlugHeight' : 'halvesPlugHeight', 'Plug Height', 'mm', 'How tall the plug is, from the vase bottom down to the bottom of the mold. The ring sits in the middle. The plug is the mold wall for the bottom of the vase, so keep it near the Plaster thickness so it soaks up water like the sides')}
+            </Greyed>
             {on && (
               <>
-                {sl(isThirds ? 'thirdsPlugHeight' : 'halvesPlugHeight', 'Plug Height', 'mm', 'How tall the plug is, from the vase bottom down to the bottom of the mold. The ring sits in the middle. The plug is the mold wall for the bottom of the vase, so keep it near the Plaster thickness so it soaks up water like the sides')}
                 <VaseBottomNote where="plug" />
                 {plug?.markNote && (
                   <p className="text-[11px] text-amber-400 mt-1 leading-snug">{plug.markNote}</p>

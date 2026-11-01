@@ -16,7 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import { create } from 'zustand';
-import { SliderRow, Toggle, resetDot } from '@/components/parameters/ui';
+import { SliderRow, Toggle, resetDot, Greyed } from '@/components/parameters/ui';
 import { SPRIG_PARAMS } from '@/config/sprig-params';
 import { UI_MUTED } from '@/config/colors';
 import { smallestFit, fitsBox, type SprigNote } from '@/engine/sprig/sprig-generator';
@@ -232,7 +232,8 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
             'Background Cut: how close a colour must be to the background to be cut away. Raise it if a halo or speckles stay round the drawing; lower it if pale parts of the drawing vanish. Areas the background cannot reach (inside a closed outline) always stay')}
           {slider('imageCloseGaps', 'Close Gaps', 'px', 'Fills slits up to about twice this many pixels wide — breaks in an outline, gaps between sections — so they count as shape.',
             'Close Gaps: slits up to about twice this many picture pixels wide are filled instead of being cut away with the background. Whole pixels only — in between does nothing', false)}
-          {p.imageCloseGaps >= 1 && gapFill}
+          {/* Greyed, not hidden, until there are gaps to fill (Gary, 2026-11-01). */}
+          <Greyed off={p.imageCloseGaps < 1} hint="Set Close Gaps to 1 or more to use this">{gapFill}</Greyed>
         </>
       ) : (
         <>
@@ -240,8 +241,10 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
           {!grayish && bare.map((n, i) => warn(n.text, `bare${i}`))}
           {slider('fillHeight', 'Fill Holes', '%', 'Fills the holes inside the drawing: 0% leaves them empty, 100% fills them level with the shape around them.',
             'Fill Holes: each empty spot the drawing encloses rises to this % of the height around it. The shape around it keeps its own form and slopes down to meet the fill. 0 = empty, 100 = filled solid')}
-          {p.fillHeight > 0 && slider('svgCloseGaps', 'Close Gaps', 'px', 'Closes small breaks in an outline, so its inside fills instead of leaking away.', undefined, false)}
-          {p.fillHeight > 0 && p.svgCloseGaps >= 1 && gapFill}
+          <Greyed off={!(p.fillHeight > 0)} hint="Set Fill Holes above 0 to use these">
+            {slider('svgCloseGaps', 'Close Gaps', 'px', 'Closes small breaks in an outline, so its inside fills instead of leaking away.', undefined, false)}
+            <Greyed off={p.fillHeight > 0 && p.svgCloseGaps < 1} hint="Set Close Gaps to 1 or more to use this">{gapFill}</Greyed>
+          </Greyed>
         </>
       )}
 

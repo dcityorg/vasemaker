@@ -4,7 +4,7 @@ import { useVaseStore } from '@/store/vase-store';
 import { SMOOTH_ZONES, RADIAL_SMOOTHING, VERTICAL_SMOOTHING } from '@/config/shape-params';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { GROUP_COLORS } from '@/config/colors';
-import { SliderRow, Section, GroupHeader } from './ui';
+import { SliderRow, Section, GroupHeader, Greyed } from './ui';
 
 export function SmoothingControls() {
   const params = useVaseStore((s) => s.params);
@@ -32,12 +32,12 @@ export function SmoothingControls() {
           if (v + base > 100) setSmoothZones({ rimPercent: v, basePercent: 100 - v });
           else setSmoothZones({ rimPercent: v });
         }} />
-        {(params.smoothZones?.basePercent ?? 0) > 0 && (
+        <Greyed off={!((params.smoothZones?.basePercent ?? 0) > 0)} hint="Set Base % above 0 to use this">
           <SliderRow label="Base Fade" value={params.smoothZones?.baseFade ?? 0} {...SMOOTH_ZONES.baseFade} tooltip="How much of the base zone fades gradually (0% = hard cutoff, 100% = full blend)" onChange={(v) => setSmoothZones({ baseFade: v })} />
-        )}
-        {(params.smoothZones?.rimPercent ?? 0) > 0 && (
+        </Greyed>
+        <Greyed off={!((params.smoothZones?.rimPercent ?? 0) > 0)} hint="Set Rim % above 0 to use this">
           <SliderRow label="Rim Fade" value={params.smoothZones?.rimFade ?? 0} {...SMOOTH_ZONES.rimFade} tooltip="How much of the rim zone fades gradually (0% = hard cutoff, 100% = full blend)" onChange={(v) => setSmoothZones({ rimFade: v })} />
-        )}
+        </Greyed>
         <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-60">
           Suppresses textures near base/rim. Does not affect profile or twist.
         </div>

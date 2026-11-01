@@ -2,7 +2,7 @@
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Section, SliderRow, Toggle, GroupHeader, ResetRow, RevertResetRow, ToggleAllSectionsButton, useRememberedScroll, resetDot, CHANGED_TIP } from '@/components/parameters/ui';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow, RevertResetRow, ToggleAllSectionsButton, useRememberedScroll, resetDot, CHANGED_TIP, Greyed } from '@/components/parameters/ui';
 import { setShowFacets } from '@/store/view-prefs';
 import { BezierCurveEditor, EDITOR_CHROME } from '@/components/parameters/BezierCurveEditor';
 import { evaluatePiecewiseBezier } from '@/engine/bezier';
@@ -483,7 +483,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour volume" />
           <ShowFacetsToggle />
           <Toggle label="Cross-section" checked={view.crossSection} onChange={(v) => setView({ crossSection: v })} tooltip="Slice everything with a movable plane — the clearest way to read the master's shell thickness and the open channel inside it" />
-          {view.crossSection && (
+          <Greyed off={!view.crossSection} hint="Turn on Cross-section to use these">
             <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
               <div className="flex items-center gap-1 my-1">
                 <span className="w-28 text-xs" style={{ color: UI_MUTED }}>Cut across</span>
@@ -516,7 +516,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
                 tooltip="Slide the cutting plane through the mold. Arrow keys step it; Alt for fine, Shift for coarse"
               />
             </div>
-          )}
+          </Greyed>
 
           </>}
           </Section>
@@ -558,22 +558,21 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               overlayPaths={[...outlinePaths, ...(mug?.paths ?? [])]}
               overlayColors={[...outlinePaths.map(() => '#e05555'), ...(mug?.paths ?? []).map(() => '#9fb3c8')]}
             />
-            {/* The mug is shown by View → Side or On Vase (it was a Show Mug switch here). */}
-            {showMug && (
-              <>
-                <SliderRow
-                  label="Top Below Rim"
-                  value={moldParams.handleTopDrop}
-                  min={MOLD_PARAMS.handleTopDrop.min}
-                  max={MOLD_PARAMS.handleTopDrop.max}
-                  step={MOLD_PARAMS.handleTopDrop.step}
-                  suffix="mm"
-                  tooltip="Where the top of the handle meets the vase, down from the rim. One setting for every page: the Mold tab's split-mold handle, and the mug in SprigMaker and VaseMaker"
-                  onChange={(v) => setMoldParam('handleTopDrop', v)}
-                />
-                {mug?.error && <p className="text-[11px] text-red-400 mt-1 leading-snug">{mug.error}</p>}
-              </>
-            )}
+            {/* The mug is shown by View → Side or On Vase (it was a Show Mug switch here).
+                In Mold view there is no mug to place it on: greyed (Gary, 2026-11-01). */}
+            <Greyed off={!showMug} hint="Switch to Side or On Vase view (View, above) to change this">
+              <SliderRow
+                label="Top Below Rim"
+                value={moldParams.handleTopDrop}
+                min={MOLD_PARAMS.handleTopDrop.min}
+                max={MOLD_PARAMS.handleTopDrop.max}
+                step={MOLD_PARAMS.handleTopDrop.step}
+                suffix="mm"
+                tooltip="Where the top of the handle meets the vase, down from the rim. One setting for every page: the Mold tab's split-mold handle, and the mug in SprigMaker and VaseMaker"
+                onChange={(v) => setMoldParam('handleTopDrop', v)}
+              />
+              {showMug && mug?.error && <p className="text-[11px] text-red-400 mt-1 leading-snug">{mug.error}</p>}
+            </Greyed>
             <div className="flex gap-1 mt-1">
               <button className={miniBtn} onClick={reOriginSpine}
                 title="Slide the whole design so the lower attachment end sits at 0 — the drawing doesn't move, only the numbers on the axis">
@@ -618,10 +617,10 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             {sl('shrinkPercent', 'Shrink (%)', undefined, 'Clay shrinkage — the master prints this much larger than the designed size')}
             {sl('masterShellThickness', 'Shell (mm)', undefined, 'Printed wall thickness of the master. The master is always hollow and OPEN along its underside — the shell is all there is — so you can get a tool into the channel to pry it out of the set plaster. Clamped automatically so the cavity stays open on a thin strap')}
             {sl('ribWidth', 'Pull Ribs (mm)', undefined, 'Width of the solid ribs bridging the open channel. The channel is open either side of one, so long-nose jaws drop in and close on it — that is what you pull on to lever the master out of the set plaster. 0 turns them off. They sit inside the shell, so the cast handle never sees them')}
-            {params.ribWidth > 0.2 &&
-              sl('ribCount', 'Rib Count', undefined, 'How many along the strap, evenly spaced by distance along the handle. Each well gets one as well, just inside its open end — those are the stiffest things on the master to pull against')}
-            {params.ribWidth > 0.2 &&
-              sl('ribSlot', 'Rib Slot (mm)', undefined, 'A gap down the middle of each strap rib. Squeezing the strap with pliers closes it, to start the master moving; to pull, grip both halves of the rib together. 0 = solid ribs. The ribs in the wells stay solid')}
+            <Greyed off={!(params.ribWidth > 0.2)} hint="Set Pull Ribs above 0 to use these">
+              {sl('ribCount', 'Rib Count', undefined, 'How many along the strap, evenly spaced by distance along the handle. Each well gets one as well, just inside its open end — those are the stiffest things on the master to pull against')}
+              {sl('ribSlot', 'Rib Slot (mm)', undefined, 'A gap down the middle of each strap rib. Squeezing the strap with pliers closes it, to start the master moving; to pull, grip both halves of the rib together. 0 = solid ribs. The ribs in the wells stay solid')}
+            </Greyed>
             {/* Resolution lives HERE, not in a Settings section (Gary, 2026-08-01):
                 he printed a master and only then saw the facets, having forgotten
                 to raise it. It belongs where you are already thinking about the
@@ -653,8 +652,9 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             {sl('lipWidth', 'Lip Width', 'mm', 'Support-lip ring the handle rests on — inside it the plate is open so you can tape the handle from below')}
             {sl('plateFloor', 'Lip Thickness', 'mm', 'Plate material under the seat pocket. Added to Seat Depth it is the plate’s total thickness, and stiffness goes as the CUBE of that — this is the first slider to raise if a plate flexes during the pour. Stepped in 0.2 mm so it stays a whole number of layers')}
             {sl('tieBarWidth', 'Tie Bars', 'mm', 'Width of the bars that bridge the tape hole, turning it from a continuous slot into a ladder. Without them the plate inside the handle’s curve is a long tongue joined to the rest only at the mold wall, and setting plaster — which expands, hot — has nothing else to push against there. They sit below the master in a space the plaster never reaches, so they cost the casting nothing. 0 turns them off')}
-            {params.tieBarWidth > 0.2 &&
-              sl('tieBarCount', 'Bar Count', undefined, 'How many along the strap, evenly spaced by distance along the handle and nudged clear of the pull-ribs. Bars too near a well are dropped — the hole is as wide as the pour opening out there')}
+            <Greyed off={!(params.tieBarWidth > 0.2)} hint="Set Tie Bars above 0 to use this">
+              {sl('tieBarCount', 'Bar Count', undefined, 'How many along the strap, evenly spaced by distance along the handle and nudged clear of the pull-ribs. Bars too near a well are dropped — the hole is as wide as the pour opening out there')}
+            </Greyed>
             {sl('recessClearance', 'Fit Clearance', 'mm', 'Gap around the master everywhere it meets a printed part: the plate pocket AND the wall’s well-collar bore. Tighter holds the master in place and gives plaster less to creep through; too tight and the parts will not go together. Tune to your printer')}
             {sl('domeDiameter', 'Dome Diameter', 'mm', 'Registration bump/dimple pair size — clamped to the plaster band between the wall and the handle pocket, so a small Plaster Margin limits it')}
             {sl('domeHeight', 'Dome Height', 'mm', 'How far the registration bump stands proud. Engagement is limited by Seat Depth: the plate recess that molds the mating bump is only that deep, so raising this past Seat Depth deepens the dimple without deepening the bump')}

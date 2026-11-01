@@ -142,10 +142,42 @@ export function SliderRow({
   );
 }
 
-/** Collapsible section wrapper — supports optional header toggle */
-export function Section({ title, children, defaultOpen = true, active, checked, onToggle, tooltip, titleColor, changed, changedTip }: {
+/**
+ * Settings that only matter while some other setting is on stay in view,
+ * greyed out and locked, with a short line saying what to turn on — instead of
+ * disappearing, so the greyed setting itself is the reminder (Gary,
+ * 2026-11-01). `fieldset disabled` disables every input, button and select
+ * inside; `inert` also takes the focusable curve editors out of the Tab order,
+ * and pointer-events-none stops clicks on SVG/canvas widgets and clickable
+ * spans. When not `off` the children render as they are, with no wrapper.
+ */
+export function Greyed({ off, hint, children }: { off: boolean; hint: string; children: React.ReactNode }) {
+  if (!off) return <>{children}</>;
+  return <GreyedBox hint={hint}>{children}</GreyedBox>;
+}
+
+function GreyedBox({ hint, children }: { hint: string; children: React.ReactNode }) {
+  const ref = useRef<HTMLFieldSetElement>(null);
+  // React 18 has no `inert` prop; set the attribute by hand.
+  useEffect(() => { ref.current?.setAttribute('inert', ''); }, []);
+  return (
+    <>
+      <div className="text-[10px] text-[var(--text-secondary)] mb-1">{hint}</div>
+      <fieldset ref={ref} disabled aria-disabled className="border-0 p-0 m-0 min-w-0 opacity-40 pointer-events-none">
+        {children}
+      </fieldset>
+    </>
+  );
+}
+
+/** Collapsible section wrapper — supports optional header toggle. With a
+ *  header switch that is off, the body is greyed and locked (see Greyed). */
+export function Section({ title, children, defaultOpen = true, active, checked, onToggle, offHint, tooltip, titleColor, changed, changedTip }: {
   title: string; children: React.ReactNode; defaultOpen?: boolean;
-  active?: boolean; checked?: boolean; onToggle?: (v: boolean) => void; tooltip?: string; titleColor?: string;
+  active?: boolean; checked?: boolean; onToggle?: (v: boolean) => void;
+  /** The greyed body's hint while the header switch is off; "Turn on <title> to use these" if omitted. */
+  offHint?: string;
+  tooltip?: string; titleColor?: string;
   /** Something in this section differs from its default: a small dot after the
    *  title (Sprig page, Gary 2026-10-29 — "where did I change that?"). */
   changed?: boolean;
@@ -197,7 +229,9 @@ export function Section({ title, children, defaultOpen = true, active, checked, 
         )}
       </summary>
       <div className="pt-3 px-4 ml-2 border-l-2 border-[var(--border-color)]">
-        {children}
+        <Greyed off={!!onToggle && checked === false} hint={offHint ?? `Turn on ${title} to use these`}>
+          {children}
+        </Greyed>
       </div>
     </details>
   );

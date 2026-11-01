@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { BezierCurveEditor } from './BezierCurveEditor';
 import { ProfileEditorPanel } from './ProfileEditorPanel';
 import { UI_MUTED, GROUP_COLORS } from '@/config/colors';
-import { SliderRow, Section, GroupHeader, Toggle } from './ui';
+import { SliderRow, Section, GroupHeader, Toggle, Greyed } from './ui';
 
 /** Shape parameter sliders for a specific shape (bottom or top) */
 function ShapeParamControls({ shape, isTop }: { shape: ShapeType; isTop: boolean }) {
@@ -100,59 +100,57 @@ export function ShapeControls() {
         </div>
         <SliderRow label="Base" value={params.bottomThickness} {...SHELL.bottomThickness} onChange={setBottomThickness} tooltip="Base thickness in mm (0 = no base). With a foot or a mark (Foot & Mark), it is the plastic left over them, so the inside floor sits higher" />
         <SliderRow label="Wall" value={params.wallThickness} {...SHELL.wallThickness} onChange={(v) => { setWallThickness(v); if ((params.minWallThickness ?? DEFAULT_PARAMETERS.minWallThickness) > v) setMinWallThickness(v); }} tooltip="Wall thickness in mm (0 = thin surface)" />
-        {params.wallThickness > 0 && (
-          <>
-            <SliderRow label="Min Wall" value={params.minWallThickness ?? DEFAULT_PARAMETERS.minWallThickness} {...SHELL.minWallThickness} onChange={(v) => setMinWallThickness(Math.min(v, params.wallThickness))} tooltip="Minimum wall thickness when Smooth Inner is on" />
-            <div className="flex items-center gap-3 mb-2">
-              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Shape of the top edge where outer meets inner wall">Rim</label>
-              <div className="flex gap-3">
-                {(['flat', 'rounded'] as const).map((shape) => (
-                  <label key={shape} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
-                    <input
-                      type="radio"
-                      name="rimShape"
-                      checked={params.rimShape === shape}
-                      onChange={() => setRimShape(shape)}
-                      className="accent-[var(--accent)]"
-                    />
-                    {shape.charAt(0).toUpperCase() + shape.slice(1)}
-                  </label>
-                ))}
-              </div>
+        <Greyed off={!(params.wallThickness > 0)} hint="Set Wall above 0 to use these">
+          <SliderRow label="Min Wall" value={params.minWallThickness ?? DEFAULT_PARAMETERS.minWallThickness} {...SHELL.minWallThickness} onChange={(v) => setMinWallThickness(Math.min(v, params.wallThickness))} tooltip="Minimum wall thickness when Smooth Inner is on" />
+          <div className="flex items-center gap-3 mb-2">
+            <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Shape of the top edge where outer meets inner wall">Rim</label>
+            <div className="flex gap-3">
+              {(['flat', 'rounded'] as const).map((shape) => (
+                <label key={shape} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
+                  <input
+                    type="radio"
+                    name="rimShape"
+                    checked={params.rimShape === shape}
+                    onChange={() => setRimShape(shape)}
+                    className="accent-[var(--accent)]"
+                  />
+                  {shape.charAt(0).toUpperCase() + shape.slice(1)}
+                </label>
+              ))}
             </div>
-            <div className="flex items-center gap-3 mb-2">
-              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Radial = inner offset along the radius (fast, but thinner walls at corners of non-circular shapes). Parallel = uniform wall thickness everywhere — recommended for Rectangle, Square, Ellipse, Polygon.">Inner Wall</label>
-              <div className="flex gap-3">
-                {([
-                  { value: 'radial',        label: 'Radial' },
-                  { value: 'perpendicular', label: 'Parallel' },
-                ] as const).map(({ value, label }) => (
-                  <label key={value} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
-                    <input
-                      type="radio"
-                      name="innerOffsetMode"
-                      checked={(params.innerOffsetMode ?? 'radial') === value}
-                      onChange={() => setInnerOffsetMode(value)}
-                      className="accent-[var(--accent)]"
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
+          </div>
+          <div className="flex items-center gap-3 mb-2">
+            <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Radial = inner offset along the radius (fast, but thinner walls at corners of non-circular shapes). Parallel = uniform wall thickness everywhere — recommended for Rectangle, Square, Ellipse, Polygon.">Inner Wall</label>
+            <div className="flex gap-3">
+              {([
+                { value: 'radial',        label: 'Radial' },
+                { value: 'perpendicular', label: 'Parallel' },
+              ] as const).map(({ value, label }) => (
+                <label key={value} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
+                  <input
+                    type="radio"
+                    name="innerOffsetMode"
+                    checked={(params.innerOffsetMode ?? 'radial') === value}
+                    onChange={() => setInnerOffsetMode(value)}
+                    className="accent-[var(--accent)]"
+                  />
+                  {label}
+                </label>
+              ))}
             </div>
-            {(params.innerOffsetMode ?? 'radial') === 'perpendicular' && (
-              <div className="text-xs text-[var(--text-secondary)] mb-2 opacity-60">
-                Inner stays parallel to the outer — uniform wall thickness on Rectangle, Square, Ellipse, Polygon. Switch back to Radial for strongly concave shapes like Heart or Cardioid.
-              </div>
-            )}
-            <Toggle label="Smooth Inner" checked={params.smoothInner ?? false} onChange={setSmoothInner} tooltip="Keep inner wall smooth (no ripples or textures)" />
-            {(params.smoothInner ?? false) && (
-              <div className="text-xs text-[var(--text-secondary)] mb-2 opacity-60">
-                Inner wall is completely smooth (no ripples or textures). Deep effects may require adjusting Wall or Min Wall above.
-              </div>
-            )}
-          </>
-        )}
+          </div>
+          {(params.innerOffsetMode ?? 'radial') === 'perpendicular' && (
+            <div className="text-xs text-[var(--text-secondary)] mb-2 opacity-60">
+              Inner stays parallel to the outer — uniform wall thickness on Rectangle, Square, Ellipse, Polygon. Switch back to Radial for strongly concave shapes like Heart or Cardioid.
+            </div>
+          )}
+          <Toggle label="Smooth Inner" checked={params.smoothInner ?? false} onChange={setSmoothInner} tooltip="Keep inner wall smooth (no ripples or textures)" />
+          {(params.smoothInner ?? false) && (
+            <div className="text-xs text-[var(--text-secondary)] mb-2 opacity-60">
+              Inner wall is completely smooth (no ripples or textures). Deep effects may require adjusting Wall or Min Wall above.
+            </div>
+          )}
+        </Greyed>
       </Section>
 
       <Section title="Bottom Shape" tooltip="Cross-section shape at the base of the vase" titleColor={GROUP_COLORS.structure}>
@@ -219,7 +217,8 @@ export function ShapeControls() {
         <div className="text-xs text-[var(--text-secondary)] mt-1 px-1 opacity-60">
           Double-click to add. Right-click to remove. Shift-click toggles Fixed (□) / Handle (○). Click a point — or use the ▲▼ buttons to step through crowded points without clicking (or ⌘↑ / ⌘↓) — then arrow keys nudge (Shift = ×5, Alt = fine) or type exact X / height below. X=↓ / X=↑ match a neighbor's X for a perfectly flat (vertical) segment. Alt-drag = fine; Shift-drag locks to one axis. ⤢ Enlarge opens a big, resizable copy for tight curves.
         </div>
-        {bigProfile && (
+        {/* Portalled out of the greyed body, so it would stay live: hidden while Profile is off. */}
+        {bigProfile && params.profileEnabled && (
           <ProfileEditorPanel
             points={params.profilePoints}
             pointTypes={params.profilePointTypes}

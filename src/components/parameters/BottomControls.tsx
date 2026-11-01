@@ -14,7 +14,7 @@ import { useMarkStore, hydrateMarkSettingsFromStorage } from '@/store/sprig-stor
 import { BOTTOM } from '@/config/shape-params';
 import { GROUP_COLORS } from '@/config/colors';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
-import { SliderRow, Section, Toggle, GroupHeader, resetDot, CHANGED_TIP } from './ui';
+import { SliderRow, Section, Toggle, GroupHeader, Greyed, resetDot, CHANGED_TIP } from './ui';
 
 /** The Sprig page opens on this tab (SprigEditor). */
 const SPRIG_TAB_KEY = 'vasemaker-sprig-tab';
@@ -70,92 +70,90 @@ export function BottomControls() {
     <GroupHeader label="Bottom" color={GROUP_COLORS.structure} />
     <Section title="Foot & Mark" defaultOpen={false} active={active} titleColor={GROUP_COLORS.structure} changed={changed} changedTip={CHANGED_TIP}
       tooltip="The foot ring the piece stands on, and your maker's mark on the bottom">
-      {!hasBase ? (
-        <p className="text-xs text-[var(--text-secondary)] mb-2">A foot and a mark need a solid bottom: set Base and Wall above zero in Shell.</p>
-      ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <div className={sub}>Foot</div>
-            {b.footOn && <button onClick={resetFoot} className={linkBtn} title="Foot back to its defaults">Reset</button>}
+      {/* Without a solid bottom the controls stay in view, greyed (Gary, 2026-11-01).
+          The inner Foot / Mark greying waits for a base, so it is never doubled. */}
+      <Greyed off={!hasBase} hint="A foot and a mark need a solid bottom: set Base and Wall above zero in Shell.">
+        <div className="flex items-center justify-between">
+          <div className={sub}>Foot</div>
+          {b.footOn && <button onClick={resetFoot} className={linkBtn} title="Foot back to its defaults">Reset</button>}
+        </div>
+        <Toggle label="Foot" checked={b.footOn} onChange={(v) => setBottom({ footOn: v })} after={onOff('footOn')}
+          tooltip="A foot ring with a recessed middle, on the plastic print AND on every mold. Off: a flat bottom everywhere" />
+        <Greyed off={hasBase && !b.footOn} hint="Turn on Foot to use these">
+          <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
+            <SliderRow label="Foot Width" value={b.footWidth} {...BOTTOM.footWidth} suffix="mm" onChange={(v) => setBottom({ footWidth: v })} after={dot('footWidth', `${D.footWidth}mm`)}
+              tooltip="The flat ring at the outer edge of the bottom — what the piece stands on" />
+            <SliderRow label="Slope Width" value={b.footSlopeWidth} {...BOTTOM.footSlopeWidth} suffix="mm" onChange={(v) => setBottom({ footSlopeWidth: v })} after={dot('footSlopeWidth', `${D.footSlopeWidth}mm`)}
+              tooltip="Width of the slope from the foot ring up into the recessed middle" />
+            <SliderRow label="Depth" value={b.footHeight} {...BOTTOM.footHeight} suffix="mm" onChange={(v) => setBottom({ footHeight: v })} after={dot('footHeight', `${D.footHeight}mm`)}
+              tooltip="How far the middle is recessed. A raised mark must not be taller than this or the piece rocks" />
+            <Toggle label="Smooth Inside" checked={b.footSmoothInner} onChange={(v) => setBottom({ footSmoothInner: v })} after={onOff('footSmoothInner')}
+              tooltip="Build the slope and recess from the smooth outline, so surface texture does not carry into the recess" />
           </div>
-          <Toggle label="Foot" checked={b.footOn} onChange={(v) => setBottom({ footOn: v })} after={onOff('footOn')}
-            tooltip="A foot ring with a recessed middle, on the plastic print AND on every mold. Off: a flat bottom everywhere" />
-          {b.footOn && (
-            <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
-              <SliderRow label="Foot Width" value={b.footWidth} {...BOTTOM.footWidth} suffix="mm" onChange={(v) => setBottom({ footWidth: v })} after={dot('footWidth', `${D.footWidth}mm`)}
-                tooltip="The flat ring at the outer edge of the bottom — what the piece stands on" />
-              <SliderRow label="Slope Width" value={b.footSlopeWidth} {...BOTTOM.footSlopeWidth} suffix="mm" onChange={(v) => setBottom({ footSlopeWidth: v })} after={dot('footSlopeWidth', `${D.footSlopeWidth}mm`)}
-                tooltip="Width of the slope from the foot ring up into the recessed middle" />
-              <SliderRow label="Depth" value={b.footHeight} {...BOTTOM.footHeight} suffix="mm" onChange={(v) => setBottom({ footHeight: v })} after={dot('footHeight', `${D.footHeight}mm`)}
-                tooltip="How far the middle is recessed. A raised mark must not be taller than this or the piece rocks" />
-              <Toggle label="Smooth Inside" checked={b.footSmoothInner} onChange={(v) => setBottom({ footSmoothInner: v })} after={onOff('footSmoothInner')}
-                tooltip="Build the slope and recess from the smooth outline, so surface texture does not carry into the recess" />
-            </div>
-          )}
-          <p className="text-xs text-[var(--text-secondary)] mb-2">A foot is usually for pieces cast from a mold. It applies to the plastic print and every mold style.</p>
+        </Greyed>
+        <p className="text-xs text-[var(--text-secondary)] mb-2">A foot is usually for pieces cast from a mold. It applies to the plastic print and every mold style.</p>
 
-          <div className="flex items-center justify-between">
-            <div className={sub}>Mark</div>
-            {b.markOn && <button onClick={resetPlace} className={linkBtn} title="Size, angle and position back to the defaults">Reset</button>}
-          </div>
-          <Toggle label="Mark" checked={b.markOn} after={onOff('markOn')}
-            onChange={(v) => { if (v && !b.mark) useTabMark(); setBottom({ markOn: v }); }}
-            tooltip="Put your maker's mark (designed on the Sprig page, Mark tab) on the bottom: the plastic print, the Pour 3-Pc center and the Split Halves / Thirds plug disk" />
-          {b.markOn && (
-            <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
-              <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] mb-1.5">
-                <span className="truncate" title="The vase keeps its own copy of the mark, saved in the design file">Using: <span className="text-[var(--text-primary)]">{b.markName || 'mark'}</span></span>
-                <Link href="/sprig" onClick={() => { try { window.sessionStorage.setItem(SPRIG_TAB_KEY, 'mark'); } catch { /* not remembered */ } }}
-                  className={linkBtn} title="Open the Mark tab on the Sprig page">Edit ▸</Link>
-              </div>
-              {differs && (
-                <button onClick={useTabMark} className="w-full mb-2 text-xs px-2 py-1 rounded border border-amber-700 text-amber-200 hover:bg-amber-950/50"
-                  title="Copy the mark from the Sprig page's Mark tab into this vase">
-                  Use the Mark tab&apos;s {tabName ? `“${tabName}”` : 'mark'}
-                </button>
-              )}
-              <div className="flex items-center gap-2 mb-2">
-                <label className="text-sm text-[var(--text-secondary)] w-12 shrink-0 whitespace-nowrap" title="Impressed = pressed into the bottom. Raised = stands out of it, inside the recess">Style{dot('markStyle', D.markStyle === 'impressed' ? 'Impressed' : 'Raised')}</label>
-                <div className="flex gap-2.5">
-                  {(['impressed', 'raised'] as const).map((st) => (
-                    <label key={st} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
-                      <input type="radio" name="markStyle" checked={b.markStyle === st} onChange={() => setBottom({ markStyle: st })} className="accent-[var(--accent)]" />
-                      {st === 'impressed' ? 'Impressed' : 'Raised'}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <SliderRow label={b.markStyle === 'impressed' ? 'Depth' : 'Height'} value={b.markDepth} {...BOTTOM.markDepth} suffix="mm"
-                onChange={(v) => setBottom({ markDepth: v })} tooltip="How deep the mark is pressed in, or how far it stands out (its tallest part)" />
-              <SliderRow label="Size" value={b.markSize} {...BOTTOM.markSize} suffix="%" onChange={(v) => setBottom({ markSize: v })} after={dot('markSize', `${D.markSize}%`)}
-                tooltip="Size of the mark, as a percentage of the size it was drawn at on the Mark tab" />
-              <SliderRow label="Angle" value={b.markAngle} {...BOTTOM.markAngle} suffix="°" onChange={(v) => setBottom({ markAngle: v })} after={dot('markAngle', `${D.markAngle}°`)}
-                tooltip="Turn the mark, counter-clockwise as seen looking up at the bottom" />
-              <SliderRow label="Move Right" value={b.markOffsetX} {...BOTTOM.markOffset} suffix="mm" onChange={(v) => setBottom({ markOffsetX: v })} after={dot('markOffsetX', `${D.markOffsetX}mm`)}
-                tooltip="Move the mark off centre, to the right as seen looking up at the bottom" />
-              <SliderRow label="Move Up" value={b.markOffsetY} {...BOTTOM.markOffset} suffix="mm" onChange={(v) => setBottom({ markOffsetY: v })} after={dot('markOffsetY', `${D.markOffsetY}mm`)}
-                tooltip="Move the mark off centre, up as seen looking up at the bottom" />
-              <p className="text-xs text-[var(--text-secondary)] mb-2">Placed as you read it when you turn the piece over. Look from below to check it.</p>
+        <div className="flex items-center justify-between">
+          <div className={sub}>Mark</div>
+          {b.markOn && <button onClick={resetPlace} className={linkBtn} title="Size, angle and position back to the defaults">Reset</button>}
+        </div>
+        <Toggle label="Mark" checked={b.markOn} after={onOff('markOn')}
+          onChange={(v) => { if (v && !b.mark) useTabMark(); setBottom({ markOn: v }); }}
+          tooltip="Put your maker's mark (designed on the Sprig page, Mark tab) on the bottom: the plastic print, the Pour 3-Pc center and the Split Halves / Thirds plug disk" />
+        <Greyed off={hasBase && !b.markOn} hint="Turn on Mark to use these">
+          <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
+            <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] mb-1.5">
+              <span className="truncate" title="The vase keeps its own copy of the mark, saved in the design file">Using: <span className="text-[var(--text-primary)]">{b.markName || 'mark'}</span></span>
+              <Link href="/sprig" onClick={() => { try { window.sessionStorage.setItem(SPRIG_TAB_KEY, 'mark'); } catch { /* not remembered */ } }}
+                className={linkBtn} title="Open the Mark tab on the Sprig page">Edit ▸</Link>
             </div>
-          )}
-          {notes.map((n, i) => (
-            <div key={i} className="mb-1.5 px-2 py-1.5 rounded border border-amber-700 bg-amber-950/70 text-xs text-amber-200">{n}</div>
-          ))}
-          {active && floor && floor.foot + floor.mark > 0 && (() => {
-            const sum = floor.base + floor.foot + floor.mark;
-            const parts = [floor.foot > 0 && `foot depth ${floor.foot.toFixed(1)}`, floor.mark > 0 && `mark depth ${floor.mark.toFixed(1)}`,
-              `base thickness ${floor.base.toFixed(1)}`].filter(Boolean).join(' + ');
-            const snapped = floor.z > sum + 0.05;
-            return (
-              <div className="mb-1.5 px-2 py-1.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-secondary)]"
-                title="Base (Shell) is the plastic left over the deepest point, so the foot and an impressed mark lift the inside floor. The outside does not change, and the molds use only the outside.">
-                The inside floor is <span className="text-[var(--text-primary)]">{floor.z.toFixed(1)} mm</span> up from the bottom of the design
-                ({parts}{snapped ? ` = ${sum.toFixed(1)}, rounded up to the next mesh row` : ''}).
+            {b.markOn && differs && (
+              <button onClick={useTabMark} className="w-full mb-2 text-xs px-2 py-1 rounded border border-amber-700 text-amber-200 hover:bg-amber-950/50"
+                title="Copy the mark from the Sprig page's Mark tab into this vase">
+                Use the Mark tab&apos;s {tabName ? `“${tabName}”` : 'mark'}
+              </button>
+            )}
+            <div className="flex items-center gap-2 mb-2">
+              <label className="text-sm text-[var(--text-secondary)] w-12 shrink-0 whitespace-nowrap" title="Impressed = pressed into the bottom. Raised = stands out of it, inside the recess">Style{dot('markStyle', D.markStyle === 'impressed' ? 'Impressed' : 'Raised')}</label>
+              <div className="flex gap-2.5">
+                {(['impressed', 'raised'] as const).map((st) => (
+                  <label key={st} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
+                    <input type="radio" name="markStyle" checked={b.markStyle === st} onChange={() => setBottom({ markStyle: st })} className="accent-[var(--accent)]" />
+                    {st === 'impressed' ? 'Impressed' : 'Raised'}
+                  </label>
+                ))}
               </div>
-            );
-          })()}
-        </>
-      )}
+            </div>
+            <SliderRow label={b.markStyle === 'impressed' ? 'Depth' : 'Height'} value={b.markDepth} {...BOTTOM.markDepth} suffix="mm"
+              onChange={(v) => setBottom({ markDepth: v })} tooltip="How deep the mark is pressed in, or how far it stands out (its tallest part)" />
+            <SliderRow label="Size" value={b.markSize} {...BOTTOM.markSize} suffix="%" onChange={(v) => setBottom({ markSize: v })} after={dot('markSize', `${D.markSize}%`)}
+              tooltip="Size of the mark, as a percentage of the size it was drawn at on the Mark tab" />
+            <SliderRow label="Angle" value={b.markAngle} {...BOTTOM.markAngle} suffix="°" onChange={(v) => setBottom({ markAngle: v })} after={dot('markAngle', `${D.markAngle}°`)}
+              tooltip="Turn the mark, counter-clockwise as seen looking up at the bottom" />
+            <SliderRow label="Move Right" value={b.markOffsetX} {...BOTTOM.markOffset} suffix="mm" onChange={(v) => setBottom({ markOffsetX: v })} after={dot('markOffsetX', `${D.markOffsetX}mm`)}
+              tooltip="Move the mark off centre, to the right as seen looking up at the bottom" />
+            <SliderRow label="Move Up" value={b.markOffsetY} {...BOTTOM.markOffset} suffix="mm" onChange={(v) => setBottom({ markOffsetY: v })} after={dot('markOffsetY', `${D.markOffsetY}mm`)}
+              tooltip="Move the mark off centre, up as seen looking up at the bottom" />
+            <p className="text-xs text-[var(--text-secondary)] mb-2">Placed as you read it when you turn the piece over. Look from below to check it.</p>
+          </div>
+        </Greyed>
+        {notes.map((n, i) => (
+          <div key={i} className="mb-1.5 px-2 py-1.5 rounded border border-amber-700 bg-amber-950/70 text-xs text-amber-200">{n}</div>
+        ))}
+        {active && floor && floor.foot + floor.mark > 0 && (() => {
+          const sum = floor.base + floor.foot + floor.mark;
+          const parts = [floor.foot > 0 && `foot depth ${floor.foot.toFixed(1)}`, floor.mark > 0 && `mark depth ${floor.mark.toFixed(1)}`,
+            `base thickness ${floor.base.toFixed(1)}`].filter(Boolean).join(' + ');
+          const snapped = floor.z > sum + 0.05;
+          return (
+            <div className="mb-1.5 px-2 py-1.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-secondary)]"
+              title="Base (Shell) is the plastic left over the deepest point, so the foot and an impressed mark lift the inside floor. The outside does not change, and the molds use only the outside.">
+              The inside floor is <span className="text-[var(--text-primary)]">{floor.z.toFixed(1)} mm</span> up from the bottom of the design
+              ({parts}{snapped ? ` = ${sum.toFixed(1)}, rounded up to the next mesh row` : ''}).
+            </div>
+          );
+        })()}
+      </Greyed>
     </Section>
     </>
   );

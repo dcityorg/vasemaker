@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { ToggleAllSectionsButton, useRememberedScroll, RevertResetRow } from '@/components/parameters/ui';
+import { ToggleAllSectionsButton, useRememberedScroll, RevertResetRow, Greyed } from '@/components/parameters/ui';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
 import { useHistoryStore } from '@/store/history';
@@ -302,8 +302,8 @@ export function Sidebar({
             </div>
           </div>
 
-          {/* Custom size inputs */}
-          {isCustomSize && (
+          {/* Custom size inputs — greyed until Custom is chosen (Gary, 2026-11-01) */}
+          <Greyed off={!isCustomSize} hint="Choose Custom size to use these">
             <div className="flex items-center gap-2 ml-2 pl-3 border-l-2 border-[var(--border-color)]">
               <label className="text-xs text-[var(--text-secondary)]">W</label>
               <input
@@ -324,7 +324,7 @@ export function Sidebar({
                 className="w-16 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-1.5 py-0.5 text-xs text-[var(--text-primary)] tabular-nums"
               />
             </div>
-          )}
+          </Greyed>
 
           {/* Capture / Save / Cancel buttons */}
           {!captureActive ? (

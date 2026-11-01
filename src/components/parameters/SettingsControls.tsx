@@ -6,7 +6,7 @@ import { RESOLUTION, PRINT_CHECK } from '@/config/shape-params';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import type { FilamentType } from '@/engine/types';
-import { SliderRow, Section, GroupHeader, resetDot, CHANGED_TIP } from './ui';
+import { SliderRow, Section, GroupHeader, Greyed, resetDot, CHANGED_TIP } from './ui';
 
 /** Right-aligned label/value row for the Print Check stats */
 function StatRow({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
@@ -35,6 +35,25 @@ export function SettingsControls() {
   const R = DEFAULT_PARAMETERS.resolution;
   const resDot = (k: 'vertical' | 'radial') =>
     resetDot(params.resolution[k] !== R[k], () => setResolution({ [k]: R[k] }), String(R[k]));
+
+  // Shown under the estimate, or greyed when there is no shell to weigh.
+  const materialRow = (
+    <div className="flex items-center gap-3 mb-2 mt-1">
+      <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Filament material — sets the density used for the weight estimate">Material</label>
+      <select
+        value={printCheck.material}
+        onChange={(e) => setPrintCheck({ material: e.target.value as FilamentType })}
+        className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm min-w-0"
+        style={{ color: UI_MUTED }}
+      >
+        {(Object.keys(PRINT_CHECK.filaments) as FilamentType[]).map((key) => (
+          <option key={key} value={key}>
+            {PRINT_CHECK.filaments[key].label} ({PRINT_CHECK.filaments[key].density} g/cm³)
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 
   return (
     <>
@@ -65,22 +84,13 @@ export function SettingsControls() {
             <StatRow label="Plastic" value={`${volumeCm3.toFixed(1)} cm³`} tooltip="Solid volume of the printed part (walls + base), from the mesh" />
             <StatRow label="Weight" value={`≈ ${weightG.toFixed(weightG < 10 ? 1 : 0)} g`} tooltip={`Volume × ${filament.label} density (${filament.density} g/cm³). Slicer settings will vary the real number slightly.`} />
             <StatRow label="Filament" value={`≈ ${filamentM.toFixed(2)} m`} tooltip="Length of 1.75 mm filament containing this much plastic" />
-            <div className="flex items-center gap-3 mb-2 mt-1">
-              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Filament material — sets the density used for the weight estimate">Material</label>
-              <select
-                value={printCheck.material}
-                onChange={(e) => setPrintCheck({ material: e.target.value as FilamentType })}
-                className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm min-w-0"
-                style={{ color: UI_MUTED }}
-              >
-                {(Object.keys(PRINT_CHECK.filaments) as FilamentType[]).map((key) => (
-                  <option key={key} value={key}>
-                    {PRINT_CHECK.filaments[key].label} ({PRINT_CHECK.filaments[key].density} g/cm³)
-                  </option>
-                ))}
-              </select>
-            </div>
+            {materialRow}
           </>
+        ) : !hasShell ? (
+          // No shell: Material stays in view, greyed (Gary, 2026-11-01).
+          <Greyed off hint="Set Wall above 0 in the Shell section to get plastic volume and weight estimates.">
+            {materialRow}
+          </Greyed>
         ) : (
           <div className="text-xs text-[var(--text-secondary)] mb-2 opacity-60">
             Set Wall &gt; 0 in the Shell section to get plastic volume and weight estimates.

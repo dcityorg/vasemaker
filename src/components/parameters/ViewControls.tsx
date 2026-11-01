@@ -12,7 +12,7 @@ import { useVaseStore } from '@/store/vase-store';
 import { APPEARANCE, PRINT_CHECK } from '@/config/shape-params';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { GROUP_COLORS } from '@/config/colors';
-import { SliderRow, GroupHeader, Section, Toggle, ResetRow } from './ui';
+import { SliderRow, GroupHeader, Section, Toggle, ResetRow, Greyed } from './ui';
 import { setShowFacets } from '@/store/view-prefs';
 import { ShowFacetsToggle } from './ShowFacetsToggle';
 import { useVaseExtras, useSprigTextureOn } from '@/components/viewport/OnVase';
@@ -62,7 +62,7 @@ export function ViewControls() {
         onChange={(v) => setPrintCheck({ showOverhangs: v })}
         tooltip="Highlight surfaces that lean out past Max Angle in red — these may droop or need support when printed"
       />
-      {printCheck.showOverhangs && (
+      <Greyed off={!printCheck.showOverhangs} hint="Turn on Overhangs to use this">
         <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
           <SliderRow
             label="Max Angle"
@@ -77,7 +77,7 @@ export function ViewControls() {
             support. The bottom layer sits on the build plate and is not flagged.
           </div>
         </div>
-      )}
+      </Greyed>
       <Toggle label="Show Rulers" checked={params.showRulers ?? false} onChange={setShowRulers} tooltip="Display axis lines and dimension markers (mm) in the 3D view" />
       </Section>
     </>

@@ -495,7 +495,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: 'foot-mark',
     title: 'Foot & Mark — the Bottom',
     blocks: [
-      { type: 'paragraph', text: 'The Foot & Mark section (under Shell) sets the bottom of the piece: the foot ring it stands on, and your maker\u2019s mark. It needs a solid bottom \u2014 Base and Wall above zero.' },
+      { type: 'paragraph', text: 'The Foot & Mark section (under Shell) sets the bottom of the piece: the foot ring it stands on, and your maker\u2019s mark. It needs a solid bottom \u2014 Base and Wall above zero; until then its controls are greyed out.' },
       { type: 'heading', text: 'Foot' },
       { type: 'keyvalue', items: [
         { key: 'Foot Width', value: 'The flat ring at the outer edge that the piece stands on' },

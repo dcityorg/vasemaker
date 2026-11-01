@@ -2,7 +2,7 @@
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Section, SliderRow, Toggle, GroupHeader, ResetRow, RevertResetRow, ToggleAllSectionsButton, useRememberedScroll } from '@/components/parameters/ui';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow, RevertResetRow, ToggleAllSectionsButton, useRememberedScroll, Greyed } from '@/components/parameters/ui';
 import { setShowFacets, useSprigColors, setSprigColors, DEFAULT_SPRIG_COLOR, DEFAULT_SPRIG_BACKGROUND } from '@/store/view-prefs';
 import { asMark, DEFAULT_VIEW } from '@/store/sprig-store';
 import { useSprigDesign } from './sprig-design-context';
@@ -633,37 +633,40 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                 The mark at its finished size, as seen on the bottom of the piece from below.
               </p>
             </>
-          ) : !view.onVase ? (
-            <>
-              <Toggle label="Plate" checked={view.showPlate} onChange={(v) => setView({ showPlate: v })} />
-              <Toggle label="Wall A" checked={view.showWallA} onChange={(v) => setView({ showWallA: v })} tooltip="First wall in its assembled position" />
-              <Toggle label="Wall B" checked={view.showWallB} onChange={(v) => setView({ showWallB: v })} tooltip="Second copy of the same wall, turned 180°" />
-              <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour" />
-              <SprigColorRows what="sprig" />
-              <ShowFacetsToggle />
-              <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature Width red" />
-            </>
           ) : (
             <>
-              <ShowFacetsToggle />
-              <div className="flex items-center justify-between mt-2 mb-1">
-                <span className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)]">Placement</span>
-                <button onClick={() => resetFields(K.placement)} className={resetBtn} title="On Vase placement back to its defaults">Reset</button>
-              </div>
-              <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
-                The vase is the one open in VaseMaker; change it there. The sprig drapes over any texture, the way soft clay pressed on does.
-              </p>
-              {sl('onVaseHeight', 'Height', '%', 'Height of the sprig\'s centre on the vase, as a % of the vase\'s height')}
-              {sl('onVaseAngle', 'Around', '°', 'Where round the vase the sprig sits')}
-              {sl('onVaseTilt', 'Tilt', '°', 'Turn the sprig on the vase wall, clockwise (+) as you look at it')}
-              {sl('onVaseCopies', 'Repeat', '', 'Copies spaced evenly round the vase')}
-              <Toggle label="Show Handle" checked={params.onVaseHandle} onChange={(v) => setParam('onVaseHandle', v)}
-                tooltip="Put the HandleMaker handle on the vase, to place sprigs beside it. Where it sits is set in HandleMaker (Top Below Rim)" />
-              {params.onVaseHandle && (
+              {!view.onVase ? (
+                <>
+                  <Toggle label="Plate" checked={view.showPlate} onChange={(v) => setView({ showPlate: v })} />
+                  <Toggle label="Wall A" checked={view.showWallA} onChange={(v) => setView({ showWallA: v })} tooltip="First wall in its assembled position" />
+                  <Toggle label="Wall B" checked={view.showWallB} onChange={(v) => setView({ showWallB: v })} tooltip="Second copy of the same wall, turned 180°" />
+                  <Toggle label="Plaster" checked={view.showPlaster} onChange={(v) => setView({ showPlaster: v })} tooltip="Translucent block showing the pour" />
+                  <SprigColorRows what="sprig" />
+                  <ShowFacetsToggle />
+                  <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature Width red" />
+                </>
+              ) : <ShowFacetsToggle />}
+              {/* In the Mold view the placement stays in view, greyed (Gary, 2026-11-01). */}
+              <Greyed off={!view.onVase} hint="Switch to On Vase view to change these">
+                <div className="flex items-center justify-between mt-2 mb-1">
+                  <span className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)]">Placement</span>
+                  <button onClick={() => resetFields(K.placement)} className={resetBtn} title="On Vase placement back to its defaults">Reset</button>
+                </div>
                 <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
-                  The handle sits where HandleMaker puts it — change its height there (Top Below Rim).
+                  The vase is the one open in VaseMaker; change it there. The sprig drapes over any texture, the way soft clay pressed on does.
                 </p>
-              )}
+                {sl('onVaseHeight', 'Height', '%', 'Height of the sprig\'s centre on the vase, as a % of the vase\'s height')}
+                {sl('onVaseAngle', 'Around', '°', 'Where round the vase the sprig sits')}
+                {sl('onVaseTilt', 'Tilt', '°', 'Turn the sprig on the vase wall, clockwise (+) as you look at it')}
+                {sl('onVaseCopies', 'Repeat', '', 'Copies spaced evenly round the vase')}
+                <Toggle label="Show Handle" checked={params.onVaseHandle} onChange={(v) => setParam('onVaseHandle', v)}
+                  tooltip="Put the HandleMaker handle on the vase, to place sprigs beside it. Where it sits is set in HandleMaker (Top Below Rim)" />
+                {params.onVaseHandle && (
+                  <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
+                    The handle sits where HandleMaker puts it — change its height there (Top Below Rim).
+                  </p>
+                )}
+              </Greyed>
             </>
           )}
           </Section>
@@ -776,7 +779,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                     <option value="system">Installed font…</option>
                   </select>
                 </div>
-                {params.textFont === 'system' && <SystemFontBox value={params.textFontName} onCommit={(v) => setParam('textFontName', v)} />}
+                <Greyed off={params.textFont !== 'system'} hint="Choose Installed font… (Font) to type a font name">
+                  <SystemFontBox value={params.textFontName} onCommit={(v) => setParam('textFontName', v)} />
+                </Greyed>
                 {sl('textHeight', 'Letter Height', 'mm', 'Height of a capital letter, finished. Strokes need about 1.5 mm to cast, so about 6–8 mm is the smallest that works in a bold font')}
                 {!isMark && <div className="flex items-center gap-2 mb-2">
                   <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Style</label>
@@ -799,7 +804,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                     Cut In letters sink into a backing sheet. Turn on Plaque or Outline under Backing.
                   </p>
                 )}
-                {params.drawingOn && (
+                {/* Position and Gap stay in view, greyed, without a drawing to sit
+                    beside (Gary, 2026-11-01); Gap also needs a side, not On Top. */}
+                <Greyed off={!params.drawingOn} hint="Turn on Show Drawing (below) to use these">
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Position</label>
                     <select
@@ -816,8 +823,10 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                       <option value="over">On Top</option>
                     </select>
                   </div>
-                )}
-                {params.drawingOn && params.textPosition !== 'over' && sl('textGap', 'Gap', 'mm', 'Space between the drawing and the text')}
+                  <Greyed off={params.drawingOn && params.textPosition === 'over'} hint="Set Position to Below, Above, Left or Right to use this">
+                    {sl('textGap', 'Gap', 'mm', 'Space between the drawing and the text')}
+                  </Greyed>
+                </Greyed>
                 {sl('textOffsetX', 'Nudge ↔', 'mm', 'Move the text right (+) or left (−). The whole sprig stays centred in the mold, so the drawing shifts the other way by half')}
                 {sl('textOffsetY', 'Nudge ↕', 'mm', 'Move the text up (+) or down (−), as seen from above. The whole sprig stays centred in the mold, so the drawing shifts the other way by half')}
                 <div className="flex gap-1.5 my-1">
@@ -856,14 +865,17 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                 <option value="outline">Outline</option>
               </select>
             </div>
+            {/* With no backing these stay in view, greyed (Gary, 2026-11-01). Corner is Plaque's own. */}
+            <Greyed off={params.backing === 'none'} hint="Choose Plaque or Outline (Type) to use these">
+              {sl('backingThickness', 'Thickness', 'mm', 'Sheet thickness, FINISHED. Max Height sits on top of it. 0 = no sheet: separate pieces')}
+              {sl('backingBorder', 'Border', 'mm', params.backing === 'plaque'
+                ? 'How far the plaque reaches past the drawing on every side'
+                : 'How far the sheet reaches past the drawing. 0 = it only fills the gaps between pieces')}
+              {params.backing === 'plaque' && sl('backingCorner', 'Corner', 'mm', 'Rounding of the plaque corners. 0 = square')}
+              {sl('backingEdge', 'Backing Edge', 'mm', 'Width of the slope at the sheet\'s outer edge, so it blends onto the vase and drops out of the mold. Same as Thickness ≈ 45°; 0 = a straight step. Edge Lip applies here too')}
+            </Greyed>
             {params.backing !== 'none' && (
               <>
-                {sl('backingThickness', 'Thickness', 'mm', 'Sheet thickness, FINISHED. Max Height sits on top of it. 0 = no sheet: separate pieces')}
-                {sl('backingBorder', 'Border', 'mm', params.backing === 'plaque'
-                  ? 'How far the plaque reaches past the drawing on every side'
-                  : 'How far the sheet reaches past the drawing. 0 = it only fills the gaps between pieces')}
-                {params.backing === 'plaque' && sl('backingCorner', 'Corner', 'mm', 'Rounding of the plaque corners. 0 = square')}
-                {sl('backingEdge', 'Backing Edge', 'mm', 'Width of the slope at the sheet\'s outer edge, so it blends onto the vase and drops out of the mold. Same as Thickness ≈ 45°; 0 = a straight step. Edge Lip applies here too')}
                 {m && params.backing === 'outline' && backingOnUI && (
                   <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
                     {m.relief.bridgedGap > 0
@@ -919,7 +931,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
             ))}
             {sl('plasterMargin', 'Plaster Margin', 'mm', 'Plaster between the sprig and the walls. Only decides whether the sprig fits — it never changes the walls')}
             {sl('plateThickness', 'Plate Thickness', 'mm', 'The printed plate under its top face. The walls sit on top of the plate, so this never changes them — any thickness fits the size\'s wall pair. Stiffness goes as the cube of this: a thin plate saves plastic but can bow under setting plaster, more on the bigger sizes')}
-            {params.moldSize === 'custom' && (
+            <Greyed off={params.moldSize !== 'custom'} hint="Choose Custom size to use these">
               <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
                 <p className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)] mt-1 mb-1">Custom box</p>
                 {sl('customCavW', 'Inside Width', 'mm', 'Inside of the walls, left to right')}
@@ -931,7 +943,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                   A custom box needs its own walls. Changing any of these makes a new wall.
                 </p>
               </div>
-            )}
+            </Greyed>
           </Section>
           <Section title="Print" changed={changed(K.print)} titleColor={GROUP_COLORS.surface}>
             <div className="flex justify-end mb-1">
