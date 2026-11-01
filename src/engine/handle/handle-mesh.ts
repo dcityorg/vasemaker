@@ -47,6 +47,8 @@ export interface MasterOptions {
   ribWidth: number;
   /** How many along the strap. Each well gets one regardless (when width > 0). */
   ribCount: number;
+  /** Gap down the middle of each strap rib, mm (0 = solid). */
+  ribSlot: number;
 }
 
 export interface MasterParts {
@@ -131,6 +133,38 @@ function halfProfile(a: number, b: number, seat: number): P2[] {
   pts.push([-a, -seat]);
   pts.push([a, -seat]);
   return pts;
+}
+
+/**
+ * Pull-rib section(s): the solid half-ellipse (a, b) down to z = −seat, split
+ * by a `slot` mm gap down its middle (Gary, 2026-11-01). The two halves each
+ * lap into one side wall and the roof, so squeezing the strap closes the gap
+ * (a solid rib stops the channel closing), while plier jaws still close on
+ * both halves' faces to pull. The gap also lets water run along the channel.
+ * slot < 0.2 → the one solid section; halves narrower than 0.8 mm → none.
+ * Shared by HandleMaker and Split Halves' cast-on handle. Each returned
+ * section is counter-clockwise, like halfProfile.
+ */
+export function ribSections(a: number, b: number, seat: number, seg: number, slot: number): P2[][] {
+  const ell = (j: number): P2 => { const th = (j / seg) * Math.PI; return [Math.cos(th) * a, Math.sin(th) * b]; };
+  if (slot < 0.2) {
+    const pts: P2[] = [];
+    for (let j = 0; j <= seg; j++) pts.push(ell(j));
+    pts.push([-a, -seat], [a, -seat]);
+    return [pts];
+  }
+  const w = slot / 2;
+  if (a - w < 0.8) return [];
+  const top = b * Math.sqrt(Math.max(0, 1 - (w / a) ** 2));
+  const right: P2[] = [], left: P2[] = [[-w, top]];
+  for (let j = 0; j <= seg; j++) {
+    const p = ell(j);
+    if (p[0] > w + 1e-6) right.push(p);
+    else if (p[0] < -w - 1e-6) left.push(p);
+  }
+  right.push([w, top], [w, -seat], [a, -seat]);
+  left.push([-a, -seat], [-w, -seat]);
+  return [right, left];
 }
 
 /**
@@ -628,7 +662,10 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
 
     // Along the strap: evenly spaced, and kept clear of both ends so a rib can
     // never straddle the wall plane (where the sweep is being trimmed).
-    const ribProf = halfProfile(dims.hw - RIB_INSET, dims.ht - RIB_INSET, seat);
+    // Split down the middle by Rib Slot, so a squeeze can close the channel at a
+    // rib too (Gary, 2026-11-01). The well ribs stay solid: a bore is not
+    // squeezed, and they are the stiffest thing to pull against.
+    const ribProfs = ribSections(dims.hw - RIB_INSET, dims.ht - RIB_INSET, seat, HALF_SEG, opts.ribSlot);
     const margin = ribW / 2 + dims.hw + 2;
     const n = Math.max(0, Math.round(opts.ribCount));
     const ribs: VaseMesh[] = [];
@@ -640,7 +677,8 @@ export function buildMasterParts(stations: SpineStation[], dims: HandleBodyDims,
       const idx = [f0];
       for (let i = Math.ceil(f0 + 1e-6); i < f1 - 1e-6; i++) idx.push(i);
       idx.push(f1);
-      ribs.push(ribSolid(idx, ribProf));
+      if (!ribProfs.length) continue;
+      for (const prof of ribProfs) ribs.push(ribSolid(idx, prof));
       ribArcs.push(sc);
     }
     if (ribs.length) body = mergeMeshesLocal([body, ...ribs]);

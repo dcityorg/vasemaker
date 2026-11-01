@@ -44,6 +44,7 @@ const SHARED: Partial<HandleParameters> = {
   masterShellThickness: 2,
   ribWidth: 3,
   ribCount: 4,
+  ribSlot: 1.5,
   spineSamples: 300,
   sectionSegments: 80,
   openingDiameter: 22,

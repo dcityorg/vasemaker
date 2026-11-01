@@ -25,6 +25,7 @@ export const HANDLE_PARAMS = {
   masterShellThickness: { min: 1, max: 3, step: 0.25 } as SliderRange,
   ribWidth:  { min: 0, max: 8, step: 0.5 } as SliderRange,
   ribCount:  { min: 0, max: 10, step: 1 } as SliderRange,
+  ribSlot:   { min: 0, max: 4, step: 0.25 } as SliderRange,
 
   // Seat Depth is the master's seal AND the lip you grip to pull it out of the
   // plaster, so the range runs well past the 3 mm default.

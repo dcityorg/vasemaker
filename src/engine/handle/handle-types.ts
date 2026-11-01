@@ -70,6 +70,10 @@ export interface HandleParameters {
   /** Pull-ribs spaced evenly along the strap. Each well always gets one too
    *  (just inside its open end) whenever ribWidth > 0. */
   ribCount: number;
+  /** Gap down the middle of each strap rib, mm (Gary, 2026-11-01): a squeeze
+   *  closes it to work the master loose, and pliers still grip both halves.
+   *  0 = a solid rib (as poured up to v1.56.0). The well ribs stay solid. */
+  ribSlot: number;
 
   // ── Bottom plate ──
   /** Depth of the seat pocket — the master's flat-bottomed skirt sits this far
@@ -167,6 +171,9 @@ export const DEFAULT_HANDLE_PARAMETERS: HandleParameters = {
   // something to close on — 4 along the strap plus one in each well.
   ribWidth: 3,
   ribCount: 4,
+  // 1.5 mm (Gary, 2026-11-01): a solid rib stopped him squeezing the strap
+  // there to start the master moving.
+  ribSlot: 1.5,
 
   // 3, not 2 (Gary, 2026-08-08, after pouring): with the seat-lip V gone this
   // skirt IS the seal — a deeper one is a longer path at Fit Clearance for

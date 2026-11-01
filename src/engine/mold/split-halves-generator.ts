@@ -42,9 +42,10 @@ import { buildDome, buildWall, buildPlateRidges, seamMaxVWidth, type MoldLayout 
 import type { MoldParameters } from './mold-types';
 import type { HandleParameters } from '../handle/handle-types';
 import { sampleSpine } from '../handle/spine';
-import { splitSilhouette, placeHandle, surfaceLookup, sweepHandle, meshSweep, resweep, halfProfile, channelProfile, type HandlePlacement, type HandleSweep } from './split-handle';
+import { splitSilhouette, placeHandle, surfaceLookup, sweepHandle, meshSweep, resweep, channelProfile, type HandlePlacement, type HandleSweep } from './split-handle';
 import { cutArc, buildRelief, buildFloor, halfSectionArea, undercutOf, type Arc, type HalfFrame } from './split-two-piece-generator';
 import { plugMark } from '../bottom';
+import { ribSections } from '../handle/handle-mesh';
 import { buildPlugCup, RING_H, RING_W, RING_US, ringBump, type PlugFoot, type PlugDebug } from './plug-cup';
 
 /** Feature-into-host overlap for slicer union (HandleMaker's EMBED). */
@@ -62,11 +63,6 @@ const CAP_RECESS = 0.2;
 const RIB_COUNT = 3;
 const RIB_WIDTH = 3;
 const RIB_INSET = 0.15;
-/** Water notch through each pull-rib (Gary, 2026-10-13), mm. Cut into the rib
- *  from its crown, so the strap's shell roofs it into a tunnel at the bottom of
- *  the channel when the half is turned cut-face up — one pour of ice water then
- *  runs the length of the strap instead of four eyedropper fills. */
-const RIB_HOLE = 1.5;
 /** Warn below this much plaster between the handle and the rim/well, mm. The
  *  first Split Halves pour chipped there at 7.7 mm (Gary, 2026-10-13). */
 const MIN_PLASTER_GAP = 10;
@@ -91,10 +87,8 @@ export interface HalfDebug {
   relief: VaseMesh; cap: VaseMesh; capPoly: P2[];
   handle: VaseMesh | null; handleSolid: VaseMesh | null; strapLine: P2[];
   plate: VaseMesh[];
-  /** Each pull-rib as its own solid, and its water tunnel: centre (print) and
-   *  the strap direction there (print x, y). */
+  /** Each pull-rib half (or whole rib, at Rib Slot 0) as its own solid. */
   ribs: VaseMesh[];
-  ribHoles: { p: [number, number, number]; t: P2 }[];
 }
 
 /** One natch, world (z, u): a bump on plaster L (and a dimple on R) or the reverse. */
@@ -416,36 +410,6 @@ export function loftSolid(stations: { outer: P2[]; holes: P2[][]; w: number }[],
   return ensureOutward(b.build());
 }
 
-/**
- * Pull-rib section: the solid half-ellipse (a, b) with a RIB_HOLE-wide notch
- * cut down from its crown to RIB_HOLE below where the channel's inner surface
- * (ai, bi) crosses the notch walls — so under the shell the notch is a tunnel
- * at least RIB_HOLE tall. Returns the section and the two notch-floor point
- * indices; the plain section (indices −1) when the strap is too small.
- */
-function ribProfile(a: number, b: number, ai: number, bi: number, seat: number, seg: number): { prof: P2[]; iA: number; iB: number } {
-  const plain = { prof: halfProfile(a, b, seat, seg), iA: -1, iB: -1 };
-  const w = RIB_HOLE / 2;
-  if (ai < w + 0.6) return plain;
-  const roof = bi * Math.sqrt(1 - (w / ai) ** 2);
-  const floor = roof - RIB_HOLE;
-  if (floor < -seat + 1) return plain;
-  const top = b * Math.sqrt(Math.max(0, 1 - (w / a) ** 2));
-  const prof: P2[] = [];
-  let iA = -1;
-  for (let j = 0; j <= seg; j++) {
-    const th = (j / seg) * Math.PI;
-    const x = Math.cos(th) * a, y = Math.sin(th) * b;
-    if (Math.abs(x) < w + 1e-6) {
-      if (iA < 0) { prof.push([w, top], [w, floor]); iA = prof.length - 1; prof.push([-w, floor], [-w, top]); }
-      continue;
-    }
-    prof.push([x, y]);
-  }
-  prof.push([-a, -seat], [a, -seat]);
-  return { prof, iA, iB: iA + 1 };
-}
-
 // ── The generator ────────────────────────────────────────────────────────────
 
 function empty(): VaseMesh {
@@ -463,8 +427,8 @@ function errorResult(error: string): SplitHalvesMoldMeshes {
     handle: null, handleError: null, handleWarning: null, foot: null,
     layout: { cavX0: 0, cavX1: 0, cavY0: 0, cavY1: 0, wallH: 0, seat: 0, plateThk: 0, plateW: 0, plateD: 0, masterLift: 0, plateLift: 0 },
     debug: {
-      partsL: { relief: e, cap: e, capPoly: [], handle: null, handleSolid: null, strapLine: [], plate: [], ribs: [], ribHoles: [] },
-      partsR: { relief: e, cap: e, capPoly: [], handle: null, handleSolid: null, strapLine: [], plate: [], ribs: [], ribHoles: [] },
+      partsL: { relief: e, cap: e, capPoly: [], handle: null, handleSolid: null, strapLine: [], plate: [], ribs: [] },
+      partsR: { relief: e, cap: e, capPoly: [], handle: null, handleSolid: null, strapLine: [], plate: [], ribs: [] },
       handleShell: 0, handleRibs: 0,
       pocketL: [], islandL: null, pocketR: [], islandR: null, bumpsL: [], dimplesL: [], natchFrame: null, foot: null,
     },
@@ -607,8 +571,6 @@ export function generateSplitHalvesMold(
   let handlePrint: HandleSweep[] = [];
   let handleShell = 0;
   let handleRibs = 0;
-  /** Each rib's water tunnel, world: centre (z, u, h) and strap direction (z, u). */
-  const ribHolesW: { c: [number, number, number]; t: P2 }[] = [];
   if (mold.splitHandle && handleParams) {
     const nBody = outerStack.rings.length;
     const sil = splitSilhouette(outerStack.rings, rRes, c0x, c0y, sx, sy);
@@ -646,7 +608,11 @@ export function generateSplitHalvesMold(
               const seg = arc[i + 1] - arc[i];
               return sw.stationFirst + i + (seg > 1e-9 ? (sc - arc[i]) / seg : 0);
             };
-            const rib = ribProfile(hw - RIB_INSET, ht - RIB_INSET, hw - t, ht - t, seat, HANDLE_SEG);
+            // Each rib is split down the middle by Rib Slot (Gary, 2026-11-01):
+            // a squeeze closes the gap, pliers grip both halves, and ice water
+            // runs along the channel through it. It replaced the 1.5 mm water
+            // tunnel notched into each rib on 2026-10-13.
+            const ribProfs = ribSections(hw - RIB_INSET, ht - RIB_INSET, seat, HANDLE_SEG, mold.halvesRibSlot);
             const margin = RIB_WIDTH / 2 + hw + 2;
             for (let k = 1; k <= RIB_COUNT; k++) {
               const sc = (total * k) / (RIB_COUNT + 1);
@@ -655,15 +621,9 @@ export function generateSplitHalvesMold(
               const at = [f0];
               for (let i = Math.ceil(f0 + 1e-6); i < f1 - 1e-6; i++) at.push(i);
               at.push(f1);
-              const ribSw = resweep(sw, pl, rib.prof, at);
-              handlePrint.push(ribSw);
+              if (!ribProfs.length) continue;
+              for (const prof of ribProfs) handlePrint.push(resweep(sw, pl, prof, at));
               handleRibs++;
-              if (rib.iA >= 0) {
-                const midR = ribSw.rings[Math.floor(ribSw.rings.length / 2)];
-                const A = midR[rib.iA], B = midR[rib.iB];
-                const r0 = ribSw.rings[0][rib.iA], r1 = ribSw.rings[ribSw.rings.length - 1][rib.iA];
-                ribHolesW.push({ c: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, A[2] + RIB_HOLE / 2], t: [r1[0] - r0[0], r1[1] - r0[1]] });
-              }
             }
           } else handlePrint = [sw];
         }
@@ -1181,7 +1141,6 @@ export function generateSplitHalvesMold(
     const dbg: HalfDebug = {
       relief, cap, capPoly, handle: handleMesh, plate: plateParts,
       ribs: handleShell > 0 ? handlePrint.slice(1).map((sw) => meshSweep(sw, toP)) : [],
-      ribHoles: ribHolesW.map(({ c, t }) => ({ p: toP(c[0], c[1], c[2]), t: [-t[0], -ySign * t[1]] as P2 })),
       handleSolid: handleSweep ? meshSweep(handleSweep, toP) : null,
       // Strap centreline at the parting plane, print (x, y), visible stations only.
       strapLine: handleSweep

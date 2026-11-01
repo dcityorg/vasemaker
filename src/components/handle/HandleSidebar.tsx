@@ -602,6 +602,8 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             {sl('ribWidth', 'Pull Ribs (mm)', undefined, 'Width of the solid ribs bridging the open channel. The channel is open either side of one, so long-nose jaws drop in and close on it — that is what you pull on to lever the master out of the set plaster. 0 turns them off. They sit inside the shell, so the cast handle never sees them')}
             {params.ribWidth > 0.2 &&
               sl('ribCount', 'Rib Count', undefined, 'How many along the strap, evenly spaced by distance along the handle. Each well gets one as well, just inside its open end — those are the stiffest things on the master to pull against')}
+            {params.ribWidth > 0.2 &&
+              sl('ribSlot', 'Rib Slot (mm)', undefined, 'A gap down the middle of each strap rib. Squeezing the strap with pliers closes it, to start the master moving; to pull, grip both halves of the rib together. 0 = solid ribs. The ribs in the wells stay solid')}
             {/* Resolution lives HERE, not in a Settings section (Gary, 2026-08-01):
                 he printed a master and only then saw the facets, having forgotten
                 to raise it. It belongs where you are already thinking about the

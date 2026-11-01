@@ -196,6 +196,9 @@ export interface MoldParameters {
    *  corner. A vase that pours one plate twice always uses 4 — it needs a
    *  bump opposite every dimple. */
   halvesNatchCount: number;
+  /** Gap down the middle of each pull-rib in the cast-on handle's master, mm
+   *  (Gary, 2026-11-01, as HandleMaker's Rib Slot). 0 = solid ribs. */
+  halvesRibSlot: number;
   /** Split Halves: the foot is a separate plaster PLUG (Gary, 2026-10-18, as
    *  Split Thirds'; it replaced the 10-14 counterbore + step foot piece). The
    *  halves run Plug Height below the vase bottom round a band = the bottom
@@ -302,6 +305,7 @@ export const DEFAULT_MOLD_PARAMETERS: MoldParameters = {
   thirdsPlugHeight: 21,
   halvesWellSeal: 3,
   halvesNatchCount: 4,
+  halvesRibSlot: 1.5,
   halvesFootPiece: false,
   halvesPlugHeight: 21,
 

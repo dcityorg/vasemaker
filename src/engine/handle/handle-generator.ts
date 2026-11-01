@@ -233,7 +233,7 @@ export function generateHandleMold(p: HandleParameters): HandleMeshes {
   const cavX0 = -(p.coneLength + p.cylinderLength);
   const parts = buildMasterParts(stations, dims, {
     seat, hollow: true, shellT,
-    ribWidth: p.ribWidth, ribCount: p.ribCount,
+    ribWidth: p.ribWidth, ribCount: p.ribCount, ribSlot: p.ribSlot,
   });
   const silhouette = parts.silhouetteAt(0);
   const pocketLoop = parts.silhouetteAt(p.recessClearance);
