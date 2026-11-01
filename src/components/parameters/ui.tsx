@@ -350,7 +350,8 @@ export const MINI_BTN =
 /**
  * Revert to Saved and the page's reset, side by side, under Load / Save Design
  * on every page (Gary, 2026-11-01 — they were at the very bottom on three of
- * the four). A thin line above, lighter than the thick bar over the exports.
+ * the four). The same 3 px bar above as over the exports (Gary: thin lines
+ * hardly showed on his screen).
  * Revert is always shown, greyed while there is nothing to go back to; it is
  * aria-disabled rather than disabled so its tooltip still shows.
  */
@@ -362,7 +363,7 @@ export function RevertResetRow({ canRevert, onRevert, revertTitle, nothingTitle,
   resetLabel?: string; resetTitle?: string; onReset?: () => void;
 }) {
   return (
-    <div className="border-t border-[var(--border-color)] pt-2 flex gap-2">
+    <div className="border-t-[3px] border-[#555] pt-2 flex gap-2">
       <button
         onClick={() => { if (canRevert) onRevert(); }}
         aria-disabled={!canRevert}

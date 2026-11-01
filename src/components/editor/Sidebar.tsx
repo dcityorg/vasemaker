@@ -154,7 +154,7 @@ export function Sidebar({
   return (
     <div data-sidebar className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
       {/* Header */}
-      <div className="px-3 py-3 border-b border-[var(--border-color)]">
+      <div className="px-3 py-3 border-b-[3px] border-[#555]">
         <div className="flex items-center gap-0.5">
           <h1 className="text-base font-semibold text-[var(--text-primary)] flex-1 whitespace-nowrap">VaseMaker</h1>
           <button
@@ -186,7 +186,7 @@ export function Sidebar({
       <div {...sidebarScroll} className="flex-1 overflow-y-auto sidebar-scroll">
 
       {/* Toolbar — all file operations grouped together */}
-      <div className="px-3 py-2 border-b border-[var(--border-color)] flex flex-col gap-2">
+      <div className="px-3 py-2 border-b-[3px] border-[#555] flex flex-col gap-2">
         {/* Presets — custom dropdown with thumbnails */}
         <div className="relative" ref={presetDropdownRef}>
           <button

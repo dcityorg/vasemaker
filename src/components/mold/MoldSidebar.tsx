@@ -546,7 +546,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   return (
     <div data-sidebar className="w-80 h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)] flex flex-col shrink-0">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-[var(--border-color)]">
+      <div className="px-4 py-3 border-b-[3px] border-[#555]">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-semibold text-[var(--text-primary)] flex-1">MoldMaker</h1>
           <button
@@ -598,7 +598,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
 
       <div {...sidebarScroll} className="flex-1 overflow-y-auto sidebar-scroll">
         {/* Toolbar — settings files + STL exports */}
-        <div className="px-3 py-2 border-b border-[var(--border-color)] flex flex-col gap-2">
+        <div className="px-3 py-2 border-b-[3px] border-[#555] flex flex-col gap-2">
           {/* ── Settings files ── */}
           <div className="flex gap-2">
             <button
