@@ -68,6 +68,9 @@ const HEIGHT_MODES: { value: SprigHeightMode; label: string; short: string; tool
 /** What a picture's tones do under this Shaping, for the Picture/SVG notes. */
 const modeLabel = (m: SprigHeightMode) => HEIGHT_MODES.find((h) => h.value === m)?.label ?? m;
 
+/** Kept from the mark when a sample loads on the Mark tab: the settings in mm. */
+const MARK_KEEPS = ['maxHeight', 'detailDepth', 'trimBelow', 'minThickness', 'edgeSoftness', 'minEdgeThickness'] as const;
+
 export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   sprig: SprigMeshState;
   /** Which design the tabs show: the sprig, or the maker's mark for the bottom. */
@@ -234,9 +237,14 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   };
 
   /** A sample (Gary, 2026-10-30): its drawing with the settings that show it
-   *  best, as one undo step. On the Mark tab, just the drawing. */
+   *  best, as one undo step. On the Mark tab (Gary, 2026-11-01: the Dragonfly
+   *  picture looked wrong there) it brings the sample's shaping and picture
+   *  clean-up but keeps the mark's own heights and edge, which are in mm and
+   *  sized for a stamp; the mark's size and mold are never touched. */
   const applySample = async (s: SprigSample) => {
-    const settings = isMark ? undefined : s.settings;
+    const settings = isMark && s.settings
+      ? { ...s.settings, ...Object.fromEntries(MARK_KEEPS.map((k) => [k, params[k]])) }
+      : s.settings;
     if (!s.picture) { await applySvg(s.svg, s.name, settings); return; }
     let problem: string | null = null;
     try {

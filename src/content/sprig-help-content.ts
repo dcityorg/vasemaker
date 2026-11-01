@@ -31,7 +31,7 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     id: 'sprig-mark',
     title: 'Mark — Your Maker\'s Mark',
     blocks: [
-      { type: 'paragraph', text: 'The MARK tab, at the top of this panel, designs a maker\'s mark for the bottom of a piece: initials, a symbol, a logo. It uses the same controls as a sprig (samples, SVG, pictures, text, height, edges, checks), but it is a separate design. Switching tabs never changes the other one, and each has its own name, undo and Revert to Saved.' },
+      { type: 'paragraph', text: 'The MARK tab, at the top of this panel, designs a maker\'s mark for the bottom of a piece: initials, a symbol, a logo. It uses the same controls as a sprig (samples, SVG, pictures, text, height, edges, checks), but it is a separate design. Switching tabs never changes the other one, and each has its own name, undo and Revert to Saved. A sample loaded on the Mark tab brings its shaping and picture settings, but keeps the mark\'s own size, heights and edge.' },
       { type: 'list', items: [
         'One mark, kept in this browser like everything else. Save Design writes it to its own «name».json, with the drawing inside',
         'Shown at its FINISHED size, as it reads looking at the bottom of the piece. There is no Shrink here: the vase or the mold that carries the mark scales it with everything else',
