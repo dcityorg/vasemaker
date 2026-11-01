@@ -112,7 +112,7 @@ const BIRD = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 76">
 export const SPRIG_SAMPLES: SprigSample[] = [
   { id: 'dragonfly-picture', name: 'Dragonfly picture', description: 'A drawing — wings with veins, a segmented tail', svg: '', aspect: 870 / 614,
     picture: '/sprig-samples/dragonfly-picture.jpg',
-    settings: { heightMode: 'inflateGray', imageBackground: 20, imageCloseGaps: 1, gapFill: 60, imageSmooth: 1, imageTones: 3, imageLightest: 40, detailDepth: 0.6, roundness: 3, edgeSoftness: 0.8, removeTiny: true } },
+    settings: { heightMode: 'inflateGray', imageBackground: 20, imageCloseGaps: 1, gapFill: 80, imageSmooth: 1, imageTones: 3, imageLightest: 40, detailDepth: 0.6, roundness: 3, edgeSoftness: 1, removeTiny: false } },
   { id: 'flower', name: 'Flower', description: 'Line art — Fill Holes fills the petals', svg: FLOWER, aspect: 0.8333,
     settings: { heightMode: 'inflate', fillHeight: 60, roundness: 2, edgeSoftness: 0.6 } },
   { id: 'shell', name: 'Seashell', description: 'Three greys — Gray makes darker stand higher', svg: SHELL, aspect: 1.2824,
