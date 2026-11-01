@@ -51,3 +51,9 @@ input[type="range"]:focus {
 .help-panel-enter {
   animation: slide-in-right 200ms ease-out;
 }
+
+/* Mold page "Building…" note (MoldEditor.tsx BuildingNote, 2026-11-01).
+   A transform animation, so the browser keeps turning it while a slow mold
+   build freezes the page. */
+.mold-building-spin { animation: mold-building-turn 0.8s linear infinite; will-change: transform; }
+@keyframes mold-building-turn { to { transform: rotate(360deg); } }
