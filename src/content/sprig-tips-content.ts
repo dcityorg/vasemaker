@@ -46,6 +46,7 @@ export const SPRIG_TIPS: TipsSection[] = [
     body: [
       'Work well: clip art, silhouettes and clean drawings on a plain background, with strong contrast and no shadows. Background Cut removes the background; Close Gaps mends breaks in an outline.',
       'Hard: photos with busy backgrounds, soft or blurry edges, shadows, watermarks, pencil sketches, and anything finer than about 1 mm at the sprig’s size. Cut the subject out onto a plain background first if you can.',
+      'When part of a picture works against you, such as a line around the edge, a shadow or a busy background, it is often quicker to change the picture than to fight it with settings. Widely available AI apps that edit images can do this from a plain request, such as “remove the white line around each wing”, “put this on a plain white background” or “turn this into clean line art”. Then load the new picture.',
       'Photo depth guesses how near each part of a photo is and shapes it to match — it also adds texture to plain drawings. It is a guess: check the result from the side.',
     ],
   },
