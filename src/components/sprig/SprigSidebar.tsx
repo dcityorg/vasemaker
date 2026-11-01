@@ -392,6 +392,36 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
   const [footW, footL] = sprigFootprint(params, hasText(params) ? sprig.textSize : null);
   const sizeFits = (k: Exclude<SprigMoldSize, 'custom'>) =>
     fitsBox(footW * S, footL * S, SPRIG_SIZES[k].cavW, SPRIG_SIZES[k].cavL, params.plasterMargin);
+  // Not enough room for the plaster round and behind the sprig: said in the
+  // Mold Size section, naming the setting to raise and what to (Gary, 2026-11-01).
+  const roomNotes: string[] = [];
+  if (m) {
+    const custom = params.moldSize === 'custom', margin = params.plasterMargin;
+    const upTo = (x: number, step: number) => Math.ceil(x / step - 1e-9) * step;
+    const needW = m.masterW + 2 * margin, needL = m.masterL + 2 * margin;
+    const shortW = needW - m.box.cavW, shortL = needL - m.box.cavL;
+    if (shortW > 1e-6 || shortL > 1e-6) {
+      const fit = SIZE_MENU.find(sizeFits);
+      let t = `Not enough room for ${margin} mm of Plaster Margin round the sprig (${m.masterW.toFixed(0)} × ${m.masterL.toFixed(0)} mm printed). `;
+      if (custom) {
+        const ups = [shortW > 1e-6 && `Inside Width to ${upTo(needW, SPRIG_PARAMS.customCavW.step)} mm`,
+          shortL > 1e-6 && `Inside Length to ${upTo(needL, SPRIG_PARAMS.customCavL.step)} mm`].filter(Boolean);
+        t += `Raise ${ups.join(' and ')}, lower Plaster Margin, or make the sprig smaller.`;
+      } else {
+        const by = [shortW > 1e-6 && `${shortW.toFixed(1)} mm too narrow`, shortL > 1e-6 && `${shortL.toFixed(1)} mm too short`].filter(Boolean);
+        t += `This size is ${by.join(' and ')}. ${fit ? `${SPRIG_SIZES[fit].label} fits it` : 'Choose Custom and raise Inside Width / Length'}, or lower Plaster Margin.`;
+      }
+      roomNotes.push(t);
+    }
+    if (m.plasterBehind < MIN_PLASTER_BEHIND) {
+      const maxH = Math.floor(((m.box.wallH - MIN_PLASTER_BEHIND) / S) * 10) / 10;
+      let t = `Only ${m.plasterBehind.toFixed(1)} mm of plaster behind the tallest point; it needs ${MIN_PLASTER_BEHIND} mm or the mold can crack. `;
+      t += custom
+        ? `Raise Wall Height to ${upTo(m.masterH + MIN_PLASTER_BEHIND, SPRIG_PARAMS.customWallH.step)} mm, or lower Max Height${maxH > 0 ? ` to ${maxH} mm` : ''}.`
+        : `Lower Max Height${maxH > 0 ? ` to ${maxH} mm` : ''}, or choose Custom for taller walls.`;
+      roomNotes.push(t);
+    }
+  }
   const backingOnUI = params.backing !== 'none' && params.backingThickness > 0;
   // Warnings with a control in Adjust are shown there, above it.
   const warnings = [...(sprig.error ? [sprig.error] : []), ...(svgError ? [svgError] : []),
@@ -882,6 +912,9 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                 <option value="custom">Custom</option>
               </select>
             </div>
+            {roomNotes.map((t, i) => (
+              <div key={i} className="mb-2 px-2 py-1.5 rounded border border-amber-700 bg-amber-950/40 text-xs text-amber-200 leading-snug">{t}</div>
+            ))}
             {sl('plasterMargin', 'Plaster Margin', 'mm', 'Plaster between the sprig and the walls. Only decides whether the sprig fits — it never changes the walls')}
             {sl('plateThickness', 'Plate Thickness', 'mm', 'The printed plate under its top face. The walls sit on top of the plate, so this never changes them — any thickness fits the size\'s wall pair. Stiffness goes as the cube of this: a thin plate saves plastic but can bow under setting plaster, more on the bigger sizes')}
             {params.moldSize === 'custom' && (
