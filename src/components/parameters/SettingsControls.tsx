@@ -6,7 +6,7 @@ import { RESOLUTION, PRINT_CHECK } from '@/config/shape-params';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import type { FilamentType } from '@/engine/types';
-import { SliderRow, Section, GroupHeader } from './ui';
+import { SliderRow, Section, GroupHeader, resetDot, CHANGED_TIP } from './ui';
 
 /** Right-aligned label/value row for the Print Check stats */
 function StatRow({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
@@ -31,20 +31,25 @@ export function SettingsControls() {
   // spool length of 1.75mm filament holding the same volume of plastic
   const filamentAreaMm2 = Math.PI * (PRINT_CHECK.filamentDiameter / 2) ** 2;
   const filamentM = stats ? stats.volumeMm3 / filamentAreaMm2 / 1000 : 0;
+  // The amber "changed" dots (Gary, 2026-11-01, as on the Sprig page).
+  const R = DEFAULT_PARAMETERS.resolution;
+  const resDot = (k: 'vertical' | 'radial') =>
+    resetDot(params.resolution[k] !== R[k], () => setResolution({ [k]: R[k] }), String(R[k]));
 
   return (
     <>
       {/* Resolution: the same name on every page (Gary, 2026-10-26). */}
       <GroupHeader label="Settings" color={GROUP_COLORS.settings} />
-      <Section title="Resolution" defaultOpen={false} tooltip="Mesh density — higher values show finer detail but create larger files" titleColor={GROUP_COLORS.settings} active={
+      <Section title="Resolution" defaultOpen={false} tooltip="Mesh density — higher values show finer detail but create larger files" titleColor={GROUP_COLORS.settings}
+        changed={params.resolution.vertical !== R.vertical || params.resolution.radial !== R.radial} changedTip={CHANGED_TIP} active={
         params.resolution.vertical !== RESOLUTION.defaults.vertical ||
         params.resolution.radial !== RESOLUTION.defaults.radial
       }>
         <div className="flex justify-end mb-1">
           <button onClick={() => setResolution({ ...RESOLUTION.defaults })} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] transition-colors" title="Reset to defaults">Reset</button>
         </div>
-        <SliderRow label="Vertical" value={params.resolution.vertical} {...RESOLUTION.vertical} onChange={(v) => setResolution({ vertical: v })} tooltip="Number of rows from bottom to top" />
-        <SliderRow label="Radial" value={params.resolution.radial} {...RESOLUTION.radial} onChange={(v) => setResolution({ radial: v })} tooltip="Number of segments around circumference" />
+        <SliderRow label="Vertical" value={params.resolution.vertical} {...RESOLUTION.vertical} onChange={(v) => setResolution({ vertical: v })} tooltip="Number of rows from bottom to top" after={resDot('vertical')} />
+        <SliderRow label="Radial" value={params.resolution.radial} {...RESOLUTION.radial} onChange={(v) => setResolution({ radial: v })} tooltip="Number of segments around circumference" after={resDot('radial')} />
         <div className="text-xs text-[var(--text-secondary)] mt-2 opacity-60">
           Dense or detailed textures require higher resolution. Higher values produce larger STL files.
         </div>

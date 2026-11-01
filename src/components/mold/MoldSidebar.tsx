@@ -3,9 +3,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
-import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsButton, useRememberedScroll } from '@/components/parameters/ui';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow, RevertResetRow, ToggleAllSectionsButton, useRememberedScroll, resetDot, CHANGED_TIP } from '@/components/parameters/ui';
 import { setShowFacets } from '@/store/view-prefs';
-import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_PART_COLOR, DEFAULT_VIEW, retiredStyleNotice, isMoldUnnamed } from '@/store/mold-store';
+import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_PART_COLOR, DEFAULT_VIEW, retiredStyleNotice, isMoldUnnamed, moldResetParams } from '@/store/mold-store';
 import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { useVaseStore } from '@/store/vase-store';
@@ -513,11 +513,22 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     e.target.value = '';
   };
 
+  // The amber "changed" dots (Gary, 2026-11-01, as on the Sprig page). Measured
+  // against what Reset gives for this style, so the foot switches it keeps
+  // never show, and a dot's click sets just that one value as Reset would.
+  const def = moldResetParams(params);
+  const ch = (k: keyof MoldParameters) => params[k] !== def[k];
+  const dot = <K extends keyof MoldParameters>(k: K, shown: string) => resetDot(ch(k), () => setParam(k, def[k]), shown);
+  const onOff = (k: keyof MoldParameters) => dot(k, def[k] ? 'on' : 'off');
+  /** A section's title dot: any of its shown settings changed (`false` = not shown for this style). */
+  const any = (...keys: (keyof MoldParameters | false)[]) => keys.some((k) => k !== false && ch(k));
+
   // Plain render function (not a nested component) so the range inputs aren't
   // remounted on every store update mid-drag.
   const sl = (k: MoldNumKey, label: string, suffix?: string, tooltip?: string, color?: string) => (
     <SliderRow
       label={label}
+      after={dot(k, `${def[k]}${suffix ?? ''}`)}
       color={color}
       value={params[k]}
       min={MOLD_PARAMS[k].min}
@@ -614,6 +625,14 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               className="hidden"
             />
           </div>
+          <RevertResetRow
+            canRevert={!!savedParams && savedParams !== params}
+            onRevert={revertToSaved}
+            revertTitle="Put this mold style's settings back to the last Save Design / Load Design. Undoable with ↶"
+            resetLabel="Reset Mold Settings"
+            onReset={reset}
+            resetTitle="Every setting of THIS mold style (the tab you are on) back to its default — an amber dot shows which have changed. The other mold styles keep their own settings, a Foot Piece that is on stays on (its settings reset), and your vase design isn't touched. The design's name goes back to “mold design”. Undoable with ↶"
+          />
 
           {/* ── STL exports ── */}
           <div className="border-t-[3px] border-[#555] pt-2 flex gap-2">
@@ -893,10 +912,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           {/* Master */}
           <GroupHeader label="Master" color={GROUP_COLORS.structure} />
           {/* Named for what is in it; the MASTER heading above covers this and the Foot box (Gary, 2026-10-26: "Master / Master"). */}
-          <Section title="Shrink & Wall" titleColor={GROUP_COLORS.structure}>
+          <Section title="Shrink & Wall" titleColor={GROUP_COLORS.structure} changed={any('shrinkPercent', !isSplit && 'masterWallThickness', 'keepTexture')} changedTip={CHANGED_TIP}>
             {sl('shrinkPercent', 'Shrink', '%', 'Clay slip shrinkage — master is scaled up by this to compensate. In red because a wrong value is silent: every pot comes out the wrong size', '#f87171')}
             {!isSplit && sl('masterWallThickness', 'Wall', 'mm', isThirds ? 'Printed shell of the hollow master (one piece\'s slice of the vase). It is open on its cut faces so cold water can go in to shrink it free' : isHalves ? 'Printed shell of the hollow half-vase master. It is open on its cut face so cold water can go in to shrink it free' : 'Printed shell thickness of the hollow master')}
-            <Toggle label="Keep Texture" checked={params.keepTexture} onChange={(v) => setParam('keepTexture', v)} tooltip="Carry the vase's surface texture onto the master" />
+            <Toggle label="Keep Texture" checked={params.keepTexture} onChange={(v) => setParam('keepTexture', v)} after={onOff('keepTexture')} tooltip="Carry the vase's surface texture onto the master" />
             {/* A sprig on the side always locks a mold that lifts straight off
                 (Gary, 2026-10-28: say so even with Undercuts switched off). */}
             {!isSplitAny && !isThirds && params.keepTexture && vaseParams.textures.enabled !== false && vaseParams.textures.sprig?.enabled && vaseParams.textures.sprig.sprig && (
@@ -916,7 +935,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             const on = isThirds ? params.thirdsFootPiece : params.halvesFootPiece;
             const onKey = isThirds ? 'thirdsFootPiece' : 'halvesFootPiece';
             const plug = mold.style === 'splitThirds' || mold.style === 'splitHalves' ? mold.foot : null;
-            return <Section title="Foot Piece" titleColor={GROUP_COLORS.structure}>
+            // The switch itself is kept by Reset, so only Plug Height can show a dot.
+            return <Section title="Foot Piece" titleColor={GROUP_COLORS.structure} changed={on && any(isThirds ? 'thirdsPlugHeight' : 'halvesPlugHeight')} changedTip={CHANGED_TIP}>
             <Toggle label="Enabled" checked={on} onChange={(v) => setParam(onKey, v)} tooltip={`Cast the bottom as a separate plaster piece: a PLUG the shape of the vase bottom that sits inside the ${isThirds ? 'three pieces' : 'two halves'}, held in by a rounded ring. It gives the mug a foot ring and a recessed centre, with no thin plaster wedge where a curled-in bottom meets a ledge. The plug is poured in its own small cup (a bottom disk and clip-together walls)`} />
             {on && (
               <>
@@ -950,14 +970,14 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
 
           {/* Well */}
           <GroupHeader label="Well & Flange" color={GROUP_COLORS.surface} />
-          <Section title="Well" titleColor={GROUP_COLORS.surface}>
+          <Section title="Well" titleColor={GROUP_COLORS.surface} changed={any('wellWidth', 'wellHeight', 'wellDraftAngle', (isHalves || isThirds) && 'halvesWellSeal')} changedTip={CHANGED_TIP}>
             {sl('wellWidth', 'Width', 'mm', 'Horizontal step out at the rim (the 90° razor-trim ledge)')}
             {sl('wellHeight', 'Height', 'mm', 'Height of the well wall above the vase rim')}
             {sl('wellDraftAngle', 'Draft', '°', 'Outward taper of the well wall for easy release')}
             {(isHalves || isThirds) && sl('halvesWellSeal', 'Well Seal', 'mm', 'How far the well runs into the wall\'s collar. The well ends in a straight section exactly this long (a collar can only seal on a straight section, not a taper), capped at the end so the master holds ice water')}
           </Section>
           {mold.style === 'twoPart' && (
-            <Section title="Flange" titleColor={GROUP_COLORS.surface} defaultOpen={false}>
+            <Section title="Flange" titleColor={GROUP_COLORS.surface} defaultOpen={false} changed={any('flangeWidth', 'flangeThickness')} changedTip={CHANGED_TIP}>
               {sl('flangeWidth', 'Width', 'mm', 'Flange overhang beyond the well — should rest on the cottle rim')}
               {sl('flangeThickness', 'Thickness', 'mm')}
             </Section>
@@ -966,7 +986,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           {isSplitAny && (
             <>
               <GroupHeader label={isHalves ? 'Plate & Walls' : 'Trays'} color={GROUP_COLORS.smoothing} />
-              <Section title={isHalves ? 'Plate & Walls' : 'Trays'} titleColor={GROUP_COLORS.smoothing} tooltip={isHalves
+              <Section title={isHalves ? 'Plate & Walls' : 'Trays'} titleColor={GROUP_COLORS.smoothing} changedTip={CHANGED_TIP}
+                changed={any('plasterThickness', 'seamAngle', isSplit && 'trayWallThickness', isSplit && 'trayFloorThickness',
+                  isHalves && 'halvesSeatDepth', isHalves && 'halvesFitClearance', isHalves && 'halvesPlateFloor', isHalves && 'halvesWallThickness', isHalves && 'halvesFlangeWidth')}
+                tooltip={isHalves
                 ? 'Reusable parts, the handle-mold way: the master sits in a pocket in the plate, two walls clip on round it. After the plaster sets: walls off, plate off, then cold water into the master and pull it out'
                 : 'One throwaway printed tray per plaster half. Pour plaster into each, let it set, then soften the plastic with a heat gun and peel it off'}>
                 {sl('plasterThickness', 'Plaster', 'mm', 'Plaster around the vase: the margin each side of it, below its base, and behind it')}
@@ -998,12 +1021,12 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                   </>
                 )}
               </Section>
-              <Section title="Natches" titleColor={GROUP_COLORS.smoothing} tooltip={isHalves
+              <Section title="Natches" titleColor={GROUP_COLORS.smoothing} changed={any(isHalves && 'halvesNatchCount', 'natchDiameter', 'natchHeight')} changedTip={CHANGED_TIP} tooltip={isHalves
                 ? 'Bumps and dimples on each plaster half so the halves only go together one way. Each is placed automatically in the biggest free plaster near its corner'
                 : 'Two bumps and two dimples on each plaster half, on diagonals, so the halves only go together one way'}>
                 {isHalves && (
                   <div className="flex items-center gap-2 mb-2" title="How many natches per plaster half. Three still line the halves up; a vase that pours one plate twice always uses four">
-                    <span className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Count</span>
+                    <span className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Count{dot('halvesNatchCount', String(def.halvesNatchCount))}</span>
                     {[3, 4].map((n) => (
                       <button
                         key={n}
@@ -1038,6 +1061,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 titleColor={GROUP_COLORS.smoothing}
                 checked={params.splitHandle}
                 onToggle={(v) => setParam('splitHandle', v)}
+                changed={any('splitHandle', 'handleTopDrop', 'castWallThickness', isHalves && 'halvesRibSlot')}
+                changedTip={CHANGED_TIP}
                 tooltip="Cast the handle with the vase: the current HandleMaker design, turned so both ends sit on the vase. It goes on the Split Angle side — add 180° to move it to the other side"
               >
                 <p className="text-[11px] text-[var(--text-secondary)] mb-1 leading-snug">
@@ -1069,7 +1094,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           {isThirds && (
             <>
               <GroupHeader label="Plate & Walls" color={GROUP_COLORS.smoothing} />
-              <Section title="Plaster & Seams" titleColor={GROUP_COLORS.smoothing} tooltip="Each piece is poured on its own: the master sits in a pocket in a V-shaped plate, and two walls clip on round it. After the plaster sets: walls off, plate off, then cold water into the master and lift it out">
+              <Section title="Plaster & Seams" titleColor={GROUP_COLORS.smoothing} changedTip={CHANGED_TIP}
+                changed={any('plasterThickness', 'seamAngle', 'halvesSeatDepth', 'halvesFitClearance', 'thirdsPlateFloor', 'thirdsWallThickness', 'thirdsFlangeWidth')} tooltip="Each piece is poured on its own: the master sits in a pocket in a V-shaped plate, and two walls clip on round it. After the plaster sets: walls off, plate off, then cold water into the master and lift it out">
                 {sl('plasterThickness', 'Plaster', 'mm', 'Plaster round the vase: up to the top of each piece, out to its side walls, and below the base')}
                 {sl('seamAngle', 'Seam Angle', '°', 'Turns all three seams together round the vase — they always stay 120° apart. Put them on the ridges of a texture (or the corners of a 3- or 6-sided shape) and watch the Undercuts view')}
                 <SplitTopView
@@ -1096,7 +1122,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                       : `The pieces differ: a master, plate, well wall and base wall for each (${mold.kits.length * 4} STLs).`)}
                 </p>
               </Section>
-              <Section title="Natches" titleColor={GROUP_COLORS.smoothing} tooltip="Two per seam, so neighbouring pieces only go together one way. Each piece has bumps on one parting face and dimples on the other, so any piece mates with the next">
+              <Section title="Natches" titleColor={GROUP_COLORS.smoothing} changed={any('natchDiameter', 'natchHeight')} changedTip={CHANGED_TIP} tooltip="Two per seam, so neighbouring pieces only go together one way. Each piece has bumps on one parting face and dimples on the other, so any piece mates with the next">
                 {sl('natchDiameter', 'Max Diameter', 'mm', 'Largest size for each bump and dimple. Each is made as big as its spot allows, up to this, with at least 4 mm of plaster all round')}
                 {sl('natchHeight', 'Height', 'mm', 'How far each plaster bump stands proud (and each dimple sinks). Kept inside the plate\'s top layer')}
                 {mold.style === 'splitThirds' && mold.natches.length > 0 && (
@@ -1117,7 +1143,9 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           {/* Cottle / Shell */}
           {!isSplitAny && !isThirds && <>
           <GroupHeader label={isPourClip ? 'Shell' : 'Cottle'} color={GROUP_COLORS.smoothing} />
-          <Section title={isPourClip ? 'Shell' : 'Cottle'} titleColor={GROUP_COLORS.smoothing}>
+          <Section title={isPourClip ? 'Shell' : 'Cottle'} titleColor={GROUP_COLORS.smoothing} changedTip={CHANGED_TIP}
+            changed={any('plasterThickness', 'cottleWallThickness', 'cottleDraftAngle', mold.style === 'pourTwoPiece' && 'shellGrabHeight',
+              mold.style !== 'pourThreePiece' && 'airHoleEnabled', mold.style !== 'pourThreePiece' && params.airHoleEnabled && 'airHoleDiameter')}>
             {sl('plasterThickness', 'Plaster', 'mm', isPourClip ? 'Plaster thickness at the widest point — gap between master and shell wall' : 'Plaster thickness — gap between master and cottle wall')}
             {sl('cottleWallThickness', 'Wall', 'mm', isPourClip ? 'Printed wall thickness of the shell' : 'Printed wall thickness of the cottle')}
             {sl('cottleDraftAngle', 'Draft', '°', isPourClip
@@ -1128,10 +1156,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 no suction pull to break. Every other style lifts a part off the
                 set plaster and still needs them. */}
             {mold.style === 'twoPart' && (
-              <Toggle label="Air Hole" checked={params.airHoleEnabled} onChange={(v) => setParam('airHoleEnabled', v)} tooltip="Hole through the cottle floor center — lets air in behind the plaster block so suction doesn't fight you when pulling it out" />
+              <Toggle label="Air Hole" checked={params.airHoleEnabled} onChange={(v) => setParam('airHoleEnabled', v)} after={onOff('airHoleEnabled')} tooltip="Hole through the cottle floor center — lets air in behind the plaster block so suction doesn't fight you when pulling it out" />
             )}
             {(mold.style === 'onePiece' || mold.style === 'pourTwoPiece') && (
-              <Toggle label="Air Holes (4)" checked={params.airHoleEnabled} onChange={(v) => setParam('airHoleEnabled', v)} tooltip={mold.style === 'pourTwoPiece'
+              <Toggle label="Air Holes (4)" checked={params.airHoleEnabled} onChange={(v) => setParam('airHoleEnabled', v)} after={onOff('airHoleEnabled')} tooltip={mold.style === 'pourTwoPiece'
                 ? 'Four round holes through the plaster-floor ring (tape or clay them over while pouring) — break the suction, inject compressed air, or push rods through to eject'
                 : 'Four holes through the floor ring (tape or clay them over while pouring) — break the suction when pulling the plaster block, or inject compressed air / push rods through to eject'} />
             )}
@@ -1139,7 +1167,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           </Section>
           </>}
           {(mold.style === 'pourTwoPiece' || mold.style === 'pourThreePiece') && (
-            <Section title="Foot Flange" titleColor={GROUP_COLORS.smoothing} tooltip="Where the center piece and shell binder-clip together. The three V ridges and their grooves are the same seal as the handle mold, which poured leak-free">
+            <Section title="Foot Flange" titleColor={GROUP_COLORS.smoothing} changedTip={CHANGED_TIP}
+              changed={any('flangeOverlap', 'footFlangeThickness', 'notchHeight', 'notchWidth', 'notchClearance', 'flangeLip')} tooltip="Where the center piece and shell binder-clip together. The three V ridges and their grooves are the same seal as the handle mold, which poured leak-free">
               {sl('flangeOverlap', 'Overlap', 'mm', 'How far both flanges extend beyond the shell wall — the binder-clip grab zone, containing all three V rings')}
               {sl('footFlangeThickness', 'Thickness', 'mm', 'Thickness of EACH flange (clips clamp the doubled stack)')}
               {sl('notchHeight', 'V Height', 'mm', 'Height of the three V ridge rings on the center flange (clamped so the groove can always swallow the ridge)')}
@@ -1149,13 +1178,14 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             </Section>
           )}
           {mold.style === 'pourThreePiece' && (
-            <Section title="Split Cottle" titleColor={GROUP_COLORS.smoothing} tooltip="The vertical split that turns the shell into two clip-together halves">
+            <Section title="Split Cottle" titleColor={GROUP_COLORS.smoothing} changed={any('seamAngle', 'seamFinWidth', 'roundShell')} changedTip={CHANGED_TIP} tooltip="The vertical split that turns the shell into two clip-together halves">
               {sl('seamAngle', 'Seam Angle', '°', 'Where the vertical split runs. Put it on a flat part of the cross-section rather than a corner — a seam block at a sharp corner has to lie in the plane bisecting it')}
               {sl('seamFinWidth', 'Seam Block', 'mm', 'How far each half is solid back from the split plane, carrying the vertical Vs. Clips grab both blocks, so they clamp twice this')}
               <Toggle
                 label="Round Shell"
                 checked={params.roundShell}
                 onChange={(v) => setParam('roundShell', v)}
+                after={onOff('roundShell')}
                 tooltip="Force a round shell instead of following the cross-section. Uses more plaster on non-round vases, but one printed shell can serve many designs"
               />
               {mold.style === 'pourThreePiece' && mold.forcedRound && (
@@ -1175,9 +1205,9 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
 
           {/* Analysis */}
           <GroupHeader label="Analysis" color={GROUP_COLORS.settings} />
-          <Section title="Plaster Estimate" titleColor={GROUP_COLORS.settings}>
+          <Section title="Plaster Estimate" titleColor={GROUP_COLORS.settings} changed={any('material')} changedTip={CHANGED_TIP}>
             <div className="flex items-center gap-2 mb-2">
-              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Material</label>
+              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Material{dot('material', PLASTER_MATERIALS[def.material].label)}</label>
               <select
                 value={params.material}
                 onChange={(e) => setParam('material', e.target.value as PlasterType)}
@@ -1305,24 +1335,6 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             )}
           </Section>
 
-          {savedParams && savedParams !== params && (
-            <button
-              onClick={revertToSaved}
-              className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
-              style={{ color: UI_MUTED }}
-              title="Put the mold settings back to the last Save Design / Load Design"
-            >
-              Revert to Saved
-            </button>
-          )}
-          <button
-            onClick={reset}
-            className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
-            style={{ color: UI_MUTED }}
-            title="Put this tab's mold settings back to their defaults. A foot that is on stays on (its settings reset). The other mold styles keep their own settings, and your vase design isn't touched. Undo (⌘Z) brings them back"
-          >
-            Reset Mold Settings to Defaults
-          </button>
         </div>
       </div>
 

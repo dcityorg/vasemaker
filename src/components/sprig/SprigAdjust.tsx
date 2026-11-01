@@ -16,7 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import { create } from 'zustand';
-import { SliderRow, Toggle } from '@/components/parameters/ui';
+import { SliderRow, Toggle, resetDot } from '@/components/parameters/ui';
 import { SPRIG_PARAMS } from '@/config/sprig-params';
 import { UI_MUTED } from '@/config/colors';
 import { smallestFit, fitsBox, type SprigNote } from '@/engine/sprig/sprig-generator';
@@ -126,15 +126,7 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
   const noteOf = (k: SprigNote['kind']) => notes.filter((n) => n.kind === k);
 
   /** The amber dot: shown when `k` differs from its default; click = reset it. */
-  const dot = (k: keyof SprigParameters, shown: string) => (p[k] !== defaults[k] ? (
-    <button
-      onClick={(e) => { e.preventDefault(); setParam(k, defaults[k]); }}
-      title={`Changed from the default — click to put it back to ${shown}`}
-      className="inline-flex items-center justify-center w-4 h-4 ml-0.5 align-middle rounded-full hover:bg-[var(--border-color)]"
-    >
-      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-    </button>
-  ) : null);
+  const dot = (k: keyof SprigParameters, shown: string) => resetDot(p[k] !== defaults[k], () => setParam(k, defaults[k]), shown);
   const hint = (text: string) => (hints
     ? <p className="text-[10px] leading-snug text-[var(--text-secondary)] -mt-1.5 mb-2 pl-0.5">{text}</p>
     : null);

@@ -2,7 +2,7 @@
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsButton, useRememberedScroll } from '@/components/parameters/ui';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow, RevertResetRow, ToggleAllSectionsButton, useRememberedScroll } from '@/components/parameters/ui';
 import { setShowFacets, useSprigColors, setSprigColors, DEFAULT_SPRIG_COLOR, DEFAULT_SPRIG_BACKGROUND } from '@/store/view-prefs';
 import { asMark, DEFAULT_VIEW } from '@/store/sprig-store';
 import { useSprigDesign } from './sprig-design-context';
@@ -486,18 +486,14 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
             </button>
             <input ref={settingsInputRef} type="file" accept=".json" onChange={handleSettingsFile} className="hidden" />
           </div>
-          <div className="flex gap-2 -mt-1">
-            {savedParams && savedParams !== params && (
-              <button onClick={revertToSaved} className={miniBtn}
-                title="Put everything back to the last Save Design / Load Design, drawing included. Undoable with ↶">
-                Revert to Saved
-              </button>
-            )}
-            <button onClick={reset} className={miniBtn}
-              title={`Every ${what} setting back to its default — a dot on a section's title shows which have changed. Keeps your drawing, its size and which way it faces. A relief STL goes back to its settings as loaded, and a Photo depth photo keeps Photo depth. Undoable with ↶`}>
-              Reset All Settings
-            </button>
-          </div>
+          <RevertResetRow
+            canRevert={!!savedParams && savedParams !== params}
+            onRevert={revertToSaved}
+            revertTitle="Put everything back to the last Save Design / Load Design, drawing included. Undoable with ↶"
+            resetLabel="Reset All Settings"
+            onReset={reset}
+            resetTitle={`Every ${what} setting back to its default — a dot on a section's title shows which have changed. Keeps your drawing, its size and which way it faces. A relief STL goes back to its settings as loaded, and a Photo depth photo keeps Photo depth. Undoable with ↶`}
+          />
 
           {/* STL exports — a mark has no mold of its own */}
           {!isMark && <div className="border-t-[3px] border-[#555] pt-2 flex flex-col gap-2">

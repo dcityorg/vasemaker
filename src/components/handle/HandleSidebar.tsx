@@ -1,12 +1,12 @@
 'use client';
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Section, SliderRow, Toggle, GroupHeader, ResetRow, ToggleAllSectionsButton, useRememberedScroll } from '@/components/parameters/ui';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Section, SliderRow, Toggle, GroupHeader, ResetRow, RevertResetRow, ToggleAllSectionsButton, useRememberedScroll, resetDot, CHANGED_TIP } from '@/components/parameters/ui';
 import { setShowFacets } from '@/store/view-prefs';
 import { BezierCurveEditor, EDITOR_CHROME } from '@/components/parameters/BezierCurveEditor';
 import { evaluatePiecewiseBezier } from '@/engine/bezier';
-import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME, isHandleUnnamed, DEFAULT_VIEW } from '@/store/handle-store';
+import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME, isHandleUnnamed, DEFAULT_VIEW, freshDefaults } from '@/store/handle-store';
 import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
 import { HANDLE_PARAMS } from '@/config/handle-params';
@@ -209,9 +209,19 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
     />
   );
 
-  const sl = (k: HandleNumKey, label: string, suffix?: string, tooltip?: string) => (
+  // The amber "changed" dots (Gary, 2026-11-01, as on the Sprig page) — on the
+  // mold settings only, never the handle's shape: Reset keeps the shape
+  // (keepShape: spine, Width, Thickness, drawing area), so a dot there would
+  // offer what Reset never does. `dots: false` for those sliders.
+  const def = useMemo(freshDefaults, []);
+  const ch = (k: keyof HandleParameters) => params[k] !== def[k];
+  /** A section's title dot: any of its shown settings changed (`false` = not shown). */
+  const any = (...keys: (keyof HandleParameters | false)[]) => keys.some((k) => k !== false && ch(k));
+
+  const sl = (k: HandleNumKey, label: string, suffix?: string, tooltip?: string, dots = true) => (
     <SliderRow
       label={label}
+      after={dots ? resetDot(ch(k), () => setParam(k, def[k]), `${def[k]}${suffix ?? ''}`) : null}
       value={params[k]}
       min={HANDLE_PARAMS[k].min}
       max={HANDLE_PARAMS[k].max}
@@ -358,6 +368,14 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             </button>
             <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileSelected} className="hidden" />
           </div>
+          <RevertResetRow
+            canRevert={!!savedParams && savedParams !== params}
+            onRevert={revertToSaved}
+            revertTitle="Put everything back to the last Save Design / Load Design — the whole design, shape included. Undoable with ↶"
+            resetLabel="Reset Mold Settings"
+            onReset={reset}
+            resetTitle="Everything except the handle's shape back to its default — an amber dot shows which have changed. The shape is kept: the profile curve, Width, Thickness (so Height and Depth too) and the drawing area; pick a preset to change it. Undoable with ↶"
+          />
 
           {/* STL exports */}
           <div className="border-t-[3px] border-[#555] pt-2 flex flex-col gap-2">
@@ -595,8 +613,8 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
                 is what you see looking at the mug head-on, thickness is how
                 thick the strap looks in profile. Same pattern as the mold's
                 'perpendicular' value behind the "Parallel" label. */}
-            {sl('thickness', 'Width (mm)', undefined, 'FINISHED handle width — both halves together, after shrink. The dimension you see looking at the mug head-on. The printed master carries HALF of it, because the parting plane splits this direction')}
-            {sl('width', 'Thickness (mm)', undefined, 'FINISHED handle thickness, after shrink — measured IN the parting plane, so the master carries ALL of it. How thick the strap looks in the profile view')}
+            {sl('thickness', 'Width (mm)', undefined, 'FINISHED handle width — both halves together, after shrink. The dimension you see looking at the mug head-on. The printed master carries HALF of it, because the parting plane splits this direction', false)}
+            {sl('width', 'Thickness (mm)', undefined, 'FINISHED handle thickness, after shrink — measured IN the parting plane, so the master carries ALL of it. How thick the strap looks in the profile view', false)}
             {sl('shrinkPercent', 'Shrink (%)', undefined, 'Clay shrinkage — the master prints this much larger than the designed size')}
             {sl('masterShellThickness', 'Shell (mm)', undefined, 'Printed wall thickness of the master. The master is always hollow and OPEN along its underside — the shell is all there is — so you can get a tool into the channel to pry it out of the set plaster. Clamped automatically so the cavity stays open on a thin strap')}
             {sl('ribWidth', 'Pull Ribs (mm)', undefined, 'Width of the solid ribs bridging the open channel. The channel is open either side of one, so long-nose jaws drop in and close on it — that is what you pull on to lever the master out of the set plaster. 0 turns them off. They sit inside the shell, so the cast handle never sees them')}
@@ -621,7 +639,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               {sl('sectionSegments', 'Around', undefined, 'Segments around HALF the cross-section — how round the strap prints. Also drives the well collar\u2019s bore and the registration natches, so the sealing surfaces stay as smooth as the handle')}
             </div>
           </Section>
-          <Section title="Wells" titleColor={GROUP_COLORS.structure}>
+          <Section title="Wells" titleColor={GROUP_COLORS.structure} changed={any('openingDiameter', 'cylinderLength', 'coneLength')} changedTip={CHANGED_TIP}>
             {sl('openingDiameter', 'Opening', 'mm', 'Diameter of the pour opening / cylinder at each end')}
             {sl('cylinderLength', 'Cylinder', 'mm', 'Straight cylinder section at the mold wall — always perpendicular to the wall')}
             {sl('coneLength', 'Transition', 'mm', 'Length of the transition from the cylinder to the handle\u2019s flat wall-plane cut')}
@@ -629,7 +647,8 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
 
           {/* Mold */}
           <GroupHeader label="Mold" color={GROUP_COLORS.surface} />
-          <Section title="Plate" titleColor={GROUP_COLORS.surface} defaultOpen={false}>
+          <Section title="Plate" titleColor={GROUP_COLORS.surface} defaultOpen={false} changedTip={CHANGED_TIP}
+            changed={any('seatDepth', 'lipWidth', 'plateFloor', 'tieBarWidth', params.tieBarWidth > 0.2 && 'tieBarCount', 'recessClearance', 'domeDiameter', 'domeHeight')}>
             {sl('seatDepth', 'Seat Depth', 'mm', 'How deep the half-handle’s flat skirt sits into the plate (the parting plane stays at the plate top). This IS the seal: a deeper skirt is a longer path at Fit Clearance for plaster to travel. It is also the lip you grab with long-nose pliers to lift the master out of the set plaster, so do not go shallow')}
             {sl('lipWidth', 'Lip Width', 'mm', 'Support-lip ring the handle rests on — inside it the plate is open so you can tape the handle from below')}
             {sl('plateFloor', 'Lip Thickness', 'mm', 'Plate material under the seat pocket. Added to Seat Depth it is the plate’s total thickness, and stiffness goes as the CUBE of that — this is the first slider to raise if a plate flexes during the pour. Stepped in 0.2 mm so it stays a whole number of layers')}
@@ -640,12 +659,13 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             {sl('domeDiameter', 'Dome Diameter', 'mm', 'Registration bump/dimple pair size — clamped to the plaster band between the wall and the handle pocket, so a small Plaster Margin limits it')}
             {sl('domeHeight', 'Dome Height', 'mm', 'How far the registration bump stands proud. Engagement is limited by Seat Depth: the plate recess that molds the mating bump is only that deep, so raising this past Seat Depth deepens the dimple without deepening the bump')}
           </Section>
-          <Section title="V Ridge" titleColor={GROUP_COLORS.surface} defaultOpen={false}>
+          <Section title="V Ridge" titleColor={GROUP_COLORS.surface} defaultOpen={false} changed={any('vWidth', 'vHeight', 'vClearance')} changedTip={CHANGED_TIP}>
             {sl('vWidth', 'Width', 'mm', 'Base width of the V ridge/groove (45° slopes)')}
             {sl('vHeight', 'Height', 'mm')}
             {sl('vClearance', 'Clearance', 'mm', 'Groove oversize so the walls seat — a loose V still seals')}
           </Section>
-          <Section title="Box & Walls" titleColor={GROUP_COLORS.surface} defaultOpen={false}>
+          <Section title="Box & Walls" titleColor={GROUP_COLORS.surface} defaultOpen={false} changedTip={CHANGED_TIP}
+            changed={any('plasterMargin', 'plasterAbove', 'wallThickness', 'wellSealDepth', 'flangeWidth')}>
             {sl('plasterMargin', 'Plaster Margin', 'mm', 'Plaster between the handle and the walls')}
             {sl('plasterAbove', 'Plaster Above', 'mm', 'Plaster above the highest point of the handle — sets the wall height')}
             {sl('wallThickness', 'Wall Thickness', 'mm')}
@@ -655,9 +675,9 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
 
           {/* Analysis */}
           <GroupHeader label="Analysis" color={GROUP_COLORS.settings} />
-          <Section title="Plaster Estimate" titleColor={GROUP_COLORS.settings}>
+          <Section title="Plaster Estimate" titleColor={GROUP_COLORS.settings} changed={any('material')} changedTip={CHANGED_TIP}>
             <div className="flex items-center gap-2 mb-2">
-              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Material</label>
+              <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0">Material{resetDot(ch('material'), () => setParam('material', def.material), PLASTER_MATERIALS[def.material].label)}</label>
               <select
                 value={params.material}
                 onChange={(e) => setParam('material', e.target.value as PlasterType)}
@@ -707,28 +727,6 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             <StatRow label="Plate STL" value={stlSize(handle.plateStats.triangleCount)} />
             <StatRow label="Wall STL" value={stlSize(handle.wallStats.triangleCount)} />
           </Section>
-
-          {savedParams && savedParams !== params && (
-            <button
-              onClick={revertToSaved}
-              className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
-              style={{ color: UI_MUTED }}
-              title="Put everything back to the last Save Design / Load Design — the whole design, shape included"
-            >
-              Revert to Saved
-            </button>
-          )}
-          <button
-            onClick={reset}
-            className="mt-2 w-full py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs rounded hover:bg-[var(--border-color)] transition-colors"
-            style={{ color: UI_MUTED }}
-            title="Restore the default mold settings. Your handle shape is not touched"
-          >
-            Reset Handle Settings
-          </button>
-          <p className="mt-1 text-[10px] leading-snug text-[var(--text-secondary)] px-0.5">
-            Keeps your handle shape — pick a preset to change that. Undoable with ↶.
-          </p>
         </div>
       </div>
     </div>

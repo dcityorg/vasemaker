@@ -143,12 +143,15 @@ export function SliderRow({
 }
 
 /** Collapsible section wrapper — supports optional header toggle */
-export function Section({ title, children, defaultOpen = true, active, checked, onToggle, tooltip, titleColor, changed }: {
+export function Section({ title, children, defaultOpen = true, active, checked, onToggle, tooltip, titleColor, changed, changedTip }: {
   title: string; children: React.ReactNode; defaultOpen?: boolean;
   active?: boolean; checked?: boolean; onToggle?: (v: boolean) => void; tooltip?: string; titleColor?: string;
   /** Something in this section differs from its default: a small dot after the
    *  title (Sprig page, Gary 2026-10-29 — "where did I change that?"). */
   changed?: boolean;
+  /** The title dot's tooltip. The Sprig page's sections each have a Reset; the
+   *  other pages point at the setting dots instead (2026-11-01). */
+  changedTip?: string;
 }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   // Browsers queue a `toggle` event when React sets `open` during mount, so
@@ -181,7 +184,7 @@ export function Section({ title, children, defaultOpen = true, active, checked, 
       <summary onClick={() => { userToggled.current = true; }} className="cursor-pointer text-sm font-medium py-2 px-3 bg-[var(--bg-secondary)] rounded select-none hover:bg-[var(--border-color)] transition-colors flex items-center gap-2" style={titleColor ? { color: titleColor } : { color: 'var(--text-primary)' }} title={tooltip}>
         <span className="flex-1">
           {title}
-          {changed && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 ml-1.5 align-middle" title="Changed from the default — this section's Reset puts it back" />}
+          {changed && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 ml-1.5 align-middle" title={changedTip ?? "Changed from the default — this section's Reset puts it back"} />}
         </span>
         {onToggle ? (
           <button
@@ -276,6 +279,71 @@ export function ToggleAllSectionsButton() {
     >
       &#x2195;
     </button>
+  );
+}
+
+/** Title-dot tooltip for a page whose sections have no Reset of their own. */
+export const CHANGED_TIP = 'Changed from the default — an amber dot after a setting below shows which; click that dot to put it back';
+
+/** The amber "changed" dot after a setting's name: click it to put just that
+ *  setting back to its default (Sprig's Adjust list, 2026-10-29; every page
+ *  since 2026-11-01). `shown` is the default as it reads, e.g. "12mm" or "off". */
+// 14 px wide with no margin: the longest labels that carry one ("Dome Diameter")
+// then end within the gap before the slider.
+export function ResetDot({ onReset, shown }: { onReset: () => void; shown: string }) {
+  return (
+    <button
+      onClick={(e) => { e.preventDefault(); onReset(); }}
+      title={`Changed from the default — click to put it back to ${shown}`}
+      className="inline-flex items-center justify-center w-3.5 h-4 align-middle rounded-full hover:bg-[var(--border-color)]"
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+    </button>
+  );
+}
+
+/** The dot only while `changed` — null otherwise, so a SliderRow / Toggle
+ *  label without one keeps wrapping as it always has (`after` is falsy). */
+export function resetDot(changed: boolean, onReset: () => void, shown: string): React.ReactNode {
+  return changed ? <ResetDot onReset={onReset} shown={shown} /> : null;
+}
+
+/** Small-button look of the Revert / Reset row (was the Sprig page's). */
+export const MINI_BTN =
+  'flex-1 py-1 text-[11px] rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] ' +
+  'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)] transition-colors';
+
+/**
+ * Revert to Saved and the page's reset, side by side, under Load / Save Design
+ * on every page (Gary, 2026-11-01 — they were at the very bottom on three of
+ * the four). A thin line above, lighter than the thick bar over the exports.
+ * Revert is always shown, greyed while there is nothing to go back to; it is
+ * aria-disabled rather than disabled so its tooltip still shows.
+ */
+export function RevertResetRow({ canRevert, onRevert, revertTitle, nothingTitle, resetLabel, resetTitle, onReset }: {
+  canRevert: boolean; onRevert: () => void; revertTitle: string;
+  /** The greyed button's tooltip, when the page's baseline is more than a file. */
+  nothingTitle?: string;
+  /** Omitted on the Vase page, which has no reset button. */
+  resetLabel?: string; resetTitle?: string; onReset?: () => void;
+}) {
+  return (
+    <div className="border-t border-[var(--border-color)] pt-2 flex gap-2">
+      <button
+        onClick={() => { if (canRevert) onRevert(); }}
+        aria-disabled={!canRevert}
+        className={canRevert ? MINI_BTN
+          : 'flex-1 py-1 text-[11px] rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] opacity-40 cursor-not-allowed'}
+        title={canRevert ? revertTitle : nothingTitle ?? 'Nothing to revert — no changes since the last Save Design or Load Design'}
+      >
+        Revert to Saved
+      </button>
+      {resetLabel && onReset && (
+        <button onClick={onReset} className={MINI_BTN} title={resetTitle}>
+          {resetLabel}
+        </button>
+      )}
+    </div>
   );
 }
 

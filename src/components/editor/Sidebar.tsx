@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { ToggleAllSectionsButton, useRememberedScroll } from '@/components/parameters/ui';
+import { ToggleAllSectionsButton, useRememberedScroll, RevertResetRow } from '@/components/parameters/ui';
 import { DimensionControls } from '@/components/parameters/DimensionControls';
 import { useVaseStore } from '@/store/vase-store';
 import { useHistoryStore } from '@/store/history';
@@ -45,6 +45,8 @@ export function Sidebar({
   const sidebarScroll = useRememberedScroll();
   const { loadPreset, getParams, isDirty, markClean, loadDesign, undo: doUndo, redo: doRedo } = useVaseStore();
   const { canUndo, canRedo } = useHistoryStore();
+  const savedParams = useVaseStore((s) => s.savedParams);
+  const revertToSaved = useVaseStore((s) => s.revertToSaved);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
   const [presetDropdownOpen, setPresetDropdownOpen] = useState(false);
@@ -253,6 +255,13 @@ export function Sidebar({
             className="hidden"
           />
         </div>
+        {/* Under Load / Save, as on every page (Gary, 2026-11-01); the Vase page has no reset button. */}
+        <RevertResetRow
+          canRevert={isDirty && !!savedParams}
+          onRevert={revertToSaved}
+          revertTitle="Put the vase back to the last Save Design, Load Design or preset. Undo (⌘Z) brings your changes back"
+          nothingTitle="Nothing to revert — no changes since the last Save Design, Load Design or preset"
+        />
 
         {/* ── Image capture ── */}
         <div className="border-t-[3px] border-[#555] pt-2 flex flex-col gap-1.5">

@@ -74,7 +74,9 @@ export const DEFAULT_VIEW: HandleView = {
   crossPos: 0.5,
 };
 
-function freshDefaults(): HandleParameters {
+/** The defaults Reset restores around the shape — also what the sidebar's
+ *  amber "changed" dots compare with (2026-11-01). */
+export function freshDefaults(): HandleParameters {
   return mergeHandleParameters(DEFAULT_HANDLE_PARAMETERS);
 }
 

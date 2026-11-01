@@ -99,6 +99,20 @@ interface MoldStore {
   revertToSaved: () => void;
 }
 
+/** What Reset gives for this tab: the defaults, keeping the style and the foot
+ *  on/off switches (see `reset`). Also what the sidebar's amber "changed" dots
+ *  compare with, so a kept switch never shows as changed and a dot's click
+ *  gives exactly the value Reset would (2026-11-01). */
+export function moldResetParams(p: MoldParameters): MoldParameters {
+  return {
+    ...DEFAULT_MOLD_PARAMETERS,
+    moldStyle: p.moldStyle,
+    footEnabled: p.footEnabled,
+    halvesFootPiece: p.halvesFootPiece,
+    thirdsFootPiece: p.thirdsFootPiece,
+  };
+}
+
 /** Undo/redo for the mold settings. Params only — the view toggles and the
  *  settings-file name are not part of the design, same rule as the handle. The
  *  VASE is deliberately out of scope: it has its own history, and two histories
@@ -145,19 +159,10 @@ export const useMoldStore = create<MoldStore>((set, get) => ({
   // 2026-10-16 the other styles keep their own settings, so it resets this tab only.
   // The foot on/off switches are kept too (Gary, 2026-10-16): Reset restores the
   // foot's SETTINGS but leaves a foot that was on, on.
-  reset: () => set((state) => {
-    const p = state.params;
-    return {
-      params: {
-        ...DEFAULT_MOLD_PARAMETERS,
-        moldStyle: p.moldStyle,
-        footEnabled: p.footEnabled,
-        halvesFootPiece: p.halvesFootPiece,
-        thirdsFootPiece: p.thirdsFootPiece,
-      },
-      settingsName: DEFAULT_SETTINGS_NAME,
-    };
-  }),
+  reset: () => set((state) => ({
+    params: moldResetParams(state.params),
+    settingsName: DEFAULT_SETTINGS_NAME,
+  })),
 
   undo: () => {
     const restored = moldHistory.undo(get().params);

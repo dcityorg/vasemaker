@@ -14,7 +14,7 @@ import { useMarkStore, hydrateMarkSettingsFromStorage } from '@/store/sprig-stor
 import { BOTTOM } from '@/config/shape-params';
 import { GROUP_COLORS } from '@/config/colors';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
-import { SliderRow, Section, Toggle, GroupHeader } from './ui';
+import { SliderRow, Section, Toggle, GroupHeader, resetDot, CHANGED_TIP } from './ui';
 
 /** The Sprig page opens on this tab (SprigEditor). */
 const SPRIG_TAB_KEY = 'vasemaker-sprig-tab';
@@ -53,10 +53,22 @@ export function BottomControls() {
   });
   const resetPlace = () => setBottom({ markSize: 100, markAngle: 0, markOffsetX: 0, markOffsetY: 0 });
 
+  // The amber "changed" dots (Gary, 2026-11-01, as on the Sprig page), against
+  // DEFAULT_PARAMETERS.bottom. Not on the mark's Depth: its first copy takes the
+  // mark's own height, so the fixed default is not really its starting point.
+  type Key = keyof typeof b;
+  const D = DEFAULT_PARAMETERS.bottom;
+  const ch = (k: Key) => b[k] !== D[k];
+  const dot = (k: Key, shown: string) => resetDot(ch(k), () => setBottom({ [k]: D[k] }), shown);
+  const onOff = (k: Key) => dot(k, D[k] ? 'on' : 'off');
+  const changed = hasBase && (
+    ch('footOn') || (b.footOn && (['footWidth', 'footSlopeWidth', 'footHeight', 'footSmoothInner'] as const).some(ch))
+    || ch('markOn') || (b.markOn && (['markStyle', 'markSize', 'markAngle', 'markOffsetX', 'markOffsetY'] as const).some(ch)));
+
   return (
     <>
     <GroupHeader label="Bottom" color={GROUP_COLORS.structure} />
-    <Section title="Foot & Mark" defaultOpen={false} active={active} titleColor={GROUP_COLORS.structure}
+    <Section title="Foot & Mark" defaultOpen={false} active={active} titleColor={GROUP_COLORS.structure} changed={changed} changedTip={CHANGED_TIP}
       tooltip="The foot ring the piece stands on, and your maker's mark on the bottom">
       {!hasBase ? (
         <p className="text-xs text-[var(--text-secondary)] mb-2">A foot and a mark need a solid bottom: set Base and Wall above zero in Shell.</p>
@@ -66,17 +78,17 @@ export function BottomControls() {
             <div className={sub}>Foot</div>
             {b.footOn && <button onClick={resetFoot} className={linkBtn} title="Foot back to its defaults">Reset</button>}
           </div>
-          <Toggle label="Foot" checked={b.footOn} onChange={(v) => setBottom({ footOn: v })}
+          <Toggle label="Foot" checked={b.footOn} onChange={(v) => setBottom({ footOn: v })} after={onOff('footOn')}
             tooltip="A foot ring with a recessed middle, on the plastic print AND on every mold. Off: a flat bottom everywhere" />
           {b.footOn && (
             <div className="ml-2 pl-3 border-l-2 border-[var(--border-color)]">
-              <SliderRow label="Foot Width" value={b.footWidth} {...BOTTOM.footWidth} suffix="mm" onChange={(v) => setBottom({ footWidth: v })}
+              <SliderRow label="Foot Width" value={b.footWidth} {...BOTTOM.footWidth} suffix="mm" onChange={(v) => setBottom({ footWidth: v })} after={dot('footWidth', `${D.footWidth}mm`)}
                 tooltip="The flat ring at the outer edge of the bottom — what the piece stands on" />
-              <SliderRow label="Slope Width" value={b.footSlopeWidth} {...BOTTOM.footSlopeWidth} suffix="mm" onChange={(v) => setBottom({ footSlopeWidth: v })}
+              <SliderRow label="Slope Width" value={b.footSlopeWidth} {...BOTTOM.footSlopeWidth} suffix="mm" onChange={(v) => setBottom({ footSlopeWidth: v })} after={dot('footSlopeWidth', `${D.footSlopeWidth}mm`)}
                 tooltip="Width of the slope from the foot ring up into the recessed middle" />
-              <SliderRow label="Depth" value={b.footHeight} {...BOTTOM.footHeight} suffix="mm" onChange={(v) => setBottom({ footHeight: v })}
+              <SliderRow label="Depth" value={b.footHeight} {...BOTTOM.footHeight} suffix="mm" onChange={(v) => setBottom({ footHeight: v })} after={dot('footHeight', `${D.footHeight}mm`)}
                 tooltip="How far the middle is recessed. A raised mark must not be taller than this or the piece rocks" />
-              <Toggle label="Smooth Inside" checked={b.footSmoothInner} onChange={(v) => setBottom({ footSmoothInner: v })}
+              <Toggle label="Smooth Inside" checked={b.footSmoothInner} onChange={(v) => setBottom({ footSmoothInner: v })} after={onOff('footSmoothInner')}
                 tooltip="Build the slope and recess from the smooth outline, so surface texture does not carry into the recess" />
             </div>
           )}
@@ -86,7 +98,7 @@ export function BottomControls() {
             <div className={sub}>Mark</div>
             {b.markOn && <button onClick={resetPlace} className={linkBtn} title="Size, angle and position back to the defaults">Reset</button>}
           </div>
-          <Toggle label="Mark" checked={b.markOn}
+          <Toggle label="Mark" checked={b.markOn} after={onOff('markOn')}
             onChange={(v) => { if (v && !b.mark) useTabMark(); setBottom({ markOn: v }); }}
             tooltip="Put your maker's mark (designed on the Sprig page, Mark tab) on the bottom: the plastic print, the Pour 3-Pc center and the Split Halves / Thirds plug disk" />
           {b.markOn && (
@@ -103,7 +115,7 @@ export function BottomControls() {
                 </button>
               )}
               <div className="flex items-center gap-2 mb-2">
-                <label className="text-sm text-[var(--text-secondary)] w-12 shrink-0" title="Impressed = pressed into the bottom. Raised = stands out of it, inside the recess">Style</label>
+                <label className="text-sm text-[var(--text-secondary)] w-12 shrink-0 whitespace-nowrap" title="Impressed = pressed into the bottom. Raised = stands out of it, inside the recess">Style{dot('markStyle', D.markStyle === 'impressed' ? 'Impressed' : 'Raised')}</label>
                 <div className="flex gap-2.5">
                   {(['impressed', 'raised'] as const).map((st) => (
                     <label key={st} className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
@@ -115,13 +127,13 @@ export function BottomControls() {
               </div>
               <SliderRow label={b.markStyle === 'impressed' ? 'Depth' : 'Height'} value={b.markDepth} {...BOTTOM.markDepth} suffix="mm"
                 onChange={(v) => setBottom({ markDepth: v })} tooltip="How deep the mark is pressed in, or how far it stands out (its tallest part)" />
-              <SliderRow label="Size" value={b.markSize} {...BOTTOM.markSize} suffix="%" onChange={(v) => setBottom({ markSize: v })}
+              <SliderRow label="Size" value={b.markSize} {...BOTTOM.markSize} suffix="%" onChange={(v) => setBottom({ markSize: v })} after={dot('markSize', `${D.markSize}%`)}
                 tooltip="Size of the mark, as a percentage of the size it was drawn at on the Mark tab" />
-              <SliderRow label="Angle" value={b.markAngle} {...BOTTOM.markAngle} suffix="°" onChange={(v) => setBottom({ markAngle: v })}
+              <SliderRow label="Angle" value={b.markAngle} {...BOTTOM.markAngle} suffix="°" onChange={(v) => setBottom({ markAngle: v })} after={dot('markAngle', `${D.markAngle}°`)}
                 tooltip="Turn the mark, counter-clockwise as seen looking up at the bottom" />
-              <SliderRow label="Move Right" value={b.markOffsetX} {...BOTTOM.markOffset} suffix="mm" onChange={(v) => setBottom({ markOffsetX: v })}
+              <SliderRow label="Move Right" value={b.markOffsetX} {...BOTTOM.markOffset} suffix="mm" onChange={(v) => setBottom({ markOffsetX: v })} after={dot('markOffsetX', `${D.markOffsetX}mm`)}
                 tooltip="Move the mark off centre, to the right as seen looking up at the bottom" />
-              <SliderRow label="Move Up" value={b.markOffsetY} {...BOTTOM.markOffset} suffix="mm" onChange={(v) => setBottom({ markOffsetY: v })}
+              <SliderRow label="Move Up" value={b.markOffsetY} {...BOTTOM.markOffset} suffix="mm" onChange={(v) => setBottom({ markOffsetY: v })} after={dot('markOffsetY', `${D.markOffsetY}mm`)}
                 tooltip="Move the mark off centre, up as seen looking up at the bottom" />
               <p className="text-xs text-[var(--text-secondary)] mb-2">Placed as you read it when you turn the piece over. Look from below to check it.</p>
             </div>
