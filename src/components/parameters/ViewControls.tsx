@@ -41,7 +41,7 @@ export function ViewControls() {
         <p className="text-xs text-[var(--text-secondary)] mb-2">Show Sprig is off while the Sprig texture is on (Textures → Sprig), so the two do not draw over each other.</p>
       ) : (
         <Toggle label="Show Sprig" checked={extras.showSprig} onChange={(v) => useVaseExtras.setState({ showSprig: v })}
-          tooltip="The sprig from SprigMaker on the vase, where SprigMaker places it (View → On Vase there)" />
+          tooltip="Preview the SprigMaker sprig where it will be attached (placed on the Sprig page, View → On Vase). It is not part of the vase or its STL; to build it into the vase, use Textures → Sprig" />
       )}
       <div className="flex items-center gap-3 mb-2">
         <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Preview colour of the vase. Saved with the design">Color</label>
