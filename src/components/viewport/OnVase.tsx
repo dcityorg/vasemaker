@@ -48,7 +48,9 @@ export function useSprigTextureOn(): boolean {
 /** VaseMaker: the handle and/or sprig inside the vase view's own canvas. */
 export function VasePageExtras() {
   const { showHandle, showSprig: wantSprig } = useVaseExtras();
-  const showSprig = wantSprig && !useSprigTextureOn();
+  // Called every render, never behind &&: a skipped hook shifts the ones after it (crashed on Show Sprig off).
+  const textureOn = useSprigTextureOn();
+  const showSprig = wantSprig && !textureOn;
   const flat = useShowFacets();
   const vaseMesh = useVaseMesh();
   return showSprig
