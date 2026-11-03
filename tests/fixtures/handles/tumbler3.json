@@ -1,0 +1,72 @@
+{
+  "app": "VaseMaker",
+  "type": "handle-settings",
+  "settings": {
+    "spinePoints": [
+      [
+        0,
+        0
+      ],
+      [
+        46.545454545454554,
+        0
+      ],
+      [
+        27.927272727272733,
+        5
+      ],
+      [
+        27.927272727272733,
+        60
+      ],
+      [
+        46.545454545454554,
+        65
+      ],
+      [
+        0,
+        65
+      ]
+    ],
+    "spineTypes": [
+      "fixed",
+      "handle",
+      "handle",
+      "handle",
+      "handle",
+      "fixed"
+    ],
+    "winRight": 55,
+    "winTop": 70,
+    "winBottom": -5,
+    "width": 10,
+    "thickness": 16,
+    "openingDiameter": 22,
+    "cylinderLength": 10,
+    "coneLength": 12,
+    "shrinkPercent": 12,
+    "masterHollow": true,
+    "masterShellThickness": 2,
+    "ribWidth": 3,
+    "ribCount": 4,
+    "seatDepth": 3,
+    "plateFloor": 3.6,
+    "recessClearance": 0.1,
+    "lipWidth": 2,
+    "tieBarWidth": 6,
+    "tieBarCount": 3,
+    "vWidth": 2,
+    "vHeight": 1.4,
+    "vClearance": 0.2,
+    "domeDiameter": 16,
+    "domeHeight": 2,
+    "flangeWidth": 14,
+    "plasterMargin": 25,
+    "plasterAbove": 15,
+    "wallThickness": 4,
+    "wellSealDepth": 3,
+    "spineSamples": 300,
+    "sectionSegments": 80,
+    "material": "pottery"
+  }
+}

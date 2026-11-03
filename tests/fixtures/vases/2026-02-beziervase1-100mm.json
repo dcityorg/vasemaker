@@ -1,0 +1,32 @@
+{
+  "radius": 20,
+  "height": 100,
+  "profileEnabled": true,
+  "profilePoints": [
+    [1.0, 0.0],
+    [1.374, 0.166],
+    [1.433, 0.273],
+    [1.281, 0.35],
+    [1.025, 0.43],
+    [0.773, 0.544],
+    [0.629, 0.723],
+    [0.7, 1.0]
+  ],
+  "bottomShape": "Circle1",
+  "topShape": "Circle1",
+  "morphEnabled": false,
+  "bezierTwist": { "enabled": false, "points": [0, 0, 0, 0, 0] },
+  "sineTwist": { "enabled": false, "cycles": 0, "maxDegrees": 0 },
+  "verticalSmoothing": { "enabled": false, "cycles": 0, "startPercent": 0 },
+  "radialSmoothing": { "enabled": false, "cycles": 0, "offsetAngle": 0 },
+  "fixedOffset": { "x": 0, "y": 0 },
+  "resolution": { "vertical": 200, "radial": 360 },
+  "flatShading": false,
+  "wallThickness": 1.2,
+  "bottomThickness": 2,
+  "minWallThickness": 0.8,
+  "rimShape": "rounded",
+  "smoothInner": false,
+  "color": "#6d9fff",
+  "showRulers": false
+}

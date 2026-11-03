@@ -1,0 +1,29 @@
+{
+  "app": "VaseMaker",
+  "type": "mold-settings",
+  "settings": {
+    "moldStyle": "onePiece",
+    "shrinkPercent": 12,
+    "masterWallThickness": 3,
+    "keepTexture": false,
+    "wellWidth": 12,
+    "wellHeight": 12,
+    "wellDraftAngle": 3,
+    "flangeWidth": 30,
+    "flangeThickness": 5,
+    "pourHoleCount": 6,
+    "pourHoleDiameter": 15,
+    "footEnabled": true,
+    "footWidth": 5,
+    "footSlopeWidth": 1,
+    "footHeight": 1,
+    "footStepHeight": 0.2,
+    "footSmoothInner": false,
+    "plasterThickness": 20,
+    "cottleWallThickness": 3,
+    "cottleDraftAngle": 3,
+    "airHoleEnabled": true,
+    "airHoleDiameter": 4,
+    "material": "pottery"
+  }
+}
