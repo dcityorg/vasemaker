@@ -62,7 +62,23 @@ export function createHistory<T>(getInitial: () => T): History<T> {
     clear: () => set({ past: [], future: [], canUndo: false, canRedo: false }),
   }));
 
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastRecorded: T | null = null;
+  let skipNext = false;
+
+  // A change still inside its debounce has not been pushed yet. Undo/redo push
+  // it first, or ⌘Z pressed straight after a change undoes the step BEFORE it
+  // (found by tests/browser/undo-revert.ts, 2026-11-02).
+  const flush = (current: T) => {
+    if (!debounceTimer) return;
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+    if (lastRecorded) useHistoryStore.getState()._push(lastRecorded);
+    lastRecorded = current;
+  };
+
   const undo = (current: T): T | null => {
+    flush(current);
     const { past } = useHistoryStore.getState();
     if (past.length === 0) return null;
     const newPast = [...past];
@@ -78,6 +94,7 @@ export function createHistory<T>(getInitial: () => T): History<T> {
   };
 
   const redo = (current: T): T | null => {
+    flush(current);
     const { future } = useHistoryStore.getState();
     if (future.length === 0) return null;
     const newFuture = [...future];
@@ -92,9 +109,6 @@ export function createHistory<T>(getInitial: () => T): History<T> {
     return restored;
   };
 
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  let lastRecorded: T | null = null;
-  let skipNext = false;
 
   const skipNextRecord = () => { skipNext = true; };
 
