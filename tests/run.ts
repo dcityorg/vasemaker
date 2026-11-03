@@ -19,6 +19,7 @@ const ROOT = process.cwd();
 const OUT = join(ROOT, 'test-results');
 const TSX = join(ROOT, 'node_modules/.bin/tsx');
 const TSC = join(ROOT, 'node_modules/.bin/tsc');
+const TIMEOUT_S = 300;
 
 const args = process.argv.slice(2);
 const deep = args.includes('--deep');
@@ -41,10 +42,13 @@ function run(file: string): Promise<Result> {
   const t0 = Date.now();
   return new Promise((done) => {
     const p = spawn(TSX, ['--tsconfig', 'tsconfig.json', file], { cwd: ROOT });
+    // A check that hangs must fail, not stall the suite. The slowest takes ~45 s.
+    const timer = setTimeout(() => { out += `\nFAIL  TIMED OUT after ${TIMEOUT_S} s\n`; p.kill('SIGKILL'); }, TIMEOUT_S * 1000);
     let out = '';
     p.stdout.on('data', (d) => { out += d; });
     p.stderr.on('data', (d) => { out += d; });
     p.on('close', (code) => {
+      clearTimeout(timer);
       writeFileSync(join(OUT, `${name}.log`), out);
       done({ name, rc: code ?? 1, secs: (Date.now() - t0) / 1000, pass: count(out, 'PASS'), fail: count(out, 'FAIL'), skip: count(out, 'SKIPPED') });
     });
