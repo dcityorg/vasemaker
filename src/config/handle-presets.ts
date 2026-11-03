@@ -22,10 +22,9 @@
  * Spine points are in mm (v1.16.0). Presets carry no drawing-area extents —
  * applyPreset fits the window to the shape on arrival.
  *
- * The three shapes are Gary's own designs, printed and poured 2026-08-01;
- * the source settings files live beside their STLs in
- * `~/Dropbox/SharedSherGary/Molds/Handles/`. Only spine + section are taken
- * from those files — every other setting in them already matches the defaults.
+ * The three shapes are Gary's own designs, printed and poured 2026-08-01.
+ * Only spine + section are taken from their settings files — every other
+ * setting in them already matches the defaults.
  */
 
 import { DEFAULT_HANDLE_PARAMETERS } from '@/engine/handle/handle-types';
