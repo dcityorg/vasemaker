@@ -190,7 +190,11 @@ export function SprigAdjust({ params: p, defaults, relief, notes, isMark, textSi
       <SliderRow label="Length" value={p.length} {...SPRIG_PARAMS.length} suffix="mm" onChange={setLength}
         tooltip="FINISHED length, bottom to top, after the clay shrinks" />
       {hint('The finished size, after the clay shrinks. With Lock on, Length follows Width.')}
-      {toggle('lockAspect', '🔗 Lock', 'Width and Length move together, so the drawing keeps its proportions. Off: stretch it.')}
+      {/* No amber dot, like Width and Length: the lock goes with the drawing's
+          size, which Reset All keeps, so a dot there could never be cleared. */}
+      <Toggle label="🔗 Lock" checked={p.lockAspect} onChange={(v) => setParam('lockAspect', v)}
+        tooltip="Width and Length move together, so the drawing keeps its proportions. Off: stretch it." />
+      {hint('Width and Length move together, so the drawing keeps its proportions. Off: stretch it.')}
 
       {/* ── Heights ── */}
       {group('Heights')}
