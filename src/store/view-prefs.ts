@@ -45,7 +45,7 @@ export function useShowFacets(): boolean {
 }
 
 /**
- * Sprig / Mark preview colours (Sher, 2026-10-28): the clay one colour, the
+ * Sprig / Mark preview colours (a user, 2026-10-28): the clay one colour, the
  * plate behind it another, so a spot with no clay shows at a glance. Shared by
  * both tabs, remembered in this browser, never in a design file; the Display
  * Reset puts them back.

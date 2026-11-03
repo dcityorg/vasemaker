@@ -1010,7 +1010,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
 /** The sprig's words: up to two lines, committed after a pause in typing so the
  *  relief is not rebuilt on every key, and on blur. */
 /** The clay colour and the plate (background) colour — a spot with no clay
- *  shows the background (Sher). Per browser, shared by both tabs. */
+ *  shows the background (a user). Per browser, shared by both tabs. */
 function SprigColorRows({ what }: { what: 'sprig' | 'mark' }) {
   const { sprig, background } = useSprigColors();
   const row = (label: string, value: string, tip: string, set: (c: string) => void) => (

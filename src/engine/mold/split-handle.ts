@@ -13,7 +13,7 @@
  * line, positive on the seam-direction side (where the handle goes).
  *
  * The placement is a pure function of the outline and the spine, used by BOTH
- * the mold and HandleMaker's mug overlay, so what Sher draws against is what the
+ * the mold and HandleMaker's mug overlay, so what the user draws against is what the
  * mold builds. It commutes with uniform scale, so the overlay can work in
  * finished mm while the mold works shrink-scaled.
  *
@@ -319,7 +319,7 @@ export function meshSweep(sw: HandleSweep, map: (z: number, u: number, h: number
 
 /**
  * The vase outline on the handle side, in FINISHED mm (no shrink), for
- * HandleMaker's mug overlay. Resolution is capped — this redraws while Sher
+ * HandleMaker's mug overlay. Resolution is capped — this redraws while the user
  * drags, and a 2-D outline does not need the mold's mesh density.
  */
 export function vaseOutlineForHandle(vase: VaseParameters, seamAngle: number, keepTexture: boolean): { sil: P2[]; silFar: P2[]; rimZ: number; center: P2 } {

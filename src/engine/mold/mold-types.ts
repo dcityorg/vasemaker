@@ -161,7 +161,7 @@ export interface MoldParameters {
   splitHandle: boolean;
   /** Top attachment, measured down from the rim on the finished vase (mm). */
   handleTopDrop: number;
-  /** Sher's fired cast wall — the handle's smaller dimension past 2× this
+  /** A user's fired cast wall — the handle's smaller dimension past 2× this
    *  won't fill solid before the walls are done (mm). */
   castWallThickness: number;
 

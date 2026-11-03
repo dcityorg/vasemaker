@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Textures → Sprig (Sher, 2026-10-28): a sprig from the Sprig page raised out
+ * Textures → Sprig (a user, 2026-10-28): a sprig from the Sprig page raised out
  * of or pressed into the wall. The molds keep it, grown by Shrink (Gary,
  * 2026-10-28; prepareVaseParams). The vase keeps its own
  * COPY of the sprig (Gary: the Sprig tab may be busy with the next one), so

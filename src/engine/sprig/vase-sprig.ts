@@ -1,5 +1,5 @@
 /**
- * The Sprig texture (Sher, 2026-10-28): a sprig designed on the Sprig page,
+ * The Sprig texture (a user, 2026-10-28): a sprig designed on the Sprig page,
  * raised out of or pressed into the vase wall — mostly for test prints.
  *
  * It is On Vase's wrap run backwards (on-vase.ts `wrapSprig`): there every

@@ -4,8 +4,8 @@
  * Side view of the finished mug with the handle on it — what HandleMaker's main
  * window shows in View → Side. The mug stands upright at true size and
  * the handle is placed exactly as the Split 2-Pc mold will place it (same
- * placement function), so Sher can judge proportions the way she does when she
- * draws them by hand, while still editing in the profile editor.
+ * placement function), so a user can judge proportions the way they do when they
+ * draw them by hand, while still editing in the profile editor.
  *
  * The profile is the vase cut through the handle's plane (the Split Angle), in
  * FINISHED mm — no shrink. The handle is drawn under the mug body, so the part

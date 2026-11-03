@@ -260,7 +260,7 @@ export interface VaseParameters {
       count: number;        // number of rod bands up the height
       depth: number;        // rod height outward in mm
       duty: number;         // gap ratio (0=touching, 0.9=narrow rods)
-    };    /** A sprig from the Sprig page laid onto the vase (Sher, 2026-10-28) — a
+    };    /** A sprig from the Sprig page laid onto the vase (a user, 2026-10-28) — a
      *  COPY of the design, refreshed only when the user brings it in again.
      *  engine/sprig/vase-sprig.ts. */
     sprig?: VaseSprigSettings;

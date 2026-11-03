@@ -245,7 +245,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   // than stretching its width.
   // ── Mug overlay (Split 2-Pc Phase 2) ──
   // The vase from VaseMaker, placed exactly as the Split 2-Pc mold will place
-  // this handle (same function), so Sher draws against the real mug. The view
+  // this handle (same function), so the user draws against the real mug. The view
   // opens MUG_MARGIN mm left of the wall so the body shows; points still can't
   // go there (the store clamps x ≥ 0).
   const mugInfo = useMugPlacement();
