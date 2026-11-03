@@ -2,9 +2,13 @@
  * The test runner.
  *   npm test                  quick suite: type-check the tests, then every check, in parallel
  *   npm run test:deep         quick suite + the deep checks (sweeps, tool smoke runs) + browser
- *   npm run test:browser      only tests/browser/ — needs VASEMAKER_URL (a production build on a
- *                             spare port); without it each browser test is SKIPPED
+ *   npm run test:browser      only tests/browser/
  *   npm test -- halves sprig  only the checks whose file name contains a word given
+ *
+ * Browser checks (tests/browser/; the quick suite runs only smoke*.ts) need the
+ * app running: the runner builds a copy of the working tree in the temp folder
+ * (only when its sources changed; ~10 s) and serves it on a free port
+ * (tests/lib/app.ts). VASEMAKER_URL=<url> uses a server you started instead.
  *
  * Every check is a plain script that prints PASS / FAIL / SKIPPED lines and
  * exits 0 or 1. A check fails if it exits non-zero OR prints a FAIL line, so a
@@ -16,6 +20,7 @@ import { spawn, spawnSync } from 'child_process';
 import { readdirSync, readFileSync, mkdirSync, writeFileSync, existsSync } from 'fs';
 import { cpus } from 'os';
 import { join, basename } from 'path';
+import { buildApp, serveApp } from './lib/app';
 
 const ROOT = process.cwd();
 const OUT = join(ROOT, 'test-results');
@@ -31,7 +36,8 @@ const only = args.filter((a) => !a.startsWith('--'));
 const list = (dir: string) => existsSync(join(ROOT, dir))
   ? readdirSync(join(ROOT, dir)).filter((f) => f.endsWith('.ts')).sort().map((f) => join(dir, f))
   : [];
-let files = browser ? list('tests/browser') : [...list('tests/checks'), ...(deep ? [...list('tests/deep'), ...list('tests/browser')] : [])];
+const smoke = list('tests/browser').filter((f) => basename(f).startsWith('smoke'));
+let files = browser ? list('tests/browser') : [...list('tests/checks'), ...(deep ? [...list('tests/deep'), ...list('tests/browser')] : smoke)];
 if (only.length) files = files.filter((f) => only.some((w) => basename(f).includes(w)));
 
 interface Result { name: string; rc: number; secs: number; pass: number; fail: number; skip: number; skips: string[] }
@@ -40,18 +46,26 @@ function count(out: string, word: string) {
   return out.split('\n').filter((l) => l.trimStart().startsWith(word)).length;
 }
 
+// Detached checks do not get the terminal's Ctrl-C, so pass it on.
+const running = new Set<number>();
+process.on('SIGINT', () => { for (const pid of running) try { process.kill(-pid, 'SIGKILL'); } catch { /* gone */ } process.exit(130); });
+
 function run(file: string): Promise<Result> {
   const name = basename(file, '.ts');
   const t0 = Date.now();
   return new Promise((done) => {
-    const p = spawn(TSX, ['--tsconfig', 'tsconfig.json', file], { cwd: ROOT });
+    // Its own process group, so a timeout kills tsx's node child (and any
+    // browser it started) too, not just tsx.
+    const p = spawn(TSX, ['--tsconfig', 'tsconfig.json', file], { cwd: ROOT, detached: true });
     // A check that hangs must fail, not stall the suite. The slowest takes ~45 s.
-    const timer = setTimeout(() => { out += `\nFAIL  TIMED OUT after ${TIMEOUT_S} s\n`; p.kill('SIGKILL'); }, TIMEOUT_S * 1000);
+    const timer = setTimeout(() => { out += `\nFAIL  TIMED OUT after ${TIMEOUT_S} s\n`; try { process.kill(-p.pid!, 'SIGKILL'); } catch { p.kill('SIGKILL'); } }, TIMEOUT_S * 1000);
+    running.add(p.pid!);
     let out = '';
     p.stdout.on('data', (d) => { out += d; });
     p.stderr.on('data', (d) => { out += d; });
     p.on('close', (code) => {
       clearTimeout(timer);
+      running.delete(p.pid!);
       writeFileSync(join(OUT, `${name}.log`), out);
       done({ name, rc: code ?? 1, secs: (Date.now() - t0) / 1000, pass: count(out, 'PASS'), fail: count(out, 'FAIL'), skip: count(out, 'SKIPPED'),
         skips: out.split('\n').filter((l) => l.startsWith('SKIPPED')).map((l) => `${name}: ${l.replace(/^SKIPPED\s+/, '')}`) });
@@ -70,6 +84,21 @@ async function main() {
   const typesOk = tc.status === 0;
   console.log(`${typesOk ? 'ok  ' : 'FAIL'}  typecheck (tests/)${typesOk ? '' : '\n' + tc.stdout.trim()}`);
 
+  // The browser checks share one production build of the app.
+  let stopApp = () => {};
+  if (files.some((f) => f.startsWith('tests/browser/')) && !process.env.VASEMAKER_URL) {
+    try {
+      const secs = buildApp((s) => console.log(`      ${s}`));
+      const app = await serveApp();
+      process.env.VASEMAKER_URL = app.url;
+      stopApp = app.stop;
+      console.log(`ok    app ${secs ? `built in ${secs.toFixed(0)} s, ` : 'unchanged, '}served at ${app.url}`);
+    } catch (e) {
+      console.log(`FAIL  app build — ${(e as Error).message}`);
+      process.exit(1);
+    }
+  }
+
   // Slowest first (by the last run's times), so a long check does not start last.
   const timesFile = join(OUT, 'timings.json');
   const last: Record<string, number> = existsSync(timesFile) ? JSON.parse(readFileSync(timesFile, 'utf8')) : {};
@@ -85,6 +114,7 @@ async function main() {
     }
   }));
 
+  stopApp();
   writeFileSync(timesFile, JSON.stringify({ ...last, ...Object.fromEntries(results.map((r) => [r.name, r.secs])) }, null, 1));
   const failed = results.filter((r) => r.rc !== 0 || r.fail > 0);
   const skipped = results.reduce((s, r) => s + r.skip, 0);

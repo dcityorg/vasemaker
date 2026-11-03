@@ -13,8 +13,9 @@
  */
 import { readFileSync, readdirSync } from 'fs';
 import { join, basename } from 'path';
-import { chromium, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
 import { FIXTURES, skip } from '../lib/designs';
+import { launchBrowser } from '../lib/browser';
 import { designKind, vaseFromFile, readMoldFile, moldFromSettings, handleFromFile, sprigFromFile } from '@/lib/design-files';
 
 const BASE = process.env.VASEMAKER_URL;
@@ -36,7 +37,7 @@ async function stored(page: Page, key: string) {
 
 async function main() {
   if (!BASE) { skip('browser: VASEMAKER_URL not set (start a production build on a spare port)'); console.log('\nALL PASS'); return; }
-  const browser = await chromium.launch();
+  const browser = await launchBrowser();
   const all = ['vases', 'molds', 'handles', 'sprigs'].flatMap((d) =>
     readdirSync(join(FIXTURES, d)).filter((f) => f.endsWith('.json') && !f.endsWith('.vase.json')).map((f) => join(FIXTURES, d, f)));
 
