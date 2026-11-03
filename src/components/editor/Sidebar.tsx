@@ -13,6 +13,7 @@ import { generateMesh } from '@/engine/mesh-generator';
 import { UI_MUTED } from '@/config/colors';
 import { saveDesignFile, openDesignFile, saveSTLFile } from '@/lib/image-capture';
 import { dcCountExport } from '@/lib/analytics';
+import { notAVaseMessage } from '@/lib/design-files';
 import { CAPTURE_SIZE_PRESETS, CUSTOM_SIZE_INDEX } from '@/config/capture';
 import type { CaptureFormat } from '@/config/capture';
 
@@ -113,16 +114,24 @@ export function Sidebar({
     }
   };
 
+  const applyDesignText = (text: string, name: string) => {
+    try {
+      const parsed = JSON.parse(text);
+      // A mold, handle or sprig file would otherwise load as a default vase.
+      const wrong = notAVaseMessage(parsed);
+      if (wrong) { alert(wrong); return; }
+      loadDesign(parsed, name);
+    } catch {
+      alert('Invalid design file.');
+    }
+  };
+
   const handleLoadDesign = () => {
     guardDirty(async () => {
       // Try File System Access API first (remembers directory)
       const result = await openDesignFile();
       if (result) {
-        try {
-          loadDesign(JSON.parse(result.text), result.name);
-        } catch {
-          alert('Invalid design file.');
-        }
+        applyDesignText(result.text, result.name);
         return;
       }
       // Fallback: file input (Firefox / API not available)
@@ -136,14 +145,7 @@ export function Sidebar({
     // Extract name without .json extension for reuse in Save/Export
     const baseName = file.name.replace(/\.json$/i, '');
     const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const loaded = JSON.parse(reader.result as string);
-        loadDesign(loaded, baseName);
-      } catch {
-        alert('Invalid design file.');
-      }
-    };
+    reader.onload = () => applyDesignText(reader.result as string, baseName);
     reader.readAsText(file);
     // Reset so the same file can be loaded again
     e.target.value = '';

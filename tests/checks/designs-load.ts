@@ -16,6 +16,7 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
 import { join, relative } from 'path';
 import { FIXTURES, PRIVATE_DESIGNS, skip } from '../lib/designs';
+import { notAVaseMessage } from '@/lib/design-files';
 import { kindOf, loadVase, loadMold, buildMold, loadHandle, loadSprig } from '../lib/load';
 import { solidReport, isSolid, describe } from '../lib/solid';
 import { meshesOf } from '../lib/fingerprint';
@@ -67,6 +68,10 @@ for (const file of files) {
   let parsed: Record<string, unknown>;
   try { parsed = JSON.parse(readFileSync(file, 'utf8')); } catch (e) { check(false, `${name}: not JSON (${(e as Error).message})`); continue; }
   const kind = kindOf(parsed);
+  // The Vase tab's Load Design takes vases only, and names the right tab for the rest.
+  const vaseTab = notAVaseMessage(parsed);
+  check(kind === 'vase' ? vaseTab === null : /^That file is a .* tab\.$/.test(vaseTab ?? ''),
+    `${name}: Vase tab ${kind === 'vase' ? 'loads it' : `refuses it — "${vaseTab}"`}`);
   try {
     if (kind === 'vase') {
       const v = loadVase(parsed);
@@ -97,6 +102,7 @@ for (const file of files) {
     check(false, `${name}: ${kind} THREW — ${(e as Error).stack?.split('\n').slice(0, 3).join(' | ')}`);
   }
 }
+check(notAVaseMessage({ hello: 1 }) === 'Not a vase design file.' && notAVaseMessage([1, 2]) !== null, 'control: the Vase tab refuses JSON that is no design at all');
 check(files.length > 0 || !existsSync(PRIVATE_DESIGNS), `${files.length} design files checked`);
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
 process.exit(fails ? 1 : 0);

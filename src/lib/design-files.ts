@@ -25,6 +25,19 @@ export function designKind(parsed: unknown): DesignKind {
   return 'unknown';
 }
 
+/** Why a file can't be loaded on the Vase tab, or null when it is a vase design.
+ *  Every vase file ever saved (and every OpenSCAD conversion) has `radius`. */
+export function notAVaseMessage(parsed: unknown): string | null {
+  switch (designKind(parsed)) {
+    case 'vase': return null;
+    case 'mold': return 'That file is a mold design. Load it on the Mold tab.';
+    case 'handle': return 'That file is a handle design. Load it on the Handle tab.';
+    case 'sprig': return 'That file is a sprig design. Load it on the Sprig tab.';
+    case 'mark': return 'That file is a bottom mark design. Load it on the Sprig page\'s Mark tab.';
+    default: return 'Not a vase design file.';
+  }
+}
+
 /** A vase file (Vase tab → Load Design): every setting it lacks takes its default. */
 export function vaseFromFile(raw: unknown): VaseParameters {
   return applyPreset({ parameters: (raw ?? {}) as Partial<VaseParameters> });
