@@ -87,11 +87,11 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: 'shapes',
     title: 'Shapes',
     blocks: [
-      { type: 'paragraph', text: 'The cross-section shape determines the vase\'s horizontal profile \u2014 what it looks like when viewed from above. VaseMaker includes 29 polar shapes.' },
+      { type: 'paragraph', text: 'The cross-section shape determines the vase\'s horizontal profile \u2014 what it looks like when viewed from above. VaseMaker includes 28 polar shapes.' },
       { type: 'heading', text: 'Shape Categories' },
       { type: 'keyvalue', items: [
         { key: 'Simple', value: 'Circle, Ellipse, Square (with rounding), Rectangle (with rounding), Diamond, Polygon' },
-        { key: 'Organic', value: 'Heart, Egg (2 variants), Butterfly, Cardioid (3 variants), Teardrop' },
+        { key: 'Organic', value: 'Heart, Egg, Butterfly, Cardioid (3 variants), Teardrop' },
         { key: 'Mathematical', value: 'Rose, SuperEllipse, SuperFormula, Infinity, Limacon, Folium, Astroid, Lissajous, RationalRose, Cassini Oval, Nephroid' },
         { key: 'Mechanical', value: 'Gear (up to 60 teeth), Spirograph, Cycloid, Piriform' },
       ] },
