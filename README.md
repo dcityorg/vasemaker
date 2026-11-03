@@ -66,6 +66,8 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+To run the tests, see [TESTING.md](TESTING.md).
+
 ## Tech Stack
 
 - [Next.js 14](https://nextjs.org/) (App Router, TypeScript)
