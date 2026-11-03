@@ -9,6 +9,7 @@ import type { VaseParameters, ShapeType, ShapeParams, BezierPoint, CurvePointTyp
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import type { Preset } from '@/presets';
 import { applyPreset } from '@/presets';
+import { vaseFromFile } from '@/lib/design-files';
 import { BUILT_IN_PRESETS } from '@/config/presets';
 import { recordChange, skipNextHistoryRecord, undo, redo, useHistoryStore } from './history';
 
@@ -617,7 +618,7 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
   getParams: () => get().params,
 
   loadDesign: (raw, name) => {
-    const params = applyPreset({ parameters: (raw ?? {}) as Partial<VaseParameters> });
+    const params = vaseFromFile(raw);
     skipNextHistoryRecord();
     skipNextDirtyMark();
     useHistoryStore.getState().clear();

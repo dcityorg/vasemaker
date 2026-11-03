@@ -18,7 +18,7 @@ import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib
 import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
-import { mergeHandleParameters } from '@/engine/handle/handle-types';
+import { handleFromFile } from '@/lib/design-files';
 import { measureSpine } from '@/engine/handle/spine';
 import { useMoldStore } from '@/store/mold-store';
 import { MOLD_PARAMS } from '@/config/mold-params';
@@ -169,7 +169,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
         }
         return;
       }
-      const loaded = mergeHandleParameters(parsed.settings);
+      const loaded = handleFromFile(parsed);
       handleHistory.skipNextRecord();
       useHandleHistory.getState().clear();
       useHandleStore.setState({ params: loaded, savedParams: loaded, settingsName: baseName });

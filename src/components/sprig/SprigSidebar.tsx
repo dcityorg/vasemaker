@@ -27,8 +27,9 @@ import { systemFontFound } from '@/lib/sprig-text';
 import { GRAY_INK, type SprigSource } from '@/engine/sprig/relief';
 import { translateMesh } from '@/engine/handle/mesh3';
 import { fitsBox, MIN_PLASTER_BEHIND } from '@/engine/sprig/sprig-generator';
+import { sprigFromFile } from '@/lib/design-files';
 import {
-  mergeSprigParameters, sizeLabel, SPRIG_SIZES, SIZE_MENU,
+  sizeLabel, SPRIG_SIZES, SIZE_MENU,
   type SprigParameters, type SprigHeightMode, type SprigMoldSize,
   sprigFootprint, type SprigBacking, isPictureDrawing, hasText, backingOn, drawingDefaults,
   type SprigFont, type SprigTextStyle, type SprigTextPosition,
@@ -354,7 +355,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
         }
         return;
       }
-      const merged = mergeSprigParameters(parsed.settings, design.defaults);
+      const merged = sprigFromFile(parsed, design.defaults);
       const loaded = isMark ? asMark(merged) : merged;
       sprigHistory.skipNextRecord();
       useSprigHistory.getState().clear();

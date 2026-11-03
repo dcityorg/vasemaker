@@ -11,12 +11,9 @@ import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/paramet
 import { useVaseStore } from '@/store/vase-store';
 import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME, isHandleUnnamed } from '@/store/handle-store';
 import { isVaseUnnamed } from '@/presets';
-import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { mergeHandleParameters, DEFAULT_HANDLE_PARAMETERS } from '@/engine/handle/handle-types';
 import type { HandleParameters } from '@/engine/handle/handle-types';
 import { SplitTopView } from './SplitTopView';
-import { applyPreset } from '@/presets';
-import type { VaseParameters } from '@/engine/types';
 import { MOLD_PARAMS, PLASTER_MATERIALS } from '@/config/mold-params';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import { generateSTL } from '@/engine/stl-export';
@@ -24,9 +21,10 @@ import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib
 import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport, type ReportPart } from '@/lib/print-report';
-import { mergeMoldParameters, retireMoldStyle, ACTIVE_MOLD_STYLES, moldUsesHandle, HALVES_HANDLE_OFFERED } from '@/engine/mold/mold-types';
+import { ACTIVE_MOLD_STYLES, moldUsesHandle, HALVES_HANDLE_OFFERED } from '@/engine/mold/mold-types';
+import { readMoldFile, moldFromSettings, vaseFromFile } from '@/lib/design-files';
 import { translateMesh } from '@/engine/handle/mesh3';
-import { moldWithVaseFoot, footFromMoldSettings, isLegacyFootFile, sameFoot, type FootSettings } from '@/engine/mold/vase-foot';
+import { moldWithVaseFoot, sameFoot, type FootSettings } from '@/engine/mold/vase-foot';
 import type { AnyMoldMeshes } from '@/hooks/use-mold-meshes';
 import type { MoldParameters, MoldStyle, PlasterType } from '@/engine/mold/mold-types';
 import type { VaseMesh } from '@/engine/types';
@@ -383,7 +381,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
    *  from before the foot moved to the vase — what was poured, so it wins
    *  (bottom-mark-plan.md) and goes onto the open vase. */
   const applyMoldOnly = (settings: unknown, baseName: string, legacyFoot: FootSettings | null = null) => {
-    const { params: loaded, retired } = retireMoldStyle(mergeMoldParameters(settings));
+    const { params: loaded, retired } = moldFromSettings(settings);
     let footNotice: string | null = null;
     const vb = useVaseStore.getState().params.bottom;
     if (legacyFoot && vb && !sameFoot(legacyFoot, vb)) {
@@ -462,27 +460,22 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       // A file from before the foot moved to the vase keeps its foot in the
       // mold settings: carry it into the file's vase (and, without one, onto
       // the open vase), so the bottom comes out as it was poured.
-      const legacyFoot = isLegacyFootFile(parsed.vase) ? footFromMoldSettings(parsed.settings) : null;
-      const rawVase = parsed.vase && typeof parsed.vase === 'object' ? parsed.vase : null;
-      const fileVase = rawVase && legacyFoot
-        ? { ...rawVase, bottom: { ...DEFAULT_PARAMETERS.bottom, ...legacyFoot } }
-        : rawVase;
-      const vaseDiffers = !!fileVase &&
-        JSON.stringify(applyPreset({ parameters: fileVase as Partial<VaseParameters> })) !== JSON.stringify(vaseParams);
-      const fileHandle = parsed.handle && typeof parsed.handle === 'object' ? mergeHandleParameters(parsed.handle) : null;
+      const file = readMoldFile(parsed);
+      const { legacyFoot, vase: fileVase, handle: fileHandle } = file;
+      const vaseDiffers = !!fileVase && JSON.stringify(vaseFromFile(fileVase)) !== JSON.stringify(vaseParams);
       const handleDiffers = !!fileHandle && JSON.stringify(fileHandle) !== JSON.stringify(handleParams);
       if (!vaseDiffers && !handleDiffers) {
-        applyMoldOnly(parsed.settings, baseName, legacyFoot);
+        applyMoldOnly(file.settings, baseName, legacyFoot);
         return;
       }
       setVaseChoice({
-        settings: parsed.settings,
+        settings: file.settings,
         legacyFoot,
         fileName: baseName,
         vase: vaseDiffers ? fileVase : null,
-        vaseName: typeof parsed.vaseName === 'string' ? parsed.vaseName : null,
+        vaseName: file.vaseName,
         handle: handleDiffers ? fileHandle : null,
-        handleName: typeof parsed.handleName === 'string' ? parsed.handleName : null,
+        handleName: file.handleName,
         fileHasHandle: !!fileHandle,
       });
     } catch {
