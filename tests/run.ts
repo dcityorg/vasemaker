@@ -1,7 +1,9 @@
 /**
  * The test runner.
  *   npm test                  quick suite: type-check the tests, then every check, in parallel
- *   npm run test:deep         quick suite + the deep checks (sweeps, tool smoke runs)
+ *   npm run test:deep         quick suite + the deep checks (sweeps, tool smoke runs) + browser
+ *   npm run test:browser      only tests/browser/ — needs VASEMAKER_URL (a production build on a
+ *                             spare port); without it each browser test is SKIPPED
  *   npm test -- halves sprig  only the checks whose file name contains a word given
  *
  * Every check is a plain script that prints PASS / FAIL / SKIPPED lines and
@@ -23,15 +25,16 @@ const TIMEOUT_S = 300;
 
 const args = process.argv.slice(2);
 const deep = args.includes('--deep');
+const browser = args.includes('--browser');
 const only = args.filter((a) => !a.startsWith('--'));
 
 const list = (dir: string) => existsSync(join(ROOT, dir))
   ? readdirSync(join(ROOT, dir)).filter((f) => f.endsWith('.ts')).sort().map((f) => join(dir, f))
   : [];
-let files = [...list('tests/checks'), ...(deep ? list('tests/deep') : [])];
+let files = browser ? list('tests/browser') : [...list('tests/checks'), ...(deep ? [...list('tests/deep'), ...list('tests/browser')] : [])];
 if (only.length) files = files.filter((f) => only.some((w) => basename(f).includes(w)));
 
-interface Result { name: string; rc: number; secs: number; pass: number; fail: number; skip: number }
+interface Result { name: string; rc: number; secs: number; pass: number; fail: number; skip: number; skips: string[] }
 
 function count(out: string, word: string) {
   return out.split('\n').filter((l) => l.trimStart().startsWith(word)).length;
@@ -50,7 +53,8 @@ function run(file: string): Promise<Result> {
     p.on('close', (code) => {
       clearTimeout(timer);
       writeFileSync(join(OUT, `${name}.log`), out);
-      done({ name, rc: code ?? 1, secs: (Date.now() - t0) / 1000, pass: count(out, 'PASS'), fail: count(out, 'FAIL'), skip: count(out, 'SKIPPED') });
+      done({ name, rc: code ?? 1, secs: (Date.now() - t0) / 1000, pass: count(out, 'PASS'), fail: count(out, 'FAIL'), skip: count(out, 'SKIPPED'),
+        skips: out.split('\n').filter((l) => l.startsWith('SKIPPED')).map((l) => `${name}: ${l.replace(/^SKIPPED\s+/, '')}`) });
     });
   });
 }
@@ -86,7 +90,8 @@ async function main() {
   const skipped = results.reduce((s, r) => s + r.skip, 0);
   const secs = ((Date.now() - t0) / 1000).toFixed(0);
   console.log(`\n${results.length} checks in ${secs} s: ${failed.length ? `${failed.length} FAILED (${failed.map((r) => r.name).join(', ')})` : 'all passed'}`
-    + `${typesOk ? '' : ', TYPECHECK FAILED'}${skipped ? `, ${skipped} SKIPPED (private designs not present)` : ''}`);
+    + `${typesOk ? '' : ', TYPECHECK FAILED'}${skipped ? `, ${skipped} SKIPPED:` : ''}`);
+  for (const r of results) for (const l of r.skips) console.log(`  SKIPPED  ${l}`);
   console.log(`logs: test-results/`);
   process.exit(failed.length || !typesOk ? 1 : 0);
 }

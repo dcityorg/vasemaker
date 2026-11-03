@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "tsx tests/run.ts",
-    "test:deep": "tsx tests/run.ts --deep"
+    "test:deep": "tsx tests/run.ts --deep",
+    "test:browser": "tsx tests/run.ts --browser"
   },
   "dependencies": {
     "@react-three/drei": "^9.114.3",
@@ -23,6 +24,7 @@
     "zustand": "^5.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
