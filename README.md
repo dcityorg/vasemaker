@@ -1,6 +1,6 @@
 # VaseMaker
 
-A browser-based parametric 3D vase designer. Create beautiful vases with 29 cross-section shapes, Bezier profile curves, 13 surface textures, twist, morphing, and more — then export STL files for 3D printing.
+A browser-based parametric 3D vase designer. Create beautiful vases with 28 cross-section shapes, Bezier profile curves, 13 surface textures, twist, morphing, and more — then export STL files for 3D printing.
 
 **[Use it now at vasemaker.dcity.org](https://vasemaker.dcity.org)** — no download or install required.
 
@@ -33,7 +33,7 @@ Create SVG texture patterns with our companion app **[PatternMaker](https://patt
 
 ## Features
 
-- **29 polar cross-section shapes** — Circle, Heart, SuperFormula, Gear, Cassini, and more
+- **28 polar cross-section shapes** — Circle, Heart, SuperFormula, Gear, Cassini, and more
 - **Bezier profile curve** — sculpt the vase outline with an interactive curve editor
 - **Shape morphing** — smoothly blend between two shapes from bottom to top
 - **13 surface textures** — Fluting, Voronoi, Simplex noise, Basket Weave, Stipple, SVG patterns, and more
