@@ -47,3 +47,5 @@ CLAUDE.md
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# test runner output
+test-results/
