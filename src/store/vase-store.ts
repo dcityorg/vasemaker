@@ -635,8 +635,10 @@ export function skipNextDirtyMark() { _skipNextDirty = true; }
 // design: that is what Revert to Saved goes back to.
 useVaseStore.subscribe(
   (state, prevState) => {
-    recordChange(state.params);
     if (state.params !== prevState.params) {
+      // Only a params change is a step: recording the dirty flag's own update
+      // (after an undo, say) pushed a step that wiped the redo list.
+      recordChange(state.params);
       if (_skipNextDirty) {
         _skipNextDirty = false;
         if (!state.isDirty && state.savedParams !== state.params) useVaseStore.setState({ savedParams: state.params });
