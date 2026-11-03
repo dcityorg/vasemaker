@@ -7,7 +7,8 @@
  *    setting added since it was saved;
  *  - a vase builds as one closed, outward solid;
  *  - a mold builds in its own style (a retired style in its replacement), and
- *    every part is a closed, outward solid;
+ *    every part is a closed, outward solid. An old mold file holds no vase;
+ *    `<id>.vase.json` beside `<id>.mold.json` stands in for the open vase;
  *  - a handle mold builds, every part closed and outward.
  * Sprig and mark files are checked for the merge only: building one needs its
  * picture rasterized, which takes a browser.
@@ -57,6 +58,8 @@ function solids(label: string, result: unknown) {
   check(!isSolid(solidReport(holed)), `control: one triangle removed is caught (${describe(solidReport(holed))})`);
   const flipped = m.indices.slice(); [flipped[1], flipped[2]] = [flipped[2], flipped[1]];
   check(!isSolid(solidReport({ ...m, indices: flipped })), 'control: one triangle flipped is caught');
+  const gap = holes({ ...loadVase({}), twist: undefined, radius: NaN });
+  check(gap.includes('twist') && gap.includes('radius'), `control: a setting left undefined or NaN is caught (${gap.join(', ')})`);
 }
 
 for (const file of files) {
@@ -72,7 +75,10 @@ for (const file of files) {
       const r = solidReport(generateMesh(v));
       check(isSolid(r), `${name}: vase builds a closed, outward solid (${describe(r)})`);
     } else if (kind === 'mold') {
-      const { vase, stored, mold, handle, retired } = loadMold(parsed);
+      // An old mold file holds no vase: the vase that was open beside it, if kept.
+      const sibling = file.replace(/\.mold\.json$/, '.vase.json');
+      const openVase = sibling !== file && existsSync(sibling) ? loadVase(JSON.parse(readFileSync(sibling, 'utf8'))) : undefined;
+      const { vase, stored, mold, handle, retired } = loadMold(parsed, openVase);
       const h = [...holes(stored).map((p) => `mold.${p}`), ...holes(vase).map((p) => `vase.${p}`), ...(handle ? holes(handle).map((p) => `handle.${p}`) : [])];
       check(h.length === 0, `${name}: ${(parsed.settings as { moldStyle?: string })?.moldStyle ?? '?'} mold loads${retired ? ` (retired → ${mold.moldStyle})` : ''} with every setting${h.length ? ` — missing ${h.slice(0, 5).join(', ')}` : ''}`);
       solids(`${name}: ${mold.moldStyle}`, buildMold(vase, mold, handle));
