@@ -162,7 +162,8 @@ function GreyedBox({ hint, children }: { hint: string; children: React.ReactNode
   useEffect(() => { ref.current?.setAttribute('inert', ''); }, []);
   return (
     <>
-      <div className="text-[10px] text-[var(--text-secondary)] mb-1">{hint}</div>
+      {/* Amber, like the mold notes: a grey line was easy to miss (Gary, 2026-11-04). */}
+      <div className="text-[11px] text-amber-400 mb-1">{hint}</div>
       <fieldset ref={ref} disabled aria-disabled className="border-0 p-0 m-0 min-w-0 opacity-40 pointer-events-none">
         {children}
       </fieldset>

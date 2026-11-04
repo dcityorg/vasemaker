@@ -41,6 +41,14 @@ async function main() {
   await page.waitForTimeout(800);
   check(await pageAlive(page), 'Vase: back from the Mark tab');
 
+  // Greyed settings say what to turn on or set, in amber (the mold notes' amber-400).
+  const hints = await page.locator('fieldset[disabled]').evaluateAll((fs) => fs.map((f) => {
+    const h = f.previousElementSibling as HTMLElement | null;
+    return { text: h?.textContent ?? '', color: h ? getComputedStyle(h).color : '' };
+  }));
+  const grey = hints.filter((h) => !h.text.trim() || h.color !== 'rgb(251, 191, 36)');
+  check(hints.length > 0 && grey.length === 0, `Vase: ${hints.length} greyed group(s), each with an amber line saying what to turn on${grey.length ? ` — not: ${grey.map((h) => `"${h.text}" ${h.color}`).join(', ')}` : ''}`);
+
   // A change survives a reload.
   await flip();
   const before = await storedState(page);
