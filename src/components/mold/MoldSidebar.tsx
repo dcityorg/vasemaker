@@ -956,6 +956,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           })()}
           {!isSplitAny && !isThirds && <Section title="Foot" titleColor={GROUP_COLORS.structure}>
             <VaseBottomNote where="master" />
+            {mold.style === 'pourThreePiece' && mold.floorNote && <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug">{mold.floorNote}</p>}
             {mold.style === 'pourThreePiece' && mold.markNotes.map((n) => (
               <p key={n} className="text-[11px] text-amber-400 mt-1 leading-snug">{n}</p>
             ))}
@@ -1041,6 +1042,9 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                     {mold.natches.length} natches: {mold.natches.map((n) => (2 * n.r).toFixed(0)).join(' / ')} mm.
                     {mold.natches.some((n) => n.r * 2 < params.natchDiameter - 0.05) && ' Some are smaller to fit their corner.'}
                   </p>
+                )}
+                {mold.style === 'splitHalves' && mold.natchInfo && !mold.natchNote && (
+                  <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-snug">{mold.natchInfo}</p>
                 )}
                 {mold.style === 'splitHalves' && mold.natchNote && (
                   <p className="text-[11px] text-amber-400 mt-1 leading-snug">{mold.natchNote}</p>

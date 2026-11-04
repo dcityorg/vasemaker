@@ -119,14 +119,16 @@ check(!readsF(vase(base, { footOn: false, markAngle: 180 }), false), 'C  control
 }
 
 // ── E: notes ──
-const notes = (b: Partial<BottomSettings>) => gen(vase(base, b)).markNotes;
+// The floor note is a description (shown grey), the rest warnings; checked together.
+const all = (r: ReturnType<typeof gen>) => [...(r.floorNote ? [r.floorNote] : []), ...r.markNotes];
+const notes = (b: Partial<BottomSettings>) => all(gen(vase(base, b)));
 check(notes({ footOn: true }).length === 0, 'E  a plain mark in the recess: no notes');
 check(notes({ footOn: true, markDepth: 5 }).some((n) => n.includes('floor is')) && !notes({ footOn: true, markDepth: 5 }).some((n) => n.includes('limited to')), 'E  deeper than the master wall: the floor thickens and says so, not limited');
 check(notes({ footOn: false, markStyle: 'raised' }).some((n) => n.includes('Foot is off')), 'E  raised with Foot off: warns');
 check(notes({ footOn: true, markStyle: 'raised', markDepth: 1.5 }).some((n) => n.includes('rock')), 'E  raised taller than the recess: warns it will rock');
 check(notes({ footOn: true, markSize: 300 }).some((n) => n.includes('foot ring')), 'E  too big for the recess: warns');
 setBottomMarkField(null);
-check(gen(vase(base, { footOn: true })).markNotes.length === 0, 'E  mark on but not built yet: no notes, plain bottom');
+check(all(gen(vase(base, { footOn: true }))).length === 0, 'E  mark on but not built yet: no notes, plain bottom');
 
 // ── H: a deep foot — vertical rays through the upright master's bottom ──
 function probe(v: VaseParameters): { top: number; gap: number } {
@@ -164,13 +166,13 @@ setBottomMarkField(relief);
   const p = probe(v);
   check(p.top > 6.6 && p.top < 6.75, `H  6 mm foot + 0.7 mm mark: deepest point of the bottom at ${p.top.toFixed(2)} mm (want ~6.7; the old cap gave ≤ ${(MOLD.masterWallThickness - 0.5).toFixed(1)})`);
   check(p.gap >= 0.55, `H  floor over the foot and mark: thinnest ${p.gap.toFixed(2)} mm (want ≥ 0.6)`);
-  check(gen(v).markNotes.some((n) => n.includes('floor is')), 'H  the note says the master floor was thickened');
+  check(gen(v).floorNote?.includes('floor is') === true, 'H  the note says the master floor was thickened');
   setBottomMarkField(null);
   const q = probe(vase(base, { footOn: true, footHeight: 6 }));
   check(q.top > 5.95 && q.top < 6.05 && q.gap >= 0.45, `H  6 mm foot, no mark built: bottom at ${q.top.toFixed(2)}, floor ${q.gap.toFixed(2)} mm`);
   const w = probe(vase(base, { footOn: true, footHeight: 1 }));
   check(w.gap > MOLD.masterWallThickness - 1 - 0.3, `H  control: 1 mm foot keeps the Wall-thick floor (${w.gap.toFixed(2)} mm)`);
-  check(gen(vase(base, { footOn: true, footHeight: 1 })).markNotes.length === 0, 'H  control: 1 mm foot, no floor note');
+  check(all(gen(vase(base, { footOn: true, footHeight: 1 }))).length === 0, 'H  control: 1 mm foot, no floor note');
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');

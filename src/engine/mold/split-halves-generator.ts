@@ -129,8 +129,10 @@ export interface SplitHalvesMoldMeshes {
   /** Smallest natch radius placed (Split 2-Pc's clamp note reads it). */
   natchRadius: number;
   natches: Natch[];
-  /** Why the natches are not what was asked for (count forced to 4, or too few fit). */
+  /** Too few natches fit (a warning). */
   natchNote: string | null;
+  /** Count 3 forced to 4 (a description, shown grey). */
+  natchInfo: string | null;
   /** Narrowest plaster between the handle and the rim/well, mm (null: no handle). */
   plasterGap: number | null;
   /** The same at the bottom end: to the block's bottom face, or the plug band. */
@@ -423,7 +425,7 @@ function errorResult(error: string): SplitHalvesMoldMeshes {
     style: 'splitHalves', masterL: e, masterR: e, plateL: e, plateR: e, wellWallL: e, baseWallL: e, wellWallR: e, baseWallR: e,
     masters: e, plates: e, walls: e, plaster: e, undercutFlags: new Float32Array(0), hasUndercuts: false,
     oneKit: false, plasterVolumeMm3: 0, masterStats: st, plateStats: st, wallStats: st, baseWallStats: st, natchRadius: 0,
-    natches: [], natchNote: null, plasterGap: null, plasterGapBottom: null, gapWarning: null, error,
+    natches: [], natchNote: null, natchInfo: null, plasterGap: null, plasterGapBottom: null, gapWarning: null, error,
     handle: null, handleError: null, handleWarning: null, foot: null,
     layout: { cavX0: 0, cavX1: 0, cavY0: 0, cavY1: 0, wallH: 0, seat: 0, plateThk: 0, plateW: 0, plateD: 0, masterLift: 0, plateLift: 0 },
     debug: {
@@ -805,7 +807,8 @@ export function generateSplitHalvesMold(
     return c - NATCH_EDGE;
   };
   const wantCount = oneKit ? 4 : Math.round(mold.halvesNatchCount) === 3 ? 3 : 4;
-  let natchNote: string | null = oneKit && Math.round(mold.halvesNatchCount) === 3
+  let natchNote: string | null = null;
+  const natchInfo: string | null = oneKit && Math.round(mold.halvesNatchCount) === 3
     ? 'This vase pours one plate twice, which needs a bump opposite every dimple, so it uses 4 natches.'
     : null;
   /** Best spot in [z0,z1]×[u0,u1]: coarse grid, then a fine pass round the winner. */
@@ -1221,7 +1224,7 @@ export function generateSplitHalvesMold(
     wallStats: computeMeshStats(L.wellWall),
     baseWallStats: computeMeshStats(L.baseWall),
     natchRadius: natchR,
-    natches, natchNote, plasterGap, plasterGapBottom, gapWarning,
+    natches, natchNote, natchInfo, plasterGap, plasterGapBottom, gapWarning,
     error: null,
     handle: placement && handleSweep ? { placement, sectionMm } : null,
     handleError, handleWarning,

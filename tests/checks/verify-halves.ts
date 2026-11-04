@@ -609,9 +609,9 @@ function checkKit(label: string, r: SplitHalvesMoldMeshes, mold: MoldParameters,
     }
     if (!N.some((n) => n.bump) || !N.some((n) => !n.bump)) bad ||= 'no bump/dimple pair';
     if (N.length !== want) bad ||= `${N.length} natches, expected ${want}`;
-    if (r.oneKit && Math.round(mold.halvesNatchCount) === 3 && !r.natchNote) bad ||= 'count 3 forced to 4 with no note';
+    if (r.oneKit && Math.round(mold.halvesNatchCount) === 3 && !r.natchInfo) bad ||= 'count 3 forced to 4 with no note';
     if (bad) fail(`${label}: natches — ${bad}`);
-    else pass(`${label}: ${N.length} natches, ${N.map((n) => (2 * n.r).toFixed(1)).join(' / ')} mm, all ≥ 4 mm clear of edge, pocket and each other${r.natchNote ? ` (note: ${r.natchNote})` : ''}`);
+    else pass(`${label}: ${N.length} natches, ${N.map((n) => (2 * n.r).toFixed(1)).join(' / ')} mm, all ≥ 4 mm clear of edge, pocket and each other${r.natchNote ?? r.natchInfo ? ` (note: ${r.natchNote ?? r.natchInfo})` : ''}`);
     // Corner natches sit evenly (Gary, 2026-10-16): the same distance from their
     // end (base end / counterbore mouth, or the well), the block side and the
     // vase. With 3, the lone one opposite the pair is placed differently — skip it.

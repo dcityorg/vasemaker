@@ -80,8 +80,10 @@ export interface PourThreePieceMoldMeshes {
   forcedRound: boolean;
   /** True when one printed half serves both positions — print shell A twice. */
   halvesIdentical: boolean;
-  /** What happened to the vase's mark on the master's bottom, if anything. */
+  /** What happened to the vase's mark on the master's bottom, if anything (warnings). */
   markNotes: string[];
+  /** The master's floor was thickened for a deep foot or mark (a description, shown grey). */
+  floorNote: string | null;
 }
 
 function toPrintOrientation(mesh: VaseMesh, zTop: number): void {
@@ -203,10 +205,11 @@ export function generatePourThreePieceMold(vase: VaseParameters, mold: MoldParam
   // print's mark (bottom.ts markFloorRings), size and offsets × the shrink
   // scale like the foot's outline; depth as set, like the foot's.
   const markNotes: string[] = [];
+  let floorNote: string | null = null;
   if (floorNeed > wt + 1e-6) {
     let fz = Infinity;
     for (let t = 0; t < rRes; t++) fz = Math.min(fz, cavityBody[0][t * 3 + 2]);
-    markNotes.push(`The master's floor is ${fz.toFixed(1)} mm thick here (Wall is ${wt} mm) to fit the ${footH} mm foot${markD > 0 ? ` and ${markD} mm mark` : ''}. Plaster never touches it, so it only uses more plastic.`);
+    floorNote = `The master's floor is ${fz.toFixed(1)} mm thick here (Wall is ${wt} mm) to fit the ${footH} mm foot${markD > 0 ? ` and ${markD} mm mark` : ''}. Plaster never touches it, so it only uses more plastic.`;
   }
   let markRings: Ring[] = [];
   if (pm) {
@@ -546,5 +549,6 @@ export function generatePourThreePieceMold(vase: VaseParameters, mold: MoldParam
     forcedRound,
     halvesIdentical,
     markNotes,
+    floorNote,
   };
 }
