@@ -4,6 +4,7 @@
  */
 
 import type { CaptureFormat } from '@/config/capture';
+import { askToSaveNext } from '@/components/parameters/DesignName';
 
 // Remember last file handle from any open/save operation so subsequent
 // save dialogs open in the same directory (File System Access API only).
@@ -67,6 +68,25 @@ type PickerWindow = Window & {
 };
 
 /**
+ * The native save dialog. Chrome refuses it ("Must be handling a user
+ * gesture") more than ~5 s after the click — which is every second dialog in
+ * a row once the user has chosen a folder in the first. Without this the file
+ * fell back to a plain download into Chrome's own folder, not the one just
+ * chosen (Gary, 2026-11-04). Ask for a click, then open it in that folder.
+ * Skip rejects like Cancel (AbortError).
+ */
+async function pickSaveFile(opts: { suggestedName: string } & Record<string, unknown>): Promise<FileSystemFileHandle> {
+  const w = window as unknown as PickerWindow;
+  try {
+    return await w.showSaveFilePicker(opts);
+  } catch (err) {
+    if (!(err instanceof DOMException && err.name === 'SecurityError')) throw err;
+    if (!(await askToSaveNext(opts.suggestedName))) throw new DOMException('Skipped', 'AbortError');
+    return await w.showSaveFilePicker(opts);
+  }
+}
+
+/**
  * General-purpose blob download with cleanup to avoid burst limits.
  * Used by Export STL and other non-design downloads.
  */
@@ -83,7 +103,7 @@ export async function downloadImage(blob: Blob, filename: string): Promise<void>
     try {
       const ext = filename.split('.').pop() || 'png';
       const mimeType = ext === 'jpg' ? 'image/jpeg' : 'image/png';
-      const handle = await (window as unknown as PickerWindow).showSaveFilePicker({
+      const handle = await pickSaveFile({
         suggestedName: filename,
         startIn: lastFileHandle ?? undefined,
         types: [{
@@ -117,7 +137,7 @@ export async function saveDesignFile(json: string, suggestedName: string): Promi
   if ('showSaveFilePicker' in window) {
     try {
       console.log('[SaveDesign] Using showSaveFilePicker');
-      const handle = await (window as unknown as PickerWindow).showSaveFilePicker({
+      const handle = await pickSaveFile({
         suggestedName: filename,
         startIn: lastFileHandle ?? undefined,
         types: [{
@@ -161,7 +181,7 @@ export async function saveTextFile(text: string, suggestedName: string): Promise
 
   if ('showSaveFilePicker' in window) {
     try {
-      const handle = await (window as unknown as PickerWindow).showSaveFilePicker({
+      const handle = await pickSaveFile({
         suggestedName: filename,
         startIn: lastFileHandle ?? undefined,
         types: [{ description: 'Text File', accept: { 'text/plain': ['.txt'] } }],
@@ -214,7 +234,7 @@ export async function openDesignFile(): Promise<{ name: string; text: string } |
 export async function saveSTLFile(blob: Blob, filename: string): Promise<boolean> {
   if ('showSaveFilePicker' in window) {
     try {
-      const handle = await (window as unknown as PickerWindow).showSaveFilePicker({
+      const handle = await pickSaveFile({
         suggestedName: filename,
         startIn: lastFileHandle ?? undefined,
         types: [{

@@ -86,8 +86,50 @@ export async function ensureNamed(what: string, unnamed: boolean, current: strin
   return n;
 }
 
+// ── "Save the next file" box ─────────────────────────────────────────────────
+
+interface Next { file: string; resolve: (go: boolean) => void }
+const useNext = create<{ next: Next | null }>(() => ({ next: null }));
+
+/**
+ * Chrome opens a save dialog only within about 5 s of a click, so the second
+ * of two dialogs in a row (the .txt after the .json, a handle after a vase)
+ * is refused once the user has spent longer choosing a folder in the first.
+ * This box gives them a fresh click. Resolves true for Save, false for Skip.
+ */
+export function askToSaveNext(file: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    useNext.getState().next?.resolve(false);
+    useNext.setState({ next: { file, resolve } });
+  });
+}
+
 /** Mount once per page (each sidebar renders one). */
 export function NamePromptHost() {
+  return <><NameBox /><NextBox /></>;
+}
+
+function NextBox() {
+  const next = useNext((s) => s.next);
+  if (!next) return null;
+  const close = (go: boolean) => { useNext.setState({ next: null }); next.resolve(go); };
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center" onMouseDown={() => close(false)}>
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg p-4 w-80 shadow-2xl" onMouseDown={(e) => e.stopPropagation()}>
+        <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-1">Save the next file</h2>
+        <p className="text-xs text-[var(--text-secondary)] mb-3 break-words">
+          {next.file} — its save dialog opens in the folder you just used.
+        </p>
+        <div className="flex justify-end gap-2">
+          <button onClick={() => close(false)} className="text-xs px-3 py-1 rounded border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]">Skip</button>
+          <button autoFocus onClick={() => close(true)} className="text-xs px-3 py-1 rounded bg-[var(--accent)] text-white">Save…</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NameBox() {
   const ask = useAsk((s) => s.ask);
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
