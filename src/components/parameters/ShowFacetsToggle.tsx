@@ -12,7 +12,7 @@ export function ShowFacetsToggle() {
       <Toggle label="Show Facets" checked={on} onChange={setShowFacets}
         tooltip="On: every flat triangle shows, as the printer will make it — check here that Resolution is high enough. Off: curves drawn smooth and sharp edges kept sharp; nicer to look at, but it hides the facets. Display only, the STL is the same. Remembered in this browser, on every page" />
       {!on && (
-        <p className="text-[11px] text-[var(--text-secondary)] -mt-1 mb-2 leading-snug">Facets hidden — turn on to check Resolution before printing.</p>
+        <p className="text-[11px] text-amber-400 -mt-1 mb-2 leading-snug">Facets hidden — turn on to check Resolution before printing.</p>
       )}
     </>
   );

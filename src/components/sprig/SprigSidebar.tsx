@@ -809,7 +809,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                   ? 'How high the letters stand above what is under them'
                   : 'How deep the letters sink. At least 0.4 mm of sheet is always kept under them')}
                 {params.textStyle === 'cut' && !backingOn(params) && (
-                  <p className="text-[10px] leading-snug text-[#e0a040] px-0.5 mb-1">
+                  <p className="text-[11px] leading-snug text-amber-400 px-0.5 mb-1">
                     Cut In letters sink into a backing sheet. Turn on Plaque or Outline under Backing.
                   </p>
                 )}
