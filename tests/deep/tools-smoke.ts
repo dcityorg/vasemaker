@@ -6,7 +6,7 @@
  * non-blank picture; no tool may print NaN.
  */
 import { spawnSync } from 'child_process';
-import { readFileSync, mkdirSync } from 'fs';
+import { readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 let fails = 0;
@@ -30,10 +30,25 @@ const tools: [string, string[], string | null][] = [
   ['probe-fins', ['-', join(OUT, 'smoke-probe-fins.ppm')], join(OUT, 'smoke-probe-fins.ppm')],
   ['probe-seam', [], null],
 ];
+// A stale tool can HANG rather than fail (NaN geometry looped render-master
+// forever), so each gets 30 s; they take 1–3. One node process with tsx as a
+// loader, not the tsx command: that runs the tool in a CHILD node that the
+// timeout's kill never reaches and that ignores SIGTERM, so a hung tool spun
+// at 100 % CPU for 2½ days after its test had ended (2026-11-05).
+const runTool = (file: string, args: string[], timeout = 30_000) =>
+  spawnSync(process.execPath, ['--import', 'tsx', file, ...args], { encoding: 'utf8', timeout, killSignal: 'SIGKILL' });
+
+{
+  const spin = join(OUT, 'smoke-spin.ts');
+  writeFileSync(spin, 'for (;;) { /* a hung tool */ }\n');
+  const r = runTool(spin, [], 2000);
+  const left = spawnSync('ps', ['-ax', '-o', 'pid=,command='], { encoding: 'utf8' }).stdout.split('\n').filter((l) => l.includes(spin));
+  check(!!r.error && left.length === 0, `a hung tool is stopped at its timeout and leaves no process behind${left.length ? ` — still running: ${left.join(' | ')}` : ''}`);
+  for (const l of left) try { process.kill(Number(l.trim().split(' ')[0]), 'SIGKILL'); } catch { /* gone */ }
+}
+
 for (const [name, args, picture] of tools) {
-  // A stale tool can HANG rather than fail (NaN geometry looped render-master
-  // forever), so each gets 30 s; they take 1–3.
-  const r = spawnSync(join(process.cwd(), 'node_modules/.bin/tsx'), ['--tsconfig', 'tsconfig.json', `tests/tools/${name}.ts`, ...args], { encoding: 'utf8', timeout: 30_000, killSignal: 'SIGKILL' });
+  const r = runTool(`tests/tools/${name}.ts`, args);
   const out = (r.stdout ?? '') + (r.stderr ?? '');
   const why = r.error ? `TIMED OUT after 30 s` : `exit ${r.status}: ${out.trim().split('\n').slice(-2).join(' | ')}`;
   check(r.status === 0, `${name}: runs on the default design${r.status === 0 ? '' : ` — ${why}`}`);
