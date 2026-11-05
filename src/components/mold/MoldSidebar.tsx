@@ -315,7 +315,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   const runSaveAll = async (choice: { vase: boolean; handle: boolean }) => {
     setSaveAll(null);
     if (choice.vase && !(await saveCurrentVase())) return;
-    if (choice.handle && !(await saveCurrentHandle())) return;
+    if (choice.handle && !(await saveCurrentHandle(!!choice.vase))) return;
     await saveMoldFiles();
   };
 
@@ -411,12 +411,12 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
 
   /** Save the CURRENT handle as a handle settings file (the HandleMaker
    *  format, without its bench sheet) before it is replaced. */
-  const saveCurrentHandle = async (): Promise<boolean> => {
+  const saveCurrentHandle = async (afterVase: boolean): Promise<boolean> => {
     const json = JSON.stringify({ app: 'VaseMaker', type: 'handle-settings', settings: handleParams }, null, 2);
     const hn = useHandleStore.getState().settingsName;
     const name = await ensureNamed('Handle', isHandleUnnamed(hn), hn, (n) => useHandleStore.getState().setSettingsName(n));
     if (!name) return false;
-    const chosen = await saveDesignFile(json, name);
+    const chosen = await saveDesignFile(json, name, afterVase);
     if (chosen === null) return false;
     useHandleStore.getState().markSaved(handleParams, chosen);
     return true;
@@ -1415,7 +1415,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                   onClick={async () => {
                     // One save dialog per unsaved design; cancelling either stops the load.
                     if (unsavedVase && !(await saveCurrentVase())) return;
-                    if (unsavedHandle && !(await saveCurrentHandle())) return;
+                    if (unsavedHandle && !(await saveCurrentHandle(!!unsavedVase))) return;
                     takeFileVase(c);
                   }}
                   className="flex-1 px-3 py-1.5 text-xs bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded transition-colors"

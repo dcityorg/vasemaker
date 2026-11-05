@@ -118,7 +118,7 @@ function NextBox() {
       <div className="bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg p-4 w-80 shadow-2xl" onMouseDown={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-1">Save the next file</h2>
         <p className="text-xs text-[var(--text-secondary)] mb-3 break-words">
-          {next.file} — its save dialog opens in the folder you just used.
+          {next.file} — once the first file is saved, click Save… and its dialog opens in the same folder.
         </p>
         <div className="flex justify-end gap-2">
           <button onClick={() => close(false)} className="text-xs px-3 py-1 rounded border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]">Skip</button>

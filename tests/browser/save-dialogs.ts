@@ -10,6 +10,11 @@
  * click, as Chrome does, and takes 6 s over the .json (the user choosing a
  * folder). Checked: the "Save the next file" box appears, its Save… opens the
  * .txt dialog in the .json's folder, and nothing goes to plain downloads.
+ *
+ * Brave has no save dialog API: both files are downloads, and Brave asks
+ * where to put each. The .txt's download used to start at once, before the
+ * user had chosen a folder for the .json, so it opened in last time's folder
+ * (Gary, 2026-11-04). Checked: the .txt waits for the box's Save….
  */
 import { join } from 'path';
 import { type Browser } from '@playwright/test';
@@ -67,10 +72,39 @@ async function testPage(browser: Browser, route: string): Promise<string[]> {
   return lines;
 }
 
+/** Brave and Firefox: no showSaveFilePicker, so both files are downloads. */
+async function testNoPicker(browser: Browser, route: string): Promise<string[]> {
+  const lines: string[] = [];
+  const check = (ok: boolean, msg: string) => lines.push(`${ok ? 'PASS' : 'FAIL'}  ${msg}`);
+  const { context, page, errors, alerts } = await openWatched(browser);
+  const at = `${route.slice(1, 2).toUpperCase() + route.slice(2)} (no picker)`;
+  await context.addInitScript(() => { delete (window as unknown as Record<string, unknown>).showSaveFilePicker; });
+  const downloads: string[] = [];
+  page.on('download', (d) => downloads.push(d.suggestedFilename()));
+
+  await page.goto(BASE + route, { waitUntil: 'networkidle' });
+  await loadFile(page, join(FIXTURES, DESIGN[route]));
+  await page.getByRole('button', { name: 'Save Design', exact: true }).click();
+  const box = page.getByRole('heading', { name: 'Save the next file' });
+  const shown = await box.waitFor({ timeout: 5000 }).then(() => true, () => false);
+  await page.waitForTimeout(1000);
+  const before = [...downloads];
+  check(shown, `${at}: the "Save the next file" box appears after the .json`);
+  check(before.length === 1 && before[0].endsWith('.json'),
+    `${at}: only the .json downloads before Save… is clicked (got ${before.join(', ') || 'nothing'})`);
+  if (shown) await page.getByRole('button', { name: 'Save…' }).click();
+  await page.waitForTimeout(1000);
+  check(downloads.length === 2 && downloads[1].endsWith('.txt'), `${at}: Save… downloads the .txt (got ${downloads.join(', ')})`);
+  check(errors.length === 0 && alerts.length === 0, `${at}: no page errors or alerts${errors.length + alerts.length ? ` — ${[...errors, ...alerts].slice(0, 3).join(' | ')}` : ''}`);
+  await context.close();
+  return lines;
+}
+
 async function main() {
   if (!BASE) { skip('browser: no app to test (run it through npm test, or set VASEMAKER_URL)'); console.log('\nALL PASS'); return; }
   const browser = await launchBrowser();
-  const results = await Promise.all(Object.keys(DESIGN).map((route) => testPage(browser, route).catch((e: Error) =>
+  const runs = Object.keys(DESIGN).flatMap((route) => [[testPage, route], [testNoPicker, route]] as const);
+  const results = await Promise.all(runs.map(([test, route]) => test(browser, route).catch((e: Error) =>
     [`FAIL  ${route}: THREW ${e.message.split('\n')[0]}`])));
   const lines = results.flat();
   for (const l of lines) console.log(l);

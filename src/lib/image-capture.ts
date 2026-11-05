@@ -87,6 +87,20 @@ async function pickSaveFile(opts: { suggestedName: string } & Record<string, unk
 }
 
 /**
+ * A download that follows another (the .txt after its .json) on a browser
+ * with no save dialog API — Brave, Firefox. Brave asks where to put each
+ * download, but the second one's folder was settled before the user had
+ * picked one for the first, so it opened in the folder used last time (Gary,
+ * 2026-11-04). Wait for a click, made once the first file is saved.
+ * Returns false on Skip.
+ */
+async function downloadAfterAnother(blob: Blob, filename: string): Promise<boolean> {
+  if (!(await askToSaveNext(filename))) return false;
+  anchorDownload(blob, filename);
+  return true;
+}
+
+/**
  * General-purpose blob download with cleanup to avoid burst limits.
  * Used by Export STL and other non-design downloads.
  */
@@ -130,7 +144,7 @@ export async function downloadImage(blob: Blob, filename: string): Promise<void>
  * so the UI can update the design name if the user renamed it in the dialog.
  * Returns null if the user cancelled.
  */
-export async function saveDesignFile(json: string, suggestedName: string): Promise<string | null> {
+export async function saveDesignFile(json: string, suggestedName: string, afterAnother = false): Promise<string | null> {
   const blob = new Blob([json], { type: 'application/json' });
   const filename = `${suggestedName}.json`;
 
@@ -164,6 +178,7 @@ export async function saveDesignFile(json: string, suggestedName: string): Promi
   }
 
   // Fallback: anchor click — name stays as suggested
+  if (afterAnother) return (await downloadAfterAnother(blob, filename)) ? suggestedName : null;
   anchorDownload(blob, filename);
   return suggestedName;
 }
@@ -173,7 +188,7 @@ export async function saveDesignFile(json: string, suggestedName: string): Promi
  * directory as the last save, with the name pre-filled, so it lands beside the
  * JSON — the File System Access API gives no way to reach a handle's parent
  * directory, so a second dialog is the only way to place it there. On browsers
- * without the picker (Brave, Firefox) both files just go to Downloads.
+ * without the picker (Brave, Firefox) it is a download, after a click.
  */
 export async function saveTextFile(text: string, suggestedName: string): Promise<void> {
   const blob = new Blob([text], { type: 'text/plain' });
@@ -196,7 +211,7 @@ export async function saveTextFile(text: string, suggestedName: string): Promise
       console.warn('[SaveText] showSaveFilePicker failed, falling back to anchor:', err);
     }
   }
-  anchorDownload(blob, filename);
+  await downloadAfterAnother(blob, filename);
 }
 
 /**
