@@ -12,6 +12,7 @@ import { CAMERA, ORBIT_CONTROLS, LIGHTING } from '@/config/viewport';
 import { useVaseStore } from '@/store/vase-store';
 import type { CaptureFormat } from '@/config/capture';
 import { RememberCamera } from '@/components/viewport/RememberCamera';
+import { useSeamsView } from '@/store/view-prefs';
 import { VasePageExtras, MugNotes, useVaseExtras } from '@/components/viewport/OnVase';
 
 interface ViewportProps {
@@ -41,7 +42,8 @@ export function Viewport({
   const radius = useVaseStore((s) => s.params.radius);
   const height = useVaseStore((s) => s.params.height);
   const containerRef = useRef<HTMLDivElement>(null);
-  const extras = useVaseExtras((s) => s.showHandle || s.showSprig);
+  const seams = useSeamsView();
+  const extras = useVaseExtras((s) => s.showHandle || s.showSprig) || seams !== 'off';
 
   // Frame rect reported by CaptureOverlay — used by CaptureRenderer for cropping
   const [frameInfo, setFrameInfo] = useState({

@@ -95,3 +95,39 @@ export function useSprigColors(): SprigColors {
   const background = useSprigColorStore((s) => s.background);
   return { sprig, background };
 }
+
+/**
+ * Seam lines (Gary, 2026-11-09): where a Split Halves or Split Thirds mold
+ * cuts the vase, drawn on the Vase page and the Sprig page's On Vase view, so
+ * a sprig can be placed on a piece's centre or across a seam. Shared by both
+ * pages, remembered in this browser, never in a design file.
+ */
+export type SeamsView = 'off' | 'halves' | 'thirds';
+const SEAMS_KEY = 'vasemaker-show-seams';
+export const useSeamsStore = create<{ seams: SeamsView }>(() => ({ seams: 'off' }));
+
+const readSeams = (v: string | null): SeamsView => (v === 'halves' || v === 'thirds' ? v : 'off');
+
+export function setSeamsView(v: SeamsView): void {
+  useSeamsStore.setState({ seams: v });
+  try {
+    if (v === 'off') window.localStorage.removeItem(SEAMS_KEY);
+    else window.localStorage.setItem(SEAMS_KEY, v);
+  } catch { /* this session only */ }
+}
+
+let seamsHydrated = false;
+function hydrateSeams(): void {
+  if (seamsHydrated || typeof window === 'undefined') return;
+  seamsHydrated = true;
+  try { useSeamsStore.setState({ seams: readSeams(window.localStorage.getItem(SEAMS_KEY)) }); } catch { /* off */ }
+  window.addEventListener('storage', (e) => {
+    if (e.key === SEAMS_KEY) useSeamsStore.setState({ seams: readSeams(e.newValue) });
+  });
+}
+
+/** Which seams to show, from any component (hydrates on first use). */
+export function useSeamsView(): SeamsView {
+  useEffect(hydrateSeams, []);
+  return useSeamsStore((s) => s.seams);
+}

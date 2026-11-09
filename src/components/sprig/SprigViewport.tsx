@@ -3,7 +3,7 @@
 import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { partGeometry } from '@/components/viewport/crease';
-import { useShowFacets, useSprigColors } from '@/store/view-prefs';
+import { useShowFacets, useSprigColors, useSeamsView } from '@/store/view-prefs';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, GizmoHelper, GizmoViewcube } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -75,8 +75,9 @@ export function SprigViewport({ sprig }: { sprig: SprigMoldMeshes | null }) {
   const onVase = useSprigStore((s) => s.view.onVase);
   const showHandle = useSprigStore((s) => s.params.onVaseHandle);
   const flat = useShowFacets();
+  const seams = useSeamsView();
   return onVase && design.kind === 'sprig'
-    ? <OnVaseView sprig={sprig} showHandle={showHandle} cameraId="sprig-vase" flat={flat} />
+    ? <OnVaseView sprig={sprig} showHandle={showHandle} cameraId="sprig-vase" flat={flat} seams={seams} />
     : <MoldView sprig={sprig} />;
 }
 

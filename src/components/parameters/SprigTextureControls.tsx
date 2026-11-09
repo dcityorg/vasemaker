@@ -16,6 +16,7 @@ import { useMeshStatsStore } from '@/store/mesh-stats-store';
 import { useSprigStore, hydrateSprigSettingsFromStorage } from '@/store/sprig-store';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { SliderRow, Toggle } from './ui';
+import { SeamSnap } from './SeamControls';
 
 /** The Sprig page opens on this tab (SprigEditor). */
 const SPRIG_TAB_KEY = 'vasemaker-sprig-tab';
@@ -88,6 +89,7 @@ export function SprigTextureControls() {
             tooltip="Where its centre sits, as a % of the vase's height" />
           <SliderRow label="Around" value={s.angle} min={-180} max={180} step={1} suffix="°" onChange={(v) => set({ angle: v })}
             tooltip="Where round the vase it sits (the same angle as the Sprig page's On Vase view)" />
+          <SeamSnap angle={s.angle} onSnap={(v) => set({ angle: v })} />
           <SliderRow label="Tilt" value={s.tilt} min={-180} max={180} step={1} suffix="°" onChange={(v) => set({ tilt: v })}
             tooltip="Turn it, clockwise as seen from outside" />
           <SliderRow label="Copies" value={s.copies} min={1} max={12} step={1} onChange={(v) => set({ copies: v })}

@@ -55,7 +55,8 @@ export function CaptureRenderer({
         if (
           obj.name === '__capture_rulers' ||
           obj.name === '__capture_labels' ||
-          obj.name === '__capture_gizmo'
+          obj.name === '__capture_gizmo' ||
+          obj.name === '__capture_seams'
         ) {
           if (obj.visible) {
             hiddenGroups.push(obj);

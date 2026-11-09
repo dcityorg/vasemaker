@@ -205,10 +205,11 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
     id: 'sprig-onvase',
     title: 'Seeing It on the Vase',
     blocks: [
-      { type: 'paragraph', text: 'View → ON VASE shows the sprig on the vase that is open in VaseMaker (change the vase there). It is a preview for size and placement; nothing here changes the mold. The placement set here is the one HandleMaker (View → On Vase → Show Sprig) and VaseMaker (Appearance → Show Sprig) show too.' },
+      { type: 'paragraph', text: 'View → ON VASE shows the sprig on the vase that is open in VaseMaker (change the vase there). It is a preview for size and placement; nothing here changes the mold. The placement set here is the one HandleMaker (View → On Vase → Show Sprig) and VaseMaker (View → Display → Show Sprig) show too.' },
       { type: 'keyvalue', items: [
         { key: 'Height', value: 'Where the sprig\'s centre sits, as a % of the vase\'s height.' },
         { key: 'Around', value: 'Where round the vase it sits. ⌂ turns the view to face it.' },
+        { key: 'Seams', value: 'Lines where a Split Halves or Split Thirds mold divides the vase: solid for each seam, dashed for the middle of each piece, at the angle set for that style on the Mold page. A sprig comes out of those molds clean in the middle of a piece or right across a seam, and locks in between. With Seams on, Centre on a piece and On a seam (under Around) move the sprig to the nearest of each. The same choice shows on the Vase page.' },
         { key: 'Tilt', value: 'Turns the sprig on the wall, clockwise as you look at it.' },
         { key: 'Repeat', value: 'Copies spaced evenly round the vase. A note appears if they would overlap.' },
         { key: 'Show Handle', value: 'Puts the HandleMaker handle on the vase, so sprigs can be placed beside it. Its height is HandleMaker\'s Top Below Rim — one handle position for every page.' },

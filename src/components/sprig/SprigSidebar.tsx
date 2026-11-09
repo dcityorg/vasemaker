@@ -3,7 +3,8 @@ import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Section, SliderRow, Toggle, GroupHeader, ResetRow, RevertResetRow, ToggleAllSectionsButton, useRememberedScroll, Greyed } from '@/components/parameters/ui';
-import { setShowFacets, useSprigColors, setSprigColors, DEFAULT_SPRIG_COLOR, DEFAULT_SPRIG_BACKGROUND } from '@/store/view-prefs';
+import { setShowFacets, useSprigColors, setSprigColors, DEFAULT_SPRIG_COLOR, DEFAULT_SPRIG_BACKGROUND, setSeamsView } from '@/store/view-prefs';
+import { SeamsSelect, SeamSnap } from '@/components/parameters/SeamControls';
 import { asMark, DEFAULT_VIEW } from '@/store/sprig-store';
 import { useSprigDesign } from './sprig-design-context';
 import { SprigAdjust, KeptNote } from './SprigAdjust';
@@ -624,7 +625,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           {/* View */}
           <GroupHeader label="View" color={GROUP_COLORS.settings} />
           <Section title="Display" titleColor={GROUP_COLORS.settings} tooltip="How the preview looks. Nothing here changes what you print">
-          <ResetRow title="The Display switches back to their defaults (stays in this view; the On Vase placement has its own Reset)" onClick={() => { setView({ ...DEFAULT_VIEW, onVase: view.onVase }); setShowFacets(true); setSprigColors({ sprig: DEFAULT_SPRIG_COLOR, background: DEFAULT_SPRIG_BACKGROUND }); }} />
+          <ResetRow title="The Display switches back to their defaults (stays in this view; the On Vase placement has its own Reset)" onClick={() => { setView({ ...DEFAULT_VIEW, onVase: view.onVase }); setShowFacets(true); setSprigColors({ sprig: DEFAULT_SPRIG_COLOR, background: DEFAULT_SPRIG_BACKGROUND }); setSeamsView('off'); }} />
           {!isMark && <div className="grid grid-cols-2 gap-1 mb-2">
             {([[false, 'Mold', 'The plate, walls and plaster you print and pour'], [true, 'On Vase', 'The sprig laid onto your current VaseMaker vase, to judge size and placement']] as const).map(([on, label, tip]) => (
               <button key={label} onClick={() => setView({ onVase: on })} title={tip}
@@ -654,7 +655,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                   <ShowFacetsToggle />
                   <Toggle label="Thin Parts" checked={view.showThin} onChange={(v) => setView({ showThin: v })} tooltip="Paint parts narrower than Min Feature Width red" />
                 </>
-              ) : <ShowFacetsToggle />}
+              ) : <><ShowFacetsToggle /><SeamsSelect /></>}
               {/* In the Mold view the placement stays in view, greyed (Gary, 2026-11-01). */}
               <Greyed off={!view.onVase} hint="Switch to On Vase view to change these">
                 <div className="flex items-center justify-between mt-2 mb-1">
@@ -666,6 +667,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                 </p>
                 {sl('onVaseHeight', 'Height', '%', 'Height of the sprig\'s centre on the vase, as a % of the vase\'s height')}
                 {sl('onVaseAngle', 'Around', '°', 'Where round the vase the sprig sits')}
+                <SeamSnap angle={params.onVaseAngle} onSnap={(v) => setParam('onVaseAngle', v)} />
                 {sl('onVaseTilt', 'Tilt', '°', 'Turn the sprig on the vase wall, clockwise (+) as you look at it')}
                 {sl('onVaseCopies', 'Repeat', '', 'Copies spaced evenly round the vase')}
                 <Toggle label="Show Handle" checked={params.onVaseHandle} onChange={(v) => setParam('onVaseHandle', v)}

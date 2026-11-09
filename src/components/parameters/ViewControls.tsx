@@ -13,8 +13,9 @@ import { APPEARANCE, PRINT_CHECK } from '@/config/shape-params';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import { GROUP_COLORS } from '@/config/colors';
 import { SliderRow, GroupHeader, Section, Toggle, ResetRow, Greyed } from './ui';
-import { setShowFacets } from '@/store/view-prefs';
+import { setShowFacets, setSeamsView } from '@/store/view-prefs';
 import { ShowFacetsToggle } from './ShowFacetsToggle';
+import { SeamsSelect } from './SeamControls';
 import { useVaseExtras, useSprigTextureOn } from '@/components/viewport/OnVase';
 
 export function ViewControls() {
@@ -34,6 +35,7 @@ export function ViewControls() {
         setShowFacets(true);
         setPrintCheck({ showOverhangs: DEFAULT_PARAMETERS.printCheck.showOverhangs, overhangAngle: DEFAULT_PARAMETERS.printCheck.overhangAngle });
         setShowRulers(false);
+        setSeamsView('off');
       }} />
       <Toggle label="Show Handle" checked={extras.showHandle} onChange={(v) => useVaseExtras.setState({ showHandle: v })}
         tooltip="The handle from HandleMaker on the vase, placed the way the mold puts it (its height is HandleMaker's Top Below Rim)" />
@@ -43,6 +45,7 @@ export function ViewControls() {
         <Toggle label="Show Sprig" checked={extras.showSprig} onChange={(v) => useVaseExtras.setState({ showSprig: v })}
           tooltip="Preview the SprigMaker sprig where it will be attached (placed on the Sprig page, View → On Vase). It is not part of the vase or its STL; to build it into the vase, use Textures → Sprig" />
       )}
+      <SeamsSelect />
       <div className="flex items-center gap-3 mb-2">
         <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Preview colour of the vase. Saved with the design">Color</label>
         <input

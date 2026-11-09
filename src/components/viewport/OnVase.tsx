@@ -14,9 +14,9 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { creasedGeometry } from './crease';
-import { useShowFacets } from '@/store/view-prefs';
+import { useShowFacets, useSeamsView, type SeamsView } from '@/store/view-prefs';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, Line } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { create } from 'zustand';
 import { GroundGrid } from '@/components/viewport/SceneHelpers';
@@ -30,6 +30,8 @@ import { useMoldStore } from '@/store/mold-store';
 import { useSprigStore } from '@/store/sprig-store';
 import { buildVaseSurface, wrapSprig, handleOnVase } from '@/engine/sprig/on-vase';
 import type { VaseMesh } from '@/engine/types';
+import { seamAngles, pieceCentreAngles, seamLinesOnVase, type SeamMold } from '@/engine/mold/seams';
+import { useSeamAngle } from '@/hooks/use-seam-angle';
 import type { SprigMoldMeshes } from '@/engine/sprig/sprig-generator';
 
 export const SPRIG_COLOR = '#d98a4a';
@@ -52,10 +54,37 @@ export function VasePageExtras() {
   const textureOn = useSprigTextureOn();
   const showSprig = wantSprig && !textureOn;
   const flat = useShowFacets();
+  const seams = useSeamsView();
   const vaseMesh = useVaseMesh();
   return showSprig
-    ? <SprigSource>{(sprig) => <MugExtras vaseMesh={vaseMesh} sprig={sprig} showHandle={showHandle} flat={flat} />}</SprigSource>
-    : <MugExtras vaseMesh={vaseMesh} sprig={null} showHandle={showHandle} flat={flat} />;
+    ? <SprigSource>{(sprig) => <MugExtras vaseMesh={vaseMesh} sprig={sprig} showHandle={showHandle} flat={flat} seams={seams} />}</SprigSource>
+    : <MugExtras vaseMesh={vaseMesh} sprig={null} showHandle={showHandle} flat={flat} seams={seams} />;
+}
+
+export const SEAM_COLOR = '#38bdf8';
+
+/**
+ * A split mold's seams as solid lines up the vase, and each piece's centre
+ * dashed (Gary, 2026-11-09), at the Seam Angle that style was given on the
+ * Mold page. `vaseMesh` is only a rebuild trigger, as in MugExtras.
+ */
+function SeamLines({ mold, vaseMesh }: { mold: SeamMold; vaseMesh: VaseMesh }) {
+  const vase = useVaseStore((s) => s.params);
+  const angle = useSeamAngle(mold);
+  const lines = useMemo(() => {
+    void vaseMesh;
+    const seams = seamAngles(mold, angle), centres = pieceCentreAngles(mold, angle);
+    const all = seamLinesOnVase(vase, [...seams, ...centres], 0.4);
+    return { seams: all.slice(0, seams.length), centres: all.slice(seams.length) };
+  }, [vase, vaseMesh, mold, angle]);
+  return (
+    <group name="__capture_seams">{/* a guide: left out of Capture Image, like the rulers */}
+      {lines.seams.map((pts, i) => pts.length > 1 && <Line key={`s${i}`} points={pts} color={SEAM_COLOR} lineWidth={2.5} />)}
+      {lines.centres.map((pts, i) => pts.length > 1 && (
+        <Line key={`c${i}`} points={pts} color={SEAM_COLOR} lineWidth={1.5} dashed dashSize={3} gapSize={2.5} transparent opacity={0.7} />
+      ))}
+    </group>
+  );
 }
 
 /** Notes about what is shown (off the vase, overlap, the handle will not fit). */
@@ -97,8 +126,8 @@ function Solid({ geometry, color, flat }: { geometry: THREE.BufferGeometry; colo
  * trigger: it changes when an SVG texture finishes loading, which the drape
  * needs too.
  */
-export function MugExtras({ vaseMesh, sprig, showHandle, flat }: {
-  vaseMesh: VaseMesh; sprig: SprigMoldMeshes | null; showHandle: boolean; flat: boolean;
+export function MugExtras({ vaseMesh, sprig, showHandle, flat, seams = 'off' }: {
+  vaseMesh: VaseMesh; sprig: SprigMoldMeshes | null; showHandle: boolean; flat: boolean; seams?: SeamsView;
 }) {
   const vase = useVaseStore((s) => s.params);
   const handleParams = useHandleStore((s) => s.params);
@@ -133,6 +162,7 @@ export function MugExtras({ vaseMesh, sprig, showHandle, flat }: {
     <>
       {sprigGeo && <Solid geometry={sprigGeo} color={SPRIG_COLOR} flat={flat} />}
       {handleGeo && <Solid geometry={handleGeo} color={vase.color} flat={flat} />}
+      {seams !== 'off' && <SeamLines mold={seams} vaseMesh={vaseMesh} />}
     </>
   );
 }
@@ -161,8 +191,8 @@ export function MugNotes() {
  * remembered camera (`cameraId`), and ⌂ to face the sprig (or, with no
  * sprig, the mug side-on with the handle to the right).
  */
-export function OnVaseView({ sprig, showHandle, cameraId, flat }: {
-  sprig: SprigMoldMeshes | null; showHandle: boolean; cameraId: string; flat: boolean;
+export function OnVaseView({ sprig, showHandle, cameraId, flat, seams = 'off' }: {
+  sprig: SprigMoldMeshes | null; showHandle: boolean; cameraId: string; flat: boolean; seams?: SeamsView;
 }) {
   const vase = useVaseStore((s) => s.params);
   const sprigAngle = useSprigStore((s) => s.params.onVaseAngle);
@@ -208,7 +238,7 @@ export function OnVaseView({ sprig, showHandle, cameraId, flat }: {
         <directionalLight position={LIGHTING.back.position} intensity={LIGHTING.back.intensity} />
         <GroundGrid radius={reach + 30} height={reach + 30} />
         {vaseGeo && <Solid geometry={vaseGeo} color={vase.color} flat={flat} />}
-        <MugExtras vaseMesh={vaseMesh} sprig={sprig} showHandle={showHandle} flat={flat} />
+        <MugExtras vaseMesh={vaseMesh} sprig={sprig} showHandle={showHandle} flat={flat} seams={seams} />
         <OrbitControls ref={controlsRef} makeDefault enableDamping dampingFactor={0.1} target={target} minDistance={20} maxDistance={4000} />
         <RememberCamera id={cameraId} />
       </Canvas>
