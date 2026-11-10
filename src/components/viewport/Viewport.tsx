@@ -20,6 +20,11 @@ import { useSprigStore } from '@/store/sprig-store';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
+const HOME_DIR = (() => {
+  const [x, y, z] = CAMERA.position, [, , tz] = CAMERA.target;
+  return new THREE.Vector3(0, -Math.hypot(x, y), z - tz);
+})();
+
 interface ViewportProps {
   captureActive?: boolean;
   captureRequested?: boolean;
@@ -61,7 +66,9 @@ export function Viewport({
   const onVaseHeight = useSprigStore((s) => s.params.onVaseHeight);
   const buttons = useVaseViewButtons({
     controls: controlsRef,
-    home: { dir: new THREE.Vector3(...CAMERA.position).sub(new THREE.Vector3(...CAMERA.target)), target: [...CAMERA.target] },
+    // Home is straight on from the front (−y, the cube's Front), tilted down as
+    // much as the starting view so the top shows a little (Gary, 2026-11-09).
+    home: { dir: HOME_DIR, target: [...CAMERA.target], title: 'Home: the vase from the front, a little above (keeps your zoom)' },
     height,
     handle: showHandle ? handleAngle : null,
     sprig: textureOn && texSprig ? { angle: texSprig.angle, heightPct: texSprig.heightPct }

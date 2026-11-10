@@ -108,7 +108,7 @@ export function ViewButtons({ buttons }: { buttons: ViewButton[] }) {
  */
 export function useVaseViewButtons({ controls, home, height, handle, sprig, seams }: {
   controls: RefObject<OrbitControlsImpl | null>;
-  home: { dir: THREE.Vector3; target: [number, number, number] };
+  home: { dir: THREE.Vector3; target: [number, number, number]; title?: string };
   height: number;
   handle: number | null;
   sprig: { angle: number; heightPct: number } | null;
@@ -118,7 +118,7 @@ export function useVaseViewButtons({ controls, home, height, handle, sprig, seam
   const seamAngle = useSeamAngle(seams === 'off' ? 'halves' : seams);
   const middle: [number, number, number] = [0, 0, height / 2];
   const b: ViewButton[] = [
-    { label: 'Home', title: 'Home: back to the starting view (keeps your zoom)', onClick: () => snapCamera(controls.current, home.dir, home.target) },
+    { label: 'Home', title: home.title ?? 'Home: back to the starting view (keeps your zoom)', onClick: () => snapCamera(controls.current, home.dir, home.target) },
   ];
   if (handle !== null) b.push({
     label: 'Handle', title: 'Look at the handle in profile, sticking out to the right (keeps your zoom)',

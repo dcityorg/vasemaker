@@ -6,7 +6,7 @@
  *    clockwise of the handle (Mold page Seam Angle 30° → bearing -60°), so it
  *    sticks out to the right; Sprig is level with the sprig at its Around and
  *    Height; Seam goes to the nearest Thirds seam, then the next one round;
- *    Home goes back to the page's starting direction and target;
+ *    Home looks from the front (−y), tilted down as the starting view, at its target;
  *  - the cube: clicked from the Sprig view (bearing -150°) it squares the view
  *    to the nearest face, Left (-x);
  *  - Sprig page, On Vase: the same buttons, with its own Around.
@@ -105,9 +105,9 @@ async function main() {
 
   await press(page, 'Home');
   const home = await camera(page, 'vase');
-  // CAMERA: position [80, 80, 120], target [0, 0, 50]: bearing 45°, rise 70/113.1.
-  check(near(home.bearing, 45) && Math.abs(home.rise - 70 / Math.hypot(80, 80)) < 0.01 && home.t.join() === '0,0,50',
-    `Home: the starting view, bearing ${home.bearing}°, rise ${home.rise.toFixed(3)}, target ${home.t}`);
+  // From the front (−y), tilted down as the starting view [80, 80, 120] → [0, 0, 50] is: rise 70/113.1.
+  check(near(home.bearing, -90) && Math.abs(home.rise - 70 / Math.hypot(80, 80)) < 0.01 && home.t.join() === '0,0,50',
+    `Home: from the front, bearing ${home.bearing}°, rise ${home.rise.toFixed(3)}, target ${home.t}`);
 
   // Sprig page, On Vase
   await page.getByRole('link', { name: 'Sprig/Mark', exact: true }).click();
