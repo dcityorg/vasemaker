@@ -208,7 +208,8 @@ export const SPRIG_HELP_SECTIONS: HelpSection[] = [
       { type: 'paragraph', text: 'View → ON VASE shows the sprig on the vase that is open in VaseMaker (change the vase there). It is a preview for size and placement; nothing here changes the mold. The placement set here is the one HandleMaker (View → On Vase → Show Sprig) and VaseMaker (View → Display → Show Sprig) show too.' },
       { type: 'keyvalue', items: [
         { key: 'Height', value: 'Where the sprig\'s centre sits, as a % of the vase\'s height.' },
-        { key: 'Around', value: 'Where round the vase it sits. ⌂ turns the view to face it.' },
+        { key: 'Around', value: 'Where round the vase it sits. The Sprig button (top right of the view) turns the view to face it.' },
+        { key: 'View buttons', value: 'Top right of the view: the cube looks square at the side you click; ⌂ goes back to the starting view; Handle shows the handle in profile, sticking out to the right (with Show Handle on); Sprig looks straight at the sprig, level with it; Seam looks at the nearest seam, then the next one round on each press (with Seams on). They keep your zoom.' },
         { key: 'Seams', value: 'Lines where a Split Halves or Split Thirds mold divides the vase: solid for each seam, dashed for the middle of each piece, at the angle set for that style on the Mold page. A sprig comes out of those molds clean in the middle of a piece or right across a seam, and locks in between. With Seams on, Centre on a piece and On a seam (under Around) move the sprig to the nearest of each. The same choice shows on the Vase page.' },
         { key: 'Tilt', value: 'Turns the sprig on the wall, clockwise as you look at it.' },
         { key: 'Repeat', value: 'Copies spaced evenly round the vase. A note appears if they would overlap.' },

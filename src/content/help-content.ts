@@ -44,6 +44,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         { key: 'Right drag', value: 'Pan the view' },
       ] },
       { type: 'tip', text: 'Each tab (Vase, Mold, Handle) remembers how you left its view. Switch tabs and come back and the vase is the same size and angle it was. A new browser tab starts from the default view.' },
+      { type: 'tip', text: 'Top right of the 3D view: click a face of the cube to look square at that side (Front, Right, Top…). Under it, ⌂ goes back to the starting view; Handle shows the mug side-on with the handle sticking out to the right (with Show Handle on); Sprig looks straight at the sprig, level with it (with the Sprig texture or Show Sprig on); Seam looks straight at the nearest seam, and each press after that steps to the next one round (with Seams on). All of them keep your zoom. The Sprig page\'s On Vase view and the Handle page\'s have the same.' },
       { type: 'heading', text: 'Keyboard Shortcuts' },
       { type: 'keyvalue', items: [
         { key: '\u2318Z', value: 'Undo' },

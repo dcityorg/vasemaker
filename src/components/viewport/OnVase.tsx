@@ -32,6 +32,7 @@ import { buildVaseSurface, wrapSprig, handleOnVase } from '@/engine/sprig/on-vas
 import type { VaseMesh } from '@/engine/types';
 import { seamAngles, pieceCentreAngles, seamLinesOnVase, type SeamMold } from '@/engine/mold/seams';
 import { useSeamAngle } from '@/hooks/use-seam-angle';
+import { ViewCube, ViewButtons, useVaseViewButtons, handleProfileBearing } from './ViewButtons';
 import type { SprigMoldMeshes } from '@/engine/sprig/sprig-generator';
 
 export const SPRIG_COLOR = '#d98a4a';
@@ -188,14 +189,16 @@ export function MugNotes() {
 
 /**
  * A whole On Vase view: the vase, the sprig and/or the handle, its own
- * remembered camera (`cameraId`), and ⌂ to face the sprig (or, with no
- * sprig, the mug side-on with the handle to the right).
+ * remembered camera (`cameraId`), and the cube and view buttons
+ * (ViewButtons.tsx). It starts facing the sprig (or, with no sprig, the mug
+ * side-on with the handle to the right); Home goes back there.
  */
 export function OnVaseView({ sprig, showHandle, cameraId, flat, seams = 'off' }: {
   sprig: SprigMoldMeshes | null; showHandle: boolean; cameraId: string; flat: boolean; seams?: SeamsView;
 }) {
   const vase = useVaseStore((s) => s.params);
   const sprigAngle = useSprigStore((s) => s.params.onVaseAngle);
+  const sprigHeight = useSprigStore((s) => s.params.onVaseHeight);
   const handleAngle = useMoldStore((s) => s.params.seamAngle);
   const vaseMesh = useVaseMesh();
   const controlsRef = useRef<OrbitControlsImpl>(null);
@@ -209,17 +212,17 @@ export function OnVaseView({ sprig, showHandle, cameraId, flat, seams = 'off' }:
   }, [vaseMesh, vase.radius]);
   const target: [number, number, number] = [0, 0, H / 2];
   const dist = 1.6 * Math.max(H, 2 * reach) + 40;
-  // Face the sprig; with none, stand where the handle is on your right.
-  const faceAngle = sprig ? sprigAngle : handleAngle - 90;
+  // Start facing the sprig; with none, where the handle is on your right.
+  const faceAngle = sprig ? sprigAngle : handleProfileBearing(handleAngle);
   const fa = (faceAngle * Math.PI) / 180;
-  const front = () => {
-    const c = controlsRef.current;
-    if (!c) return;
-    const d = c.object.position.distanceTo(c.target);
-    c.object.up.set(0, 0, 1);
-    c.object.position.copy(c.target.clone().add(new THREE.Vector3(Math.cos(fa), Math.sin(fa), 0.12).normalize().multiplyScalar(d)));
-    c.update();
-  };
+  const buttons = useVaseViewButtons({
+    controls: controlsRef,
+    home: { dir: new THREE.Vector3(dist * Math.cos(fa), dist * Math.sin(fa), H * 0.6 - H / 2), target },
+    height: H,
+    handle: showHandle ? handleAngle : null,
+    sprig: sprig ? { angle: sprigAngle, heightPct: sprigHeight } : null,
+    seams,
+  });
 
   return (
     <div className="w-full h-full relative">
@@ -240,16 +243,10 @@ export function OnVaseView({ sprig, showHandle, cameraId, flat, seams = 'off' }:
         {vaseGeo && <Solid geometry={vaseGeo} color={vase.color} flat={flat} />}
         <MugExtras vaseMesh={vaseMesh} sprig={sprig} showHandle={showHandle} flat={flat} seams={seams} />
         <OrbitControls ref={controlsRef} makeDefault enableDamping dampingFactor={0.1} target={target} minDistance={20} maxDistance={4000} />
+        <ViewCube controls={controlsRef} />
         <RememberCamera id={cameraId} />
       </Canvas>
-      <button
-        onClick={front}
-        className="absolute top-4 right-[26px] w-8 h-8 rounded border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-colors text-base leading-none"
-        style={{ backgroundColor: 'rgba(28, 30, 34, 0.85)' }}
-        title={sprig ? 'Look straight at the sprig (keeps your zoom)' : 'Look at the mug side-on, handle to the right (keeps your zoom)'}
-      >
-        ⌂
-      </button>
+      <ViewButtons buttons={buttons} />
       <MugNotes />
     </div>
   );

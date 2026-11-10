@@ -1,7 +1,8 @@
 /**
  * Seam lines and the sprig's snap buttons (engine/mold/seams.ts), 2026-11-09.
  *  A. the angles: seams and piece centres for Halves and Thirds at a Seam
- *     Angle that is not 0, and the nearest one found across ±180;
+ *     Angle that is not 0, the nearest one found across ±180, and the Seam
+ *     view button's next seam round;
  *  B. a seam line lies in its vertical plane through the base centre, on the
  *     vase's outer wall (against generateMesh, on a fluted vase), and `out`
  *     lifts it by exactly that;
@@ -11,7 +12,7 @@
  *     put a seam (Halves) or a centre (Thirds) — the Mold page's angle counts.
  * Run: npx tsx --tsconfig tsconfig.json tests/checks/verify-seams.ts
  */
-import { seamAngles, pieceCentreAngles, nearestAngle, seamLinesOnVase, wrapAngle } from '@/engine/mold/seams';
+import { seamAngles, pieceCentreAngles, nearestAngle, nextSeam, seamLinesOnVase, wrapAngle } from '@/engine/mold/seams';
 import { generateMesh } from '@/engine/mesh-generator';
 import { setVaseSprigField } from '@/engine/sprig/vase-sprig';
 import { buildRelief, type SprigSource } from '@/engine/sprig/relief';
@@ -33,6 +34,14 @@ check(same(seamAngles('thirds', 25), [25, 145, -95]) && same(pieceCentreAngles('
   `A: Thirds at 25°: seams ${seamAngles('thirds', 25)}, centres ${pieceCentreAngles('thirds', 25)}`);
 check(nearestAngle(170, [-175, 90]) === -175 && nearestAngle(-170, [175, -90]) === 175 && nearestAngle(-40, [25, 145, -95]) === -95,
   'A: nearest goes round through ±180 (170 → -175, -170 → 175), -40 → -95 among the Thirds seams');
+{
+  // The Seam view button: nearest, then the next one counter-clockwise, round through ±180.
+  const t = seamAngles('thirds', 25); // 25, 145, -95
+  const walk = [nextSeam(-60, t)];
+  for (let i = 0; i < 3; i++) walk.push(nextSeam(walk[walk.length - 1] + 0.3, t));
+  check(same(walk, [-95, 25, 145, -95]) && nextSeam(-40, seamAngles('halves', -40)) === 140,
+    `A: Seam button from -60°: ${walk} (round and back); Halves facing -40 → 140`);
+}
 check(wrapAngle(540) === 180 && wrapAngle(-180) === 180 && wrapAngle(-181) === 179, 'A: wrap into −180…180');
 
 // B: a fluted vase, so the wall is not a circle and a wrong plane shows

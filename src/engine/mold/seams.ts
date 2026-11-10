@@ -64,3 +64,15 @@ export function seamLinesOnVase(vase: VaseParameters, angles: number[], out = 0)
       .map(([z, u]) => [cx + (u + out) * sx, cy + (u + out) * sy, z] as [number, number, number]);
   });
 }
+
+/**
+ * The seam the Seam view button turns to, seen from `from` (the camera's
+ * bearing): the nearest one, or, when already facing one (within 1°), the next
+ * one counter-clockwise — so pressing it again steps round the vase.
+ */
+export function nextSeam(from: number, seams: number[]): number {
+  const facing = seams.find((s) => Math.abs(wrapAngle(s - from)) < 1);
+  if (facing === undefined) return nearestAngle(from, seams);
+  const ccw = (s: number) => { const d = wrapAngle(s - facing); return d <= 0 ? d + 360 : d; };
+  return wrapAngle(Math.round([...seams].sort((a, b) => ccw(a) - ccw(b))[0] * 10) / 10);
+}

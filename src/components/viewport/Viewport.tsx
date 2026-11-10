@@ -13,7 +13,12 @@ import { useVaseStore } from '@/store/vase-store';
 import type { CaptureFormat } from '@/config/capture';
 import { RememberCamera } from '@/components/viewport/RememberCamera';
 import { useSeamsView } from '@/store/view-prefs';
-import { VasePageExtras, MugNotes, useVaseExtras } from '@/components/viewport/OnVase';
+import { VasePageExtras, MugNotes, useVaseExtras, useSprigTextureOn } from '@/components/viewport/OnVase';
+import { ViewCube, ViewButtons, useVaseViewButtons } from '@/components/viewport/ViewButtons';
+import { useMoldStore } from '@/store/mold-store';
+import { useSprigStore } from '@/store/sprig-store';
+import * as THREE from 'three';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 interface ViewportProps {
   captureActive?: boolean;
@@ -44,6 +49,25 @@ export function Viewport({
   const containerRef = useRef<HTMLDivElement>(null);
   const seams = useSeamsView();
   const extras = useVaseExtras((s) => s.showHandle || s.showSprig) || seams !== 'off';
+  const controlsRef = useRef<OrbitControlsImpl>(null);
+  // The view buttons follow what is shown: the handle with Show Handle, the
+  // vase's own Sprig texture, else Show Sprig's sprig (they are never both).
+  const showHandle = useVaseExtras((s) => s.showHandle);
+  const showSprig = useVaseExtras((s) => s.showSprig);
+  const handleAngle = useMoldStore((s) => s.params.seamAngle);
+  const textureOn = useSprigTextureOn();
+  const texSprig = useVaseStore((s) => s.params.textures.sprig);
+  const onVaseAngle = useSprigStore((s) => s.params.onVaseAngle);
+  const onVaseHeight = useSprigStore((s) => s.params.onVaseHeight);
+  const buttons = useVaseViewButtons({
+    controls: controlsRef,
+    home: { dir: new THREE.Vector3(...CAMERA.position).sub(new THREE.Vector3(...CAMERA.target)), target: [...CAMERA.target] },
+    height,
+    handle: showHandle ? handleAngle : null,
+    sprig: textureOn && texSprig ? { angle: texSprig.angle, heightPct: texSprig.heightPct }
+      : showSprig ? { angle: onVaseAngle, heightPct: onVaseHeight } : null,
+    seams,
+  });
 
   // Frame rect reported by CaptureOverlay — used by CaptureRenderer for cropping
   const [frameInfo, setFrameInfo] = useState({
@@ -116,6 +140,7 @@ export function Viewport({
 
         {/* Camera controls */}
         <OrbitControls
+          ref={controlsRef}
           makeDefault
           enableDamping
           dampingFactor={ORBIT_CONTROLS.dampingFactor}
@@ -123,9 +148,11 @@ export function Viewport({
           minDistance={ORBIT_CONTROLS.minDistance}
           maxDistance={ORBIT_CONTROLS.maxDistance}
         />
+        <ViewCube controls={controlsRef} />
         <RememberCamera id="vase" />
       </Canvas>
 
+      <ViewButtons buttons={buttons} />
       {extras && <MugNotes />}
 
       {/* Capture frame overlay (HTML layer, outside Canvas) */}
