@@ -67,6 +67,7 @@ export const MOLD_HELP_SECTIONS: HelpSection[] = [
       ] },
       { type: 'heading', text: 'The Plaster (view only)' },
       { type: 'paragraph', text: 'The Plaster view toggle shows the plaster that will set around the vase — it isn\'t exported, it\'s a preview of your finished mold. On Pour 3-Pc, combine it with Cross-section to see the cavity, the well funnel, and the wall thicknesses exactly as they\'ll cast.' },
+      { type: 'tip', text: 'Top right of the 3D view: click a face of the cube to look square at that side (Front, Right, Top…), and ⌂ for Home. On Pour 3-Pc, Home looks at the mold from the front, a little above; on Split Halves and Split Thirds, which lie flat, it looks straight down with the top of the vase at the top of the screen. Both keep your zoom.' },
       { type: 'tip', text: 'View → Color changes the preview colour of the main part (the center or the masters) — handy when the default off-white is hard to look at. The shell stays blue. It is remembered in this browser and is not part of a settings file; Reset beside it puts the default back. Avoid a red, since undercuts are shown in red.' },
     ],
   },

@@ -4,6 +4,8 @@ import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { ViewCube, ViewButtons, homeButton } from '@/components/viewport/ViewButtons';
 import { GroundGrid } from '@/components/viewport/SceneHelpers';
 import { LIGHTING } from '@/config/viewport';
 
@@ -147,6 +149,16 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
   // Split 2-Pc lays its trays out side by side, so a slice through y = 0 cuts nothing.
   const splitLike = mold.style === 'splitTwoPiece' || mold.style === 'splitHalves' || mold.style === 'splitThirds';
   const clip = view.crossSection && !splitLike ? clipPlanes : null;
+  const controlsRef = useRef<OrbitControlsImpl>(null);
+  // Home (Gary, 2026-11-09). Pour 3-Pc stands upright: from the front (−y),
+  // tilted down as the starting corner view. The split styles lie flat with
+  // the vase's rim end at −x (print x = −z): straight down, rim end up the
+  // screen, so both kits read the right way up (Halves: L on the left).
+  const home = splitLike
+    ? { dir: new THREE.Vector3(0, 0, 1), target: [0, 0, 0] as [number, number, number], up: [-1, 0] as [number, number],
+        title: 'Home: straight down on the pieces, the top of the vase at the top of the screen (keeps your zoom)' }
+    : { dir: new THREE.Vector3(0, -Math.hypot(MOLD_CAMERA.position[0], MOLD_CAMERA.position[1]), MOLD_CAMERA.position[2] - MOLD_CAMERA.target[2]),
+        target: MOLD_CAMERA.target, title: 'Home: the mold from the front, a little above (keeps your zoom)' };
 
   // The master slot renders whichever part carries the vase form (master /
   // one-piece mold / pour-2pc center) with the undercut tint; the cottle slot
@@ -225,6 +237,7 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
 
         <FrameForSplit split={splitLike} />
         <OrbitControls
+          ref={controlsRef}
           makeDefault
           enableDamping
           dampingFactor={MOLD_ORBIT.dampingFactor}
@@ -232,8 +245,10 @@ export function MoldViewport({ mold }: { mold: AnyMoldMeshes }) {
           minDistance={MOLD_ORBIT.minDistance}
           maxDistance={MOLD_ORBIT.maxDistance}
         />
+        <ViewCube controls={controlsRef} />
         <RememberCamera id="mold" />
       </Canvas>
+      <ViewButtons buttons={[homeButton(controlsRef, home)]} />
     </div>
   );
 }

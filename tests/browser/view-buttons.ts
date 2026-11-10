@@ -9,7 +9,9 @@
  *    Home looks from the front (−y), tilted down as the starting view, at its target;
  *  - the cube: clicked from the Sprig view (bearing -150°) it squares the view
  *    to the nearest face, Left (-x);
- *  - Sprig page, On Vase: the same buttons, with its own Around.
+ *  - Sprig page, On Vase: the same buttons, with its own Around;
+ *  - Mold page: only ⌂ — Split Halves straight down with the rim end up the
+ *    screen, Pour 3-Pc from the front tilted as its starting view.
  * Run: npm run test:browser -- view-buttons
  */
 import { writeFileSync, readFileSync } from 'fs';
@@ -124,6 +126,27 @@ async function main() {
   await press(page, 'Sprig');
   const ss = await camera(page, 'sprig-vase');
   check(near(ss.bearing, -35) && Math.abs(ss.rise) < 1e-3, `Sprig page: Sprig faces its own Around, -35° after Centre on a piece (bearing ${ss.bearing}°, level)`);
+
+  // Mold page: the cube and ⌂ only. Split Halves (seeded above) lies flat:
+  // straight down, rim end (−x) up the screen, so the camera leans a hair to +x.
+  await page.getByRole('link', { name: 'Mold', exact: true }).click();
+  await page.waitForURL('**/mold');
+  await page.waitForTimeout(2500);
+  const b4 = await buttons(page);
+  check(b4.join() === 'Home', `Mold page: only Home (${b4})`);
+  await press(page, 'Home');
+  const mh = await camera(page, 'mold');
+  check(near(mh.bearing, 0) && mh.rise > 30 && mh.t.join() === '0,0,0',
+    `Mold, Split Halves Home: straight down (rise ${mh.rise.toFixed(0)}), leaning to +x (bearing ${mh.bearing}°) so the rim end is up the screen, target ${mh.t}`);
+  await page.screenshot({ path: 'test-results/view-buttons-halves.png' }); // to look at: rim end up, L kit on the left
+  await page.getByRole('button', { name: 'Pour 3-Pc', exact: true }).click();
+  await page.waitForTimeout(2500);
+  await press(page, 'Home');
+  const mp = await camera(page, 'mold');
+  // MOLD_CAMERA [220, 220, 240] → [0, 0, 110]: rise 130/311.1.
+  check(near(mp.bearing, -90) && Math.abs(mp.rise - 130 / Math.hypot(220, 220)) < 0.01 && mp.t.join() === '0,0,110',
+    `Mold, Pour 3-Pc Home: from the front (bearing ${mp.bearing}°, rise ${mp.rise.toFixed(3)}), target ${mp.t}`);
+  await page.screenshot({ path: 'test-results/view-buttons-pour3.png' });
 
   check(errors.length === 0 && alerts.length === 0, `no page errors or alerts${errors.length + alerts.length ? ` — ${[...errors, ...alerts].slice(0, 3).join(' | ')}` : ''}`);
   await context.close();

@@ -34,9 +34,11 @@ export function cameraBearing(controls: OrbitControlsImpl | null): number {
  * Point the camera along `dir` (from the target out to the camera), keeping
  * its distance. `target` moves the point it looks at first. Straight up/down
  * tilts a hair off vertical instead of changing the camera's up-vector, which
- * would make orbiting feel wrong afterwards (as HandleViewport's snap).
+ * would make orbiting feel wrong afterwards (as HandleViewport's snap); the
+ * hair is toward `up` ([x, y] on the ground), which then runs up the screen
+ * (default +y, the drawing the right way up).
  */
-export function snapCamera(controls: OrbitControlsImpl | null, dir: THREE.Vector3, target?: [number, number, number]) {
+export function snapCamera(controls: OrbitControlsImpl | null, dir: THREE.Vector3, target?: [number, number, number], up: [number, number] = [0, 1]) {
   if (!controls) return;
   const cam = controls.object;
   const dist = cam.position.distanceTo(controls.target);
@@ -44,7 +46,9 @@ export function snapCamera(controls: OrbitControlsImpl | null, dir: THREE.Vector
   const d = dir.clone().normalize();
   if (Math.abs(d.z) > 0.9) {
     const tilt = 0.027;
-    d.set(0, -tilt, Math.sign(d.z) * Math.sqrt(1 - tilt * tilt));
+    // With a z-up camera, screen-up is opposite the way the camera leans.
+    const n = Math.hypot(up[0], up[1]) || 1;
+    d.set((-up[0] / n) * tilt, (-up[1] / n) * tilt, Math.sign(d.z) * Math.sqrt(1 - tilt * tilt));
   }
   cam.up.set(0, 0, 1);
   cam.position.copy(controls.target.clone().add(d.multiplyScalar(dist)));
@@ -108,7 +112,7 @@ export function ViewButtons({ buttons }: { buttons: ViewButton[] }) {
  */
 export function useVaseViewButtons({ controls, home, height, handle, sprig, seams }: {
   controls: RefObject<OrbitControlsImpl | null>;
-  home: { dir: THREE.Vector3; target: [number, number, number]; title?: string };
+  home: { dir: THREE.Vector3; target: [number, number, number]; title?: string; up?: [number, number] };
   height: number;
   handle: number | null;
   sprig: { angle: number; heightPct: number } | null;
@@ -118,7 +122,7 @@ export function useVaseViewButtons({ controls, home, height, handle, sprig, seam
   const seamAngle = useSeamAngle(seams === 'off' ? 'halves' : seams);
   const middle: [number, number, number] = [0, 0, height / 2];
   const b: ViewButton[] = [
-    { label: 'Home', title: home.title ?? 'Home: back to the starting view (keeps your zoom)', onClick: () => snapCamera(controls.current, home.dir, home.target) },
+    { label: 'Home', title: home.title ?? 'Home: back to the starting view (keeps your zoom)', onClick: () => snapCamera(controls.current, home.dir, home.target, home.up) },
   ];
   if (handle !== null) b.push({
     label: 'Handle', title: 'Look at the handle in profile, sticking out to the right (keeps your zoom)',
@@ -133,4 +137,9 @@ export function useVaseViewButtons({ controls, home, height, handle, sprig, seam
     onClick: () => snapCamera(controls.current, bearingDir(nextSeam(cameraBearing(controls.current), seamAngles(seams, seamAngle)), 0.05), middle),
   });
   return b;
+}
+
+/** Just ⌂, for views with nothing to aim at but the whole (the Mold page). */
+export function homeButton(controls: RefObject<OrbitControlsImpl | null>, home: { dir: THREE.Vector3; target: [number, number, number]; title: string; up?: [number, number] }): ViewButton {
+  return { label: 'Home', title: home.title, onClick: () => snapCamera(controls.current, home.dir, home.target, home.up) };
 }
