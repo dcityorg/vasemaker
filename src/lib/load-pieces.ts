@@ -15,7 +15,7 @@ import type { HandleParameters } from '@/engine/handle/handle-types';
 import { mergeHandleParameters } from '@/engine/handle/handle-types';
 import { mergeSprigParameters, DEFAULT_MARK_PARAMETERS, type SprigParameters } from '@/engine/sprig/sprig-types';
 import type { FootSettings } from '@/engine/mold/vase-foot';
-import type { MoldStyle } from '@/engine/mold/mold-types';
+import { ACTIVE_MOLD_STYLES, retiredSuccessor, type MoldStyle } from '@/engine/mold/mold-types';
 import { designKind, readMoldFile, type DesignKind } from '@/lib/design-files';
 import { withoutEnding, moldNameFromFile, ENDING, MOLD_STYLE_NAMES } from '@/lib/file-names';
 
@@ -104,6 +104,15 @@ export function readDesignFile(parsed: unknown, fileName: string): FileContents 
   return { ...c2, pieces: piecesFor(c2) };
 }
 
+/** The Mold line: its style, or for a hidden style, where its settings go. */
+function moldDetail(style: MoldStyle | null): string {
+  if (!style) return 'mold (your other styles stay as they are)';
+  if (!ACTIVE_MOLD_STYLES.includes(style)) {
+    return `${MOLD_STYLE_NAMES[style]}, no longer offered: its settings go to ${MOLD_STYLE_NAMES[retiredSuccessor(style)]}`;
+  }
+  return `${MOLD_STYLE_NAMES[style]} (your other styles stay as they are)`;
+}
+
 function piecesFor(c: Omit<FileContents, 'pieces'>): Piece[] {
   const missing = 'not in this file (keeps yours)';
   const out: Piece[] = [];
@@ -111,7 +120,7 @@ function piecesFor(c: Omit<FileContents, 'pieces'>): Piece[] {
   if (isMold || c.vase) out.push({ key: 'vase', label: 'Vase', present: !!c.vase, ticked: !!c.vase, detail: c.vase ? (c.vaseName || '(unnamed)') : missing });
   if (isMold) out.push({
     key: 'mold', label: 'Mold', present: true, ticked: true,
-    detail: `${c.mold?.style ? MOLD_STYLE_NAMES[c.mold.style] : 'mold'} (your other styles stay as they are)`,
+    detail: moldDetail(c.mold?.style ?? null),
   });
   if (isMold || c.handle) out.push({ key: 'handle', label: 'Handle', present: !!c.handle, ticked: !!c.handle, detail: c.handle ? (c.handleName || '(unnamed)') : missing });
   // On a vase the sprig and mark are COPIES: offered, unticked, for reuse on their own page.

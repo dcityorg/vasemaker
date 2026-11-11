@@ -24,6 +24,8 @@ check(mold?.mold?.name === 'Tall Tumbler' && mold.mold.style === 'splitHalves', 
 const old = readDesignFile(fx('molds/tumbler2-onepiece.mold.json'), 'old mold');
 check(fmt(old) === 'vase(grey) mold✓ handle(grey) sprig(grey) mark(grey)', `old settings-only mold file: ${fmt(old)}`);
 check(old?.pieces.find((p) => p.key === 'vase')?.detail === 'not in this file (keeps yours)', 'old file: the missing vase says "not in this file (keeps yours)"');
+const oldMold = old?.pieces.find((p) => p.key === 'mold')?.detail;
+check(oldMold === 'Pour 1-Pc, no longer offered: its settings go to Pour 3-Pc', `old file of a hidden style says where it goes: "${oldMold}"`);
 
 const vase = readDesignFile(fx('vases/2026-02-swirl1.json'), 'Swirl – Vase');
 check(fmt(vase) === 'vase✓' && vase?.vaseName === 'Swirl', `vase file: ${fmt(vase)}, named "${vase?.vaseName}"`);
