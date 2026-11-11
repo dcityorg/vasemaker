@@ -8,7 +8,7 @@ import { BezierCurveEditor, EDITOR_CHROME } from '@/components/parameters/Bezier
 import { evaluatePiecewiseBezier } from '@/engine/bezier';
 import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME, isHandleUnnamed, DEFAULT_VIEW, freshDefaults } from '@/store/handle-store';
 import { ToolNav } from '@/components/parameters/ToolNav';
-import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
+import { DesignNameRow, NamePromptHost, ensureNamed, SaveNote } from '@/components/parameters/DesignName';
 import { HANDLE_PARAMS } from '@/config/handle-params';
 import { HANDLE_PRESETS } from '@/config/handle-presets';
 import { PLASTER_MATERIALS } from '@/config/mold-params';
@@ -364,12 +364,13 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               onClick={handleSaveSettings}
               className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
               style={{ color: UI_MUTED }}
-              title="Save the handle design (.json): the handle and its mold settings, plus a .txt bench sheet"
+              title="Save this handle (.json, named “… – Handle”): the handle and its mold settings, plus a .txt bench sheet"
             >
               Save Design
             </button>
             <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileSelected} className="hidden" />
           </div>
+          <SaveNote>Saves this handle only.</SaveNote>
           <RevertResetRow
             canRevert={!!savedParams && savedParams !== params}
             onRevert={revertToSaved}

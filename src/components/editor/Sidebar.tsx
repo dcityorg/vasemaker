@@ -7,7 +7,7 @@ import { useVaseStore } from '@/store/vase-store';
 import { useHistoryStore } from '@/store/history';
 import { BUILT_IN_PRESETS, isVaseUnnamed } from '@/presets';
 import { ToolNav } from '@/components/parameters/ToolNav';
-import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
+import { DesignNameRow, NamePromptHost, ensureNamed, SaveNote } from '@/components/parameters/DesignName';
 import { generateSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
 import { UI_MUTED } from '@/config/colors';
@@ -239,7 +239,7 @@ export function Sidebar({
             onClick={handleLoadDesign}
             className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
             style={{ color: UI_MUTED }}
-            title="Load design from JSON"
+            title="Load a vase design (.json)"
           >
             Load Design
           </button>
@@ -247,7 +247,7 @@ export function Sidebar({
             onClick={handleSaveDesign}
             className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
             style={{ color: UI_MUTED }}
-            title="Save design as JSON"
+            title="Save the vase (.json, named “… – Vase”), with the sprig and mark placed on it. Molds and the handle are saved on the Mold tab"
           >
             Save Design
           </button>
@@ -259,6 +259,7 @@ export function Sidebar({
             className="hidden"
           />
         </div>
+        <SaveNote>Saves the vase only. To keep its mold and handle too, save on the Mold tab.</SaveNote>
         {/* Under Load / Save, as on every page (Gary, 2026-11-01); the Vase page has no reset button. */}
         <RevertResetRow
           canRevert={isDirty && !!savedParams}

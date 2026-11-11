@@ -7,7 +7,7 @@ import { Section, SliderRow, Toggle, GroupHeader, ResetRow, RevertResetRow, Togg
 import { setShowFacets } from '@/store/view-prefs';
 import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_PART_COLOR, DEFAULT_VIEW, retiredStyleNotice, isMoldUnnamed, moldResetParams } from '@/store/mold-store';
 import { ToolNav } from '@/components/parameters/ToolNav';
-import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
+import { DesignNameRow, NamePromptHost, ensureNamed, SaveNote } from '@/components/parameters/DesignName';
 import { useVaseStore } from '@/store/vase-store';
 import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME, isHandleUnnamed } from '@/store/handle-store';
 import { isVaseUnnamed } from '@/presets';
@@ -611,7 +611,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               onClick={handleSaveSettings}
               className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
               style={{ color: UI_MUTED }}
-              title="Save the mold design (.json, with a copy of its vase) plus a .txt bench sheet"
+              title={`Save this mold style (.json, named “… – ${MOLD_STYLE_TABS.find((t) => t.value === params.moldStyle)?.label ?? 'style'}”) with everything it needs, plus a .txt bench sheet. Another style saves its own pair of files`}
             >
               Save Design
             </button>
@@ -623,13 +623,14 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               className="hidden"
             />
           </div>
+          <SaveNote>Saves this mold style with everything it needs: the vase, the handle, and the sprig and mark on the vase.</SaveNote>
           <RevertResetRow
             canRevert={!!savedParams && savedParams !== params}
             onRevert={revertToSaved}
             revertTitle="Put this mold style's settings back to the last Save Design / Load Design. Undoable with ↶"
             resetLabel="Reset Mold Settings"
             onReset={reset}
-            resetTitle="Every setting of THIS mold style (the tab you are on) back to its default — an amber dot shows which have changed. The other mold styles keep their own settings, a Foot Piece that is on stays on (its settings reset), and your vase design isn't touched. The design's name goes back to “mold design”. Undoable with ↶"
+            resetTitle="Every setting of THIS mold style (the tab you are on) back to its default — an amber dot shows which have changed. The other mold styles keep their own settings, a Bottom Plug that is on stays on (its settings reset), and your vase design isn't touched. The design's name goes back to “mold design”. Undoable with ↶"
           />
 
           {/* ── STL exports ── */}
@@ -934,8 +935,8 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             const onKey = isThirds ? 'thirdsFootPiece' : 'halvesFootPiece';
             const plug = mold.style === 'splitThirds' || mold.style === 'splitHalves' ? mold.foot : null;
             // The switch itself is kept by Reset, so only Plug Height can show a dot.
-            return <Section title="Foot Piece" titleColor={GROUP_COLORS.structure} changed={on && any(isThirds ? 'thirdsPlugHeight' : 'halvesPlugHeight')} changedTip={CHANGED_TIP}>
-            <Toggle label="Enabled" checked={on} onChange={(v) => setParam(onKey, v)} tooltip={`Cast the bottom as a separate plaster piece: a PLUG the shape of the vase bottom that sits inside the ${isThirds ? 'three pieces' : 'two halves'}, held in by a rounded ring. It gives the mug a foot ring and a recessed centre, with no thin plaster wedge where a curled-in bottom meets a ledge. The plug is poured in its own small cup (a bottom disk and clip-together walls)`} />
+            return <Section title="Bottom Plug" titleColor={GROUP_COLORS.structure} changed={on && any(isThirds ? 'thirdsPlugHeight' : 'halvesPlugHeight')} changedTip={CHANGED_TIP}>
+            <Toggle label="Enabled" checked={on} onChange={(v) => setParam(onKey, v)} tooltip={`How this mold casts the vase's bottom (the vase's foot itself is set on the Vase tab, Foot & Mark). Cast the bottom as a separate plaster piece: a PLUG the shape of the vase bottom that sits inside the ${isThirds ? 'three pieces' : 'two halves'}, held in by a rounded ring. It gives the mug a foot ring and a recessed centre, with no thin plaster wedge where a curled-in bottom meets a ledge. The plug is poured in its own small cup (a bottom disk and clip-together walls)`} />
             {/* Plug Height stays in view, greyed, while the switch is off (Gary, 2026-11-01); the notes below go. */}
             <Greyed off={!on} hint="Turn on Enabled (above) to use this">
               {sl(isThirds ? 'thirdsPlugHeight' : 'halvesPlugHeight', 'Plug Height', 'mm', 'How tall the plug is, from the vase bottom down to the bottom of the mold. The ring sits in the middle. The plug is the mold wall for the bottom of the vase, so keep it near the Plaster thickness so it soaks up water like the sides')}
@@ -966,8 +967,13 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               <p key={n} className="text-[11px] text-amber-400 mt-1 leading-snug">{n}</p>
             ))}
           </Section>}
+          {/* Without the plug a split mold has nothing to mould a recess or a mark from, so
+              the master's bottom is flat (split-halves-generator.ts). Say so (Gary, 2026-11-11). */}
+          {(isHalves || isThirds) && !(isThirds ? params.thirdsFootPiece : params.halvesFootPiece) && vaseParams.bottom?.footOn && (
+            <p data-foot-note className="text-[11px] text-amber-400 mx-3 mb-2 leading-snug">The vase has a foot. Without the Bottom Plug this mold casts a flat bottom; turn Bottom Plug on to cast the foot.</p>
+          )}
           {(isHalves || isThirds) && !(isThirds ? params.thirdsFootPiece : params.halvesFootPiece) && vaseParams.bottom?.markOn && (
-            <p className="text-[11px] text-amber-400 mx-3 mb-2 leading-snug">The vase has a mark; turn Foot Piece on to put it on the plug.</p>
+            <p className="text-[11px] text-amber-400 mx-3 mb-2 leading-snug">The vase has a mark; turn Bottom Plug on to put it on the plug.</p>
           )}
 
           {/* Well */}

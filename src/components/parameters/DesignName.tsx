@@ -10,7 +10,7 @@
  * Each tool keeps its OWN name; nothing here links them.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { create } from 'zustand';
 
 /** Name row: a bar above it, "<What> Name:", and the name — yellow while unnamed. */
@@ -168,4 +168,10 @@ function NameBox() {
       </div>
     </div>
   );
+}
+
+/** The grey line under Load / Save Design saying what Save saves (Gary,
+ *  2026-11-11): grey, not amber — it describes, it doesn't warn. */
+export function SaveNote({ children }: { children: ReactNode }) {
+  return <p data-save-note className="text-[11px] text-[var(--text-secondary)] leading-snug">{children}</p>;
 }

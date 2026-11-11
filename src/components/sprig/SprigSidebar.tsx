@@ -11,7 +11,7 @@ import { SprigAdjust, KeptNote } from './SprigAdjust';
 import { SprigTipsButton } from './SprigTips';
 import { PhotoDepthHost, PhotoDepthStatusLine, askPhotoDepth } from './PhotoDepth';
 import { ToolNav } from '@/components/parameters/ToolNav';
-import { DesignNameRow, NamePromptHost, ensureNamed } from '@/components/parameters/DesignName';
+import { DesignNameRow, NamePromptHost, ensureNamed, SaveNote } from '@/components/parameters/DesignName';
 import { SPRIG_PARAMS } from '@/config/sprig-params';
 import { SPRIG_SAMPLES, type SprigSample } from '@/config/sprig-samples';
 import { PLASTER_MATERIALS } from '@/config/mold-params';
@@ -493,11 +493,12 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
             <button onClick={handleLoadSettings} className={btn} style={{ color: UI_MUTED }} title={`Load a ${what} design (drawing included) from JSON. A sprig file can be loaded as a mark, and a mark as a sprig`}>
               Load Design
             </button>
-            <button onClick={handleSaveSettings} className={btn} style={{ color: UI_MUTED }} title={isMark ? 'Save the mark — the drawing is stored inside the file' : 'Save the sprig design — the drawing is stored inside the file — plus a .txt bench sheet'}>
+            <button onClick={handleSaveSettings} className={btn} style={{ color: UI_MUTED }} title={isMark ? 'Save this mark (.json, named “… – Mark”), the drawing inside it' : 'Save this sprig (.json, named “… – Sprig”), the drawing inside it, plus a .txt bench sheet'}>
               Save Design
             </button>
             <input ref={settingsInputRef} type="file" accept=".json" onChange={handleSettingsFile} className="hidden" />
           </div>
+          <SaveNote>Saves this {what} only.</SaveNote>
           <RevertResetRow
             canRevert={!!savedParams && savedParams !== params}
             onRevert={revertToSaved}
