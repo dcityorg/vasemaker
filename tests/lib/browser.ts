@@ -78,11 +78,12 @@ export async function pageAlive(page: Page): Promise<boolean> {
   }));
 }
 
-/** Load a design file through the page's Load button. A mold file that brings
- *  its own vase asks first; take the file's. */
+/** Load a design file through the page's Load button. A file that opens the
+ *  Load list (a mold file; another tab's file) is loaded as ticked: for a mold
+ *  file, its vase, mold and handle. */
 export async function loadFile(page: Page, file: string): Promise<void> {
-  await page.locator('input[type=file][accept=".json"]').setInputFiles(file);
-  const take = page.getByRole('button', { name: /^Load that|^Load anyway/ });
+  await page.locator('input[type=file][accept=".json"]').first().setInputFiles(file);
+  const take = page.locator('[data-load-list] button', { hasText: /^(Load|Load anyway)$/ });
   await take.first().waitFor({ timeout: 3000 }).then(() => take.first().click(), () => {});
 }
 

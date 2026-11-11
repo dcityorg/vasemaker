@@ -16,6 +16,8 @@ import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import { generateSTL } from '@/engine/stl-export';
 import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib/image-capture';
 import { withEnding, withoutEnding, ENDING } from '@/lib/file-names';
+import { readDesignFile, needsList } from '@/lib/load-pieces';
+import { showLoadList, LoadListHost } from '@/components/parameters/LoadList';
 import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
@@ -161,16 +163,10 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   const applySettingsText = (text: string, baseName: string) => {
     try {
       const parsed = JSON.parse(text);
-      if (!parsed || typeof parsed !== 'object' || parsed.type !== 'handle-settings') {
-        if (parsed && typeof parsed === 'object' && ('radius' in parsed || 'profilePoints' in parsed)) {
-          alert('That file is a vase design. Load it with Load Design on the Vase tab.');
-        } else if (parsed && typeof parsed === 'object' && parsed.type === 'mold-settings') {
-          alert('That file is a mold design. Load it on the Mold tab.');
-        } else {
-          alert('Not a handle design file.');
-        }
-        return;
-      }
+      // Any other kind of file opens the Load list (Gary, 2026-11-11).
+      const contents = readDesignFile(parsed, baseName);
+      if (!contents) { alert('Not a design file.'); return; }
+      if (needsList(contents, 'handle')) { showLoadList(contents); return; }
       const loaded = handleFromFile(parsed);
       handleHistory.skipNextRecord();
       useHandleHistory.getState().clear();
@@ -322,6 +318,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
         <p className="text-xs text-[var(--text-secondary)]">Handle + two-part plaster mold</p>
         <DesignNameRow what="Handle" name={settingsName} unnamed={isHandleUnnamed(settingsName)} onRename={setSettingsName} />
         <NamePromptHost />
+        <LoadListHost />
       </div>
 
       <div {...sidebarScroll} className="flex-1 overflow-y-auto sidebar-scroll">
@@ -356,7 +353,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
               onClick={handleLoadSettings}
               className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
               style={{ color: UI_MUTED }}
-              title="Load a handle design (.json): the handle and its mold settings"
+              title="Load a handle design (.json): the handle and its mold settings. Other design files open a list of what they hold, to tick what to load"
             >
               Load Design
             </button>

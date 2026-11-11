@@ -65,11 +65,9 @@ async function main() {
       const want = vaseFromFile(parsed);
       check(same(s?.params, want), `${name}: Vase page stores the design as loaded${same(s?.params, want) ? '' : ` — ${firstDiff(s?.params, want as unknown as Record<string, unknown>)}`}`);
     } else if (kind === 'mold') {
-      // A file whose vase differs from the open one asks; take the file's.
-      if (readMoldFile(parsed).vase) {
-        const take = page.getByRole('button', { name: /^Load that|^Load anyway/ });
-        await take.first().waitFor({ timeout: 5000 }).then(() => take.first().click(), () => {});
-      }
+      // Every mold file opens the Load list (Gary, 2026-11-11); load it as ticked.
+      const take = page.locator('[data-load-list] button', { hasText: /^(Load|Load anyway)$/ });
+      await take.first().waitFor({ timeout: 5000 }).then(() => take.first().click(), () => {});
       const s = await stored(page, 'vasemaker-mold-settings');
       const f = readMoldFile(parsed);
       const want = moldFromSettings(f.settings).params;

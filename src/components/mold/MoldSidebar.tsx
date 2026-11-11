@@ -5,14 +5,12 @@ import Link from 'next/link';
 import { ShowFacetsToggle } from '@/components/parameters/ShowFacetsToggle';
 import { Section, SliderRow, Toggle, GroupHeader, ResetRow, RevertResetRow, ToggleAllSectionsButton, useRememberedScroll, resetDot, CHANGED_TIP, Greyed } from '@/components/parameters/ui';
 import { setShowFacets } from '@/store/view-prefs';
-import { useMoldStore, useMoldHistory, moldHistory, DEFAULT_PART_COLOR, DEFAULT_VIEW, retiredStyleNotice, isMoldUnnamed, moldResetParams } from '@/store/mold-store';
+import { useMoldStore, useMoldHistory, DEFAULT_PART_COLOR, DEFAULT_VIEW, isMoldUnnamed, moldResetParams } from '@/store/mold-store';
 import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed, SaveNote } from '@/components/parameters/DesignName';
 import { useVaseStore } from '@/store/vase-store';
-import { useHandleStore, useHandleHistory, handleHistory, DEFAULT_HANDLE_SETTINGS_NAME, isHandleUnnamed } from '@/store/handle-store';
-import { isVaseUnnamed } from '@/presets';
+import { useHandleStore } from '@/store/handle-store';
 import { mergeHandleParameters, DEFAULT_HANDLE_PARAMETERS } from '@/engine/handle/handle-types';
-import type { HandleParameters } from '@/engine/handle/handle-types';
 import { SplitTopView } from './SplitTopView';
 import { MOLD_PARAMS, PLASTER_MATERIALS } from '@/config/mold-params';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
@@ -22,10 +20,12 @@ import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport, type ReportPart } from '@/lib/print-report';
 import { ACTIVE_MOLD_STYLES, moldUsesHandle, HALVES_HANDLE_OFFERED } from '@/engine/mold/mold-types';
-import { readMoldFile, moldFromSettings, vaseFromFile } from '@/lib/design-files';
-import { withEnding, withoutEnding, moldFileName, moldNameFromFile, ENDING } from '@/lib/file-names';
+import { readDesignFile } from '@/lib/load-pieces';
+import { saveCurrentVase, saveCurrentHandle } from '@/lib/save-pieces';
+import { showLoadList, LoadListHost } from '@/components/parameters/LoadList';
+import { moldFileName, moldNameFromFile } from '@/lib/file-names';
 import { translateMesh } from '@/engine/handle/mesh3';
-import { moldWithVaseFoot, sameFoot, type FootSettings } from '@/engine/mold/vase-foot';
+import { moldWithVaseFoot } from '@/engine/mold/vase-foot';
 import type { AnyMoldMeshes } from '@/hooks/use-mold-meshes';
 import type { MoldParameters, MoldStyle, PlasterType } from '@/engine/mold/mold-types';
 import type { VaseMesh } from '@/engine/types';
@@ -53,7 +53,6 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   const designName = useVaseStore((s) => s.designName);
   const vaseParams = useVaseStore((s) => s.params);
   const vaseDirty = useVaseStore((s) => s.isDirty);
-  const loadVaseDesign = useVaseStore((s) => s.loadDesign);
   const markSaved = useMoldStore((s) => s.markSaved);
   const savedParams = useMoldStore((s) => s.savedParams);
   const revertToSaved = useMoldStore((s) => s.revertToSaved);
@@ -75,17 +74,6 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onKey]);
-  /** Pending "this mold was saved with a different vase / handle" decision.
-   *  Only the designs that DIFFER from what is open are carried — a matching
-   *  one needs no decision and is left alone. */
-  const [vaseChoice, setVaseChoice] = useState<{
-    settings: unknown;
-    legacyFoot: FootSettings | null; fileName: string;
-    vase: unknown | null; vaseName: string | null;
-    handle: HandleParameters | null; handleName: string | null;
-    /** The file carries a handle at all (to show "same as open" for it). */
-    fileHasHandle: boolean;
-  } | null>(null);
   const handleParams = useHandleStore((s) => s.params);
   const handleSaved = useHandleStore((s) => s.savedParams);
   const vaseRes = useVaseStore((s) => s.params.resolution);
@@ -340,10 +328,10 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       settings: moldWithVaseFoot(params, vaseParams),
       vase: vaseParams,
       vaseName: designName,
-      // The handle travels too, but only when this mold uses it (Split 2-Pc
-      // with the handle on) — in any other style it has no effect on the mold,
-      // and asking about it on load would be noise (Gary, 2026-10-10).
-      ...(usesHandle ? { handle: handleParams, handleName } : {}),
+      // The handle always travels (Gary, 2026-11-11), so a mug's handle is never
+      // lost; it used to go only when this style cast it (2026-10-10), because
+      // asking about it on load was noise — the Load list is one line.
+      handle: handleParams, handleName,
     }, null, 2);
     // "Tall Tumbler – Split Halves.json" + .txt (Gary, 2026-11-11): a second style
     // gets its own pair instead of replacing this one; the mold keeps its own name.
@@ -380,112 +368,14 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     }), chosenName);
   };
 
-  /** Apply the mold half of a settings file. `legacyFoot`: the foot of a file
-   *  from before the foot moved to the vase — what was poured, so it wins
-   *  (bottom-mark-plan.md) and goes onto the open vase. */
-  const applyMoldOnly = (settings: unknown, baseName: string, legacyFoot: FootSettings | null = null) => {
-    const { params: loaded, retired } = moldFromSettings(settings);
-    let footNotice: string | null = null;
-    const vb = useVaseStore.getState().params.bottom;
-    if (legacyFoot && vb && !sameFoot(legacyFoot, vb)) {
-      useVaseStore.getState().setBottom(legacyFoot);
-      footNotice = legacyFoot.footOn
-        ? `This mold's foot (${legacyFoot.footWidth} / ${legacyFoot.footSlopeWidth} / ${legacyFoot.footHeight} mm) is now the vase's foot — the foot is set on the Vase tab.`
-        : 'This mold had a flat bottom, so the vase\'s Foot is now off — the foot is set on the Vase tab.';
-    }
-    setStyleNotice([retired ? retiredStyleNotice(retired) : null, footNotice].filter(Boolean).join(' ') || null);
-    moldHistory.skipNextRecord();
-    useMoldHistory.getState().clear();
-    // Only the file's own style changes; the other tabs keep their settings.
-    useMoldStore.setState((st) => ({ params: loaded, savedByStyle: { ...st.savedByStyle, [loaded.moldStyle]: loaded }, settingsName: baseName }));
-  };
-
-  /** Save the CURRENT vase design to a file (same format as the Vase tab's
-   *  Save Design — a bare params object) before it is replaced. */
-  const saveCurrentVase = async (): Promise<boolean> => {
-    const vn = useVaseStore.getState().designName;
-    const name = await ensureNamed('Vase', isVaseUnnamed(vn), vn ?? '', (n) => useVaseStore.setState({ designName: n }));
-    if (!name) return false;
-    const chosen = await saveDesignFile(JSON.stringify(vaseParams, null, 2), withEnding(name, ENDING.vase));
-    if (chosen === null) return false;
-    useVaseStore.setState({ designName: withoutEnding(chosen, [ENDING.vase]), isDirty: false });
-    return true;
-  };
-
-  /** Save the CURRENT handle as a handle settings file (the HandleMaker
-   *  format, without its bench sheet) before it is replaced. */
-  const saveCurrentHandle = async (afterVase: boolean): Promise<boolean> => {
-    const json = JSON.stringify({ app: 'VaseMaker', type: 'handle-settings', settings: handleParams }, null, 2);
-    const hn = useHandleStore.getState().settingsName;
-    const name = await ensureNamed('Handle', isHandleUnnamed(hn), hn, (n) => useHandleStore.getState().setSettingsName(n));
-    if (!name) return false;
-    const chosen = await saveDesignFile(json, withEnding(name, ENDING.handle), afterVase);
-    if (chosen === null) return false;
-    useHandleStore.getState().markSaved(handleParams, withoutEnding(chosen, [ENDING.handle]));
-    return true;
-  };
-
-  /** Take the file's vase and/or handle as well as its mold settings. Each is
-   *  loaded the way its own tab loads a file: names come with it, and its
-   *  undo history starts fresh. */
-  const takeFileVase = (c: NonNullable<typeof vaseChoice>) => {
-    if (c.vase) loadVaseDesign(c.vase, c.vaseName);
-    if (c.handle) {
-      handleHistory.skipNextRecord();
-      useHandleHistory.getState().clear();
-      useHandleStore.setState({
-        params: c.handle, savedParams: c.handle,
-        settingsName: c.handleName?.trim() || DEFAULT_HANDLE_SETTINGS_NAME,
-      });
-    }
-    applyMoldOnly(c.settings, c.fileName, c.legacyFoot);
-    setVaseChoice(null);
-  };
-
+  /** Load Design: every file goes through the Load list (Gary, 2026-11-11) —
+   *  it shows what the file holds and loads the ticked pieces. */
   const applySettingsText = (text: string, fileBase: string) => {
-    // The mold's own name: the file's, without its style.
-    const baseName = moldNameFromFile(fileBase);
-    try {
-      const parsed = JSON.parse(text);
-      if (!parsed || typeof parsed !== 'object' || parsed.type !== 'mold-settings') {
-        if (parsed && typeof parsed === 'object' && ('radius' in parsed || 'profilePoints' in parsed)) {
-          alert('That file is a vase design. Load it with Load Design on the Vase tab.');
-        } else {
-          alert('Not a mold design file.');
-        }
-        return;
-      }
-      // Only ask when there is genuinely something to decide: no embedded vase
-      // (an old file), or one that already matches what is open, both load
-      // straight through. Comparison runs both sides through the same merge so
-      // a file written by an older version isn't reported as "different" purely
-      // for missing a parameter added since.
-      // Same rule for the handle (files since 2026-10-10, Split 2-Pc with the
-      // handle on): merged before comparing, and only a difference is asked about.
-      // A file from before the foot moved to the vase keeps its foot in the
-      // mold settings: carry it into the file's vase (and, without one, onto
-      // the open vase), so the bottom comes out as it was poured.
-      const file = readMoldFile(parsed);
-      const { legacyFoot, vase: fileVase, handle: fileHandle } = file;
-      const vaseDiffers = !!fileVase && JSON.stringify(vaseFromFile(fileVase)) !== JSON.stringify(vaseParams);
-      const handleDiffers = !!fileHandle && JSON.stringify(fileHandle) !== JSON.stringify(handleParams);
-      if (!vaseDiffers && !handleDiffers) {
-        applyMoldOnly(file.settings, baseName, legacyFoot);
-        return;
-      }
-      setVaseChoice({
-        settings: file.settings,
-        legacyFoot,
-        fileName: baseName,
-        vase: vaseDiffers ? fileVase : null,
-        vaseName: file.vaseName,
-        handle: handleDiffers ? fileHandle : null,
-        handleName: file.handleName,
-        fileHasHandle: !!fileHandle,
-      });
-    } catch {
-      alert('Not a mold design file.');
-    }
+    let parsed: unknown;
+    try { parsed = JSON.parse(text); } catch { alert('Not a design file.'); return; }
+    const contents = readDesignFile(parsed, fileBase);
+    if (!contents) { alert('Not a design file.'); return; }
+    showLoadList(contents);
   };
 
   const handleLoadSettings = async () => {
@@ -592,6 +482,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
         )}
         <DesignNameRow what="Mold" name={settingsName} unnamed={isMoldUnnamed(settingsName)} onRename={setSettingsName} />
         <NamePromptHost />
+        <LoadListHost />
       </div>
 
       <div {...sidebarScroll} className="flex-1 overflow-y-auto sidebar-scroll">
@@ -603,7 +494,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               onClick={handleLoadSettings}
               className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
               style={{ color: UI_MUTED }}
-              title="Load a mold design (.json). It carries a copy of the vase it was made from; if that differs from the vase open now, you are asked which to keep"
+              title="Load a design file (.json). A list shows what it holds (the vase, this mold style, the handle, and the sprig and mark on the vase) so you can tick what to load"
             >
               Load Design
             </button>
@@ -1382,89 +1273,6 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       )}
 
       {/* Undercut warning dialog */}
-      {/* "This mold was saved with a different vase / handle" — only ever shown
-          when the file carries a design that differs from the one open, so the
-          common path (your own mold, your own vase and handle) has no dialog at
-          all. One dialog covers both, so you can't take one and miss the other. */}
-      {vaseChoice && (() => {
-        const c = vaseChoice;
-        const what = c.vase && c.handle ? 'vase and handle' : c.vase ? 'vase' : 'handle';
-        // Unsaved work that loading would replace — only the parts that differ.
-        const unsavedVase = !!c.vase && vaseDirty;
-        const unsavedHandle = !!c.handle && handleDirty;
-        const unsaved = unsavedVase || unsavedHandle;
-        const row = (label: string, file: string | null, open: string | null, differs: boolean) => (
-          <p className="text-xs text-[var(--text-secondary)] mb-1">
-            {label}:{' '}
-            {differs ? (
-              <>
-                <span className="text-[var(--text-primary)]">{file || '(unnamed)'}</span> in the file · open now{' '}
-                <span className="text-[var(--text-primary)]">{open || '(unnamed)'}</span>
-              </>
-            ) : (
-              <span className="text-[var(--text-primary)]">same as open</span>
-            )}
-          </p>
-        );
-        return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg p-5 max-w-md mx-4 shadow-xl">
-            <p className="text-sm text-[var(--text-primary)] mb-2 font-medium">
-              This mold was saved with a different {what}
-            </p>
-            {row('Vase', c.vaseName, designName, !!c.vase)}
-            {c.fileHasHandle && row('Handle', c.handleName, handleName, !!c.handle)}
-            <div className="mb-3" />
-            {unsaved && (
-              <p className="text-xs text-amber-300 mb-3">
-                Your current {unsavedVase && unsavedHandle ? 'vase and handle have' : unsavedVase ? 'vase has' : 'handle has'} unsaved changes.
-              </p>
-            )}
-            <div className="flex flex-wrap gap-2">
-              {unsaved && (
-                <button
-                  onClick={async () => {
-                    // One save dialog per unsaved design; cancelling either stops the load.
-                    if (unsavedVase && !(await saveCurrentVase())) return;
-                    if (unsavedHandle && !(await saveCurrentHandle(!!unsavedVase))) return;
-                    takeFileVase(c);
-                  }}
-                  className="flex-1 px-3 py-1.5 text-xs bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded transition-colors"
-                  title="Save your open design to a file first, then load the mold file and the design inside it"
-                >
-                  Save mine, then load
-                </button>
-              )}
-              <button
-                onClick={() => takeFileVase(c)}
-                className={`flex-1 px-3 py-1.5 text-xs rounded transition-colors ${
-                  unsaved
-                    ? 'bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)] text-[var(--text-primary)]'
-                    : 'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white'
-                }`}
-                title={unsaved ? `Load the mold file and its ${what}, dropping your unsaved changes` : `Load the mold settings and the ${what} saved inside the file`}
-              >
-                {unsaved ? 'Load anyway' : `Load that ${what} too`}
-              </button>
-              <button
-                onClick={() => { applyMoldOnly(c.settings, c.fileName, c.legacyFoot); setVaseChoice(null); }}
-                className="flex-1 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] text-[var(--text-primary)] transition-colors"
-                title={`Use this mold's numbers on the ${what} you already have open`}
-              >
-                Settings only
-              </button>
-              <button
-                onClick={() => setVaseChoice(null)}
-                className="flex-1 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] text-[var(--text-secondary)] transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-        );
-      })()}
-
       {warnExport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg p-5 max-w-sm mx-4 shadow-xl">

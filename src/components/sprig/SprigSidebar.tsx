@@ -20,6 +20,8 @@ import { generateSTL } from '@/engine/stl-export';
 import { parseSvgInput } from '@/engine/svg-rasterizer';
 import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib/image-capture';
 import { withEnding, withoutEnding, ENDING } from '@/lib/file-names';
+import { readDesignFile, needsList } from '@/lib/load-pieces';
+import { showLoadList, LoadListHost } from '@/components/parameters/LoadList';
 import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
@@ -348,16 +350,10 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
       const parsed = JSON.parse(text);
       // Either kind loads into either tab: a sprig can become a mark, and a
       // mark can be cast as a sprig.
-      if (!parsed || typeof parsed !== 'object' || (parsed.type !== 'sprig-settings' && parsed.type !== 'mark-settings')) {
-        if (parsed && typeof parsed === 'object' && ('radius' in parsed || 'profilePoints' in parsed)) {
-          alert('That file is a vase design. Load it with Load Design on the Vase tab.');
-        } else if (parsed && typeof parsed === 'object' && (parsed.type === 'mold-settings' || parsed.type === 'handle-settings')) {
-          alert(`That file is a ${parsed.type === 'mold-settings' ? 'mold' : 'handle'} design. Load it on the ${parsed.type === 'mold-settings' ? 'Mold' : 'Handle'} tab.`);
-        } else {
-          alert(`Not a ${what} design file.`);
-        }
-        return;
-      }
+      // A vase, mold or handle file opens the Load list (Gary, 2026-11-11).
+      const contents = readDesignFile(parsed, baseName);
+      if (!contents) { alert('Not a design file.'); return; }
+      if (needsList(contents, isMark ? 'mark' : 'sprig')) { showLoadList(contents); return; }
       const merged = sprigFromFile(parsed, design.defaults);
       const loaded = isMark ? asMark(merged) : merged;
       sprigHistory.skipNextRecord();
@@ -482,6 +478,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
         </p>
         <DesignNameRow what={What} name={settingsName} unnamed={design.isUnnamed(settingsName)} onRename={setSettingsName} />
         <NamePromptHost />
+        <LoadListHost />
       </div>
 
       <div {...sidebarScroll} className="flex-1 overflow-y-auto sidebar-scroll">
@@ -490,7 +487,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
           {/* Design files, then exports, then the drawing — the other pages' order
               (Gary 2026-10-29) */}
           <div className="flex gap-2">
-            <button onClick={handleLoadSettings} className={btn} style={{ color: UI_MUTED }} title={`Load a ${what} design (drawing included) from JSON. A sprig file can be loaded as a mark, and a mark as a sprig`}>
+            <button onClick={handleLoadSettings} className={btn} style={{ color: UI_MUTED }} title={`Load a ${what} design (drawing included) from JSON. A sprig file can be loaded as a mark, and a mark as a sprig. Other design files open a list of what they hold, to tick what to load`}>
               Load Design
             </button>
             <button onClick={handleSaveSettings} className={btn} style={{ color: UI_MUTED }} title={isMark ? 'Save this mark (.json, named “… – Mark”), the drawing inside it' : 'Save this sprig (.json, named “… – Sprig”), the drawing inside it, plus a .txt bench sheet'}>

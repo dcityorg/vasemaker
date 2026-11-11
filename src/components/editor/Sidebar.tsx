@@ -13,8 +13,9 @@ import { generateMesh } from '@/engine/mesh-generator';
 import { UI_MUTED } from '@/config/colors';
 import { saveDesignFile, openDesignFile, saveSTLFile } from '@/lib/image-capture';
 import { withEnding, withoutEnding, ENDING } from '@/lib/file-names';
+import { readDesignFile, needsList } from '@/lib/load-pieces';
+import { showLoadList, LoadListHost } from '@/components/parameters/LoadList';
 import { dcCountExport } from '@/lib/analytics';
-import { notAVaseMessage } from '@/lib/design-files';
 import { CAPTURE_SIZE_PRESETS, CUSTOM_SIZE_INDEX } from '@/config/capture';
 import type { CaptureFormat } from '@/config/capture';
 
@@ -119,9 +120,11 @@ export function Sidebar({
   const applyDesignText = (text: string, name: string) => {
     try {
       const parsed = JSON.parse(text);
-      // A mold, handle or sprig file would otherwise load as a default vase.
-      const wrong = notAVaseMessage(parsed);
-      if (wrong) { alert(wrong); return; }
+      // Any other kind of file (a mold, a handle…) opens the Load list, which
+      // shows what it holds (Gary, 2026-11-11); a vase file loads straight away.
+      const contents = readDesignFile(parsed, name);
+      if (!contents) { alert('Not a design file.'); return; }
+      if (needsList(contents, 'vase')) { showLoadList(contents); return; }
       loadDesign(parsed, withoutEnding(name, [ENDING.vase]));
     } catch {
       alert('Invalid design file.');
@@ -184,6 +187,7 @@ export function Sidebar({
         <DesignNameRow what="Vase" name={designName ?? ''} unnamed={isVaseUnnamed(designName)} dirty={isDirty}
           onRename={(v) => onDesignNameChange(v || null)} />
         <NamePromptHost />
+        <LoadListHost />
       </div>
 
       {/* Scrollable area — toolbar + parameter controls */}
@@ -239,7 +243,7 @@ export function Sidebar({
             onClick={handleLoadDesign}
             className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
             style={{ color: UI_MUTED }}
-            title="Load a vase design (.json)"
+            title="Load a vase design (.json). Other design files open a list of what they hold, to tick what to load"
           >
             Load Design
           </button>

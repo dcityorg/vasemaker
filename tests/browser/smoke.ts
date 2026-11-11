@@ -2,7 +2,8 @@
  * Browser smoke, in the quick suite (`npm test`): every page opens with a 3D
  * view and no error; the tool buttons go round Vase → Handle → Mold →
  * Sprig → Mark → Vase with a switch flipped on each; a change survives a
- * reload; and the Vase tab refuses a mold file, naming the Mold tab.
+ * reload; and a mold file on the Vase tab opens the Load list (Gary,
+ * 2026-11-11; it used to be refused), and Cancel leaves the vase alone.
  * The deeper browser checks (load-files, undo-revert, click-paths) run in
  * `npm run test:deep`.
  */
@@ -56,12 +57,15 @@ async function main() {
   const after = await storedState(page);
   check(same(before, after), `every page's settings survive a reload${same(before, after) ? '' : ` — ${firstDiff(after, before)}`}`);
 
-  // The Vase tab names the right tab for a mold file, and keeps the vase.
+  // A mold file on the Vase tab opens the Load list; Cancel keeps the vase.
   const vase = after[KEY['/']];
   await page.locator('input[type=file][accept=".json"]').setInputFiles(join(FIXTURES, 'molds/tumbler3-halves.mold.json'));
-  await page.waitForTimeout(500);
-  const said = alerts.splice(0);
-  check(said.length === 1 && said[0] === 'That file is a mold design. Load it on the Mold tab.', `Vase tab refuses a mold file — "${said.join(' | ')}"`);
+  const list = page.locator('[data-load-list]');
+  const shown = await list.waitFor({ timeout: 3000 }).then(() => true, () => false);
+  const rows = shown ? await list.locator('[data-piece]').evaluateAll((els) => els.map((e) => e.getAttribute('data-piece'))) : [];
+  check(shown && rows.join() === 'vase,mold,handle,sprig,mark', `Vase tab: a mold file opens the Load list (${rows.join(', ') || 'no list'})`);
+  if (shown) await list.getByRole('button', { name: 'Cancel' }).click();
+  await page.waitForTimeout(300);
   const kept = (await storedState(page))[KEY['/']];
   check(same(kept, vase), `…and the vase is unchanged${same(kept, vase) ? '' : ` — ${firstDiff(kept, vase)}`}`);
 
