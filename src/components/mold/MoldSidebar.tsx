@@ -23,6 +23,7 @@ import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport, type ReportPart } from '@/lib/print-report';
 import { ACTIVE_MOLD_STYLES, moldUsesHandle, HALVES_HANDLE_OFFERED } from '@/engine/mold/mold-types';
 import { readMoldFile, moldFromSettings, vaseFromFile } from '@/lib/design-files';
+import { withEnding, withoutEnding, moldFileName, moldNameFromFile, ENDING } from '@/lib/file-names';
 import { translateMesh } from '@/engine/handle/mesh3';
 import { moldWithVaseFoot, sameFoot, type FootSettings } from '@/engine/mold/vase-foot';
 import type { AnyMoldMeshes } from '@/hooks/use-mold-meshes';
@@ -344,9 +345,11 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       // and asking about it on load would be noise (Gary, 2026-10-10).
       ...(usesHandle ? { handle: handleParams, handleName } : {}),
     }, null, 2);
-    const chosenName = await saveDesignFile(json, fileName);
+    // "Tall Tumbler – Split Halves.json" + .txt (Gary, 2026-11-11): a second style
+    // gets its own pair instead of replacing this one; the mold keeps its own name.
+    const chosenName = await saveDesignFile(json, moldFileName(fileName, params.moldStyle));
     if (chosenName === null) return; // cancelled — don't offer the text file either
-    markSaved(params, chosenName);
+    markSaved(params, moldNameFromFile(chosenName));
     // Companion bench sheet: plaster batch + printer fit, so the numbers are at
     // hand without opening the app. Second dialog is unavoidable — see saveTextFile.
     await saveTextFile(buildPrintReport({
@@ -403,9 +406,9 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     const vn = useVaseStore.getState().designName;
     const name = await ensureNamed('Vase', isVaseUnnamed(vn), vn ?? '', (n) => useVaseStore.setState({ designName: n }));
     if (!name) return false;
-    const chosen = await saveDesignFile(JSON.stringify(vaseParams, null, 2), name);
+    const chosen = await saveDesignFile(JSON.stringify(vaseParams, null, 2), withEnding(name, ENDING.vase));
     if (chosen === null) return false;
-    useVaseStore.setState({ designName: chosen, isDirty: false });
+    useVaseStore.setState({ designName: withoutEnding(chosen, [ENDING.vase]), isDirty: false });
     return true;
   };
 
@@ -416,9 +419,9 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     const hn = useHandleStore.getState().settingsName;
     const name = await ensureNamed('Handle', isHandleUnnamed(hn), hn, (n) => useHandleStore.getState().setSettingsName(n));
     if (!name) return false;
-    const chosen = await saveDesignFile(json, name, afterVase);
+    const chosen = await saveDesignFile(json, withEnding(name, ENDING.handle), afterVase);
     if (chosen === null) return false;
-    useHandleStore.getState().markSaved(handleParams, chosen);
+    useHandleStore.getState().markSaved(handleParams, withoutEnding(chosen, [ENDING.handle]));
     return true;
   };
 
@@ -439,7 +442,9 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     setVaseChoice(null);
   };
 
-  const applySettingsText = (text: string, baseName: string) => {
+  const applySettingsText = (text: string, fileBase: string) => {
+    // The mold's own name: the file's, without its style.
+    const baseName = moldNameFromFile(fileBase);
     try {
       const parsed = JSON.parse(text);
       if (!parsed || typeof parsed !== 'object' || parsed.type !== 'mold-settings') {

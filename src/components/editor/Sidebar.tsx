@@ -12,6 +12,7 @@ import { generateSTL } from '@/engine/stl-export';
 import { generateMesh } from '@/engine/mesh-generator';
 import { UI_MUTED } from '@/config/colors';
 import { saveDesignFile, openDesignFile, saveSTLFile } from '@/lib/image-capture';
+import { withEnding, withoutEnding, ENDING } from '@/lib/file-names';
 import { dcCountExport } from '@/lib/analytics';
 import { notAVaseMessage } from '@/lib/design-files';
 import { CAPTURE_SIZE_PRESETS, CUSTOM_SIZE_INDEX } from '@/config/capture';
@@ -107,9 +108,10 @@ export function Sidebar({
     const json = JSON.stringify(params, null, 2);
     const suggestedName = await ensureNamed('Vase', isVaseUnnamed(designName), designName ?? '', onDesignNameChange);
     if (!suggestedName) return;
-    const chosenName = await saveDesignFile(json, suggestedName);
+    // The file says it is a vase ("Tall Tumbler – Vase.json"); the design keeps its own name.
+    const chosenName = await saveDesignFile(json, withEnding(suggestedName, ENDING.vase));
     if (chosenName !== null) {
-      onDesignNameChange(chosenName);
+      onDesignNameChange(withoutEnding(chosenName, [ENDING.vase]));
       markClean();
     }
   };
@@ -120,7 +122,7 @@ export function Sidebar({
       // A mold, handle or sprig file would otherwise load as a default vase.
       const wrong = notAVaseMessage(parsed);
       if (wrong) { alert(wrong); return; }
-      loadDesign(parsed, name);
+      loadDesign(parsed, withoutEnding(name, [ENDING.vase]));
     } catch {
       alert('Invalid design file.');
     }

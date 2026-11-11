@@ -19,6 +19,7 @@ import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import { generateSTL } from '@/engine/stl-export';
 import { parseSvgInput } from '@/engine/svg-rasterizer';
 import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib/image-capture';
+import { withEnding, withoutEnding, ENDING } from '@/lib/file-names';
 import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
@@ -302,9 +303,10 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
     const json = JSON.stringify({ app: 'VaseMaker', type: fileType, settings: params }, null, 2);
     const name = await ensureNamed(What, design.isUnnamed(settingsName), settingsName, setSettingsName);
     if (!name) return;
-    const chosenName = await saveDesignFile(json, name);
+    // "DragonFly1 – Sprig.json" / "GM Mark – Mark.json"; the design keeps its own name.
+    const chosenName = await saveDesignFile(json, withEnding(name, isMark ? ENDING.mark : ENDING.sprig));
     if (chosenName === null) return;
-    markSaved(params, chosenName);
+    markSaved(params, withoutEnding(chosenName, [ENDING.sprig, ENDING.mark]));
     // A mark has no mold, so no bench sheet.
     if (!m || isMark) return;
     const dim = (n: number) => `${n.toFixed(0)} mm`;
@@ -360,7 +362,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
       const loaded = isMark ? asMark(merged) : merged;
       sprigHistory.skipNextRecord();
       useSprigHistory.getState().clear();
-      useSprigStore.setState({ params: loaded, savedParams: loaded, settingsName: baseName, carried: null });
+      useSprigStore.setState({ params: loaded, savedParams: loaded, settingsName: withoutEnding(baseName, [ENDING.sprig, ENDING.mark]), carried: null });
     } catch {
       alert(`Not a ${what} design file.`);
     }

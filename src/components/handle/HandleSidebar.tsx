@@ -15,6 +15,7 @@ import { PLASTER_MATERIALS } from '@/config/mold-params';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
 import { generateSTL } from '@/engine/stl-export';
 import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib/image-capture';
+import { withEnding, withoutEnding, ENDING } from '@/lib/file-names';
 import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
@@ -113,9 +114,10 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
     const json = JSON.stringify({ app: 'VaseMaker', type: 'handle-settings', settings: params }, null, 2);
     const name = await ensureNamed('Handle', isHandleUnnamed(settingsName), settingsName, setSettingsName);
     if (!name) return;
-    const chosenName = await saveDesignFile(json, name);
+    // "D Handle – Handle.json" (and .txt); the handle keeps its own name.
+    const chosenName = await saveDesignFile(json, withEnding(name, ENDING.handle));
     if (chosenName === null) return; // cancelled — don't offer the text file either
-    markSaved(params, chosenName);
+    markSaved(params, withoutEnding(chosenName, [ENDING.handle]));
     // Companion bench sheet, same as MoldMaker: plaster batch + printer fit so
     // the numbers are at hand without opening the app.
     const L = handle.layout;
@@ -172,7 +174,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
       const loaded = handleFromFile(parsed);
       handleHistory.skipNextRecord();
       useHandleHistory.getState().clear();
-      useHandleStore.setState({ params: loaded, savedParams: loaded, settingsName: baseName });
+      useHandleStore.setState({ params: loaded, savedParams: loaded, settingsName: withoutEnding(baseName, [ENDING.handle]) });
     } catch {
       alert('Not a handle design file.');
     }
