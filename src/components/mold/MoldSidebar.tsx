@@ -502,7 +502,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               onClick={handleSaveSettings}
               className="flex-1 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded hover:bg-[var(--border-color)] transition-colors"
               style={{ color: UI_MUTED }}
-              title={`Save this mold style (.json, named “… – ${MOLD_STYLE_TABS.find((t) => t.value === params.moldStyle)?.label ?? 'style'}”) with everything it needs, plus a .txt bench sheet. Another style saves its own pair of files`}
+              title={`Save this mold style (.json, named “… – ${MOLD_STYLE_TABS.find((t) => t.value === params.moldStyle)?.label ?? 'style'}”) with its vase and handle, and the sprig and mark only if they are on the vase, plus a .txt bench sheet. Another style saves its own pair of files`}
             >
               Save Design
             </button>
@@ -514,7 +514,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               className="hidden"
             />
           </div>
-          <SaveNote>Saves this mold style with everything it needs: the vase, the handle, and the sprig and mark on the vase.</SaveNote>
+          <SaveNote>Saves this mold style with its vase and handle. A sprig or mark is saved only if it is on the vase; save other sprigs and marks on the Sprig/Mark page.</SaveNote>
           <RevertResetRow
             canRevert={!!savedParams && savedParams !== params}
             onRevert={revertToSaved}

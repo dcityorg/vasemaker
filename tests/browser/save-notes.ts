@@ -19,7 +19,7 @@ import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 
 const NOTES: [string, string, string?][] = [
   ['/', 'Saves the vase only. To keep its mold and handle too, save on the Mold tab.'],
-  ['/mold', 'Saves this mold style with everything it needs: the vase, the handle, and the sprig and mark on the vase.'],
+  ['/mold', 'Saves this mold style with its vase and handle. A sprig or mark is saved only if it is on the vase; save other sprigs and marks on the Sprig/Mark page.'],
   ['/handle', 'Saves this handle only.'],
   ['/sprig', 'Saves this sprig only.'],
   ['/sprig', 'Saves this mark only.', 'Mark'],
