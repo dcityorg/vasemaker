@@ -6,7 +6,8 @@
  *  - Split Halves and Split Thirds, vase with a foot, Bottom Plug off: an amber
  *    note says the mold casts a flat bottom; CONTROL: with the plug on, or the
  *    vase's foot off, no note;
- *  - the section is called Bottom Plug and "Foot Piece" is gone from the page.
+ *  - the section is called Bottom Plug and "Foot Piece" is gone from the page;
+ *  - Cast Wall's tooltip says moving it changes nothing on the display.
  * Run: npm run test:browser -- save-notes
  */
 import { readFileSync, writeFileSync, mkdtempSync } from 'fs';
@@ -70,6 +71,11 @@ async function testFoot(browser: Browser, dir: string): Promise<string[]> {
     await page.waitForTimeout(2500);
     const shown = await page.locator('[data-foot-note]').isVisible().catch(() => false);
     check(shown === want, `${label}: amber flat-bottom note ${want ? 'shown' : 'not shown'}${shown === want ? '' : ` (it was ${shown ? '' : 'not '}shown)`}`);
+    if (style === 'splitHalves' && !plug) {
+      // Cast Wall (Split Halves' Handle section) says it changes nothing you can see (Gary, 2026-11-11).
+      const castTip = await page.locator('label', { hasText: /^Cast Wall/ }).first().getAttribute('title', { timeout: 3000 }).catch(() => null) ?? '';
+      check(/usually cast your slip/.test(castTip) && /Nothing on your display changes/.test(castTip), `Cast Wall tooltip: "${castTip.slice(0, 100)}…"`);
+    }
   }
   const body = await page.locator('[data-sidebar], body').first().innerText();
   check(/Bottom Plug/.test(body) && !/Foot Piece/.test(body), 'the section is "Bottom Plug"; "Foot Piece" is gone');

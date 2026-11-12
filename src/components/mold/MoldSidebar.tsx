@@ -972,7 +972,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                   <Link href="/handle" className="underline hover:text-[var(--text-primary)]">edit ▸</Link>
                 </p>
                 {sl('handleTopDrop', 'Top Below Rim', 'mm', 'Where the top of the handle meets the vase, measured down from the rim (finished size). The bottom end lands wherever the handle\'s span reaches the vase below it')}
-                {sl('castWallThickness', 'Cast Wall', 'mm', 'Your usual fired wall thickness. A handle much thicker than twice this may not fill solid before you drain the mold')}
+                {sl('castWallThickness', 'Cast Wall', 'mm', 'How thick you usually cast your slip pieces: the wall you let build up in the mold before you drain it. Nothing on your display changes when you move this, and the mold you print stays the same. It is only used to warn you (an amber note) when the handle is thicker than about twice this, because it may not fill solid before you drain')}
                 {isHalves && sl('halvesRibSlot', 'Rib Slot', 'mm', 'A gap down the middle of each of the 3 pull-ribs in the handle\'s master. Squeezing the strap with pliers closes it, to start the master moving; to pull, grip both halves of a rib together. Ice water runs along the handle through it. 0 = solid ribs')}
                 {(mold.style === 'splitTwoPiece' || mold.style === 'splitHalves') && mold.handleError && (
                   <p className="text-[11px] text-red-400 mt-1 leading-snug">{mold.handleError} The {isHalves ? 'mold is' : 'trays are'} built without the handle.</p>
