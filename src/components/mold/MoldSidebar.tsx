@@ -1266,9 +1266,12 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       {saveAll && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg p-5 max-w-md mx-4 shadow-xl">
-            <p className="text-sm text-[var(--text-primary)] mb-1 font-medium">Save the designs too?</p>
-            <p className="text-xs text-[var(--text-secondary)] mb-3">
-              Each is saved as its own file under its own name, then the mold.
+            <p className="text-sm text-[var(--text-primary)] mb-1 font-medium">Save the vase too?</p>
+            <p className="text-xs text-[var(--text-secondary)] mb-2">
+              The vase has unsaved changes. Ticked, it is saved as its own file under its own name, then the mold.
+            </p>
+            <p data-save-all-note className="text-xs text-[var(--text-secondary)] mb-3">
+              Not saved here: the Handle tab&apos;s handle, and the Sprig and Mark pages&apos; designs, unless they are on the vase. Save those on their own tabs.
             </p>
             {([
               ['vase', 'Vase', designName || 'vase-design', vaseDirty, true],
