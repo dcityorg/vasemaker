@@ -1164,7 +1164,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
               const f = estimatePlaster(mold.foot.plasterVolumeMm3, params.material);
               return (
                 <>
-                  <div className="text-xs mt-2 mb-1.5" style={{ color: UI_MUTED }}>{mold.style === 'splitThirds' ? 'Plug' : 'Foot piece'} — its own pour</div>
+                  <div className="text-xs mt-2 mb-1.5" style={{ color: UI_MUTED }}>{mold.style === 'splitThirds' ? 'Plug' : 'Bottom plug'} — its own pour</div>
                   <StatRow label="Plaster (foot)" value={`${f.volumeCm3.toFixed(0)} cm³`} />
                   <StatRow label="Powder (foot)" value={`≈ ${fmt(f.powderGrams)} g`} />
                   <StatRow label="Water (foot)" value={`≈ ${fmt(f.waterGrams)} g`} />

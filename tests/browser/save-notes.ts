@@ -75,14 +75,19 @@ async function testFoot(browser: Browser, dir: string): Promise<string[]> {
     await page.waitForTimeout(2500);
     const shown = await page.locator('[data-foot-note]').isVisible().catch(() => false);
     check(shown === want, `${label}: amber flat-bottom note ${want ? 'shown' : 'not shown'}${shown === want ? '' : ` (it was ${shown ? '' : 'not '}shown)`}`);
+    if (style === 'splitHalves' && plug) {
+      // With the plug on, its plaster stats show too: no "Foot piece" anywhere (any case).
+      await page.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));
+      const body = await page.locator('body').innerText();
+      check(/Bottom Plug/.test(body) && /Bottom plug — its own pour/.test(body) && !/Foot Piece/i.test(body),
+        'Split Halves with the plug: "Bottom Plug" and "Bottom plug — its own pour"; "Foot piece" is gone');
+    }
     if (style === 'splitHalves' && !plug) {
       // Cast Wall (Split Halves' Handle section) says it changes nothing you can see (Gary, 2026-11-11).
       const castTip = await page.locator('label', { hasText: /^Cast Wall/ }).first().getAttribute('title', { timeout: 3000 }).catch(() => null) ?? '';
       check(/usually cast your slip/.test(castTip) && /Nothing on your display changes/.test(castTip), `Cast Wall tooltip: "${castTip.slice(0, 100)}…"`);
     }
   }
-  const body = await page.locator('[data-sidebar], body').first().innerText();
-  check(/Bottom Plug/.test(body) && !/Foot Piece/.test(body), 'the section is "Bottom Plug"; "Foot Piece" is gone');
   check(errors.length === 0, `foot note: no page errors${errors.length ? ` — ${errors[0]}` : ''}`);
   await context.close();
   return lines;
