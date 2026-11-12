@@ -134,7 +134,7 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
     moldSize: ['plasterMargin', 'customCavW', 'customCavL', 'customWallH', 'customWallThickness', 'customFlangeWidth', 'plateThickness'],
     print: ['shrinkPercent'],
     plaster: ['material'],
-    placement: ['onVaseHeight', 'onVaseAngle', 'onVaseTilt', 'onVaseCopies', 'onVaseHandle'],
+    placement: ['onVaseHeight', 'onVaseAngle', 'onVaseTilt', 'onVaseCopies'],
     shaping: ['heightMode'],
     size: ['rotation', 'flipX', 'flipY'],
   };
@@ -670,13 +670,11 @@ export function SprigSidebar({ sprig, tab, onTab, helpOpen, onToggleHelp }: {
                 <SeamSnap angle={params.onVaseAngle} onSnap={(v) => setParam('onVaseAngle', v)} />
                 {sl('onVaseTilt', 'Tilt', '°', 'Turn the sprig on the vase wall, clockwise (+) as you look at it')}
                 {sl('onVaseCopies', 'Repeat', '', 'Copies spaced evenly round the vase')}
-                <Toggle label="Show Handle" checked={params.onVaseHandle} onChange={(v) => setParam('onVaseHandle', v)}
-                  tooltip="Put the HandleMaker handle on the vase, to place sprigs beside it. Where it sits is set in HandleMaker (Top Below Rim)" />
-                {params.onVaseHandle && (
-                  <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
-                    The handle sits where HandleMaker puts it — change its height there (Top Below Rim).
-                  </p>
-                )}
+                {/* Show Handle went (Gary, 2026-11-11): the mug shows its own handle,
+                    when the vase has one. `onVaseHandle` stays in old files, unused. */}
+                <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
+                  The vase&apos;s handle shows when it has one (Vase tab → Handle, which also sets where it goes).
+                </p>
               </Greyed>
             </>
           )}

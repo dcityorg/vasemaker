@@ -14,8 +14,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVaseStore } from '@/store/vase-store';
 import { useMoldStore } from '@/store/mold-store';
-import { useHandleStore } from '@/store/handle-store';
-import { moldUsesHandle, type MoldParameters } from '@/engine/mold/mold-types';
+import type { MoldParameters } from '@/engine/mold/mold-types';
+import { moldBuildInputs } from '@/engine/mold/handle-on-vase';
 import type { VaseParameters } from '@/engine/types';
 import type { HandleParameters } from '@/engine/handle/handle-types';
 import { moldWithVaseFoot } from '@/engine/mold/vase-foot';
@@ -35,13 +35,12 @@ export function useMoldMeshes(): { mold: AnyMoldMeshes; building: boolean } {
   const moldParams = useMemo(() => moldWithVaseFoot(storedMold, vaseParams), [storedMold, vaseParams]);
   const markField = useBottomMark();
   const sprigField = useVaseSprig();
-  // The Split 2-Pc handle is HandleMaker's live design. Only depend on it when
-  // it is used, so editing a handle doesn't rebuild every other style.
-  const handleParams = useHandleStore((s) => s.params);
-  const handleDep = moldUsesHandle(moldParams) ? handleParams : null;
+  // A cast handle is the VASE's copy, at the vase's Around and Top Below Rim
+  // (2026-11-11). moldBuildInputs feeds them in as the mold's own settings were.
+  const inputs = useMemo(() => moldBuildInputs(vaseParams, moldParams), [vaseParams, moldParams]);
 
-  const wanted = useMemo(() => ({ vaseParams, moldParams, handleDep, markField, sprigField }),
-    [vaseParams, moldParams, handleDep, markField, sprigField]);
+  const wanted = useMemo(() => ({ vaseParams, moldParams: inputs.mold, handleDep: inputs.handle, markField, sprigField }),
+    [vaseParams, inputs, markField, sprigField]);
   const [built, setBuilt] = useState(wanted);
   const lastMs = useRef(0);
   useEffect(() => {

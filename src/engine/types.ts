@@ -1,4 +1,5 @@
 import type { SprigParameters } from './sprig/sprig-types';
+import type { HandleParameters } from './handle/handle-types';
 
 /** All available cross-section shape types */
 export type ShapeType =
@@ -277,6 +278,11 @@ export interface VaseParameters {
   // Bottom — the foot ring and the maker's mark (local-docs/bottom-mark-plan.md)
   bottom: BottomSettings;
 
+  // The mug's handle (Gary, 2026-11-11: it moved here from the Mold tab;
+  // local-docs/save-design-plan.md Part 2). Optional: designs saved before have
+  // none, and applyPreset fills in the default (off).
+  handle?: VaseHandleSettings;
+
   // Smooth zones — suppress ripples & textures near base/rim
   smoothZones: {
     enabled: boolean;             // master toggle
@@ -324,6 +330,20 @@ export interface BottomSettings {
   markOffsetY: number;      // mm, up as seen from below
   mark: SprigParameters | null;
   markName: string;
+}
+
+/**
+ * The handle on the vase. Like the sprig and the mark, `handle` is a COPY of
+ * the Handle tab's design, refreshed only when the user brings it in again, so
+ * a vase file carries its own handle. Split Halves, when it casts the handle,
+ * puts its seam at `around` (the handle sits on the seam).
+ */
+export interface VaseHandleSettings {
+  enabled: boolean;
+  around: number;           // degrees round the vase (what Split Angle was for a cast handle)
+  topDrop: number;          // mm from the rim down to the handle's top end, finished size
+  handle: HandleParameters | null;
+  handleName: string;
 }
 
 /** Filament materials with known densities (see PRINT_CHECK in config/shape-params.ts) */

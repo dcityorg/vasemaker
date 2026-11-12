@@ -6,6 +6,7 @@
 import type { VaseParameters, CurvePointType, BezierPoint } from '@/engine/types';
 import { DEFAULT_PARAMETERS } from './defaults';
 import { mergeSprigParameters, DEFAULT_MARK_PARAMETERS } from '@/engine/sprig/sprig-types';
+import { mergeHandleParameters } from '@/engine/handle/handle-types';
 
 // Re-export preset data and types from config
 export type { Preset } from '@/config/presets';
@@ -75,10 +76,15 @@ function normalizeCurves(params: VaseParameters): VaseParameters {
     ? { ...params.textures, sprig: { ...DEFAULT_PARAMETERS.textures.sprig!, ...sp, sprig: sp.sprig ? mergeSprigParameters(sp.sprig) : null } }
     : params.textures;
 
+  // The handle's copy of a Handle tab design, filled in the same way.
+  const hd = params.handle;
+  const handle = { ...DEFAULT_PARAMETERS.handle!, ...hd, handle: hd?.handle ? mergeHandleParameters(hd.handle) : null };
+
   return {
     ...params,
     textures,
     bottom,
+    handle,
     profilePointTypes: profileTypes,
     bezierTwist: { ...params.bezierTwist, points: twistPoints, pointTypes: twistTypes },
     bezierOffset: {

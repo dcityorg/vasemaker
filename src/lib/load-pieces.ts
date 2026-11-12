@@ -58,11 +58,13 @@ const styleOf = (settings: unknown): MoldStyle | null => {
   return typeof s === 'string' && s in MOLD_STYLE_NAMES ? s as MoldStyle : null;
 };
 
-/** The sprig and the mark placed on a vase, if any. */
+/** The sprig, the mark and the handle placed on a vase, if any. */
 function vaseCopies(vase: Partial<VaseParameters> | null) {
   const t = vase?.textures?.sprig;
   const b = vase?.bottom;
+  const h = vase?.handle;
   return {
+    handle: h?.enabled && h.handle ? mergeHandleParameters(h.handle) : null, handleName: h?.enabled && h.handle ? (h.handleName || 'handle') : null,
     sprig: t?.sprig ? mergeSprigParameters(t.sprig) : null, sprigName: t?.sprig ? (t.sprigName || 'sprig') : null,
     mark: b?.mark ? mergeSprigParameters(b.mark, DEFAULT_MARK_PARAMETERS) : null, markName: b?.mark ? (b.markName || 'mark') : null,
   };
@@ -82,7 +84,7 @@ export function readDesignFile(parsed: unknown, fileName: string): FileContents 
     const style = styleOf(f.settings);
     const c = vaseCopies(f.vase);
     const c2: Omit<FileContents, 'pieces'> = {
-      ...base, vase: f.vase, vaseName: f.vaseName, handle: f.handle, handleName: f.handleName,
+      ...base, vase: f.vase, vaseName: f.vaseName,
       mold: { settings: f.settings, style, name: moldNameFromFile(fileName), legacyFoot: f.legacyFoot },
       ...c, fromVase: true,
     };
@@ -122,9 +124,13 @@ function piecesFor(c: Omit<FileContents, 'pieces'>): Piece[] {
     key: 'mold', label: 'Mold', present: true, ticked: true,
     detail: moldDetail(c.mold?.style ?? null),
   });
-  if (isMold || c.handle) out.push({ key: 'handle', label: 'Handle', present: !!c.handle, ticked: !!c.handle, detail: c.handle ? (c.handleName || '(unnamed)') : missing });
-  // On a vase the sprig and mark are COPIES: offered, unticked, for reuse on their own page.
+  // On a vase the handle, sprig and mark are COPIES (the handle since
+  // 2026-11-11): offered, unticked, for reuse on their own page.
   const copy = c.fromVase;
+  if (isMold || c.handle) out.push({
+    key: 'handle', label: 'Handle → Handle tab', present: !!c.handle, ticked: !!c.handle && !copy,
+    detail: c.handle ? `${c.handleName || '(unnamed)'}${copy ? ' (the one on the vase)' : ''}` : 'no handle on this vase',
+  });
   if (isMold || c.sprig) out.push({
     key: 'sprig', label: 'Sprig → Sprig page', present: !!c.sprig, ticked: !!c.sprig && !copy,
     detail: c.sprig ? `${c.sprigName}${copy ? ' (the one on the vase)' : ''}` : 'no sprig on this vase',

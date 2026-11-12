@@ -5,7 +5,10 @@
 
 import { create } from 'zustand';
 import { MAX_CURVE_POINTS } from '@/lib/constants';
-import type { VaseParameters, ShapeType, ShapeParams, BezierPoint, CurvePointType, VaseSprigSettings } from '@/engine/types';
+import type { VaseParameters, ShapeType, ShapeParams, BezierPoint, CurvePointType, VaseSprigSettings, VaseHandleSettings } from '@/engine/types';
+import { mergeMoldParameters } from '@/engine/mold/mold-types';
+import { mergeHandleParameters } from '@/engine/handle/handle-types';
+import { handleFromOldMold } from '@/engine/mold/handle-on-vase';
 import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import type { Preset } from '@/presets';
 import { applyPreset } from '@/presets';
@@ -109,6 +112,8 @@ interface VaseStore {
   // Actions — print check
   setPrintCheck: (update: Partial<VaseParameters['printCheck']>) => void;
   setBottom: (update: Partial<VaseParameters['bottom']>) => void;
+  /** The handle on the vase (Gary, 2026-11-11): on/off, Around, Top Below Rim, its copy of the Handle tab's design. */
+  setHandle: (update: Partial<VaseHandleSettings>) => void;
 
   // Actions — resolution
   setResolution: (update: Partial<VaseParameters['resolution']>) => void;
@@ -578,6 +583,11 @@ export const useVaseStore = create<VaseStore>((set, get) => ({
       params: { ...state.params, bottom: { ...DEFAULT_PARAMETERS.bottom, ...state.params.bottom, ...update } },
     })),
 
+  setHandle: (update) =>
+    set((state) => ({
+      params: { ...state.params, handle: { ...DEFAULT_PARAMETERS.handle!, ...state.params.handle, ...update } },
+    })),
+
   // Resolution
   setResolution: (update) =>
     set((state) => ({
@@ -682,6 +692,24 @@ export function hydrateVaseDesignFromStorage(): void {
   });
 }
 
+/**
+ * The handle as the app kept it before 2026-11-11: the Mold page's Split Halves
+ * settings (Handle switch, Split Angle, Top Below Rim) and the Handle tab's
+ * design. Read straight from storage: the vase hydrates first on some pages.
+ */
+function handleFromOldStorage(): VaseHandleSettings | null {
+  try {
+    const m = JSON.parse(window.localStorage.getItem('vasemaker-mold-settings') ?? 'null');
+    const halves = m?.styleParams?.splitHalves ?? (m?.params?.moldStyle === 'splitHalves' ? m.params : null);
+    if (!halves || typeof halves !== 'object') return null;
+    const h = JSON.parse(window.localStorage.getItem('vasemaker-handle-settings') ?? 'null');
+    const name = typeof h?.settingsName === 'string' ? h.settingsName : null;
+    return handleFromOldMold({ ...mergeMoldParameters(halves), moldStyle: 'splitHalves' }, mergeHandleParameters(h?.params), name);
+  } catch {
+    return null;
+  }
+}
+
 /** True while a stored design is being taken in, so it is not written straight back. */
 let adopting = false;
 
@@ -690,6 +718,14 @@ function adoptStored(raw: string | null): void {
     if (!raw) return;
     const data = JSON.parse(raw) as { params?: unknown; designName?: unknown; isDirty?: unknown; saved?: unknown };
     if (!data.params || typeof data.params !== 'object') return;
+    // Stored before the handle moved onto the vase: bring it over once from
+    // where it was (the Mold page's Split Halves settings + the Handle tab).
+    const oldHandle = 'handle' in data.params ? null : handleFromOldStorage();
+    if (oldHandle) {
+      data.params = { ...(data.params as object), handle: oldHandle };
+      if (data.saved && typeof data.saved === 'object') data.saved = { ...(data.saved as object), handle: oldHandle };
+      try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch { /* moved again next time */ }
+    }
     // Same merge as Load Design, so an entry written by an older version gains
     // any parameters added since instead of loading half-formed.
     const params = applyPreset({ parameters: data.params as Partial<VaseParameters> });

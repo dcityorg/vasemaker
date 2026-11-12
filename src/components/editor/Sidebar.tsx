@@ -263,7 +263,7 @@ export function Sidebar({
             className="hidden"
           />
         </div>
-        <SaveNote>Saves the vase only. To keep its mold and handle too, save on the Mold tab.</SaveNote>
+        <SaveNote>Saves the vase, with its handle, sprig and mark. To keep its mold too, save on the Mold tab.</SaveNote>
         {/* Under Load / Save, as on every page (Gary, 2026-11-01); the Vase page has no reset button. */}
         <RevertResetRow
           canRevert={isDirty && !!savedParams}

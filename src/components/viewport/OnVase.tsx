@@ -6,9 +6,9 @@
  * HandleMaker handle. One component, so the Vase, Handle and Sprig pages can
  * never show it differently.
  *
- * Who owns what: the SPRIG's placement (Height / Around / Tilt / Repeat) is
- * set in SprigMaker; the HANDLE's (Top Below Rim + the split angle) in
- * HandleMaker / the Mold page. Every other page only shows them.
+ * Who owns what: the SPRIG preview's placement (Height / Around / Tilt /
+ * Repeat) is set in SprigMaker; the HANDLE's (Around, Top Below Rim) is the
+ * vase's, set on the Vase tab (2026-11-11). Every other page only shows them.
  */
 
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -25,11 +25,11 @@ import { LIGHTING } from '@/config/viewport';
 import { useVaseMesh } from '@/hooks/use-vase-mesh';
 import { useSprigMeshes } from '@/hooks/use-sprig-meshes';
 import { useVaseStore } from '@/store/vase-store';
-import { useHandleStore } from '@/store/handle-store';
-import { useMoldStore } from '@/store/mold-store';
 import { useSprigStore } from '@/store/sprig-store';
 import { buildVaseSurface, wrapSprig, handleOnVase } from '@/engine/sprig/on-vase';
 import type { VaseMesh } from '@/engine/types';
+import type { HandleParameters } from '@/engine/handle/handle-types';
+import { vaseHandle, handleOnMug } from '@/engine/mold/handle-on-vase';
 import { seamAngles, pieceCentreAngles, seamLinesOnVase, type SeamMold } from '@/engine/mold/seams';
 import { useSeamAngle } from '@/hooks/use-seam-angle';
 import { ViewCube, ViewButtons, useVaseViewButtons, handleProfileBearing } from './ViewButtons';
@@ -37,29 +37,20 @@ import type { SprigMoldMeshes } from '@/engine/sprig/sprig-generator';
 
 export const SPRIG_COLOR = '#d98a4a';
 
-/** VaseMaker's own switches: show the handle / the sprig on the vase. View
- *  state only — not saved in the design file. */
-export const useVaseExtras = create<{ showHandle: boolean; showSprig: boolean }>(() => ({ showHandle: false, showSprig: false }));
-
-/** The vase's own Sprig texture is on. Show Sprig is then hidden: the two are
- *  separate copies (own size and place) and drew over each other (Gary,
- *  2026-11-01: no reason to want both). */
+/** The vase's own Sprig texture is on. */
 export function useSprigTextureOn(): boolean {
   return useVaseStore((s) => s.params.textures.enabled !== false && !!s.params.textures.sprig?.enabled);
 }
 
-/** VaseMaker: the handle and/or sprig inside the vase view's own canvas. */
+/** VaseMaker: the vase's handle and the seam lines inside the vase view's own
+ *  canvas. (Show Sprig went 2026-11-11: the sprig is Textures → Sprig, part of
+ *  the vase mesh itself.) */
 export function VasePageExtras() {
-  const { showHandle, showSprig: wantSprig } = useVaseExtras();
-  // Called every render, never behind &&: a skipped hook shifts the ones after it (crashed on Show Sprig off).
-  const textureOn = useSprigTextureOn();
-  const showSprig = wantSprig && !textureOn;
+  const handle = useVaseStore((s) => handleOnMug(s.params));
   const flat = useShowFacets();
   const seams = useSeamsView();
   const vaseMesh = useVaseMesh();
-  return showSprig
-    ? <SprigSource>{(sprig) => <MugExtras vaseMesh={vaseMesh} sprig={sprig} showHandle={showHandle} flat={flat} seams={seams} />}</SprigSource>
-    : <MugExtras vaseMesh={vaseMesh} sprig={null} showHandle={showHandle} flat={flat} seams={seams} />;
+  return <MugExtras vaseMesh={vaseMesh} sprig={null} handle={handle} flat={flat} seams={seams} />;
 }
 
 export const SEAM_COLOR = '#38bdf8';
@@ -127,13 +118,13 @@ function Solid({ geometry, color, flat }: { geometry: THREE.BufferGeometry; colo
  * trigger: it changes when an SVG texture finishes loading, which the drape
  * needs too.
  */
-export function MugExtras({ vaseMesh, sprig, showHandle, flat, seams = 'off' }: {
-  vaseMesh: VaseMesh; sprig: SprigMoldMeshes | null; showHandle: boolean; flat: boolean; seams?: SeamsView;
+export function MugExtras({ vaseMesh, sprig, handle: handleParams, flat, seams = 'off' }: {
+  vaseMesh: VaseMesh; sprig: SprigMoldMeshes | null;
+  /** The handle to draw (the vase's copy, or on the Handle tab the one being drawn), placed where the vase says. */
+  handle: HandleParameters | null; flat: boolean; seams?: SeamsView;
 }) {
   const vase = useVaseStore((s) => s.params);
-  const handleParams = useHandleStore((s) => s.params);
-  const topDrop = useMoldStore((s) => s.params.handleTopDrop);
-  const handleAngle = useMoldStore((s) => s.params.seamAngle);
+  const { around: handleAngle, topDrop } = vaseHandle(vase);
   const p = useSprigStore((s) => s.params);
 
   const hasSprig = !!sprig;
@@ -143,8 +134,8 @@ export function MugExtras({ vaseMesh, sprig, showHandle, flat, seams = 'off' }: 
     [surface, sprig, p.onVaseHeight, p.onVaseAngle, p.onVaseTilt, p.onVaseCopies],
   );
   const handle = useMemo(
-    () => (showHandle ? handleOnVase(vase, handleParams, handleAngle, topDrop) : null),
-    [showHandle, vase, handleParams, handleAngle, topDrop],
+    () => (handleParams ? handleOnVase(vase, handleParams, handleAngle, topDrop) : null),
+    [vase, handleParams, handleAngle, topDrop],
   );
   const sprigGeo = useGeo(wrap?.mesh ?? null, true, flat);
   const handleGeo = useGeo(handle && typeof handle !== 'string' ? handle : null, true, flat);
@@ -193,13 +184,13 @@ export function MugNotes() {
  * (ViewButtons.tsx). It starts facing the sprig (or, with no sprig, the mug
  * side-on with the handle to the right); Home goes back there.
  */
-export function OnVaseView({ sprig, showHandle, cameraId, flat, seams = 'off' }: {
-  sprig: SprigMoldMeshes | null; showHandle: boolean; cameraId: string; flat: boolean; seams?: SeamsView;
+export function OnVaseView({ sprig, handle, cameraId, flat, seams = 'off' }: {
+  sprig: SprigMoldMeshes | null; handle: HandleParameters | null; cameraId: string; flat: boolean; seams?: SeamsView;
 }) {
   const vase = useVaseStore((s) => s.params);
   const sprigAngle = useSprigStore((s) => s.params.onVaseAngle);
   const sprigHeight = useSprigStore((s) => s.params.onVaseHeight);
-  const handleAngle = useMoldStore((s) => s.params.seamAngle);
+  const handleAngle = vaseHandle(vase).around;
   const vaseMesh = useVaseMesh();
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const vaseGeo = useGeo(vaseMesh, false, flat);
@@ -219,7 +210,7 @@ export function OnVaseView({ sprig, showHandle, cameraId, flat, seams = 'off' }:
     controls: controlsRef,
     home: { dir: new THREE.Vector3(dist * Math.cos(fa), dist * Math.sin(fa), H * 0.6 - H / 2), target },
     height: H,
-    handle: showHandle ? handleAngle : null,
+    handle: handle ? handleAngle : null,
     sprig: sprig ? { angle: sprigAngle, heightPct: sprigHeight } : null,
     seams,
   });
@@ -241,7 +232,7 @@ export function OnVaseView({ sprig, showHandle, cameraId, flat, seams = 'off' }:
         <directionalLight position={LIGHTING.back.position} intensity={LIGHTING.back.intensity} />
         <GroundGrid radius={reach + 30} height={reach + 30} />
         {vaseGeo && <Solid geometry={vaseGeo} color={vase.color} flat={flat} />}
-        <MugExtras vaseMesh={vaseMesh} sprig={sprig} showHandle={showHandle} flat={flat} seams={seams} />
+        <MugExtras vaseMesh={vaseMesh} sprig={sprig} handle={handle} flat={flat} seams={seams} />
         <OrbitControls ref={controlsRef} makeDefault enableDamping dampingFactor={0.1} target={target} minDistance={20} maxDistance={4000} />
         <ViewCube controls={controlsRef} />
         <RememberCamera id={cameraId} />

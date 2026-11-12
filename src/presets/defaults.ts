@@ -156,6 +156,9 @@ export const DEFAULT_PARAMETERS: VaseParameters = {
     mark: null, markName: '',
   },
 
+  // Around 0 and 15 mm down: the Split Angle and Top Below Rim the Mold tab used to default to.
+  handle: { enabled: false, around: 0, topDrop: 15, handle: null, handleName: '' },
+
   smoothZones: { enabled: false, basePercent: 0, rimPercent: 0, baseFade: 0, rimFade: 0 },
 
   color: APPEARANCE.defaultColor,

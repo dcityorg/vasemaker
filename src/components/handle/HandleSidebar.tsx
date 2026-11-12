@@ -23,7 +23,8 @@ import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport } from '@/lib/print-report';
 import { handleFromFile } from '@/lib/design-files';
 import { measureSpine } from '@/engine/handle/spine';
-import { useMoldStore } from '@/store/mold-store';
+import { useVaseStore } from '@/store/vase-store';
+import { vaseHandle } from '@/engine/mold/handle-on-vase';
 import { MOLD_PARAMS } from '@/config/mold-params';
 import { worldToHandle, clipPolyline } from '@/engine/mold/split-handle';
 import { useMugPlacement } from '@/hooks/use-mug-placement';
@@ -248,8 +249,10 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
   // go there (the store clamps x ≥ 0).
   const mugInfo = useMugPlacement();
   const showMug = mugInfo.showMug;
-  const moldParams = useMoldStore((s) => s.params);
-  const setMoldParam = useMoldStore((s) => s.setParam);
+  // Top Below Rim is the vase's (Vase tab → Handle, 2026-11-11); it is here too
+  // because you set it while looking at the handle on the mug.
+  const topDrop = useVaseStore((s) => vaseHandle(s.params).topDrop);
+  const setVaseHandle = useVaseStore((s) => s.setHandle);
   const MUG_MARGIN = showMug ? 20 : 0;
   const mug = (() => {
     if (!mugInfo.outline) return null;
@@ -451,7 +454,7 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             {([
               ['mold', 'Mold', 'The parts you print and pour', { showMug: false, onVase: false }],
               ['side', 'Side', 'A flat side view of the finished mug with this handle on it — placed the way the mold puts it', { showMug: true, onVase: false }],
-              ['vase', 'On Vase', 'The finished mug in 3-D, with the sprig from SprigMaker if you like', { showMug: true, onVase: true }],
+              ['vase', 'On Vase', 'The finished mug in 3-D, as designed on the Vase tab, with this handle on it', { showMug: true, onVase: true }],
             ] as const).map(([id, label, tip, set]) => {
               const on = id === 'mold' ? !showMug : id === 'side' ? showMug && !view.onVase : showMug && view.onVase;
               return (
@@ -464,13 +467,11 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
           </div>
           {showMug && view.onVase && (
             <>
-              <Toggle label="Show Sprig" checked={view.showSprig} onChange={(v) => setView({ showSprig: v })}
-                tooltip="The sprig from SprigMaker on the mug, where SprigMaker places it" />
-              {view.showSprig && (
-                <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
-                  Move the sprig in SprigMaker (View → On Vase → Height, Around, Tilt, Repeat).
-                </p>
-              )}
+              {/* Show Sprig went (Gary, 2026-11-11): the mug is shown as designed
+                  on the Vase tab, its sprig being its Sprig texture. */}
+              <p className="text-[10px] leading-snug text-[var(--text-secondary)] px-0.5 mb-2">
+                The mug as designed on the Vase tab. Where the handle goes is set there (Handle → Around, Top Below Rim).
+              </p>
               <ShowFacetsToggle />
             </>
           )}
@@ -563,13 +564,13 @@ export function HandleSidebar({ handle, helpOpen, onToggleHelp }: {
             <Greyed off={!showMug} hint="Switch to Side or On Vase view (View, above) to change this">
               <SliderRow
                 label="Top Below Rim"
-                value={moldParams.handleTopDrop}
+                value={topDrop}
                 min={MOLD_PARAMS.handleTopDrop.min}
                 max={MOLD_PARAMS.handleTopDrop.max}
                 step={MOLD_PARAMS.handleTopDrop.step}
                 suffix="mm"
-                tooltip="Where the top of the handle meets the vase, down from the rim. One setting for every page: the Mold tab's split-mold handle, and the mug in SprigMaker and VaseMaker"
-                onChange={(v) => setMoldParam('handleTopDrop', v)}
+                tooltip="Where the top of the handle meets the vase, down from the rim. It is the vase's setting (Vase tab → Handle), shown here too: the mug on every page and the Split Halves mold use it"
+                onChange={(v) => setVaseHandle({ topDrop: v })}
               />
               {showMug && mug?.error && <p className="text-[11px] text-red-400 mt-1 leading-snug">{mug.error}</p>}
             </Greyed>

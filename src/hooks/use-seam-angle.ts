@@ -13,6 +13,8 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import { useMoldStore } from '@/store/mold-store';
+import { useVaseStore } from '@/store/vase-store';
+import { handleOnMug, vaseHandle } from '@/engine/mold/handle-on-vase';
 import { DEFAULT_MOLD_PARAMETERS, type MoldStyle } from '@/engine/mold/mold-types';
 import type { SeamMold } from '@/engine/mold/seams';
 
@@ -54,5 +56,10 @@ export function useSeamAngle(mold: SeamMold): number {
   useEffect(listen, []);
   const local = useMoldStore((s) => s.styleParams[STYLE[mold]]?.seamAngle ?? DEFAULT_MOLD_PARAMETERS.seamAngle);
   const other = useOtherTab((s) => s[mold]);
+  // Split Halves casting the vase's handle puts its seam through the handle,
+  // at the vase's Around (2026-11-11, engine/mold/handle-on-vase.ts).
+  const castsHandle = useMoldStore((s) => !!s.styleParams.splitHalves?.splitHandle);
+  const handleAround = useVaseStore((s) => (handleOnMug(s.params) ? vaseHandle(s.params).around : null));
+  if (mold === 'halves' && castsHandle && handleAround !== null) return handleAround;
   return other ?? local;
 }

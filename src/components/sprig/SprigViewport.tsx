@@ -14,6 +14,8 @@ import type { VaseMesh } from '@/engine/types';
 import type { SprigMoldMeshes } from '@/engine/sprig/sprig-generator';
 import { RememberCamera } from '@/components/viewport/RememberCamera';
 import { OnVaseView } from '@/components/viewport/OnVase';
+import { useVaseStore } from '@/store/vase-store';
+import { handleOnMug } from '@/engine/mold/handle-on-vase';
 
 const WALL_COLOR = '#c97f45';
 const PLASTER_COLOR = '#e7dfca';
@@ -73,11 +75,12 @@ export function SprigViewport({ sprig }: { sprig: SprigMoldMeshes | null }) {
   const useSprigStore = design.useStore;
   // The mark has no On Vase view (the Vase tab will show it on the bottom).
   const onVase = useSprigStore((s) => s.view.onVase);
-  const showHandle = useSprigStore((s) => s.params.onVaseHandle);
+  // The vase's own handle, when it has one (Vase tab → Handle, 2026-11-11).
+  const handle = useVaseStore((s) => handleOnMug(s.params));
   const flat = useShowFacets();
   const seams = useSeamsView();
   return onVase && design.kind === 'sprig'
-    ? <OnVaseView sprig={sprig} showHandle={showHandle} cameraId="sprig-vase" flat={flat} seams={seams} />
+    ? <OnVaseView sprig={sprig} handle={handle} cameraId="sprig-vase" flat={flat} seams={seams} />
     : <MoldView sprig={sprig} />;
 }
 

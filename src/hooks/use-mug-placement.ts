@@ -7,9 +7,9 @@
 
 import { useMemo } from 'react';
 import { useHandleStore } from '@/store/handle-store';
-import { moldUsesHandle } from '@/engine/mold/mold-types';
 import { useVaseStore } from '@/store/vase-store';
 import { useMoldStore } from '@/store/mold-store';
+import { vaseHandle } from '@/engine/mold/handle-on-vase';
 import { sampleSpine } from '@/engine/handle/spine';
 import { vaseOutlineForHandle, placeHandle, strapOutline2D, type HandlePlacement } from '@/engine/mold/split-handle';
 import type { P2 } from '@/engine/handle/mesh3';
@@ -30,25 +30,28 @@ export interface MugPlacement {
 /** Just the on/off decision — for callers that only switch views. */
 export function useShowMug(): boolean {
   const viewPref = useHandleStore((s) => s.view.showMug);
-  const auto = useMoldStore((s) => moldUsesHandle(s.params));
+  // Shown by default when the vase has a handle (Vase tab → Handle).
+  const auto = useVaseStore((s) => vaseHandle(s.params).enabled);
   return viewPref ?? auto;
 }
 
 export function useMugPlacement(): MugPlacement {
   const params = useHandleStore((s) => s.params);
   const vase = useVaseStore((s) => s.params);
-  const mold = useMoldStore((s) => s.params);
+  const keepTexture = useMoldStore((s) => s.params.keepTexture);
+  // Where the handle goes is the vase's (2026-11-11).
+  const { around, topDrop } = vaseHandle(vase);
   const showMug = useShowMug();
 
   const outline = useMemo(
-    () => (showMug ? vaseOutlineForHandle(vase, mold.seamAngle, mold.keepTexture) : null),
-    [showMug, vase, mold.seamAngle, mold.keepTexture],
+    () => (showMug ? vaseOutlineForHandle(vase, around, keepTexture) : null),
+    [showMug, vase, around, keepTexture],
   );
 
   const placed = useMemo(() => {
     if (!outline) return { placement: null, strap: null, centerline: [] as P2[], error: null };
     const stations = sampleSpine(params.spinePoints, params.spineTypes, 160, 1);
-    const pl = placeHandle(outline.sil, stations, outline.rimZ - mold.handleTopDrop);
+    const pl = placeHandle(outline.sil, stations, outline.rimZ - topDrop);
     if (typeof pl === 'string') return { placement: null, strap: null, centerline: [] as P2[], error: pl };
     const centerline = stations.map((st): P2 => {
       const s = st.y - pl.yBot;
@@ -57,7 +60,7 @@ export function useMugPlacement(): MugPlacement {
     // Stored `width` is the strap IN the parting plane — what you see side-on.
     const strap = strapOutline2D(stations, pl, params.width / 2, outline.sil);
     return { placement: pl, strap, centerline, error: strap ? null : 'The handle ends could not be joined to the mug wall.' };
-  }, [outline, params.spinePoints, params.spineTypes, params.width, mold.handleTopDrop]);
+  }, [outline, params.spinePoints, params.spineTypes, params.width, topDrop]);
 
-  return { showMug, outline, ...placed, topDrop: mold.handleTopDrop, seamAngle: mold.seamAngle };
+  return { showMug, outline, ...placed, topDrop, seamAngle: around };
 }

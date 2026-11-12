@@ -3,7 +3,7 @@
  *  - which pieces each kind of file has, which are ticked, which greyed;
  *  - names come off the file name without its ending;
  *  - when a tab shows the list (needsList) — every tab × every kind;
- *  - a vase's sprig and mark are offered as copies, unticked;
+ *  - a vase's sprig, mark and (since 2026-11-11, Part 2) handle are offered as copies, unticked;
  *  - CONTROL: JSON that is no design is refused (null).
  * Run: npx tsx --tsconfig tsconfig.json tests/checks/verify-load-pieces.ts
  */
@@ -18,7 +18,8 @@ const fx = (f: string) => JSON.parse(readFileSync(join(FIXTURES, f), 'utf8'));
 const fmt = (c: FileContents | null) => c ? c.pieces.map((p) => `${p.key}${p.present ? '' : '(grey)'}${p.ticked ? '✓' : ''}`).join(' ') : 'null';
 
 const mold = readDesignFile(fx('molds/tumbler3-halves.mold.json'), 'Tall Tumbler – Split Halves');
-check(fmt(mold) === 'vase✓ mold✓ handle✓ sprig(grey) mark(grey)', `mold file: ${fmt(mold)}`);
+check(fmt(mold) === 'vase✓ mold✓ handle sprig(grey) mark(grey)', `mold file: ${fmt(mold)} (its handle is the vase's copy, offered unticked)`);
+check(mold?.pieces.find((p) => p.key === 'handle')?.detail.endsWith('(the one on the vase)') === true, `mold file: the handle line says "(the one on the vase)": "${mold?.pieces.find((p) => p.key === 'handle')?.detail}"`);
 check(mold?.mold?.name === 'Tall Tumbler' && mold.mold.style === 'splitHalves', `mold file: mold named "${mold?.mold?.name}", style ${mold?.mold?.style}`);
 
 const old = readDesignFile(fx('molds/tumbler2-onepiece.mold.json'), 'old mold');
@@ -34,8 +35,11 @@ const v = fx('vases/2026-07-tumbler3.json');
 const sprig = fx('sprigs/dcitylogo1-43x41.json').settings;
 v.textures = { ...(v.textures ?? {}), sprig: { enabled: true, style: 'raised', depth: 2, size: 100, heightPct: 40, angle: 0, tilt: 0, copies: 1, sprig, sprigName: 'Logo' } };
 v.bottom = { ...(v.bottom ?? {}), mark: sprig, markName: 'GM' };
+v.handle = { enabled: true, around: 90, topDrop: 20, handle: fx('handles/c1.json').settings, handleName: 'Loop' };
 const sv = readDesignFile(v, 'With Copies – Vase');
-check(fmt(sv) === 'vase✓ sprig mark', `vase with a sprig and a mark: ${fmt(sv)} (copies offered, unticked)`);
+check(fmt(sv) === 'vase✓ handle sprig mark', `vase with a handle, a sprig and a mark: ${fmt(sv)} (copies offered, unticked)`);
+const nh = readDesignFile({ ...v, handle: { ...v.handle, enabled: false } }, 'Handle Off – Vase');
+check(fmt(nh) === 'vase✓ sprig mark', `CONTROL vase whose handle is off: ${fmt(nh)} (no handle offered)`);
 check(sv?.pieces.find((p) => p.key === 'sprig')?.detail === 'Logo (the one on the vase)', 'the sprig copy says "(the one on the vase)"');
 
 const handle = readDesignFile(fx('handles/c1.json'), 'Loop – Handle');

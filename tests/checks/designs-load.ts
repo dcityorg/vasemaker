@@ -86,7 +86,7 @@ for (const file of files) {
       const { vase, stored, mold, handle, retired } = loadMold(parsed, openVase);
       const h = [...holes(stored).map((p) => `mold.${p}`), ...holes(vase).map((p) => `vase.${p}`), ...(handle ? holes(handle).map((p) => `handle.${p}`) : [])];
       check(h.length === 0, `${name}: ${(parsed.settings as { moldStyle?: string })?.moldStyle ?? '?'} mold loads${retired ? ` (retired → ${mold.moldStyle})` : ''} with every setting${h.length ? ` — missing ${h.slice(0, 5).join(', ')}` : ''}`);
-      solids(`${name}: ${mold.moldStyle}`, buildMold(vase, mold, handle));
+      solids(`${name}: ${mold.moldStyle}`, buildMold(vase, mold));
     } else if (kind === 'handle') {
       const p = loadHandle(parsed);
       const h = holes(p);

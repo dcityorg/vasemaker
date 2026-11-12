@@ -8,6 +8,7 @@ import { DEFAULT_PARAMETERS } from '@/presets/defaults';
 import type { VaseParameters } from '@/engine/types';
 import { mergeMoldParameters, retireMoldStyle } from '@/engine/mold/mold-types';
 import { footFromMoldSettings, isLegacyFootFile } from '@/engine/mold/vase-foot';
+import { handleFromOldMold } from '@/engine/mold/handle-on-vase';
 import { mergeHandleParameters, type HandleParameters } from '@/engine/handle/handle-types';
 import { mergeSprigParameters, type SprigParameters } from '@/engine/sprig/sprig-types';
 
@@ -52,7 +53,7 @@ export interface MoldFile {
   /** The file's vase, with its legacy foot put back; null for an old file without one. */
   vase: Partial<VaseParameters> | null;
   vaseName: string | null;
-  /** The file's handle, merged; null when it has none. */
+  /** The handle on the file's vase (or, in an old file, the one beside it), merged; null when none. */
   handle: HandleParameters | null;
   handleName: string | null;
 }
@@ -60,14 +61,21 @@ export interface MoldFile {
 /** A mold file (Mold tab → Load Design), parsed. */
 export function readMoldFile(parsed: { settings?: unknown; vase?: unknown; handle?: unknown; vaseName?: unknown; handleName?: unknown }): MoldFile {
   const legacyFoot = isLegacyFootFile(parsed.vase) ? footFromMoldSettings(parsed.settings) : null;
-  const rawVase = parsed.vase && typeof parsed.vase === 'object' ? parsed.vase as Partial<VaseParameters> : null;
+  let vase = parsed.vase && typeof parsed.vase === 'object' ? parsed.vase as Partial<VaseParameters> : null;
+  if (vase && legacyFoot) vase = { ...vase, bottom: { ...DEFAULT_PARAMETERS.bottom, ...legacyFoot } };
+  // Files from before 2026-11-11 kept the handle beside the vase, and its place
+  // in the mold settings: put it on the vase, as a cast handle if it was one.
+  const oldHandle = parsed.handle && typeof parsed.handle === 'object' ? mergeHandleParameters(parsed.handle) : null;
+  const oldHandleName = typeof parsed.handleName === 'string' ? parsed.handleName : null;
+  if (vase && !vase.handle) vase = { ...vase, handle: handleFromOldMold(moldFromSettings(parsed.settings).params, oldHandle, oldHandleName) };
+  const onVase = vase?.handle?.handle ? mergeHandleParameters(vase.handle.handle) : null;
   return {
     settings: parsed.settings,
     legacyFoot,
-    vase: rawVase && legacyFoot ? { ...rawVase, bottom: { ...DEFAULT_PARAMETERS.bottom, ...legacyFoot } } : rawVase,
+    vase,
     vaseName: typeof parsed.vaseName === 'string' ? parsed.vaseName : null,
-    handle: parsed.handle && typeof parsed.handle === 'object' ? mergeHandleParameters(parsed.handle) : null,
-    handleName: typeof parsed.handleName === 'string' ? parsed.handleName : null,
+    handle: onVase ?? oldHandle,
+    handleName: onVase ? (vase?.handle?.handleName || null) : oldHandleName,
   };
 }
 

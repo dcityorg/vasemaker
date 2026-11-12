@@ -12,6 +12,7 @@
  * Resolution is reduced (80 × 120) so a sweep fits in minutes; the goldens
  * and the quick checks cover full resolution.
  */
+import { handleFromOldMold } from '@/engine/mold/handle-on-vase';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { shapeRegistry } from '@/engine/shapes';
@@ -77,7 +78,9 @@ export function runCase(c: Case): Outcome {
       return isSolid(r) ? { ok: true } : { ok: false, why: `vase: ${describe(r)}` };
     }
     const mold = { ...DEFAULT_MOLD_PARAMETERS, ...c.mold } as MoldParameters;
-    const result = buildMold(vase, mold, c.handle ? DEFAULT_HANDLE_PARAMETERS : null) as unknown as Record<string, unknown>;
+    // A cast handle is the vase's (2026-11-11), placed where the mold settings say.
+    const withHandle = c.handle ? { ...vase, handle: handleFromOldMold(mold, DEFAULT_HANDLE_PARAMETERS, 'sweep') } : vase;
+    const result = buildMold(withHandle, mold) as unknown as Record<string, unknown>;
     const refusal = result.error ?? (c.handle && !result.handle ? result.handleError : null);
     if (refusal) return { ok: true, refused: String(refusal) };
     const bad = meshesOf(result).filter(([, m]) => m.indices.length > 0)

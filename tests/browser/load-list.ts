@@ -1,9 +1,10 @@
 /**
  * Browser: the Load list (Gary, 2026-11-11, local-docs/save-design-plan.md).
- *  A. Mold tab, a mold file: Vase, Mold, Handle ticked; no sprig/mark on its
- *     vase, so those are greyed. Untick Handle → the open handle is untouched,
- *     the vase is the file's.
- *  B. An OLD mold file (settings only): Vase and Handle greyed "not in this file".
+ *  A. Mold tab, a mold file: Vase, Mold ticked; the handle on its vase offered
+ *     unticked (a copy, Part 2 2026-11-11); no sprig/mark, so those are greyed.
+ *     Load → the open Handle tab is untouched, the vase is the file's and
+ *     carries the file's handle where the old file cast it.
+ *  B. An OLD mold file (settings only): Vase greyed "not in this file", Handle greyed.
  *  C. A handle file on the Vase tab: the list with its one line; Load puts it on
  *     the Handle page — and it is still there when that page opens (the page
  *     reads its store from storage; a load into a store not yet read would be
@@ -13,7 +14,8 @@
  *     vase stays.
  *  E. Unsaved work: a changed vase, then a mold file → amber "unsaved" line and
  *     "Save mine, then load"; untick Vase → instead the amber "made for …" line.
- *  F. Mold Save always carries the handle, even on Pour 3-Pc (Gary 2026-11-11).
+ *  F. Mold Save carries the handle on the vase, even on Pour 3-Pc (Gary
+ *     2026-11-11), and no longer beside it.
  *  G. A vase file on the Vase tab still loads straight away (no list).
  *  H. The storage trap: the Mold page never reads the sprig store, so a sprig
  *     ticked there must still be on the Sprig page when it opens (each store
@@ -49,21 +51,23 @@ async function caseA_B(browser: Browser, dir: string, check: Check) {
   const handleBefore = await stored(page, '/handle');
   await pick(page, join(FIXTURES, 'molds/tumbler3-halves.mold.json'));
   const r = await rows(page);
-  check(fmt(r) === 'vase✓ mold✓ handle✓ sprig(grey) mark(grey)', `A: mold file → ${fmt(r)}`);
+  check(fmt(r) === 'vase✓ mold✓ handle sprig(grey) mark(grey)', `A: mold file → ${fmt(r)} (the handle is the vase's copy, unticked)`);
   check(r.find((x) => x.key === 'mold')?.text.includes('Split Halves') ?? false, `A: the Mold line names its style ("${r.find((x) => x.key === 'mold')?.text}")`);
-  await untick(page, 'handle');
   await press(page, 'Load');
   await page.waitForTimeout(800);
   const handleAfter = await stored(page, '/handle');
-  check(same(handleAfter, handleBefore), 'A: Handle unticked → the open handle is untouched');
-  const vase = (await storedState(page))[KEY['/']] as { designName?: string } | undefined;
+  check(same(handleAfter, handleBefore), 'A: Handle unticked → the open Handle tab is untouched');
+  const vase = (await storedState(page))[KEY['/']] as { designName?: string; params?: { handle?: { enabled?: boolean; around?: number; topDrop?: number; handle?: unknown } } } | undefined;
+  const vh = vase?.params?.handle;
+  check(!!vh?.enabled && vh.around === 0 && vh.topDrop === 25 && !!vh.handle, `A: the vase carries the file's handle (on, ${vh?.around}°, ${vh?.topDrop} mm)`);
   const fileVaseName = JSON.parse(readFileSync(join(FIXTURES, 'molds/tumbler3-halves.mold.json'), 'utf8')).vaseName;
   check(vase?.designName === fileVaseName, `A: the vase is the file's ("${vase?.designName}")`);
 
   await pick(page, join(FIXTURES, 'molds/tumbler2-onepiece.mold.json'));
   const r2 = await rows(page);
   check(fmt(r2) === 'vase(grey) mold✓ handle(grey) sprig(grey) mark(grey)', `B: old settings-only mold file → ${fmt(r2)}`);
-  check(r2.filter((x) => x.key === 'vase' || x.key === 'handle').every((x) => x.text.includes('not in this file')), 'B: missing Vase and Handle say "not in this file (keeps yours)"');
+  check(r2.find((x) => x.key === 'vase')?.text.includes('not in this file') === true && r2.find((x) => x.key === 'handle')?.text.includes('no handle') === true,
+    'B: the missing Vase says "not in this file (keeps yours)", the Handle "no handle on this vase"');
   await press(page, 'Cancel');
   check(errors.length === 0, `A/B: no page errors${errors.length ? ` — ${errors[0]}` : ''}`);
   await context.close();
@@ -179,6 +183,10 @@ async function caseF(browser: Browser, check: Check) {
     });
   });
   await page.goto(BASE + '/mold', { waitUntil: 'networkidle' });
+  // A mug with a handle on its vase (the file's Split Halves casts it), then Pour 3-Pc, which can't.
+  await pick(page, join(FIXTURES, 'molds/tumbler3-halves.mold.json'));
+  await press(page, 'Load');
+  await page.waitForTimeout(1500);
   await page.getByRole('button', { name: 'Pour 3-Pc', exact: true }).click();
   await page.waitForTimeout(1500);
   await page.getByRole('button', { name: 'Save Design', exact: true }).click();
@@ -195,8 +203,10 @@ async function caseF(browser: Browser, check: Check) {
   const files = await page.evaluate(() => (window as unknown as { __files: Record<string, string> }).__files);
   const jsonName = Object.keys(files).find((n) => n.endsWith('– Pour 3-Pc.json'));
   const saved = jsonName ? JSON.parse(files[jsonName]) : null;
-  check(!!saved && saved.settings?.moldStyle === 'pourThreePiece' && !!saved.handle && typeof saved.handleName === 'string',
-    `F: Pour 3-Pc Save carries the handle (${jsonName ?? `no file: ${Object.keys(files).join(', ')}`})`);
+  check(!!saved && saved.settings?.moldStyle === 'pourThreePiece' && saved.vase?.handle?.enabled === true && !!saved.vase.handle.handle && !('handle' in saved),
+    `F: Pour 3-Pc Save carries the handle on the vase, not beside it (${jsonName ?? `no file: ${Object.keys(files).join(', ')}`})`);
+  const own = await page.locator('[data-own-mold-note]').isVisible().catch(() => false);
+  check(own, 'F: Pour 3-Pc with a handle on the vase: the grey "cast it in its own mold" line shows');
   check(errors.length === 0, `F: no page errors${errors.length ? ` — ${errors[0]}` : ''}`);
   await context.close();
 }

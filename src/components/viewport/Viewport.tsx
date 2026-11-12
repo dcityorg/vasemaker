@@ -13,10 +13,9 @@ import { useVaseStore } from '@/store/vase-store';
 import type { CaptureFormat } from '@/config/capture';
 import { RememberCamera } from '@/components/viewport/RememberCamera';
 import { useSeamsView } from '@/store/view-prefs';
-import { VasePageExtras, MugNotes, useVaseExtras, useSprigTextureOn } from '@/components/viewport/OnVase';
+import { VasePageExtras, MugNotes, useSprigTextureOn } from '@/components/viewport/OnVase';
+import { vaseHandle, handleOnMug } from '@/engine/mold/handle-on-vase';
 import { ViewCube, ViewButtons, useVaseViewButtons } from '@/components/viewport/ViewButtons';
-import { useMoldStore } from '@/store/mold-store';
-import { useSprigStore } from '@/store/sprig-store';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
@@ -53,17 +52,14 @@ export function Viewport({
   const height = useVaseStore((s) => s.params.height);
   const containerRef = useRef<HTMLDivElement>(null);
   const seams = useSeamsView();
-  const extras = useVaseExtras((s) => s.showHandle || s.showSprig) || seams !== 'off';
+  // The view buttons follow what is on the vase: its handle (Vase tab →
+  // Handle) and its Sprig texture.
+  const showHandle = useVaseStore((s) => !!handleOnMug(s.params));
+  const extras = showHandle || seams !== 'off';
   const controlsRef = useRef<OrbitControlsImpl>(null);
-  // The view buttons follow what is shown: the handle with Show Handle, the
-  // vase's own Sprig texture, else Show Sprig's sprig (they are never both).
-  const showHandle = useVaseExtras((s) => s.showHandle);
-  const showSprig = useVaseExtras((s) => s.showSprig);
-  const handleAngle = useMoldStore((s) => s.params.seamAngle);
+  const handleAngle = useVaseStore((s) => vaseHandle(s.params).around);
   const textureOn = useSprigTextureOn();
   const texSprig = useVaseStore((s) => s.params.textures.sprig);
-  const onVaseAngle = useSprigStore((s) => s.params.onVaseAngle);
-  const onVaseHeight = useSprigStore((s) => s.params.onVaseHeight);
   const buttons = useVaseViewButtons({
     controls: controlsRef,
     // Home is straight on from the front (−y, the cube's Front), tilted down as
@@ -71,8 +67,7 @@ export function Viewport({
     home: { dir: HOME_DIR, target: [...CAMERA.target], title: 'Home: the vase from the front, a little above (keeps your zoom)' },
     height,
     handle: showHandle ? handleAngle : null,
-    sprig: textureOn && texSprig ? { angle: texSprig.angle, heightPct: texSprig.heightPct }
-      : showSprig ? { angle: onVaseAngle, heightPct: onVaseHeight } : null,
+    sprig: textureOn && texSprig ? { angle: texSprig.angle, heightPct: texSprig.heightPct } : null,
     seams,
   });
 

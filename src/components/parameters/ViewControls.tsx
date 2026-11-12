@@ -16,13 +16,10 @@ import { SliderRow, GroupHeader, Section, Toggle, ResetRow, Greyed } from './ui'
 import { setShowFacets, setSeamsView } from '@/store/view-prefs';
 import { ShowFacetsToggle } from './ShowFacetsToggle';
 import { SeamsSelect } from './SeamControls';
-import { useVaseExtras, useSprigTextureOn } from '@/components/viewport/OnVase';
 
 export function ViewControls() {
   const params = useVaseStore((s) => s.params);
   const { setColor, setShowRulers, setPrintCheck } = useVaseStore();
-  const extras = useVaseExtras();
-  const sprigTexture = useSprigTextureOn();
   const printCheck = params.printCheck ?? DEFAULT_PARAMETERS.printCheck;
 
   return (
@@ -30,21 +27,15 @@ export function ViewControls() {
       <GroupHeader label="View" color={GROUP_COLORS.settings} />
       <Section title="Display" titleColor={GROUP_COLORS.settings} tooltip="How the preview looks. Nothing here changes what you print">
       <ResetRow title="Everything in Display back to its default" onClick={() => {
-        useVaseExtras.setState({ showHandle: false, showSprig: false });
         setColor(APPEARANCE.defaultColor);
         setShowFacets(true);
         setPrintCheck({ showOverhangs: DEFAULT_PARAMETERS.printCheck.showOverhangs, overhangAngle: DEFAULT_PARAMETERS.printCheck.overhangAngle });
         setShowRulers(false);
         setSeamsView('off');
       }} />
-      <Toggle label="Show Handle" checked={extras.showHandle} onChange={(v) => useVaseExtras.setState({ showHandle: v })}
-        tooltip="The handle from HandleMaker on the vase, placed the way the mold puts it (its height is HandleMaker's Top Below Rim)" />
-      {sprigTexture ? (
-        <p className="text-xs text-[var(--text-secondary)] mb-2">Show Sprig is off while the Sprig texture is on (Textures → Sprig), so the two do not draw over each other.</p>
-      ) : (
-        <Toggle label="Show Sprig" checked={extras.showSprig} onChange={(v) => useVaseExtras.setState({ showSprig: v })}
-          tooltip="Preview the SprigMaker sprig where it will be attached (placed on the Sprig page, View → On Vase). It is not part of the vase or its STL; to build it into the vase, use Textures → Sprig" />
-      )}
+      {/* Show Handle and Show Sprig went (Gary, 2026-11-11): the handle is the
+          Handle section below, the sprig is Textures → Sprig — both placed here,
+          saved with the vase and carried into the molds. */}
       <SeamsSelect />
       <div className="flex items-center gap-3 mb-2">
         <label className="text-sm text-[var(--text-secondary)] w-24 shrink-0" title="Preview colour of the vase. Saved with the design">Color</label>

@@ -10,7 +10,8 @@ import { ToolNav } from '@/components/parameters/ToolNav';
 import { DesignNameRow, NamePromptHost, ensureNamed, SaveNote } from '@/components/parameters/DesignName';
 import { useVaseStore } from '@/store/vase-store';
 import { useHandleStore } from '@/store/handle-store';
-import { mergeHandleParameters, DEFAULT_HANDLE_PARAMETERS } from '@/engine/handle/handle-types';
+import { vaseHandle, moldCastsHandle } from '@/engine/mold/handle-on-vase';
+import { useHandleTabDiffers, useHandleTab } from '@/components/parameters/HandleControls';
 import { SplitTopView } from './SplitTopView';
 import { MOLD_PARAMS, PLASTER_MATERIALS } from '@/config/mold-params';
 import { GROUP_COLORS, UI_MUTED } from '@/config/colors';
@@ -19,9 +20,9 @@ import { saveSTLFile, saveDesignFile, saveTextFile, openDesignFile } from '@/lib
 import { dcCountExport } from '@/lib/analytics';
 import { estimatePlaster } from '@/engine/mold/mold-stats';
 import { buildPrintReport, type ReportPart } from '@/lib/print-report';
-import { ACTIVE_MOLD_STYLES, moldUsesHandle, HALVES_HANDLE_OFFERED } from '@/engine/mold/mold-types';
+import { ACTIVE_MOLD_STYLES, HALVES_HANDLE_OFFERED } from '@/engine/mold/mold-types';
 import { readDesignFile } from '@/lib/load-pieces';
-import { saveCurrentVase, saveCurrentHandle } from '@/lib/save-pieces';
+import { saveCurrentVase } from '@/lib/save-pieces';
 import { showLoadList, LoadListHost } from '@/components/parameters/LoadList';
 import { moldFileName, moldNameFromFile } from '@/lib/file-names';
 import { translateMesh } from '@/engine/handle/mesh3';
@@ -74,8 +75,6 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onKey]);
-  const handleParams = useHandleStore((s) => s.params);
-  const handleSaved = useHandleStore((s) => s.savedParams);
   const vaseRes = useVaseStore((s) => s.params.resolution);
   const params = useMoldStore((s) => s.params);
   const view = useMoldStore((s) => s.view);
@@ -88,12 +87,13 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
   const partColor = useMoldStore((s) => s.partColor);
   const setPartColor = useMoldStore((s) => s.setPartColor);
   const setSettingsName = useMoldStore((s) => s.setSettingsName);
-  const handleName = useHandleStore((s) => s.settingsName);
-  /** The handle has changes not in any file. The handle store keeps no dirty
-   *  flag, so compare with the last Save/Load (or the defaults, if never saved). */
-  const handleDirty = JSON.stringify(handleParams) !== JSON.stringify(handleSaved ?? mergeHandleParameters(DEFAULT_HANDLE_PARAMETERS));
-  /** The mold actually uses the HandleMaker design (so the file must carry it). */
-  const usesHandle = moldUsesHandle(params);
+  /** The handle is the vase's (Vase tab → Handle, 2026-11-11): its copy, Around
+   *  and Top Below Rim. This mold casts it when the style can and its switch is on. */
+  const vaseHandleNow = useVaseStore((s) => vaseHandle(s.params));
+  const usesHandle = useVaseStore((s) => moldCastsHandle(params, s.params));
+  const handleTabDiffers = useHandleTabDiffers();
+  const useHandleTabNow = useHandleTab();
+  const handleTabName = useHandleStore((s) => s.settingsName);
   const reset = useMoldStore((s) => s.reset);
   const [warnExport, setWarnExport] = useState(false);
   /** Split 2-Pc / Split Halves have two gated exports; which one the warning dialog continues. */
@@ -110,7 +110,7 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     return ensureNamed('Mold', isMoldUnnamed(n), n, setSettingsName);
   };
   /** Save Settings' "also save the vase / handle?" box — which boxes are ticked. */
-  const [saveAll, setSaveAll] = useState<{ vase: boolean; handle: boolean } | null>(null);
+  const [saveAll, setSaveAll] = useState<{ vase: boolean } | null>(null);
 
   /** `count`: only the main part counts as an export (DCity/ANALYTICS.md §2 — one
    *  event per mold, not per file), so shells, cottle and tray B pass false. */
@@ -287,31 +287,26 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
     ];
   };
 
-  /** Save Settings. When the vase (or the handle this mold uses) has unsaved
-   *  changes, first offer to save those too, so one click leaves everything on
-   *  disk. Each design is saved under its OWN name — the mold's name would make
-   *  all three «name».json and they would overwrite each other. */
+  /** Save Settings. When the vase has unsaved changes, first offer to save it
+   *  too, so one click leaves everything on disk, under its OWN name. (The
+   *  handle is the vase's copy since 2026-11-11, so it goes with the vase.) */
   const handleSaveSettings = () => {
-    const vaseUnsaved = vaseDirty;
-    const handleUnsaved = usesHandle && handleDirty;
-    if (vaseUnsaved || handleUnsaved) setSaveAll({ vase: vaseUnsaved, handle: handleUnsaved });
+    if (vaseDirty) setSaveAll({ vase: true });
     else void saveMoldFiles();
   };
 
-  /** Run the ticked saves, then the mold. The vase and handle go FIRST so the
-   *  mold file records the names they were actually saved under (Chrome can
-   *  rename in its dialog). Cancelling any dialog stops the rest. */
-  const runSaveAll = async (choice: { vase: boolean; handle: boolean }) => {
+  /** Run the ticked save, then the mold. The vase goes FIRST so the mold file
+   *  records the name it was actually saved under (Chrome can rename in its
+   *  dialog). Cancelling its dialog stops the rest. */
+  const runSaveAll = async (choice: { vase: boolean }) => {
     setSaveAll(null);
     if (choice.vase && !(await saveCurrentVase())) return;
-    if (choice.handle && !(await saveCurrentHandle(!!choice.vase))) return;
     await saveMoldFiles();
   };
 
   const saveMoldFiles = async () => {
     // Read the names fresh: a save just before this may have renamed them.
     const designName = useVaseStore.getState().designName;
-    const handleName = useHandleStore.getState().settingsName;
     const fileName = await moldName();
     if (!fileName) return;
     // The vase is EMBEDDED, not referenced (2026-08-09). A mold is derived from
@@ -328,10 +323,9 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
       settings: moldWithVaseFoot(params, vaseParams),
       vase: vaseParams,
       vaseName: designName,
-      // The handle always travels (Gary, 2026-11-11), so a mug's handle is never
-      // lost; it used to go only when this style cast it (2026-10-10), because
-      // asking about it on load was noise — the Load list is one line.
-      handle: handleParams, handleName,
+      // The handle travels ON the vase (vase.handle, 2026-11-11): its copy and
+      // where it goes. Files before that kept it here, beside the vase, with its
+      // place in the mold settings; readMoldFile moves it onto the vase.
     }, null, 2);
     // "Tall Tumbler – Split Halves.json" + .txt (Gary, 2026-11-11): a second style
     // gets its own pair instead of replacing this one; the mold keeps its own name.
@@ -860,6 +854,14 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
           </Section>}
           {/* Without the plug a split mold has nothing to mould a recess or a mark from, so
               the master's bottom is flat (split-halves-generator.ts). Say so (Gary, 2026-11-11). */}
+          {/* The vase has a handle this mold does not cast (Gary, 2026-11-11, plan Part 2). */}
+          {vaseHandleNow.enabled && !usesHandle && (
+            <p data-own-mold-note className="text-[11px] text-[var(--text-secondary)] mx-3 mb-2 leading-snug">
+              The vase&apos;s handle is not cast in this mold: cast it in its own mold on the{' '}
+              <Link href="/handle" className="underline hover:text-[var(--text-primary)]">Handle tab ▸</Link>
+              {isHalves ? ', or turn on Handle below to cast it with the mug' : ''}.
+            </p>
+          )}
           {(isHalves || isThirds) && !(isThirds ? params.thirdsFootPiece : params.halvesFootPiece) && vaseParams.bottom?.footOn && (
             <p data-foot-note className="text-[11px] text-amber-400 mx-3 mb-2 leading-snug">The vase has a foot. Without the Bottom Plug this mold casts a flat bottom; turn Bottom Plug on to cast the foot.</p>
           )}
@@ -892,13 +894,18 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 ? 'Reusable parts, the handle-mold way: the master sits in a pocket in the plate, two walls clip on round it. After the plaster sets: walls off, plate off, then cold water into the master and pull it out'
                 : 'One throwaway printed tray per plaster half. Pour plaster into each, let it set, then soften the plastic with a heat gun and peel it off'}>
                 {sl('plasterThickness', 'Plaster', 'mm', 'Plaster around the vase: the margin each side of it, below its base, and behind it')}
-                {sl('seamAngle', 'Split Angle', '°', 'Where the split plane runs through the vase. On a square or polygon it decides where the seam lines fall — watch the Undercuts view. It also decides which side the handle is on')}
+                {usesHandle ? (
+                  // The seam runs through the cast handle, so the handle's place decides it (2026-11-11).
+                  <p data-split-follows className="text-[11px] text-[var(--text-secondary)] mb-1 leading-snug">
+                    Split Angle {vaseHandleNow.around}°: the seam runs through the handle, so it follows the handle&apos;s Around (Vase tab → Handle).
+                  </p>
+                ) : sl('seamAngle', 'Split Angle', '°', 'Where the split plane runs through the vase. On a square or polygon it decides where the seam lines fall — watch the Undercuts view. When this mold casts the handle, the seam runs through it instead, at the handle\'s Around (Vase tab)')}
                 <SplitTopView
                   vase={vaseParams}
                   keepTexture={params.keepTexture}
-                  seamAngle={params.seamAngle}
+                  seamAngle={usesHandle ? vaseHandleNow.around : params.seamAngle}
                   handleOn={usesHandle}
-                  zFrac={usesHandle ? Math.max(0, 1 - params.handleTopDrop / Math.max(1, vaseParams.height)) : 0.5}
+                  zFrac={usesHandle ? Math.max(0, 1 - vaseHandleNow.topDrop / Math.max(1, vaseParams.height)) : 0.5}
                 />
                 <p className="text-[11px] text-[var(--text-secondary)] mb-1 leading-snug">
                   Looking down{usesHandle ? ', sliced where the handle\'s top attaches' : ', sliced half way up'}. Dashed = the split{usesHandle ? '; red = the handle' : ''}.
@@ -963,15 +970,31 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
                 titleColor={GROUP_COLORS.smoothing}
                 checked={params.splitHandle}
                 onToggle={(v) => setParam('splitHandle', v)}
-                changed={any('splitHandle', 'handleTopDrop', 'castWallThickness', isHalves && 'halvesRibSlot')}
+                changed={any('splitHandle', 'castWallThickness', isHalves && 'halvesRibSlot')}
                 changedTip={CHANGED_TIP}
-                tooltip="Cast the handle with the vase: the current HandleMaker design, turned so both ends sit on the vase. It goes on the Split Angle side — add 180° to move it to the other side"
+                offHint="Turn on Handle to cast the vase's handle in this mold"
+                tooltip="Cast the vase's handle with the mug, in this mold. The handle and where it goes are the vase's (Vase tab → Handle); the seam runs through it. Off: cast the handle in its own mold on the Handle tab"
               >
-                <p className="text-[11px] text-[var(--text-secondary)] mb-1 leading-snug">
-                  From HandleMaker: <span className="text-[var(--text-primary)]">{handleName}</span>{' '}
-                  <Link href="/handle" className="underline hover:text-[var(--text-primary)]">edit ▸</Link>
-                </p>
-                {sl('handleTopDrop', 'Top Below Rim', 'mm', 'Where the top of the handle meets the vase, measured down from the rim (finished size). The bottom end lands wherever the handle\'s span reaches the vase below it')}
+                {vaseHandleNow.enabled && vaseHandleNow.handle ? (
+                  <>
+                    <p className="text-[11px] text-[var(--text-secondary)] mb-1 leading-snug">
+                      The vase&apos;s handle: <span className="text-[var(--text-primary)]">{vaseHandleNow.handleName || 'handle'}</span>, {vaseHandleNow.around}° round, {vaseHandleNow.topDrop} mm below the rim{' '}
+                      <Link href="/" className="underline hover:text-[var(--text-primary)]">Vase tab ▸</Link>
+                    </p>
+                    {handleTabDiffers && (
+                      <button onClick={useHandleTabNow} data-use-handle-tab
+                        className="w-full mb-2 text-xs px-2 py-1 rounded border border-amber-700 text-amber-200 hover:bg-amber-950/50"
+                        title="The Handle tab's handle differs from the one on the vase. Copy it onto the vase (and so into this mold)">
+                        Use the Handle tab&apos;s “{handleTabName}”
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <p data-no-vase-handle className="text-[11px] text-[var(--text-secondary)] mb-1 leading-snug">
+                    The vase has no handle. Turn one on on the Vase tab (Handle), then this mold casts it.{' '}
+                    <Link href="/" className="underline hover:text-[var(--text-primary)]">Vase tab ▸</Link>
+                  </p>
+                )}
                 {sl('castWallThickness', 'Cast Wall', 'mm', 'How thick you usually cast your slip pieces: the wall you let build up in the mold before you drain it. Nothing on your display changes when you move this, and the mold you print stays the same. It is only used to warn you (an amber note) when the handle is thicker than about twice this, because it may not fill solid before you drain')}
                 {isHalves && sl('halvesRibSlot', 'Rib Slot', 'mm', 'A gap down the middle of each of the 3 pull-ribs in the handle\'s master. Squeezing the strap with pliers closes it, to start the master moving; to pull, grip both halves of a rib together. Ice water runs along the handle through it. 0 = solid ribs')}
                 {(mold.style === 'splitTwoPiece' || mold.style === 'splitHalves') && mold.handleError && (
@@ -1249,7 +1272,6 @@ export function MoldSidebar({ mold, helpOpen, onToggleHelp }: { mold: AnyMoldMes
             </p>
             {([
               ['vase', 'Vase', designName || 'vase-design', vaseDirty, true],
-              ['handle', 'Handle', handleName, handleDirty, usesHandle],
             ] as const).map(([key, label, name, dirty, show]) => show && (
               <label key={key} className="flex items-center gap-2 text-xs text-[var(--text-secondary)] mb-1.5 cursor-pointer">
                 <input type="checkbox" checked={saveAll[key]}
